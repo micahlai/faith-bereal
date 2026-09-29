@@ -28,6 +28,8 @@ Only a hash of the normalized invite code is stored. Joining happens through a s
 
 Unique active membership per circle/user pair.
 
+`leave_circle` marks a membership removed. When the departing member owns the circle, the RPC transfers ownership to the earliest-joined active member; if nobody remains, it deletes the circle transactionally.
+
 ### `daily_prompts`
 
 `id`, `circle_id`, `local_date`, `starts_at`, `ends_at`, `response_window_minutes`, `state`, `dispatch_key`, `created_at`

@@ -22,7 +22,7 @@ Supabase Auth ---- Postgres + RLS ---- Storage
 - `DesignSystem`: semantic colors, typography, spacing, and shared controls.
 - `LiveActivity`: shared attributes and the widget extension UI.
 
-The app uses one `AppModel` on the main actor for session and navigation state. Services are injected as protocols so previews and unit tests never require a network or Apple credentials.
+The app uses one `AppModel` on the main actor for session, all active circle memberships, the persisted selected-circle context, and navigation state. Switching circles atomically replaces the prompt, timeline, realtime subscription, and submission state. Services are injected as protocols so previews and unit tests never require a network or Apple credentials.
 
 ## Backend choice
 

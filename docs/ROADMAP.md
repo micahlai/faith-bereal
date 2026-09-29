@@ -20,6 +20,8 @@ Exit: a clean checkout generates, builds, and tests without private credentials.
 - [x] Multi-lane historical timeline with missed indicators
 - [x] Local ActivityKit start/update/end
 - [x] Owner schedule/time-zone/name/late-post settings
+- [x] Multiple memberships, global circle switching, and owner-safe leave flow
+- [x] Global user settings with account-wide Bible translation
 - [x] Optional scripture tagging and per-user public-domain translation
 - [x] Scrollable joined-at-aware timeline, media detail, and text/voice responses
 

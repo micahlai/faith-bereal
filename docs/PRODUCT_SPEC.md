@@ -29,10 +29,15 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 ### Circles
 
 - Create a circle and receive a human-readable, case-insensitive invite code.
-- Join by code, leave, and view members.
+- Join by code, leave, and view members. If an owner leaves, ownership passes to the longest-standing remaining member; leaving an owner-only circle deletes it.
 - The circle owner can rotate the invite code and remove members.
 - The circle owner can rename the circle, select its IANA time zone, configure the daily random-time range, choose a response duration from `1, 2, 3, 5, 10, 15, 20, 40, 60, 90, 120, 180` minutes, and allow or disallow late posts.
-- MVP supports one active circle per user in the UI; the schema supports multiple memberships.
+- Members can belong to multiple circles. A global top-bar menu switches the active circle, and all Today, Timeline, capture, response, and settings data follows that selection.
+
+### User settings
+
+- A global hamburger menu opens user settings and circle management from every primary tab.
+- Bible translation is an account-wide preference in user settings, not a circle setting.
 
 ### Daily prompt
 
@@ -92,6 +97,5 @@ This resolves the example in the brief as “history is always readable; only th
 
 ## Open product decisions
 
-- Whether users may belong to multiple active circles in the first release.
 - Exact video retention policy and whether originals are downsampled after upload.
 - Whether the name “Blessing Circle” is final; trademark and App Store naming checks are required.

@@ -29,6 +29,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 ## Integration tests
 
 - create and join circle with two accounts;
+- switch between multiple memberships and verify prompt/timeline isolation;
+- leave as a member, leave as an owner with successors, and delete an owner-only circle;
 - storage upload/finalize and abandoned-upload cleanup;
 - RLS attempts across circles and before/after posting;
 - realtime insert arrives only after visibility becomes legal;
