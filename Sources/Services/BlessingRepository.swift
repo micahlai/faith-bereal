@@ -18,6 +18,10 @@ protocol BlessingRepository: Sendable {
     func updateCircleSettings(
         circleID: UUID,
         ownerID: UUID,
+        name: String,
+        timeZoneIdentifier: String,
+        randomWindowStartMinutes: Int,
+        randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
         allowsLateBlessings: Bool
     ) async throws -> CircleGroup

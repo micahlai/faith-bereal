@@ -15,6 +15,8 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     var ownerID: UUID
     var members: [Member]
     var timeZoneIdentifier: String
+    var randomWindowStartMinutes: Int
+    var randomWindowEndMinutes: Int
     var responseWindowMinutes: Int
     var allowsLateBlessings: Bool
 

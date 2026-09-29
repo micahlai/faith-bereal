@@ -96,12 +96,18 @@ final class DomainRulesTests: XCTestCase {
         let updated = try await repository.updateCircleSettings(
             circleID: circle.id,
             ownerID: user.id,
+            name: "Morning Light",
+            timeZoneIdentifier: "America/New_York",
+            randomWindowStartMinutes: 7 * 60,
+            randomWindowEndMinutes: 18 * 60,
             responseWindowMinutes: 40,
             allowsLateBlessings: true
         )
 
         XCTAssertEqual(updated.responseWindowMinutes, 40)
         XCTAssertTrue(updated.allowsLateBlessings)
+        XCTAssertEqual(updated.name, "Morning Light")
+        XCTAssertEqual(updated.timeZoneIdentifier, "America/New_York")
     }
 
     func testLateSubmissionIsMarkedLateWhenCircleAllowsIt() async throws {

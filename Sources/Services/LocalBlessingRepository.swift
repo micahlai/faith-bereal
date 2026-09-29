@@ -39,6 +39,8 @@ actor LocalBlessingRepository: BlessingRepository {
             ownerID: user.id,
             members: [user, ava, ben],
             timeZoneIdentifier: TimeZone.current.identifier,
+            randomWindowStartMinutes: 8 * 60,
+            randomWindowEndMinutes: 20 * 60,
             responseWindowMinutes: 10,
             allowsLateBlessings: true
         )
@@ -252,6 +254,8 @@ actor LocalBlessingRepository: BlessingRepository {
             ownerID: member.id,
             members: [member],
             timeZoneIdentifier: TimeZone.current.identifier,
+            randomWindowStartMinutes: 8 * 60,
+            randomWindowEndMinutes: 20 * 60,
             responseWindowMinutes: 10,
             allowsLateBlessings: false
         )
@@ -261,6 +265,10 @@ actor LocalBlessingRepository: BlessingRepository {
     func updateCircleSettings(
         circleID: UUID,
         ownerID: UUID,
+        name: String,
+        timeZoneIdentifier: String,
+        randomWindowStartMinutes: Int,
+        randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
         allowsLateBlessings: Bool
     ) async throws -> CircleGroup {
@@ -270,6 +278,19 @@ actor LocalBlessingRepository: BlessingRepository {
         guard ResponseWindowOptions.minutes.contains(responseWindowMinutes) else {
             throw BlessingError.outsideResponseWindow
         }
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedName.isEmpty,
+              cleanedName.count <= 80,
+              TimeZone(identifier: timeZoneIdentifier) != nil,
+              (0..<1_440).contains(randomWindowStartMinutes),
+              (1...1_440).contains(randomWindowEndMinutes),
+              randomWindowEndMinutes > randomWindowStartMinutes else {
+            throw BlessingError.invalidInviteCode
+        }
+        circle.name = cleanedName
+        circle.timeZoneIdentifier = timeZoneIdentifier
+        circle.randomWindowStartMinutes = randomWindowStartMinutes
+        circle.randomWindowEndMinutes = randomWindowEndMinutes
         circle.responseWindowMinutes = responseWindowMinutes
         circle.allowsLateBlessings = allowsLateBlessings
         return circle

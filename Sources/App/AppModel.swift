@@ -139,12 +139,23 @@ final class AppModel {
         }
     }
 
-    func updateCircleSettings(responseWindowMinutes: Int, allowsLateBlessings: Bool) async -> Bool {
+    func updateCircleSettings(
+        name: String,
+        timeZoneIdentifier: String,
+        randomWindowStartMinutes: Int,
+        randomWindowEndMinutes: Int,
+        responseWindowMinutes: Int,
+        allowsLateBlessings: Bool
+    ) async -> Bool {
         guard let circle, let currentUser else { return false }
         do {
             self.circle = try await repository.updateCircleSettings(
                 circleID: circle.id,
                 ownerID: currentUser.id,
+                name: name,
+                timeZoneIdentifier: timeZoneIdentifier,
+                randomWindowStartMinutes: randomWindowStartMinutes,
+                randomWindowEndMinutes: randomWindowEndMinutes,
                 responseWindowMinutes: responseWindowMinutes,
                 allowsLateBlessings: allowsLateBlessings
             )

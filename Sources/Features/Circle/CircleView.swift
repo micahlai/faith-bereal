@@ -215,6 +215,10 @@ private struct CircleSettingsView: View {
     @Binding var isPresented: Bool
     @State private var selectedIndex: Double
     @State private var allowsLateBlessings: Bool
+    @State private var name: String
+    @State private var timeZoneIdentifier: String
+    @State private var randomWindowStart: Date
+    @State private var randomWindowEnd: Date
     @State private var isSaving = false
 
     init(circle: CircleGroup, isPresented: Binding<Bool>) {
@@ -223,6 +227,10 @@ private struct CircleSettingsView: View {
         let index = ResponseWindowOptions.minutes.firstIndex(of: circle.responseWindowMinutes) ?? 4
         _selectedIndex = State(initialValue: Double(index))
         _allowsLateBlessings = State(initialValue: circle.allowsLateBlessings)
+        _name = State(initialValue: circle.name)
+        _timeZoneIdentifier = State(initialValue: circle.timeZoneIdentifier)
+        _randomWindowStart = State(initialValue: Self.wallClockDate(minutes: circle.randomWindowStartMinutes))
+        _randomWindowEnd = State(initialValue: Self.wallClockDate(minutes: circle.randomWindowEndMinutes))
     }
 
     private var selectedMinutes: Int {
@@ -230,9 +238,48 @@ private struct CircleSettingsView: View {
         return ResponseWindowOptions.minutes[index]
     }
 
+    private var randomWindowStartMinutes: Int { Self.minutes(from: randomWindowStart) }
+    private var randomWindowEndMinutes: Int { Self.minutes(from: randomWindowEnd) }
+    private var settingsAreValid: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && randomWindowEndMinutes > randomWindowStartMinutes
+    }
+
     var body: some View {
         NavigationStack {
             Form {
+                Section("Circle") {
+                    TextField("Circle name", text: $name)
+                        .textContentType(.organizationName)
+                    NavigationLink {
+                        CircleTimeZonePicker(selection: $timeZoneIdentifier)
+                    } label: {
+                        LabeledContent("Time zone", value: timeZoneDisplayName)
+                    }
+                }
+
+                Section {
+                    DatePicker(
+                        "Earliest time",
+                        selection: $randomWindowStart,
+                        displayedComponents: .hourAndMinute
+                    )
+                    DatePicker(
+                        "Latest time",
+                        selection: $randomWindowEnd,
+                        displayedComponents: .hourAndMinute
+                    )
+                    if randomWindowEndMinutes <= randomWindowStartMinutes {
+                        Label("Latest time must be after earliest time.", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("Random blessing time")
+                } footer: {
+                    Text("The server chooses one shared moment inside this range using \(timeZoneIdentifier).")
+                }
+
                 Section {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack(alignment: .firstTextBaseline) {
@@ -258,9 +305,6 @@ private struct CircleSettingsView: View {
                         .tint(AppTheme.iris)
                         .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
 
-                        Text("Choose 1, 2, 3, 5, 10, 15, 20, 40, 60, 90, 120, or 180 minutes.")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.secondaryInk)
                     }
                     .padding(.vertical, 6)
                 } footer: {
@@ -278,6 +322,10 @@ private struct CircleSettingsView: View {
                         isSaving = true
                         Task {
                             let saved = await model.updateCircleSettings(
+                                name: name,
+                                timeZoneIdentifier: timeZoneIdentifier,
+                                randomWindowStartMinutes: randomWindowStartMinutes,
+                                randomWindowEndMinutes: randomWindowEndMinutes,
                                 responseWindowMinutes: selectedMinutes,
                                 allowsLateBlessings: allowsLateBlessings
                             )
@@ -291,7 +339,7 @@ private struct CircleSettingsView: View {
                             if isSaving { ProgressView() }
                         }
                     }
-                    .disabled(isSaving)
+                    .disabled(isSaving || !settingsAreValid)
                 }
             }
             .navigationTitle("Circle settings")
@@ -303,5 +351,66 @@ private struct CircleSettingsView: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private var timeZoneDisplayName: String {
+        guard let zone = TimeZone(identifier: timeZoneIdentifier) else { return timeZoneIdentifier }
+        return zone.localizedName(for: .standard, locale: .current) ?? timeZoneIdentifier
+    }
+
+    private static func wallClockDate(minutes: Int) -> Date {
+        Calendar.current.date(
+            from: DateComponents(year: 2001, month: 1, day: 1, hour: minutes / 60, minute: minutes % 60)
+        ) ?? .now
+    }
+
+    private static func minutes(from date: Date) -> Int {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+    }
+}
+
+private struct CircleTimeZonePicker: View {
+    @Binding var selection: String
+    @State private var searchText = ""
+
+    private var zones: [String] {
+        let all = TimeZone.knownTimeZoneIdentifiers
+        guard !searchText.isEmpty else { return all }
+        return all.filter { identifier in
+            identifier.localizedCaseInsensitiveContains(searchText)
+                || displayName(for: identifier).localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    var body: some View {
+        List(zones, id: \.self) { identifier in
+            Button {
+                selection = identifier
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(displayName(for: identifier))
+                            .foregroundStyle(AppTheme.ink)
+                        Text(identifier)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    Spacer()
+                    if selection == identifier {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(AppTheme.iris)
+                            .accessibilityLabel("Selected")
+                    }
+                }
+            }
+        }
+        .navigationTitle("Circle time zone")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "City or time zone")
+    }
+
+    private func displayName(for identifier: String) -> String {
+        TimeZone(identifier: identifier)?.localizedName(for: .standard, locale: .current) ?? identifier
     }
 }
