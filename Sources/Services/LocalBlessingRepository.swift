@@ -3,7 +3,7 @@ import Foundation
 actor LocalBlessingRepository: BlessingRepository {
     private let calendar: Calendar
     private let currentUser: Member
-    private var circle: Circle
+    private var circle: CircleGroup
     private var prompts: [DailyPrompt]
     private var blessings: [Blessing]
 
@@ -32,7 +32,7 @@ actor LocalBlessingRepository: BlessingRepository {
         )
 
         currentUser = user
-        circle = Circle(
+        circle = CircleGroup(
             id: UUID(uuidString: "B0000000-0000-0000-0000-000000000001")!,
             name: "Sunday Table",
             inviteCode: "LIGHT7",
@@ -50,7 +50,17 @@ actor LocalBlessingRepository: BlessingRepository {
             endsAt: currentStart.addingTimeInterval(600)
         )
         var seededPrompts = [current]
-        var seededBlessings: [Blessing] = []
+        var seededBlessings: [Blessing] = [
+            Blessing(
+                id: UUID(),
+                promptID: current.id,
+                authorID: ava.id,
+                captureMode: .voice,
+                body: "A hard conversation that ended with more understanding.",
+                videoURL: nil,
+                submittedAt: currentStart.addingTimeInterval(82)
+            )
+        ]
 
         for offset in 1...4 {
             let day = calendar.date(byAdding: .day, value: -offset, to: startOfToday)!
@@ -104,7 +114,7 @@ actor LocalBlessingRepository: BlessingRepository {
         blessings = seededBlessings
     }
 
-    func bootstrap() async throws -> (Member, Circle, DailyPrompt) {
+    func bootstrap() async throws -> (Member, CircleGroup, DailyPrompt) {
         guard let prompt = prompts.max(by: { $0.localDate < $1.localDate }) else {
             throw BlessingError.outsideResponseWindow
         }
@@ -182,16 +192,16 @@ actor LocalBlessingRepository: BlessingRepository {
         return blessing
     }
 
-    func joinCircle(code: String, memberID: UUID) async throws -> Circle {
-        let normalized = code.uppercased().filter(\.isLetterOrNumber)
+    func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup {
+        let normalized = code.uppercased().filter { $0.isLetter || $0.isNumber }
         guard normalized == circle.inviteCode else { throw BlessingError.invalidInviteCode }
         return circle
     }
 
-    func createCircle(name: String, member: Member) async throws -> Circle {
+    func createCircle(name: String, member: Member) async throws -> CircleGroup {
         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { throw BlessingError.invalidInviteCode }
-        circle = Circle(
+        circle = CircleGroup(
             id: UUID(),
             name: cleaned,
             inviteCode: String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).uppercased(),
@@ -201,4 +211,3 @@ actor LocalBlessingRepository: BlessingRepository {
         return circle
     }
 }
-

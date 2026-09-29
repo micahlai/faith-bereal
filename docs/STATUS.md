@@ -4,7 +4,7 @@ Last updated: 2026-09-29
 
 ## Current phase
 
-Milestone 0 — foundation.
+Milestone 1 — local vertical slice.
 
 ## Completed
 
@@ -13,11 +13,15 @@ Milestone 0 — foundation.
 - Apple platform constraints for ActivityKit, APNs, Speech, and camera capture recorded.
 - Visual direction, semantic palette, accessibility baseline, and primary screen structure defined.
 - Repository operating guide and staged delivery roadmap added.
+- XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
+- Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
+- ActivityKit local start/update UI and deep-link route implemented.
+- Four domain tests pass on an iPhone 17 Pro simulator.
 
 ## In progress
 
-- Generating the SwiftUI app, ActivityKit extension, and unit-test targets.
-- Implementing the first local vertical slice.
+- Production Supabase migration, RLS policies, and Edge Function boundaries.
+- Sign in with Apple production adapter and remote APNs token registration.
 
 ## Not yet production-ready
 
@@ -28,5 +32,4 @@ Milestone 0 — foundation.
 
 ## Next implementation task
 
-Finish the local vertical slice, then implement the SQL migration and Supabase service adapter behind the existing service protocols.
-
+Implement the SQL migration and production service adapter behind the existing service protocols, then verify access with two physical-device accounts.

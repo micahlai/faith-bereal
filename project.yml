@@ -23,7 +23,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios
-        PRODUCT_NAME: Blessing Circle
+        PRODUCT_MODULE_NAME: BlessingCircle
         TARGETED_DEVICE_FAMILY: "1,2"
         INFOPLIST_KEY_CFBundleDisplayName: Blessing Circle
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
@@ -38,6 +38,11 @@ targets:
       path: Configuration/App-Info.plist
       properties:
         CFBundleDisplayName: Blessing Circle
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: app.blessingcircle.ios
+            CFBundleURLSchemes:
+              - blessingcircle
         NSMicrophoneUsageDescription: Blessing Circle uses the microphone only while you dictate a blessing.
         NSSpeechRecognitionUsageDescription: Blessing Circle transcribes your spoken blessing into editable text.
         NSCameraUsageDescription: Blessing Circle uses the camera when you choose to record a video blessing.
@@ -46,10 +51,6 @@ targets:
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
-    entitlements:
-      path: Configuration/BlessingCircle.entitlements
-      properties:
-        com.apple.developer.usernotifications.communication: true
     dependencies:
       - target: BlessingCircleLiveActivity
         embed: true
@@ -85,4 +86,3 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.tests
-

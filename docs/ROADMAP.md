@@ -3,22 +3,22 @@
 ## Milestone 0 — foundation
 
 - [x] Product specification, architecture, backend decision, design language, security notes, testing plan
-- [ ] XcodeGen project with app, Live Activity extension, and unit-test targets
-- [ ] Shared models, service protocols, seeded local backend
-- [ ] CI-ready build and test commands
+- [x] XcodeGen project with app, Live Activity extension, and unit-test targets
+- [x] Shared models, service protocols, seeded local backend
+- [x] CI-ready build and test commands
 
 Exit: a clean checkout generates, builds, and tests without private credentials.
 
 ## Milestone 1 — local vertical slice
 
-- [ ] Demo identity and onboarding
-- [ ] Create/join circle by code
-- [ ] Today screen with prompt state and ten-minute countdown
-- [ ] Typed and speech-transcribed capture
-- [ ] In-app video capture and preview
-- [ ] Atomic local submission and today-unlock behavior
-- [ ] Multi-lane historical timeline with missed indicators
-- [ ] Local ActivityKit start/update/end
+- [x] Demo identity and seeded circle
+- [x] Create/join circle by code
+- [x] Today screen with prompt state and ten-minute countdown
+- [x] Typed and speech-transcribed capture
+- [x] In-app system camera capture and ready state
+- [x] Atomic local submission and today-unlock behavior
+- [x] Multi-lane historical timeline with missed indicators
+- [x] Local ActivityKit start/update/end
 
 Exit: the complete product loop works in simulator/device against deterministic seeded data.
 
@@ -51,4 +51,3 @@ Exit: randomized prompts reliably open/close across devices without relying on t
 - [ ] App Store assets, review notes, and TestFlight cohort
 
 Exit: release candidate meets App Review, privacy, reliability, and accessibility requirements.
-

@@ -7,7 +7,7 @@ struct Member: Identifiable, Codable, Hashable, Sendable {
     var tintSeed: Int
 }
 
-struct Circle: Identifiable, Codable, Hashable, Sendable {
+struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var name: String
     var inviteCode: String
@@ -123,4 +123,3 @@ enum BlessingError: LocalizedError, Equatable {
         }
     }
 }
-
