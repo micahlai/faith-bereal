@@ -36,8 +36,11 @@ actor LocalBlessingRepository: BlessingRepository {
             id: UUID(uuidString: "B0000000-0000-0000-0000-000000000001")!,
             name: "Sunday Table",
             inviteCode: "LIGHT7",
+            ownerID: user.id,
             members: [user, ava, ben],
-            timeZoneIdentifier: TimeZone.current.identifier
+            timeZoneIdentifier: TimeZone.current.identifier,
+            responseWindowMinutes: 10,
+            allowsLateBlessings: true
         )
 
         let startOfToday = calendar.startOfDay(for: now)
@@ -58,7 +61,8 @@ actor LocalBlessingRepository: BlessingRepository {
                 captureMode: .voice,
                 body: "A hard conversation that ended with more understanding.",
                 videoURL: nil,
-                submittedAt: currentStart.addingTimeInterval(82)
+                submittedAt: currentStart.addingTimeInterval(82),
+                isLate: false
             )
         ]
 
@@ -87,7 +91,8 @@ actor LocalBlessingRepository: BlessingRepository {
                         "Enough energy to begin again."
                     ][offset - 1],
                     videoURL: nil,
-                    submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + 123)
+                    submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + 123),
+                    isLate: false
                 )
             )
             if offset != 2 {
@@ -104,7 +109,8 @@ actor LocalBlessingRepository: BlessingRepository {
                             "Fresh bread and an unhurried morning."
                         ][offset - 1],
                         videoURL: nil,
-                        submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + 202)
+                        submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + (offset == 3 ? 702 : 202)),
+                        isLate: offset == 3
                     )
                 )
             }
@@ -147,7 +153,7 @@ actor LocalBlessingRepository: BlessingRepository {
                     } else {
                         status = .locked
                     }
-                } else if isToday && prompt.phase(at: now) != .closed {
+                } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings) {
                     status = .waiting
                 } else {
                     status = .missed
@@ -166,9 +172,18 @@ actor LocalBlessingRepository: BlessingRepository {
         videoURL: URL?,
         now: Date
     ) async throws -> Blessing {
-        guard let prompt = prompts.first(where: { $0.id == promptID }), prompt.phase(at: now) == .open else {
+        guard let prompt = prompts.first(where: { $0.id == promptID }) else {
             throw BlessingError.outsideResponseWindow
         }
+        let nextPromptStart = prompts
+            .filter { $0.circleID == prompt.circleID && $0.startsAt > prompt.startsAt }
+            .map(\.startsAt)
+            .min()
+        let isWithinWindow = prompt.phase(at: now) == .open
+        let isAcceptedLate = circle.allowsLateBlessings
+            && now >= prompt.endsAt
+            && nextPromptStart.map { now < $0 } ?? true
+        guard isWithinWindow || isAcceptedLate else { throw BlessingError.outsideResponseWindow }
         guard !blessings.contains(where: { $0.promptID == promptID && $0.authorID == authorID }) else {
             throw BlessingError.alreadySubmitted
         }
@@ -186,7 +201,8 @@ actor LocalBlessingRepository: BlessingRepository {
             captureMode: mode,
             body: cleanBody,
             videoURL: videoURL,
-            submittedAt: now
+            submittedAt: now,
+            isLate: now >= prompt.endsAt
         )
         blessings.append(blessing)
         return blessing
@@ -205,9 +221,29 @@ actor LocalBlessingRepository: BlessingRepository {
             id: UUID(),
             name: cleaned,
             inviteCode: String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).uppercased(),
+            ownerID: member.id,
             members: [member],
-            timeZoneIdentifier: TimeZone.current.identifier
+            timeZoneIdentifier: TimeZone.current.identifier,
+            responseWindowMinutes: 10,
+            allowsLateBlessings: false
         )
+        return circle
+    }
+
+    func updateCircleSettings(
+        circleID: UUID,
+        ownerID: UUID,
+        responseWindowMinutes: Int,
+        allowsLateBlessings: Bool
+    ) async throws -> CircleGroup {
+        guard circle.id == circleID, circle.ownerID == ownerID else {
+            throw BlessingError.invalidInviteCode
+        }
+        guard ResponseWindowOptions.minutes.contains(responseWindowMinutes) else {
+            throw BlessingError.outsideResponseWindow
+        }
+        circle.responseWindowMinutes = responseWindowMinutes
+        circle.allowsLateBlessings = allowsLateBlessings
         return circle
     }
 }

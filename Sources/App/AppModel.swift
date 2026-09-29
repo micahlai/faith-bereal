@@ -43,6 +43,12 @@ final class AppModel {
             }) == true
     }
 
+    var canSubmitCurrentPrompt: Bool {
+        guard let prompt, let circle, !hasSubmittedToday else { return false }
+        let phase = prompt.phase(at: .now)
+        return phase == .open || (phase == .closed && circle.allowsLateBlessings)
+    }
+
     func bootstrap() async {
         guard loadState == .idle else { return }
         loadState = .loading
@@ -113,6 +119,23 @@ final class AppModel {
             circle = try await repository.createCircle(name: name, member: currentUser)
             try await refreshTimeline()
             message = "Your new circle is ready."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func updateCircleSettings(responseWindowMinutes: Int, allowsLateBlessings: Bool) async -> Bool {
+        guard let circle, let currentUser else { return false }
+        do {
+            self.circle = try await repository.updateCircleSettings(
+                circleID: circle.id,
+                ownerID: currentUser.id,
+                responseWindowMinutes: responseWindowMinutes,
+                allowsLateBlessings: allowsLateBlessings
+            )
+            message = "Circle settings saved. The response length applies to future prompts."
             return true
         } catch {
             message = error.localizedDescription

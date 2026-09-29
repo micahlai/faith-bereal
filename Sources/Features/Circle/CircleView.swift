@@ -6,6 +6,7 @@ struct CircleView: View {
     @State private var newCircleName = ""
     @State private var showingJoin = false
     @State private var showingCreate = false
+    @State private var showingSettings = false
 
     var body: some View {
         ZStack {
@@ -26,6 +27,11 @@ struct CircleView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingJoin) { joinSheet }
         .sheet(isPresented: $showingCreate) { createSheet }
+        .sheet(isPresented: $showingSettings) {
+            if let circle = model.circle {
+                CircleSettingsView(circle: circle, isPresented: $showingSettings)
+            }
+        }
     }
 
     private var circleHeader: some View {
@@ -60,6 +66,21 @@ struct CircleView: View {
                 }
                 .disabled(model.circle == nil)
             }
+
+            if model.circle?.ownerID == model.currentUser?.id {
+                Divider()
+                Button { showingSettings = true } label: {
+                    HStack {
+                        Label("Circle settings", systemImage: "slider.horizontal.3")
+                        Spacer()
+                        Text(windowSummary)
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .blessingCard()
     }
@@ -74,7 +95,7 @@ struct CircleView: View {
                     Text(member.id == model.currentUser?.id ? "\(member.displayName) (you)" : member.displayName)
                         .foregroundStyle(AppTheme.ink)
                     Spacer()
-                    if member.id == model.circle?.members.first?.id {
+                    if member.id == model.circle?.ownerID {
                         Text("Owner")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppTheme.secondaryInk)
@@ -84,6 +105,14 @@ struct CircleView: View {
             }
         }
         .blessingCard()
+    }
+
+    private var windowSummary: String {
+        guard let circle = model.circle else { return "" }
+        let duration = circle.responseWindowMinutes == 1
+            ? "1 min"
+            : "\(circle.responseWindowMinutes) min"
+        return circle.allowsLateBlessings ? "\(duration) · Late allowed" : duration
     }
 
     private var actions: some View {
@@ -151,5 +180,102 @@ struct CircleView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+private struct CircleSettingsView: View {
+    @Environment(AppModel.self) private var model
+    let circle: CircleGroup
+    @Binding var isPresented: Bool
+    @State private var selectedIndex: Double
+    @State private var allowsLateBlessings: Bool
+    @State private var isSaving = false
+
+    init(circle: CircleGroup, isPresented: Binding<Bool>) {
+        self.circle = circle
+        _isPresented = isPresented
+        let index = ResponseWindowOptions.minutes.firstIndex(of: circle.responseWindowMinutes) ?? 4
+        _selectedIndex = State(initialValue: Double(index))
+        _allowsLateBlessings = State(initialValue: circle.allowsLateBlessings)
+    }
+
+    private var selectedMinutes: Int {
+        let index = min(max(Int(selectedIndex.rounded()), 0), ResponseWindowOptions.minutes.count - 1)
+        return ResponseWindowOptions.minutes[index]
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Response window")
+                                .font(.headline)
+                            Spacer()
+                            Text(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                                .font(.headline.monospacedDigit())
+                                .foregroundStyle(AppTheme.iris)
+                        }
+
+                        Slider(
+                            value: $selectedIndex,
+                            in: 0...Double(ResponseWindowOptions.minutes.count - 1),
+                            step: 1
+                        ) {
+                            Text("Response window length")
+                        } minimumValueLabel: {
+                            Text("1m").font(.caption2)
+                        } maximumValueLabel: {
+                            Text("3h").font(.caption2)
+                        }
+                        .tint(AppTheme.iris)
+                        .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+
+                        Text("Choose 1, 2, 3, 5, 10, 15, 20, 40, 60, 90, 120, or 180 minutes.")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    .padding(.vertical, 6)
+                } footer: {
+                    Text("This length is used when future daily prompts are scheduled. Today’s deadline does not move.")
+                }
+
+                Section {
+                    Toggle("Allow late blessings", isOn: $allowsLateBlessings)
+                } footer: {
+                    Text("Members may share after the response window until the next daily prompt. Their post is marked Late in the timeline.")
+                }
+
+                Section {
+                    Button {
+                        isSaving = true
+                        Task {
+                            let saved = await model.updateCircleSettings(
+                                responseWindowMinutes: selectedMinutes,
+                                allowsLateBlessings: allowsLateBlessings
+                            )
+                            isSaving = false
+                            if saved { isPresented = false }
+                        }
+                    } label: {
+                        HStack {
+                            Text("Save settings")
+                            Spacer()
+                            if isSaving { ProgressView() }
+                        }
+                    }
+                    .disabled(isSaving)
+                }
+            }
+            .navigationTitle("Circle settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresented = false }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

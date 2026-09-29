@@ -84,5 +84,37 @@ final class DomainRulesTests: XCTestCase {
             XCTAssertEqual(error, .alreadySubmitted)
         }
     }
-}
 
+    func testOwnerCanChangeFutureResponseWindowAndAllowLateBlessings() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let (user, circle, _) = try await repository.bootstrap()
+
+        let updated = try await repository.updateCircleSettings(
+            circleID: circle.id,
+            ownerID: user.id,
+            responseWindowMinutes: 40,
+            allowsLateBlessings: true
+        )
+
+        XCTAssertEqual(updated.responseWindowMinutes, 40)
+        XCTAssertTrue(updated.allowsLateBlessings)
+    }
+
+    func testLateSubmissionIsMarkedLateWhenCircleAllowsIt() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let (user, _, prompt) = try await repository.bootstrap()
+        let lateTime = prompt.endsAt.addingTimeInterval(30)
+
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: user.id,
+            mode: .typed,
+            body: "Still grateful",
+            videoURL: nil,
+            now: lateTime
+        )
+
+        XCTAssertTrue(blessing.isLate)
+    }
+}

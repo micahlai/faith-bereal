@@ -13,4 +13,10 @@ protocol BlessingRepository: Sendable {
     ) async throws -> Blessing
     func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup
     func createCircle(name: String, member: Member) async throws -> CircleGroup
+    func updateCircleSettings(
+        circleID: UUID,
+        ownerID: UUID,
+        responseWindowMinutes: Int,
+        allowsLateBlessings: Bool
+    ) async throws -> CircleGroup
 }

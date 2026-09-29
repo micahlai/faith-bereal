@@ -122,6 +122,11 @@ private struct TimelineEventView: View {
                 Text(blessing.submittedAt, style: .time)
                     .font(.caption2)
                     .foregroundStyle(AppTheme.secondaryInk)
+                if blessing.isLate {
+                    Label("Late", systemImage: "clock.badge.exclamationmark")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(AppTheme.candle)
+                }
             }
             .padding(14)
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))

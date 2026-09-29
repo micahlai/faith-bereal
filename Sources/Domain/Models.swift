@@ -11,8 +11,19 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var name: String
     var inviteCode: String
+    var ownerID: UUID
     var members: [Member]
     var timeZoneIdentifier: String
+    var responseWindowMinutes: Int
+    var allowsLateBlessings: Bool
+
+    var responseWindowDuration: TimeInterval {
+        TimeInterval(responseWindowMinutes * 60)
+    }
+}
+
+enum ResponseWindowOptions {
+    static let minutes = [1, 2, 3, 5, 10, 15, 20, 40, 60, 90, 120, 180]
 }
 
 struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
@@ -67,6 +78,7 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let body: String?
     let videoURL: URL?
     let submittedAt: Date
+    let isLate: Bool
 }
 
 enum TimelineStatus: Hashable, Sendable {
@@ -117,7 +129,7 @@ enum BlessingError: LocalizedError, Equatable {
         switch self {
         case .invalidInviteCode: "That circle code was not found. Check it and try again."
         case .emptyBlessing: "Add a thought or record a video before sending."
-        case .outsideResponseWindow: "The ten-minute response window has closed."
+        case .outsideResponseWindow: "This response window has closed."
         case .alreadySubmitted: "You already shared a blessing for this prompt."
         case .cameraUnavailable: "The camera is not available on this device."
         }

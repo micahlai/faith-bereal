@@ -13,6 +13,7 @@ struct TodayView: View {
                         PromptWindowView(
                             prompt: prompt,
                             hasSubmitted: model.hasSubmittedToday,
+                            allowsLateBlessings: model.circle?.allowsLateBlessings == true,
                             shareAction: { model.isCapturePresented = true },
                             timelineAction: { model.selectedTab = 1 }
                         )
@@ -66,6 +67,7 @@ private struct PromptWindowView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let prompt: DailyPrompt
     let hasSubmitted: Bool
+    let allowsLateBlessings: Bool
     let shareAction: () -> Void
     let timelineAction: () -> Void
 
@@ -78,7 +80,8 @@ private struct PromptWindowView: View {
     private func promptContent(at date: Date) -> some View {
         let phase = prompt.phase(at: date)
         let remaining = max(0, prompt.endsAt.timeIntervalSince(date))
-        let progress = min(1, max(0, remaining / 600))
+        let duration = max(1, prompt.endsAt.timeIntervalSince(prompt.startsAt))
+        let progress = min(1, max(0, remaining / duration))
 
         return VStack(spacing: 24) {
             ZStack {
@@ -116,6 +119,13 @@ private struct PromptWindowView: View {
                         Text("today’s moment")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.secondaryInk)
+                    } else if allowsLateBlessings {
+                        Image(systemName: "clock.badge.exclamationmark")
+                            .font(.title)
+                            .foregroundStyle(AppTheme.candle)
+                            .accessibilityHidden(true)
+                        Text("Late sharing is open")
+                            .font(.headline)
                     } else {
                         Image(systemName: "moon.stars")
                             .font(.title)
@@ -145,7 +155,7 @@ private struct PromptWindowView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(phase != .open)
+                .disabled(phase != .open && !(phase == .closed && allowsLateBlessings))
             }
         }
         .blessingCard()
@@ -161,7 +171,7 @@ private struct PromptWindowView: View {
         return switch phase {
         case .scheduled: "Today’s prompt starts at \(prompt.startsAt.formatted(date: .omitted, time: .shortened))"
         case .open: "\(durationString(remaining)) remaining to share your blessing"
-        case .closed: "Today’s response window is closed"
+        case .closed: allowsLateBlessings ? "The response window ended, but late sharing is open" : "Today’s response window is closed"
         }
     }
 }
