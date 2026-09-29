@@ -10,6 +10,7 @@ struct CaptureView: View {
     @State private var showCamera = false
     @State private var showBiblePicker = false
     @State private var scriptureReference: ScriptureReference?
+    @State private var isTranscribingVideo = false
     @State private var transcriber = SpeechTranscriber()
     @FocusState private var editorFocused: Bool
 
@@ -44,6 +45,14 @@ struct CaptureView: View {
                     onCapture: { url in
                         videoURL = url
                         showCamera = false
+                        text = ""
+                        isTranscribingVideo = true
+                        Task {
+                            if let transcript = await transcriber.transcribeVideo(at: url) {
+                                text = String(transcript.prefix(600))
+                            }
+                            isTranscribingVideo = false
+                        }
                     },
                     onCancel: { showCamera = false }
                 )
@@ -146,6 +155,24 @@ struct CaptureView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+
+                if videoURL != nil {
+                    if isTranscribingVideo {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text("Creating an editable transcript…")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    editor(
+                        title: "Video transcript",
+                        footer: isTranscribingVideo
+                            ? "Listening to your video…"
+                            : "Review or edit the transcript before sending. \(text.count) of 600 characters"
+                    )
+                }
             }
         case .video:
             VStack(spacing: 18) {
@@ -222,6 +249,7 @@ struct CaptureView: View {
                 if await model.submit(
                     mode: mode,
                     body: text,
+                    audioURL: mode == .voice ? transcriber.recordingURL : nil,
                     videoURL: videoURL,
                     scriptureReference: scriptureReference
                 ) {
@@ -245,8 +273,15 @@ struct CaptureView: View {
 
     private var canSubmit: Bool {
         switch mode {
-        case .typed, .voice: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .video: videoURL != nil
+        case .typed: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .voice:
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && transcriber.recordingURL != nil
+                && transcriber.state != .listening
+        case .video:
+            videoURL != nil
+                && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !isTranscribingVideo
         }
     }
 }

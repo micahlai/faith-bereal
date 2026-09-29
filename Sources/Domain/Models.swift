@@ -77,6 +77,7 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let authorID: UUID
     let captureMode: CaptureMode
     let body: String?
+    let audioURL: URL?
     let videoURL: URL?
     let submittedAt: Date
     let isLate: Bool

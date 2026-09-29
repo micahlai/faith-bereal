@@ -66,6 +66,7 @@ final class DomainRulesTests: XCTestCase {
             authorID: user.id,
             mode: .typed,
             body: "A test blessing",
+            audioURL: nil,
             videoURL: nil,
             scriptureReference: nil,
             now: now
@@ -77,6 +78,7 @@ final class DomainRulesTests: XCTestCase {
                 authorID: user.id,
                 mode: .typed,
                 body: "Another",
+                audioURL: nil,
                 videoURL: nil,
                 scriptureReference: nil,
                 now: now
@@ -113,6 +115,7 @@ final class DomainRulesTests: XCTestCase {
             authorID: user.id,
             mode: .typed,
             body: "Still grateful",
+            audioURL: nil,
             videoURL: nil,
             scriptureReference: nil,
             now: lateTime
@@ -138,6 +141,7 @@ final class DomainRulesTests: XCTestCase {
             authorID: user.id,
             mode: .typed,
             body: "Grace today",
+            audioURL: nil,
             videoURL: nil,
             scriptureReference: reference,
             now: now

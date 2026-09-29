@@ -60,6 +60,7 @@ actor LocalBlessingRepository: BlessingRepository {
                 authorID: ava.id,
                 captureMode: .voice,
                 body: "A hard conversation that ended with more understanding.",
+                audioURL: nil,
                 videoURL: nil,
                 submittedAt: currentStart.addingTimeInterval(82),
                 isLate: false,
@@ -97,6 +98,7 @@ actor LocalBlessingRepository: BlessingRepository {
                         "Dinner around the same table.",
                         "Enough energy to begin again."
                     ][offset - 1],
+                    audioURL: nil,
                     videoURL: nil,
                     submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + 123),
                     isLate: false,
@@ -124,6 +126,7 @@ actor LocalBlessingRepository: BlessingRepository {
                             "The patience to listen before answering.",
                             "Fresh bread and an unhurried morning."
                         ][offset - 1],
+                        audioURL: nil,
                         videoURL: nil,
                         submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + (offset == 3 ? 702 : 202)),
                         isLate: offset == 3,
@@ -186,6 +189,7 @@ actor LocalBlessingRepository: BlessingRepository {
         authorID: UUID,
         mode: CaptureMode,
         body: String?,
+        audioURL: URL?,
         videoURL: URL?,
         scriptureReference: ScriptureReference?,
         now: Date
@@ -206,10 +210,14 @@ actor LocalBlessingRepository: BlessingRepository {
             throw BlessingError.alreadySubmitted
         }
         let cleanBody = body?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if mode == .video {
+        guard let cleanBody, !cleanBody.isEmpty else { throw BlessingError.emptyBlessing }
+        switch mode {
+        case .typed:
+            break
+        case .voice:
+            guard audioURL != nil else { throw BlessingError.emptyBlessing }
+        case .video:
             guard videoURL != nil else { throw BlessingError.emptyBlessing }
-        } else {
-            guard let cleanBody, !cleanBody.isEmpty else { throw BlessingError.emptyBlessing }
         }
 
         let blessing = Blessing(
@@ -218,6 +226,7 @@ actor LocalBlessingRepository: BlessingRepository {
             authorID: authorID,
             captureMode: mode,
             body: cleanBody,
+            audioURL: audioURL,
             videoURL: videoURL,
             submittedAt: now,
             isLate: now >= prompt.endsAt,

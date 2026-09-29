@@ -8,6 +8,7 @@ protocol BlessingRepository: Sendable {
         authorID: UUID,
         mode: CaptureMode,
         body: String?,
+        audioURL: URL?,
         videoURL: URL?,
         scriptureReference: ScriptureReference?,
         now: Date

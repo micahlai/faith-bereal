@@ -80,6 +80,7 @@ final class AppModel {
     func submit(
         mode: CaptureMode,
         body: String?,
+        audioURL: URL?,
         videoURL: URL?,
         scriptureReference: ScriptureReference?
     ) async -> Bool {
@@ -92,6 +93,7 @@ final class AppModel {
                 authorID: currentUser.id,
                 mode: mode,
                 body: body,
+                audioURL: audioURL,
                 videoURL: videoURL,
                 scriptureReference: scriptureReference,
                 now: .now
