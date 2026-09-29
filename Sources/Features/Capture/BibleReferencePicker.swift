@@ -55,19 +55,24 @@ struct BibleReferencePicker: View {
                     .pickerStyle(.menu)
 
                     if verseCount > 0 {
-                        Picker("First verse", selection: $verseStart) {
-                            ForEach(1...verseCount, id: \.self) { number in
-                                Text("\(number)").tag(number)
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("Verses")
+                                Spacer()
+                                Text(verseStart == verseEnd ? "\(verseStart)" : "\(verseStart)–\(verseEnd)")
+                                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(AppTheme.iris)
                             }
+                            VerseRangeGrid(
+                                verseCount: verseCount,
+                                start: $verseStart,
+                                end: $verseEnd
+                            )
+                            Text("Drag across the grid to select a continuous range.")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.secondaryInk)
                         }
-                        .pickerStyle(.menu)
-
-                        Picker("Last verse", selection: $verseEnd) {
-                            ForEach(verseStart...verseCount, id: \.self) { number in
-                                Text("\(number)").tag(number)
-                            }
-                        }
-                        .pickerStyle(.menu)
+                        .padding(.vertical, 6)
                     }
                 }
 
@@ -160,3 +165,74 @@ struct BibleReferencePicker: View {
     }
 }
 
+private struct VerseRangeGrid: View {
+    let verseCount: Int
+    @Binding var start: Int
+    @Binding var end: Int
+    @State private var cellFrames: [Int: CGRect] = [:]
+    @State private var dragAnchor: Int?
+
+    private let columns = [GridItem(.adaptive(minimum: 42, maximum: 54), spacing: 8)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(1...verseCount, id: \.self) { verse in
+                Button {
+                    start = verse
+                    end = verse
+                } label: {
+                    Text("\(verse)")
+                        .font(.subheadline.weight(isSelected(verse) ? .bold : .regular).monospacedDigit())
+                        .frame(maxWidth: .infinity, minHeight: 42)
+                        .foregroundStyle(isSelected(verse) ? Color.white : AppTheme.ink)
+                        .background(
+                            isSelected(verse) ? AppTheme.iris : AppTheme.surface,
+                            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(isSelected(verse) ? AppTheme.iris : AppTheme.divider, lineWidth: 1)
+                        }
+                        .background {
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: VerseCellFramePreferenceKey.self,
+                                    value: [verse: proxy.frame(in: .named("verse-grid"))]
+                                )
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Verse \(verse)")
+                .accessibilityAddTraits(isSelected(verse) ? .isSelected : [])
+            }
+        }
+        .coordinateSpace(name: "verse-grid")
+        .onPreferenceChange(VerseCellFramePreferenceKey.self) { cellFrames = $0 }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .named("verse-grid"))
+                .onChanged { value in
+                    guard let verse = cellFrames.first(where: { $0.value.contains(value.location) })?.key else {
+                        return
+                    }
+                    if dragAnchor == nil { dragAnchor = verse }
+                    let anchor = dragAnchor ?? verse
+                    start = min(anchor, verse)
+                    end = max(anchor, verse)
+                }
+                .onEnded { _ in dragAnchor = nil }
+        )
+    }
+
+    private func isSelected(_ verse: Int) -> Bool {
+        (start...end).contains(verse)
+    }
+}
+
+private struct VerseCellFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
