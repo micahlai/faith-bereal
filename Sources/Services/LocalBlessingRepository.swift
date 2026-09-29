@@ -2,7 +2,7 @@ import Foundation
 
 actor LocalBlessingRepository: BlessingRepository {
     private let calendar: Calendar
-    private let currentUser: Member
+    private var currentUser: Member
     private var circle: CircleGroup
     private var prompts: [DailyPrompt]
     private var blessings: [Blessing]
@@ -62,7 +62,14 @@ actor LocalBlessingRepository: BlessingRepository {
                 body: "A hard conversation that ended with more understanding.",
                 videoURL: nil,
                 submittedAt: currentStart.addingTimeInterval(82),
-                isLate: false
+                isLate: false,
+                scriptureReference: ScriptureReference(
+                    bookSlug: "philippians",
+                    bookName: "Philippians",
+                    chapter: 4,
+                    verseStart: 6,
+                    verseEnd: 7
+                )
             )
         ]
 
@@ -92,7 +99,16 @@ actor LocalBlessingRepository: BlessingRepository {
                     ][offset - 1],
                     videoURL: nil,
                     submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + 123),
-                    isLate: false
+                    isLate: false,
+                    scriptureReference: offset == 1
+                        ? ScriptureReference(
+                            bookSlug: "psalms",
+                            bookName: "Psalms",
+                            chapter: 118,
+                            verseStart: 24,
+                            verseEnd: 24
+                        )
+                        : nil
                 )
             )
             if offset != 2 {
@@ -110,7 +126,8 @@ actor LocalBlessingRepository: BlessingRepository {
                         ][offset - 1],
                         videoURL: nil,
                         submittedAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + (offset == 3 ? 702 : 202)),
-                        isLate: offset == 3
+                        isLate: offset == 3,
+                        scriptureReference: nil
                     )
                 )
             }
@@ -170,6 +187,7 @@ actor LocalBlessingRepository: BlessingRepository {
         mode: CaptureMode,
         body: String?,
         videoURL: URL?,
+        scriptureReference: ScriptureReference?,
         now: Date
     ) async throws -> Blessing {
         guard let prompt = prompts.first(where: { $0.id == promptID }) else {
@@ -202,7 +220,8 @@ actor LocalBlessingRepository: BlessingRepository {
             body: cleanBody,
             videoURL: videoURL,
             submittedAt: now,
-            isLate: now >= prompt.endsAt
+            isLate: now >= prompt.endsAt,
+            scriptureReference: scriptureReference
         )
         blessings.append(blessing)
         return blessing
@@ -245,5 +264,17 @@ actor LocalBlessingRepository: BlessingRepository {
         circle.responseWindowMinutes = responseWindowMinutes
         circle.allowsLateBlessings = allowsLateBlessings
         return circle
+    }
+
+    func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member {
+        guard currentUser.id == memberID,
+              BibleTranslation.publicDomain.contains(where: { $0.id == versionID }) else {
+            throw BlessingError.invalidInviteCode
+        }
+        currentUser.bibleVersionID = versionID
+        if let index = circle.members.firstIndex(where: { $0.id == memberID }) {
+            circle.members[index].bibleVersionID = versionID
+        }
+        return currentUser
     }
 }

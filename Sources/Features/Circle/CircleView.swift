@@ -15,6 +15,7 @@ struct CircleView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     circleHeader
                     members
+                    biblePreference
                     actions
                 }
                 .frame(maxWidth: 680)
@@ -128,6 +129,31 @@ struct CircleView: View {
             }
             .buttonStyle(.bordered)
         }
+    }
+
+    private var biblePreference: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Your Bible version", systemImage: "book.closed")
+                .font(.headline)
+            Picker(
+                "Bible version",
+                selection: Binding(
+                    get: { model.selectedBibleTranslation.id },
+                    set: { versionID in Task { await model.updateBibleVersion(versionID) } }
+                )
+            ) {
+                ForEach(model.bibleTranslations) { translation in
+                    Text("\(translation.shortName) — \(translation.name)")
+                        .tag(translation.id)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            Text("Scripture references from everyone are rendered in this version. Public-domain translations are available.")
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+        .blessingCard()
     }
 
     private var joinSheet: some View {

@@ -9,6 +9,7 @@ protocol BlessingRepository: Sendable {
         mode: CaptureMode,
         body: String?,
         videoURL: URL?,
+        scriptureReference: ScriptureReference?,
         now: Date
     ) async throws -> Blessing
     func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup
@@ -19,4 +20,5 @@ protocol BlessingRepository: Sendable {
         responseWindowMinutes: Int,
         allowsLateBlessings: Bool
     ) async throws -> CircleGroup
+    func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member
 }

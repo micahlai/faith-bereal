@@ -5,6 +5,7 @@ struct Member: Identifiable, Codable, Hashable, Sendable {
     var displayName: String
     var initials: String
     var tintSeed: Int
+    var bibleVersionID: String = "web"
 }
 
 struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
@@ -79,6 +80,7 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let videoURL: URL?
     let submittedAt: Date
     let isLate: Bool
+    let scriptureReference: ScriptureReference?
 }
 
 enum TimelineStatus: Hashable, Sendable {

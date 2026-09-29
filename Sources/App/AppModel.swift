@@ -12,6 +12,7 @@ final class AppModel {
     }
 
     private let repository: any BlessingRepository
+    private let bibleService: any BibleTextProviding
     private let activityController = PromptActivityController()
 
     var loadState: LoadState = .idle
@@ -25,8 +26,12 @@ final class AppModel {
     var message: String?
     var submittedBlessing: Blessing?
 
-    init(repository: any BlessingRepository) {
+    init(
+        repository: any BlessingRepository,
+        bibleService: any BibleTextProviding = BibleAPIService()
+    ) {
         self.repository = repository
+        self.bibleService = bibleService
     }
 
     var hasSubmittedToday: Bool {
@@ -72,7 +77,12 @@ final class AppModel {
         lanes = try await repository.timeline(circleID: circle.id, viewerID: currentUser.id, now: now)
     }
 
-    func submit(mode: CaptureMode, body: String?, videoURL: URL?) async -> Bool {
+    func submit(
+        mode: CaptureMode,
+        body: String?,
+        videoURL: URL?,
+        scriptureReference: ScriptureReference?
+    ) async -> Bool {
         guard let prompt, let currentUser else { return false }
         isSubmitting = true
         defer { isSubmitting = false }
@@ -83,6 +93,7 @@ final class AppModel {
                 mode: mode,
                 body: body,
                 videoURL: videoURL,
+                scriptureReference: scriptureReference,
                 now: .now
             )
             try await refreshTimeline()
@@ -141,5 +152,40 @@ final class AppModel {
             message = error.localizedDescription
             return false
         }
+    }
+
+    var bibleTranslations: [BibleTranslation] { BibleTranslation.publicDomain }
+    var bibleBooks: [BibleBook] { BibleBook.all }
+
+    var selectedBibleTranslation: BibleTranslation {
+        BibleTranslation.publicDomain.first(where: { $0.id == currentUser?.bibleVersionID })
+            ?? BibleTranslation.publicDomain[0]
+    }
+
+    func updateBibleVersion(_ versionID: String) async {
+        guard let currentUser else { return }
+        do {
+            self.currentUser = try await repository.updateBibleVersion(
+                memberID: currentUser.id,
+                versionID: versionID
+            )
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    func bibleChapter(book: BibleBook, chapter: Int) async throws -> BibleChapter {
+        try await bibleService.chapter(
+            versionID: selectedBibleTranslation.id,
+            book: book,
+            chapter: chapter
+        )
+    }
+
+    func scriptureText(for reference: ScriptureReference) async throws -> String {
+        try await bibleService.passage(
+            versionID: selectedBibleTranslation.id,
+            reference: reference
+        )
     }
 }

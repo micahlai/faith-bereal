@@ -67,6 +67,7 @@ final class DomainRulesTests: XCTestCase {
             mode: .typed,
             body: "A test blessing",
             videoURL: nil,
+            scriptureReference: nil,
             now: now
         )
 
@@ -77,6 +78,7 @@ final class DomainRulesTests: XCTestCase {
                 mode: .typed,
                 body: "Another",
                 videoURL: nil,
+                scriptureReference: nil,
                 now: now
             )
             XCTFail("Expected duplicate submission to fail")
@@ -112,9 +114,46 @@ final class DomainRulesTests: XCTestCase {
             mode: .typed,
             body: "Still grateful",
             videoURL: nil,
+            scriptureReference: nil,
             now: lateTime
         )
 
         XCTAssertTrue(blessing.isLate)
+    }
+
+    func testSubmissionStoresReferenceWithoutVerseText() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let (user, _, prompt) = try await repository.bootstrap()
+        let reference = ScriptureReference(
+            bookSlug: "john",
+            bookName: "John",
+            chapter: 3,
+            verseStart: 16,
+            verseEnd: 18
+        )
+
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: user.id,
+            mode: .typed,
+            body: "Grace today",
+            videoURL: nil,
+            scriptureReference: reference,
+            now: now
+        )
+
+        XCTAssertEqual(blessing.scriptureReference, reference)
+        XCTAssertEqual(blessing.body, "Grace today")
+    }
+
+    func testBibleVersionPreferenceIsUserSpecific() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let (user, circle, _) = try await repository.bootstrap()
+
+        let updated = try await repository.updateBibleVersion(memberID: user.id, versionID: "kjv")
+
+        XCTAssertEqual(updated.bibleVersionID, "kjv")
+        XCTAssertNotEqual(circle.members[1].bibleVersionID, "kjv")
     }
 }

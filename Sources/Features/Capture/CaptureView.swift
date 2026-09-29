@@ -8,6 +8,8 @@ struct CaptureView: View {
     @State private var text = ""
     @State private var videoURL: URL?
     @State private var showCamera = false
+    @State private var showBiblePicker = false
+    @State private var scriptureReference: ScriptureReference?
     @State private var transcriber = SpeechTranscriber()
     @FocusState private var editorFocused: Bool
 
@@ -20,6 +22,7 @@ struct CaptureView: View {
                         promptHeader
                         modePicker
                         captureArea
+                        scriptureTag
                         sendButton
                     }
                     .frame(maxWidth: 680)
@@ -46,11 +49,50 @@ struct CaptureView: View {
                 )
                 .ignoresSafeArea()
             }
+            .sheet(isPresented: $showBiblePicker) {
+                BibleReferencePicker(selection: $scriptureReference)
+            }
             .onChange(of: transcriber.transcript) { _, newValue in
                 text = newValue
             }
             .onDisappear { transcriber.stop() }
         }
+    }
+
+    private var scriptureTag: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "book.closed")
+                    .font(.title3)
+                    .foregroundStyle(AppTheme.iris)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(scriptureReference?.displayName ?? "Tag a Bible verse")
+                        .font(.headline)
+                    Text(
+                        scriptureReference == nil
+                            ? "Optional. Preview it before adding it to your blessing."
+                            : "Shown to each person in their chosen Bible version."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 12) {
+                Button(scriptureReference == nil ? "Choose a verse" : "Change verse") {
+                    showBiblePicker = true
+                }
+                .buttonStyle(.bordered)
+                if scriptureReference != nil {
+                    Button("Remove", role: .destructive) { scriptureReference = nil }
+                        .buttonStyle(.borderless)
+                }
+            }
+        }
+        .blessingCard()
     }
 
     private var promptHeader: some View {
@@ -177,7 +219,12 @@ struct CaptureView: View {
         Button {
             Task {
                 transcriber.stop()
-                if await model.submit(mode: mode, body: text, videoURL: videoURL) {
+                if await model.submit(
+                    mode: mode,
+                    body: text,
+                    videoURL: videoURL,
+                    scriptureReference: scriptureReference
+                ) {
                     dismiss()
                 }
             }
@@ -203,4 +250,3 @@ struct CaptureView: View {
         }
     }
 }
-
