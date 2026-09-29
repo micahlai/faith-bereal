@@ -13,31 +13,36 @@ Exit: a clean checkout generates, builds, and tests without private credentials.
 
 - [x] Demo identity and seeded circle
 - [x] Create/join circle by code
-- [x] Today screen with prompt state and ten-minute countdown
+- [x] Today screen with prompt state and configurable countdown
 - [x] Typed and speech-transcribed capture
 - [x] In-app system camera capture and ready state
 - [x] Atomic local submission and today-unlock behavior
 - [x] Multi-lane historical timeline with missed indicators
 - [x] Local ActivityKit start/update/end
+- [x] Owner schedule/time-zone/name/late-post settings
+- [x] Optional scripture tagging and per-user public-domain translation
+- [x] Scrollable joined-at-aware timeline, media detail, and text/voice responses
 
 Exit: the complete product loop works in simulator/device against deterministic seeded data.
 
-## Milestone 2 — production backend
+## Milestone 2 — production backend (implementation complete)
 
-- [ ] Provision Supabase environments and local CLI configuration
+- [x] Add checked-in local Supabase CLI configuration and environment templates
 - [x] Add initial migrations, constraints, RLS, storage policies, and RPCs
-- [ ] Integrate Sign in with Apple through Supabase Auth
-- [ ] Replace local services with Supabase implementations
-- [ ] Add realtime updates and signed video URLs
-- [x] Add first Edge Function for prompt scheduling, claims, APNs alerts, and push-to-start
-- [ ] Deploy and integration-test migrations/Edge Functions against a provisioned Supabase project
+- [x] Integrate Sign in with Apple through Supabase Auth
+- [x] Add the Supabase repository for bootstrap, circles, settings, timeline, submissions, media, scripture, and responses
+- [x] Add RLS-safe realtime refreshes and short-lived signed audio/video URLs
+- [x] Add device, push-to-start, and per-activity update-token registration
+- [x] Add the Edge Function for scheduling, claims, APNs alerts, Live Activity start/update/end, and prompt closure
+- [x] Document hosted deployment and two-device acceptance testing
 
-Exit: two physical devices in one circle can post and see gated updates securely.
+Code exit: a configured build is ready for two physical devices in one circle to post and see gated updates securely. Credentialed deployment and the physical-device acceptance run remain release-environment operations; see `MILESTONE_2_RUNBOOK.md`.
 
 ## Milestone 3 — push and resilience
 
-- [ ] Register notification, push-to-start, and ActivityKit update tokens
-- [ ] Production APNs provider integration and delivery observability
+- [x] Register notification, push-to-start, and ActivityKit update tokens
+- [x] Implement production APNs alert and Live Activity payload delivery
+- [ ] Add structured APNs delivery observability and invalid-token revocation
 - [ ] Retry/idempotency, offline drafts, upload recovery, and reconciliation
 - [ ] Evaluate iOS 18 broadcast channels per circle
 

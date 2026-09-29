@@ -14,11 +14,11 @@
 
 ### `profiles`
 
-`id`, `display_name`, `avatar_path`, `time_zone`, `created_at`, `deleted_at`
+`id`, `display_name`, `avatar_path`, `time_zone`, `bible_version_id`, `created_at`, `deleted_at`
 
 ### `circles`
 
-`id`, `name`, `owner_id`, `invite_code_hash`, `time_zone`, `window_start`, `window_end`, `created_at`
+`id`, `name`, `owner_id`, `invite_code_hash`, `time_zone`, `window_start`, `window_end`, `response_window_minutes`, `allow_late_blessings`, `created_at`
 
 Only a hash of the normalized invite code is stored. Joining happens through a security-definer RPC that rate-limits attempts.
 
@@ -30,15 +30,21 @@ Unique active membership per circle/user pair.
 
 ### `daily_prompts`
 
-`id`, `circle_id`, `local_date`, `starts_at`, `ends_at`, `state`, `dispatch_key`, `created_at`
+`id`, `circle_id`, `local_date`, `starts_at`, `ends_at`, `response_window_minutes`, `state`, `dispatch_key`, `created_at`
 
-Unique `(circle_id, local_date)`. `ends_at` is constrained to ten minutes after `starts_at`.
+Unique `(circle_id, local_date)`. `ends_at` is constrained to the response duration snapshotted from its circle when the prompt is created.
 
 ### `blessings`
 
-`id`, `prompt_id`, `author_id`, `capture_mode`, `body`, `video_path`, `thumbnail_path`, `submitted_at`, `created_at`
+`id`, `prompt_id`, `author_id`, `capture_mode`, `body`, `audio_path`, `video_path`, `thumbnail_path`, `submitted_at`, `is_late`, scripture book/chapter/start/end fields, `created_at`
 
-Unique `(prompt_id, author_id)`. Text is required for typed/voice modes; video metadata is required for video mode.
+Unique `(prompt_id, author_id)`. Voice and video transcripts are stored in `body`. Scripture text is never persisted; it is rendered from the viewer's selected public-domain translation.
+
+### `blessing_responses`
+
+`id`, `blessing_id`, `author_id`, `mode`, `body`, `audio_path`, `submitted_at`
+
+Responses are circle-scoped through their parent blessing and support only typed or transcribed voice media.
 
 ### `device_registrations`
 
@@ -48,7 +54,7 @@ Tokens are encrypted or protected by restricted server-only access. Users cannot
 
 ### `activity_registrations`
 
-`id`, `prompt_id`, `user_id`, `activity_id`, `push_token`, `created_at`, `ended_at`
+`id`, `prompt_id`, `user_id`, `activity_id`, `push_token`, `environment`, `created_at`, `ended_at`
 
 Used for per-device Live Activity updates. A future `broadcast_channel_id` can replace fan-out for iOS 18+ circles.
 
@@ -69,6 +75,8 @@ Because “today” varies by circle time zone and policy expressions should sta
 ```text
 blessing-media/{circle_id}/{prompt_id}/{author_id}/original.mov
 blessing-media/{circle_id}/{prompt_id}/{author_id}/thumbnail.jpg
+blessing-media/{circle_id}/{prompt_id}/{author_id}/voice-{id}.caf
+blessing-media/{circle_id}/{prompt_id}/{author_id}/responses/{blessing_id}/{id}.caf
 avatars/{user_id}/avatar.jpg
 ```
 
@@ -80,7 +88,7 @@ The iOS app receives only the Supabase project URL and publishable key through a
 
 ## Local setup
 
-The initial executable schema is at `supabase/migrations/202609290001_initial_schema.sql`; the APNs dispatcher is at `supabase/functions/dispatch-prompts/index.ts`.
+The ordered executable schema is in `supabase/migrations`; the APNs dispatcher is at `supabase/functions/dispatch-prompts/index.ts`. See `docs/MILESTONE_2_RUNBOOK.md` for hosted deployment.
 
 ```sh
 npx supabase start
@@ -91,7 +99,7 @@ npx supabase functions serve dispatch-prompts --env-file supabase/.env.local
 
 Do not use the example values outside local development. Hosted deployment also needs a once-per-minute Cron/`pg_net` call to the function with `x-dispatch-secret` sourced from Vault.
 
-The migration deliberately revokes direct writes to circles, memberships, prompts, and blessings. Clients use transactional RPCs so deadlines, membership, uniqueness, and server timestamps cannot be bypassed by a modified app.
+The migrations deliberately revoke direct writes to circles, memberships, prompts, blessings, and responses. Clients use transactional RPCs so deadlines, membership, uniqueness, path ownership, and server timestamps cannot be bypassed by a modified app. Realtime tables are published, but RLS remains the read boundary.
 
 ## Source references
 

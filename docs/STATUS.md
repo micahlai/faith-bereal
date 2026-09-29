@@ -4,7 +4,7 @@ Last updated: 2026-09-29
 
 ## Current phase
 
-Milestone 1 — local vertical slice.
+Milestone 2 — production backend implementation complete; credentialed deployment pending.
 
 ## Completed
 
@@ -15,16 +15,18 @@ Milestone 1 — local vertical slice.
 - Repository operating guide and staged delivery roadmap added.
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
-- ActivityKit local start/update UI and deep-link route implemented.
-- Four domain tests pass on an iPhone 17 Pro simulator.
+- ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
+- Ten domain tests pass on an iPhone 17 Pro simulator.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
-- Initial Supabase schema includes account profiles, private circles, membership, prompts, gated blessings, device/activity tokens, private media policies, and transactional RPCs.
-- APNs Edge Function type-checks and covers daily scheduling, atomic prompt claims, alerts, and push-to-start payloads.
+- Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
+- Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols; blank configuration safely falls back to the local demo.
+- APNs Edge Function covers daily scheduling, atomic prompt claims, dynamic alert copy, and Live Activity start/update/end payloads.
+- Circle owner settings, late indicators, Bible tagging/preview/version preference, drag verse selection, media detail, responses, and joined-circle timeline markers are implemented.
 
 ## In progress
 
-- Deploying and exercising the Supabase migration/RLS policies against a provisioned project.
-- Sign in with Apple production adapter and remote APNs token registration.
+- Deploying and exercising the migrations and Edge Function against the project owner's provisioned Supabase environment.
+- Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
 
 ## Not yet production-ready
 
@@ -33,6 +35,6 @@ Milestone 1 — local vertical slice.
 - Remote push-to-start Live Activities require server/APNs setup and physical-device verification.
 - Privacy copy, moderation flows, account deletion, and App Store materials remain incomplete.
 
-## Next implementation task
+## Next operational task
 
-Implement the SQL migration and production service adapter behind the existing service protocols, then verify access with two physical-device accounts.
+Follow `docs/MILESTONE_2_RUNBOOK.md` with Supabase access, an Apple Developer team, APNs key material, and two physical-device accounts. The current machine has no Docker daemon, Deno installation, Supabase access token, or project reference, so hosted mutation and device delivery were intentionally not attempted.

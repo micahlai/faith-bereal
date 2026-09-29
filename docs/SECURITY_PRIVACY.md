@@ -17,7 +17,7 @@ Blessings can reveal religious beliefs, health, relationships, location, and oth
 
 - Ask for microphone, speech recognition, camera, photo library, notifications, and Live Activity access only at the point of use.
 - Explain why each permission helps before showing the system prompt.
-- Store voice transcription as editable text. Do not persist microphone audio for voice mode.
+- Store voice transcription as editable text and voice audio as private media only after an explicit send action.
 - Show clear retention behavior for submitted video, drafts, backups, and deleted accounts.
 - Provide account deletion and circle-leaving flows; document how deletion affects shared history.
 - Do not train models on blessing content or use it for advertising.
@@ -38,4 +38,3 @@ Blessings can reveal religious beliefs, health, relationships, location, and oth
 - Notification copy should say the circle is ready, not reveal blessing content.
 - Add report, block/remove, and owner moderation before a public release.
 - Provide a support path for harmful or crisis-related content without claiming the app provides counseling.
-

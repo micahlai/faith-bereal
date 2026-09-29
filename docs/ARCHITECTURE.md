@@ -35,9 +35,10 @@ CloudKit remains a viable all-Apple alternative, but server-authored randomized 
 1. A cron job calls `schedule-daily-prompts` for circles whose next local day needs a prompt.
 2. A database transaction chooses a random instant inside the circle window and inserts one prompt.
 3. A dispatcher finds prompts entering their start minute and calls `start-prompt` exactly once.
-4. `start-prompt` sends a standard alert and ActivityKit push payload through APNs. For initial release, tokens are per device; iOS 18 broadcast channels are a scale optimization.
-5. The app submits text metadata or requests a signed upload path for video, uploads media, then invokes an atomic finalize RPC.
-6. Realtime announces the new row. Clients apply the same visibility rule, while RLS prevents unauthorized payloads from being returned.
+4. `dispatch-prompts` sends a standard alert and ActivityKit push-to-start payload through APNs. For initial release, tokens are per device; iOS 18 broadcast channels are a scale optimization.
+5. The app registers the push-to-start token and every remotely/local-started ActivityKit update token. The dispatcher updates response counts and per-user completion, then sends an explicit end event.
+6. The app privately uploads voice/video media and invokes an atomic submission RPC containing only the selected scripture reference, never scripture text.
+7. Supabase Realtime announces blessing, response, prompt, and membership changes. Clients refetch through RLS so unauthorized rows never become UI state.
 
 ## Reliability decisions
 
@@ -54,4 +55,3 @@ CloudKit remains a viable all-Apple alternative, but server-authored randomized 
 - ActivityKit payload static plus dynamic data must remain under Apple's 4 KB limit.
 - Speech and camera permissions are requested only when a person chooses those modes.
 - The app must continue to function when Live Activities are disabled.
-

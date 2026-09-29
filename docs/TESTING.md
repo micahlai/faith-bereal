@@ -33,6 +33,9 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - RLS attempts across circles and before/after posting;
 - realtime insert arrives only after visibility becomes legal;
 - APNs dispatch retries remain idempotent.
+- one client receives realtime inserts after the other submits;
+- scripture text is rendered in the viewer's translation while only the reference is stored;
+- response RLS follows the parent blessing's visibility.
 
 ## UI and accessibility checks
 
@@ -45,9 +48,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Device-only checks
 
-- push-to-start and update Live Activity;
+- push-to-start, update, and explicit end Live Activity;
 - Dynamic Island compact/minimal/expanded layouts;
 - lock-screen privacy settings;
 - background video upload interruption;
 - speech transcription latency and audio-session interruption.
-

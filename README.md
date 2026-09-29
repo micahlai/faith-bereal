@@ -1,17 +1,17 @@
 # Blessing Circle
 
-Blessing Circle is an Apple-native daily gratitude app. At one unpredictable moment each day, every member of a private circle gets the same ten-minute invitation to share a blessing by typing, dictating, or recording a short video.
+Blessing Circle is an Apple-native daily gratitude app. At one unpredictable moment each day, every member of a private circle gets the same time-limited invitation to share a blessing by typing, dictating, or recording a short video.
 
 This repository contains:
 
 - a SwiftUI iOS app;
-- an ActivityKit widget extension for the ten-minute response window;
-- a Supabase schema and server-function plan for accounts, circles, schedules, posts, media, and APNs delivery;
+- an ActivityKit widget extension with local and remote push-to-start/update/end support;
+- a Supabase production adapter, schema, storage policies, realtime subscriptions, and APNs Edge Function;
 - product, design, security, architecture, and delivery documents intended to keep human and coding-agent work aligned.
 
 ## Project state
 
-The first vertical slice is being implemented against a local demo backend so the full experience can be built and tested without credentials. Production Supabase and Apple Developer setup is documented in `docs/BACKEND.md` and `docs/ROADMAP.md`.
+Milestones 0–2 are implemented in code. Without backend secrets, the app automatically uses deterministic local data; adding an untracked `Configuration/Secrets.xcconfig` switches composition to Supabase Auth, Postgres, Realtime, Storage, and APNs registration. Hosted deployment and physical-device signing require the project owner's Supabase and Apple Developer credentials.
 
 ## Documentation
 
@@ -23,6 +23,7 @@ The first vertical slice is being implemented against a local demo backend so th
 - [Project status](docs/STATUS.md)
 - [Security and privacy](docs/SECURITY_PRIVACY.md)
 - [Testing strategy](docs/TESTING.md)
+- [Milestone 2 deployment runbook](docs/MILESTONE_2_RUNBOOK.md)
 
 ## Local development
 
@@ -33,5 +34,4 @@ xcodegen generate
 open BlessingCircle.xcodeproj
 ```
 
-The default Debug configuration uses seeded local data. No secrets are committed.
-
+Copy `Configuration/Secrets.xcconfig.example` to `Configuration/Secrets.xcconfig` and fill in the public Supabase values to use the production adapter. If that file is absent or blank, the app uses seeded local data. No secrets are committed.
