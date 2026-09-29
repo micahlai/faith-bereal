@@ -1,0 +1,7 @@
+// Safe defaults keep the seeded local repository active.
+// Create the git-ignored Secrets.xcconfig to enable Supabase:
+// SUPABASE_URL = https:/$()/your-project.supabase.co
+// SUPABASE_PUBLISHABLE_KEY = sb_publishable_...
+SUPABASE_URL =
+SUPABASE_PUBLISHABLE_KEY =
+#include? "Secrets.xcconfig"

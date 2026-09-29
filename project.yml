@@ -12,6 +12,10 @@ settings:
     MARKETING_VERSION: 0.1.0
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
     CODE_SIGN_STYLE: Automatic
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift.git
+    exactVersion: 2.51.0
 targets:
   BlessingCircle:
     type: application
@@ -34,6 +38,10 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        CODE_SIGN_ENTITLEMENTS: Configuration/BlessingCircle.entitlements
+    configFiles:
+      Debug: Configuration/Development.xcconfig
+      Release: Configuration/Development.xcconfig
     info:
       path: Configuration/App-Info.plist
       properties:
@@ -48,12 +56,15 @@ targets:
         NSCameraUsageDescription: Blessing Circle uses the camera when you choose to record a video blessing.
         NSPhotoLibraryUsageDescription: Blessing Circle can import a video you choose for your blessing.
         NSSupportsLiveActivities: true
+        SupabaseURL: $(SUPABASE_URL)
+        SupabasePublishableKey: $(SUPABASE_PUBLISHABLE_KEY)
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
     dependencies:
       - target: BlessingCircleLiveActivity
         embed: true
+      - package: Supabase
     scheme:
       testTargets:
         - BlessingCircleTests
