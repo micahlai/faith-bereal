@@ -17,10 +17,12 @@ Milestone 1 — local vertical slice.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI and deep-link route implemented.
 - Four domain tests pass on an iPhone 17 Pro simulator.
+- Initial Supabase schema includes account profiles, private circles, membership, prompts, gated blessings, device/activity tokens, private media policies, and transactional RPCs.
+- APNs Edge Function type-checks and covers daily scheduling, atomic prompt claims, alerts, and push-to-start payloads.
 
 ## In progress
 
-- Production Supabase migration, RLS policies, and Edge Function boundaries.
+- Deploying and exercising the Supabase migration/RLS policies against a provisioned project.
 - Sign in with Apple production adapter and remote APNs token registration.
 
 ## Not yet production-ready

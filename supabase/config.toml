@@ -1,0 +1,30 @@
+project_id = "blessing-circle"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "blessingcircle://auth/callback"
+additional_redirect_urls = ["blessingcircle://auth/callback"]
+enable_signup = true
+
+[storage]
+enabled = true
+file_size_limit = "75MiB"
+
+[functions.dispatch-prompts]
+verify_jwt = false
+

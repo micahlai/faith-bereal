@@ -25,11 +25,12 @@ Exit: the complete product loop works in simulator/device against deterministic 
 ## Milestone 2 — production backend
 
 - [ ] Provision Supabase environments and local CLI configuration
-- [ ] Apply migrations, constraints, RLS, storage policies, and RPCs
+- [x] Add initial migrations, constraints, RLS, storage policies, and RPCs
 - [ ] Integrate Sign in with Apple through Supabase Auth
 - [ ] Replace local services with Supabase implementations
 - [ ] Add realtime updates and signed video URLs
-- [ ] Build Edge Functions for invite joining, media finalize, prompt scheduling, and APNs delivery
+- [x] Add first Edge Function for prompt scheduling, claims, APNs alerts, and push-to-start
+- [ ] Deploy and integration-test migrations/Edge Functions against a provisioned Supabase project
 
 Exit: two physical devices in one circle can post and see gated updates securely.
 

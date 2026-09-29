@@ -78,6 +78,21 @@ Objects are private. Signed read URLs are short-lived and issued only after the 
 
 The iOS app receives only the Supabase project URL and publishable key through an untracked `.xcconfig`. Service role, APNs `.p8` key, key ID, team ID, and app bundle ID stay in Edge Function secrets/Vault.
 
+## Local setup
+
+The initial executable schema is at `supabase/migrations/202609290001_initial_schema.sql`; the APNs dispatcher is at `supabase/functions/dispatch-prompts/index.ts`.
+
+```sh
+npx supabase start
+npx supabase db reset
+cp supabase/.env.example supabase/.env.local
+npx supabase functions serve dispatch-prompts --env-file supabase/.env.local
+```
+
+Do not use the example values outside local development. Hosted deployment also needs a once-per-minute Cron/`pg_net` call to the function with `x-dispatch-secret` sourced from Vault.
+
+The migration deliberately revokes direct writes to circles, memberships, prompts, and blessings. Clients use transactional RPCs so deadlines, membership, uniqueness, and server timestamps cannot be bypassed by a modified app.
+
 ## Source references
 
 - Apple ActivityKit documentation: https://developer.apple.com/documentation/activitykit
@@ -85,4 +100,3 @@ The iOS app receives only the Supabase project URL and publishable key through a
 - Apple Speech framework: https://developer.apple.com/documentation/speech
 - Supabase Swift SDK: https://supabase.com/docs/reference/swift/introduction
 - Supabase scheduled functions: https://supabase.com/docs/guides/functions/schedule-functions
-
