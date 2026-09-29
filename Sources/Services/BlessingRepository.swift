@@ -26,4 +26,14 @@ protocol BlessingRepository: Sendable {
         allowsLateBlessings: Bool
     ) async throws -> CircleGroup
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member
+    func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse]
+    func submitResponse(
+        blessingID: UUID,
+        circleID: UUID,
+        authorID: UUID,
+        mode: ResponseMode,
+        body: String,
+        audioURL: URL?,
+        now: Date
+    ) async throws -> BlessingResponse
 }

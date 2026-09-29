@@ -179,4 +179,34 @@ final class DomainRulesTests: XCTestCase {
         }
         XCTAssertEqual(newestMemberLane.events.count, 3)
     }
+
+    func testResponseStaysAttachedToBlessingCircle() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let (user, circle, prompt) = try await repository.bootstrap()
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: user.id,
+            mode: .typed,
+            body: "A specific blessing",
+            audioURL: nil,
+            videoURL: nil,
+            scriptureReference: nil,
+            now: now
+        )
+
+        let response = try await repository.submitResponse(
+            blessingID: blessing.id,
+            circleID: circle.id,
+            authorID: circle.members[1].id,
+            mode: .typed,
+            body: "Amen",
+            audioURL: nil,
+            now: now.addingTimeInterval(1)
+        )
+        let loaded = try await repository.responses(blessingID: blessing.id, viewerID: user.id)
+
+        XCTAssertEqual(response.circleID, circle.id)
+        XCTAssertEqual(loaded, [response])
+    }
 }

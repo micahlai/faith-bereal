@@ -234,6 +234,7 @@ private struct BlessingDetailView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         header
                         blessingContent
+                        BlessingResponsesView(blessing: blessing)
                         if let reference = blessing.scriptureReference {
                             ScripturePassageView(reference: reference)
                         }
@@ -325,7 +326,7 @@ private struct BlessingDetailView: View {
     }
 }
 
-private struct AudioBlessingPlayer: View {
+struct AudioBlessingPlayer: View {
     @State private var player: AVPlayer
     @State private var isPlaying = false
 

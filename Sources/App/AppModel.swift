@@ -201,4 +201,37 @@ final class AppModel {
             reference: reference
         )
     }
+
+    func responses(for blessing: Blessing) async -> [BlessingResponse] {
+        guard let currentUser else { return [] }
+        do {
+            return try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
+        } catch {
+            message = error.localizedDescription
+            return []
+        }
+    }
+
+    func submitResponse(
+        to blessing: Blessing,
+        mode: ResponseMode,
+        body: String,
+        audioURL: URL?
+    ) async -> BlessingResponse? {
+        guard let currentUser else { return nil }
+        do {
+            return try await repository.submitResponse(
+                blessingID: blessing.id,
+                circleID: blessing.circleID,
+                authorID: currentUser.id,
+                mode: mode,
+                body: body,
+                audioURL: audioURL,
+                now: .now
+            )
+        } catch {
+            message = error.localizedDescription
+            return nil
+        }
+    }
 }

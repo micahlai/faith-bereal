@@ -76,6 +76,7 @@ enum CaptureMode: String, Codable, CaseIterable, Identifiable, Sendable {
 
 struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
+    let circleID: UUID
     let promptID: UUID
     let authorID: UUID
     let captureMode: CaptureMode
@@ -85,6 +86,26 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let submittedAt: Date
     let isLate: Bool
     let scriptureReference: ScriptureReference?
+}
+
+enum ResponseMode: String, Codable, CaseIterable, Identifiable, Sendable {
+    case typed
+    case voice
+
+    var id: Self { self }
+    var title: String { self == .typed ? "Text" : "Voice" }
+    var systemImage: String { self == .typed ? "text.cursor" : "waveform" }
+}
+
+struct BlessingResponse: Identifiable, Codable, Hashable, Sendable {
+    let id: UUID
+    let blessingID: UUID
+    let circleID: UUID
+    let authorID: UUID
+    let mode: ResponseMode
+    let body: String
+    let audioURL: URL?
+    let submittedAt: Date
 }
 
 enum TimelineStatus: Hashable, Sendable {

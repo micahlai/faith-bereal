@@ -6,6 +6,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var circle: CircleGroup
     private var prompts: [DailyPrompt]
     private var blessings: [Blessing]
+    private var blessingResponses: [BlessingResponse]
 
     init(now: Date = .now) {
         var calendar = Calendar(identifier: .gregorian)
@@ -61,6 +62,7 @@ actor LocalBlessingRepository: BlessingRepository {
         var seededBlessings: [Blessing] = [
             Blessing(
                 id: UUID(),
+                circleID: circle.id,
                 promptID: current.id,
                 authorID: ava.id,
                 captureMode: .voice,
@@ -94,6 +96,7 @@ actor LocalBlessingRepository: BlessingRepository {
             seededBlessings.append(
                 Blessing(
                     id: UUID(),
+                    circleID: circle.id,
                     promptID: promptID,
                     authorID: user.id,
                     captureMode: .typed,
@@ -122,6 +125,7 @@ actor LocalBlessingRepository: BlessingRepository {
                 seededBlessings.append(
                     Blessing(
                         id: UUID(),
+                        circleID: circle.id,
                         promptID: promptID,
                         authorID: ava.id,
                         captureMode: offset == 3 ? .voice : .typed,
@@ -143,6 +147,7 @@ actor LocalBlessingRepository: BlessingRepository {
 
         prompts = seededPrompts
         blessings = seededBlessings
+        blessingResponses = []
     }
 
     func bootstrap() async throws -> (Member, CircleGroup, DailyPrompt) {
@@ -232,6 +237,7 @@ actor LocalBlessingRepository: BlessingRepository {
 
         let blessing = Blessing(
             id: UUID(),
+            circleID: prompt.circleID,
             promptID: promptID,
             authorID: authorID,
             captureMode: mode,
@@ -314,5 +320,50 @@ actor LocalBlessingRepository: BlessingRepository {
             circle.members[index].bibleVersionID = versionID
         }
         return currentUser
+    }
+
+    func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
+        guard let blessing = blessings.first(where: { $0.id == blessingID }),
+              circle.id == blessing.circleID,
+              circle.members.contains(where: { $0.id == viewerID }) else {
+            throw BlessingError.invalidInviteCode
+        }
+        return blessingResponses
+            .filter { $0.blessingID == blessingID && $0.circleID == blessing.circleID }
+            .sorted { $0.submittedAt < $1.submittedAt }
+    }
+
+    func submitResponse(
+        blessingID: UUID,
+        circleID: UUID,
+        authorID: UUID,
+        mode: ResponseMode,
+        body: String,
+        audioURL: URL?,
+        now: Date
+    ) async throws -> BlessingResponse {
+        let cleanedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let blessing = blessings.first(where: { $0.id == blessingID }),
+              blessing.circleID == circleID,
+              circle.id == circleID,
+              circle.members.contains(where: { $0.id == authorID }),
+              !cleanedBody.isEmpty else {
+            throw BlessingError.emptyBlessing
+        }
+        if mode == .voice, audioURL == nil { throw BlessingError.emptyBlessing }
+        if mode == .typed, audioURL != nil { throw BlessingError.emptyBlessing }
+
+        let response = BlessingResponse(
+            id: UUID(),
+            blessingID: blessingID,
+            circleID: circleID,
+            authorID: authorID,
+            mode: mode,
+            body: cleanedBody,
+            audioURL: audioURL,
+            submittedAt: now
+        )
+        blessingResponses.append(response)
+        return response
     }
 }

@@ -47,6 +47,12 @@ final class SpeechTranscriber: NSObject {
         state = .idle
     }
 
+    func reset() {
+        stop()
+        transcript = ""
+        recordingURL = nil
+    }
+
     func transcribeVideo(at url: URL) async -> String? {
         let speechStatus = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
