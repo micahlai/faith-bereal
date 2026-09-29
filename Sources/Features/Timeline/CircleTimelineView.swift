@@ -126,6 +126,11 @@ private struct TimelineEventView: View {
             Circle()
                 .stroke(AppTheme.dawn, lineWidth: 2)
                 .padding(4)
+        case .joinedCircle:
+            Image(systemName: "person.badge.plus")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.iris)
+                .background(Circle().fill(AppTheme.surface).frame(width: 24, height: 24))
         }
     }
 
@@ -196,6 +201,15 @@ private struct TimelineEventView: View {
                 .font(.subheadline)
                 .foregroundStyle(AppTheme.dawn)
                 .padding(.vertical, 10)
+        case .joinedCircle:
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Joined circle")
+                    .font(.subheadline.weight(.semibold))
+                Text(event.date.formatted(date: .abbreviated, time: .omitted))
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+            .padding(.vertical, 10)
         }
     }
 }

@@ -166,4 +166,17 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(updated.bibleVersionID, "kjv")
         XCTAssertNotEqual(circle.members[1].bibleVersionID, "kjv")
     }
+
+    func testTimelineEndsAtMembershipStartAndExcludesEarlierPrompts() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let (user, circle, _) = try await repository.bootstrap()
+        let lanes = try await repository.timeline(circleID: circle.id, viewerID: user.id, now: now)
+        let newestMemberLane = try XCTUnwrap(lanes.first(where: { $0.member.displayName == "Ben" }))
+
+        guard case .joinedCircle = newestMemberLane.events.last?.status else {
+            return XCTFail("Expected the lane to end with the membership marker")
+        }
+        XCTAssertEqual(newestMemberLane.events.count, 3)
+    }
 }

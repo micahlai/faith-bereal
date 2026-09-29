@@ -6,6 +6,7 @@ struct Member: Identifiable, Codable, Hashable, Sendable {
     var initials: String
     var tintSeed: Int
     var bibleVersionID: String = "web"
+    var joinedAt: Date = .distantPast
 }
 
 struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
@@ -91,6 +92,7 @@ enum TimelineStatus: Hashable, Sendable {
     case missed
     case locked
     case waiting
+    case joinedCircle
 }
 
 struct TimelineEvent: Identifiable, Hashable, Sendable {

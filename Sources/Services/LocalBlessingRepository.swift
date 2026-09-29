@@ -11,24 +11,28 @@ actor LocalBlessingRepository: BlessingRepository {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
+        let startOfToday = calendar.startOfDay(for: now)
 
         let user = Member(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000001")!,
             displayName: "Micah",
             initials: "ML",
-            tintSeed: 1
+            tintSeed: 1,
+            joinedAt: calendar.date(byAdding: .day, value: -14, to: startOfToday)!
         )
         let ava = Member(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000002")!,
             displayName: "Ava",
             initials: "AV",
-            tintSeed: 2
+            tintSeed: 2,
+            joinedAt: calendar.date(byAdding: .day, value: -3, to: startOfToday)!.addingTimeInterval(9 * 3_600)
         )
         let ben = Member(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000003")!,
             displayName: "Ben",
             initials: "BN",
-            tintSeed: 3
+            tintSeed: 3,
+            joinedAt: calendar.date(byAdding: .day, value: -1, to: startOfToday)!.addingTimeInterval(8 * 3_600)
         )
 
         currentUser = user
@@ -45,7 +49,6 @@ actor LocalBlessingRepository: BlessingRepository {
             allowsLateBlessings: true
         )
 
-        let startOfToday = calendar.startOfDay(for: now)
         let currentStart = now.addingTimeInterval(-60)
         let current = DailyPrompt(
             id: UUID(uuidString: "C0000000-0000-0000-0000-000000000001")!,
@@ -159,7 +162,9 @@ actor LocalBlessingRepository: BlessingRepository {
         } ?? false
 
         return circle.members.map { member in
-            let events = circlePrompts.map { prompt -> TimelineEvent in
+            var events = circlePrompts
+                .filter { $0.startsAt >= member.joinedAt }
+                .map { prompt -> TimelineEvent in
                 let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
                 let isToday = calendar.isDate(prompt.localDate, inSameDayAs: now)
                 let status: TimelineStatus
@@ -182,6 +187,9 @@ actor LocalBlessingRepository: BlessingRepository {
                 }
                 return TimelineEvent(memberID: member.id, date: prompt.localDate, status: status)
             }
+            events.append(
+                TimelineEvent(memberID: member.id, date: member.joinedAt, status: .joinedCircle)
+            )
             return TimelineLane(member: member, events: events)
         }
     }
