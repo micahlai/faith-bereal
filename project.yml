@@ -1,0 +1,88 @@
+name: BlessingCircle
+options:
+  bundleIdPrefix: app.blessingcircle
+  deploymentTarget:
+    iOS: "18.0"
+  groupSortPosition: top
+  generateEmptyDirectories: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    CODE_SIGN_STYLE: Automatic
+targets:
+  BlessingCircle:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+        excludes:
+          - LiveActivityWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios
+        PRODUCT_NAME: Blessing Circle
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_KEY_CFBundleDisplayName: Blessing Circle
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Blessing Circle uses the microphone only while you dictate a blessing.
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Blessing Circle transcribes your spoken blessing into editable text.
+        INFOPLIST_KEY_NSCameraUsageDescription: Blessing Circle uses the camera when you choose to record a video blessing.
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Blessing Circle can import a video you choose for your blessing.
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+    info:
+      path: Configuration/App-Info.plist
+      properties:
+        CFBundleDisplayName: Blessing Circle
+        NSMicrophoneUsageDescription: Blessing Circle uses the microphone only while you dictate a blessing.
+        NSSpeechRecognitionUsageDescription: Blessing Circle transcribes your spoken blessing into editable text.
+        NSCameraUsageDescription: Blessing Circle uses the camera when you choose to record a video blessing.
+        NSPhotoLibraryUsageDescription: Blessing Circle can import a video you choose for your blessing.
+        NSSupportsLiveActivities: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    entitlements:
+      path: Configuration/BlessingCircle.entitlements
+      properties:
+        com.apple.developer.usernotifications.communication: true
+    dependencies:
+      - target: BlessingCircleLiveActivity
+        embed: true
+    scheme:
+      testTargets:
+        - BlessingCircleTests
+  BlessingCircleLiveActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/LiveActivityWidget
+      - path: Sources/Shared/PromptActivityAttributes.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios.live-activity
+        PRODUCT_NAME: BlessingCircleLiveActivity
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    info:
+      path: Configuration/Widget-Info.plist
+      properties:
+        CFBundleDisplayName: Blessing Circle
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  BlessingCircleTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: BlessingCircle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.tests
+
