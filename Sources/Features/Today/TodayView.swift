@@ -22,6 +22,7 @@ struct TodayView: View {
                 .frame(maxWidth: 680)
                 .padding(.horizontal, AppTheme.pagePadding)
                 .padding(.vertical, 18)
+                .padding(.bottom, 100)
                 .frame(maxWidth: .infinity)
             }
         }
@@ -62,6 +63,7 @@ struct TodayView: View {
 }
 
 private struct PromptWindowView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let prompt: DailyPrompt
     let hasSubmitted: Bool
     let shareAction: () -> Void
@@ -92,7 +94,7 @@ private struct PromptWindowView: View {
                         style: StrokeStyle(lineWidth: 13, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .animation(.snappy(duration: 0.35), value: progress)
+                    .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: progress)
 
                 VStack(spacing: 4) {
                     if hasSubmitted {

@@ -18,6 +18,7 @@ struct CircleView: View {
                 }
                 .frame(maxWidth: 680)
                 .padding(AppTheme.pagePadding)
+                .padding(.bottom, 100)
                 .frame(maxWidth: .infinity)
             }
         }
@@ -152,4 +153,3 @@ struct CircleView: View {
         .presentationDetents([.medium])
     }
 }
-

@@ -21,6 +21,7 @@ struct CircleTimelineView: View {
                     }
                     .padding(.horizontal, AppTheme.pagePadding)
                     .padding(.vertical, 18)
+                    .padding(.bottom, 100)
                 }
                 .scrollIndicators(.visible)
             }
@@ -165,4 +166,3 @@ struct AvatarBadge: View {
         [AppTheme.iris, AppTheme.dawn, AppTheme.candle][abs(member.tintSeed) % 3]
     }
 }
-

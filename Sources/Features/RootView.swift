@@ -86,5 +86,6 @@ struct MainTabView: View {
                 .presentationDetents([.large])
                 .interactiveDismissDisabled(model.isSubmitting)
         }
+        .sensoryFeedback(.success, trigger: model.hasSubmittedToday)
     }
 }
