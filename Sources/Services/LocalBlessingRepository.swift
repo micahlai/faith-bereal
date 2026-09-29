@@ -157,6 +157,24 @@ actor LocalBlessingRepository: BlessingRepository {
         return AppBootstrap(currentUser: currentUser, circle: circle, prompt: prompt)
     }
 
+    func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void> {
+        AsyncStream { $0.finish() }
+    }
+
+    func registerDevice(
+        installationID: UUID,
+        apnsToken: String?,
+        pushToStartToken: String?,
+        environment: String
+    ) async throws {}
+
+    func registerActivity(
+        promptID: UUID,
+        activityID: String,
+        pushToken: String,
+        environment: String
+    ) async throws {}
+
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
         let circlePrompts = prompts
             .filter { $0.circleID == circleID }

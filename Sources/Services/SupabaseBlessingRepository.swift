@@ -276,6 +276,72 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await response(from: row, circleID: circleID)
     }
 
+    func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void> {
+        let channel = client.channel("circle-\(circleID.uuidString.lowercased())")
+        let blessingChanges = channel.postgresChange(AnyAction.self, schema: "public", table: "blessings")
+        let responseChanges = channel.postgresChange(AnyAction.self, schema: "public", table: "blessing_responses")
+        let promptChanges = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "daily_prompts",
+            filter: .eq("circle_id", value: circleID)
+        )
+        let membershipChanges = channel.postgresChange(
+            AnyAction.self,
+            schema: "public",
+            table: "circle_members",
+            filter: .eq("circle_id", value: circleID)
+        )
+        try await channel.subscribeWithError()
+
+        return AsyncStream { continuation in
+            let tasks = [
+                Task { for await _ in blessingChanges { continuation.yield() } },
+                Task { for await _ in responseChanges { continuation.yield() } },
+                Task { for await _ in promptChanges { continuation.yield() } },
+                Task { for await _ in membershipChanges { continuation.yield() } },
+            ]
+            continuation.onTermination = { _ in
+                tasks.forEach { $0.cancel() }
+                Task { await self.client.removeChannel(channel) }
+            }
+        }
+    }
+
+    func registerDevice(
+        installationID: UUID,
+        apnsToken: String?,
+        pushToStartToken: String?,
+        environment: String
+    ) async throws {
+        _ = try await client.rpc(
+            "register_device",
+            params: RegisterDeviceParams(
+                installationID: installationID,
+                apnsToken: apnsToken,
+                pushToStartToken: pushToStartToken,
+                environment: environment
+            )
+        ).execute()
+    }
+
+    func registerActivity(
+        promptID: UUID,
+        activityID: String,
+        pushToken: String,
+        environment: String
+    ) async throws {
+        _ = try await client.rpc(
+            "register_activity",
+            params: RegisterActivityParams(
+                promptID: promptID,
+                activityID: activityID,
+                pushToken: pushToken,
+                environment: environment
+            )
+        ).execute()
+    }
+
     private func fetchProfile(userID: UUID) async throws -> ProfileRow {
         try await client.from("profiles").select().eq("id", value: userID).single().execute().value
     }
@@ -682,5 +748,33 @@ private struct SubmitResponseParams: Encodable, Sendable {
         case mode = "p_mode"
         case body = "p_body"
         case audioPath = "p_audio_path"
+    }
+}
+
+private struct RegisterDeviceParams: Encodable, Sendable {
+    let installationID: UUID
+    let apnsToken: String?
+    let pushToStartToken: String?
+    let environment: String
+
+    enum CodingKeys: String, CodingKey {
+        case installationID = "p_installation_id"
+        case apnsToken = "p_apns_token"
+        case pushToStartToken = "p_push_to_start_token"
+        case environment = "p_environment"
+    }
+}
+
+private struct RegisterActivityParams: Encodable, Sendable {
+    let promptID: UUID
+    let activityID: String
+    let pushToken: String
+    let environment: String
+
+    enum CodingKeys: String, CodingKey {
+        case promptID = "p_prompt_id"
+        case activityID = "p_activity_id"
+        case pushToken = "p_push_token"
+        case environment = "p_environment"
     }
 }

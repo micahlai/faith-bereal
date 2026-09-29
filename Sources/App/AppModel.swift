@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import UIKit
+import UserNotifications
 
 @MainActor
 @Observable
@@ -16,6 +18,10 @@ final class AppModel {
     private let bibleService: any BibleTextProviding
     private let authentication: (any AuthenticationProviding)?
     private let activityController = PromptActivityController()
+    private var realtimeTask: Task<Void, Never>?
+    private var remoteServicesConfigured = false
+    private var apnsToken: String?
+    private var pushToStartToken: String?
 
     var loadState: LoadState = .idle
     var currentUser: Member?
@@ -73,6 +79,8 @@ final class AppModel {
             if bootstrap.circle == nil { selectedTab = 2 }
             try await refreshTimeline()
             loadState = .ready
+            startRealtimeUpdates()
+            await configureRemoteServices()
             if let prompt = bootstrap.prompt,
                let circle = bootstrap.circle,
                prompt.phase(at: .now) == .open {
@@ -108,6 +116,10 @@ final class AppModel {
             circle = nil
             prompt = nil
             lanes = []
+            realtimeTask?.cancel()
+            realtimeTask = nil
+            activityController.stopMonitoringTokens()
+            remoteServicesConfigured = false
             loadState = .signedOut
         } catch {
             message = error.localizedDescription
@@ -160,6 +172,7 @@ final class AppModel {
         do {
             circle = try await repository.joinCircle(code: code, memberID: currentUser.id)
             try await refreshTimeline()
+            startRealtimeUpdates()
             message = "You joined \(circle?.name ?? "the circle")."
             return true
         } catch {
@@ -173,6 +186,7 @@ final class AppModel {
         do {
             circle = try await repository.createCircle(name: name, member: currentUser)
             try await refreshTimeline()
+            startRealtimeUpdates()
             message = "Your new circle is ready."
             return true
         } catch {
@@ -277,5 +291,98 @@ final class AppModel {
             message = error.localizedDescription
             return nil
         }
+    }
+
+    func receiveAPNSToken(_ token: String) {
+        apnsToken = token
+        Task { await syncDeviceRegistration() }
+    }
+
+    private func startRealtimeUpdates() {
+        realtimeTask?.cancel()
+        guard let circle else { return }
+        realtimeTask = Task { [weak self, repository] in
+            do {
+                let updates = try await repository.timelineUpdates(circleID: circle.id)
+                for await _ in updates {
+                    guard !Task.isCancelled else { break }
+                    try await self?.refreshTimeline()
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.message = "Live circle updates paused: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func configureRemoteServices() async {
+        guard usesAuthentication, !remoteServicesConfigured else { return }
+        remoteServicesConfigured = true
+        activityController.startMonitoringTokens(
+            onPushToStartToken: { [weak self] token in
+                await self?.receivePushToStartToken(token)
+            },
+            onActivityToken: { [weak self] promptID, activityID, token in
+                await self?.registerActivity(promptID: promptID, activityID: activityID, token: token)
+            }
+        )
+        do {
+            _ = try await UNUserNotificationCenter.current().requestAuthorization(
+                options: [.alert, .sound, .badge]
+            )
+            UIApplication.shared.registerForRemoteNotifications()
+        } catch {
+            message = "Notifications are off. You can enable them later in Settings."
+        }
+    }
+
+    private func receivePushToStartToken(_ token: String) async {
+        pushToStartToken = token
+        await syncDeviceRegistration()
+    }
+
+    private func syncDeviceRegistration() async {
+        guard loadState == .ready else { return }
+        do {
+            try await repository.registerDevice(
+                installationID: Self.installationID,
+                apnsToken: apnsToken,
+                pushToStartToken: pushToStartToken,
+                environment: Self.pushEnvironment
+            )
+        } catch {
+            message = "Push registration will retry next time the app opens."
+        }
+    }
+
+    private func registerActivity(promptID: UUID, activityID: String, token: String) async {
+        do {
+            try await repository.registerActivity(
+                promptID: promptID,
+                activityID: activityID,
+                pushToken: token,
+                environment: Self.pushEnvironment
+            )
+        } catch {
+            message = "Live Activity updates will retry next time the app opens."
+        }
+    }
+
+    private static var installationID: UUID {
+        let key = "blessingCircle.installationID"
+        if let value = UserDefaults.standard.string(forKey: key), let id = UUID(uuidString: value) {
+            return id
+        }
+        let id = UUID()
+        UserDefaults.standard.set(id.uuidString, forKey: key)
+        return id
+    }
+
+    private static var pushEnvironment: String {
+#if DEBUG
+        "sandbox"
+#else
+        "production"
+#endif
     }
 }

@@ -36,6 +36,19 @@ protocol BlessingRepository: Sendable {
         audioURL: URL?,
         now: Date
     ) async throws -> BlessingResponse
+    func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void>
+    func registerDevice(
+        installationID: UUID,
+        apnsToken: String?,
+        pushToStartToken: String?,
+        environment: String
+    ) async throws
+    func registerActivity(
+        promptID: UUID,
+        activityID: String,
+        pushToken: String,
+        environment: String
+    ) async throws
 }
 
 protocol AuthenticationProviding: Sendable {

@@ -7,12 +7,21 @@ type Prompt = {
   starts_at: string;
   ends_at: string;
   dispatch_key: string;
+  response_window_minutes: number;
 };
 
 type Device = {
   user_id: string;
   apns_token: string | null;
   push_to_start_token: string | null;
+  environment: "sandbox" | "production";
+};
+
+type ActivityRegistration = {
+  id: string;
+  prompt_id: string;
+  user_id: string;
+  push_token: string;
   environment: "sandbox" | "production";
 };
 
@@ -98,12 +107,15 @@ async function dispatchPrompt(prompt: Prompt): Promise<number> {
 
   const timestamp = Math.floor(Date.now() / 1000);
   const endsAt = Math.floor(new Date(prompt.ends_at).getTime() / 1000);
+  const windowLabel = prompt.response_window_minutes === 1
+    ? "one minute"
+    : `${prompt.response_window_minutes} minutes`;
   const results = await Promise.allSettled((devices as Device[]).flatMap((device) => {
     const sends: Promise<void>[] = [];
     if (device.apns_token) {
       sends.push(sendAPNs(device.apns_token, device.environment, bundleID, "alert", {
         aps: {
-          alert: { title: `${circle.name} is ready`, body: "You have ten minutes to share today’s blessing." },
+          alert: { title: `${circle.name} is ready`, body: `You have ${windowLabel} to share today’s blessing.` },
           sound: "default",
           "thread-id": prompt.circle_id,
           "interruption-level": "time-sensitive",
@@ -128,7 +140,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<number> {
             "content-state": { endsAt, responseCount: 0, hasSubmitted: false },
             alert: {
               title: `${circle.name} is ready`,
-              body: "You have ten minutes to share today’s blessing.",
+              body: `You have ${windowLabel} to share today’s blessing.`,
               sound: "default",
             },
           },
@@ -143,6 +155,117 @@ async function dispatchPrompt(prompt: Prompt): Promise<number> {
     throw new Error(`All ${failures.length} APNs requests failed`);
   }
   return results.length - failures.length;
+}
+
+async function updateOpenActivities(): Promise<void> {
+  const { data: prompts, error: promptError } = await admin
+    .from("daily_prompts")
+    .select("id, ends_at")
+    .eq("state", "open")
+    .gt("ends_at", new Date().toISOString());
+  if (promptError) throw promptError;
+
+  for (const prompt of prompts ?? []) {
+    const { data: registrations, error: registrationError } = await admin
+      .from("activity_registrations")
+      .select("id, prompt_id, user_id, push_token, environment")
+      .eq("prompt_id", prompt.id)
+      .is("ended_at", null);
+    if (registrationError) throw registrationError;
+    if (!registrations?.length) continue;
+
+    const { data: blessings, error: blessingError } = await admin
+      .from("blessings")
+      .select("author_id")
+      .eq("prompt_id", prompt.id);
+    if (blessingError) throw blessingError;
+    const authors = new Set((blessings ?? []).map((row) => row.author_id));
+    const timestamp = Math.floor(Date.now() / 1000);
+    const endsAt = Math.floor(new Date(prompt.ends_at).getTime() / 1000);
+
+    await Promise.allSettled((registrations as ActivityRegistration[]).map((registration) =>
+      sendAPNs(
+        registration.push_token,
+        registration.environment,
+        `${bundleID}.push-type.liveactivity`,
+        "liveactivity",
+        {
+          aps: {
+            timestamp,
+            event: "update",
+            "content-state": {
+              endsAt,
+              responseCount: authors.size,
+              hasSubmitted: authors.has(registration.user_id),
+            },
+          },
+        },
+      )
+    ));
+  }
+}
+
+async function closeExpiredPrompts(): Promise<void> {
+  const now = new Date();
+  const { data: prompts, error: promptError } = await admin
+    .from("daily_prompts")
+    .select("id, ends_at")
+    .in("state", ["open", "dispatching"])
+    .lte("ends_at", now.toISOString());
+  if (promptError) throw promptError;
+
+  for (const prompt of prompts ?? []) {
+    const { data: registrations, error: registrationError } = await admin
+      .from("activity_registrations")
+      .select("id, prompt_id, user_id, push_token, environment")
+      .eq("prompt_id", prompt.id)
+      .is("ended_at", null);
+    if (registrationError) throw registrationError;
+
+    const { data: blessings, error: blessingError } = await admin
+      .from("blessings")
+      .select("author_id")
+      .eq("prompt_id", prompt.id);
+    if (blessingError) throw blessingError;
+    const authors = new Set((blessings ?? []).map((row) => row.author_id));
+    const timestamp = Math.floor(now.getTime() / 1000);
+    const endsAt = Math.floor(new Date(prompt.ends_at).getTime() / 1000);
+
+    await Promise.allSettled(((registrations ?? []) as ActivityRegistration[]).map((registration) =>
+      sendAPNs(
+        registration.push_token,
+        registration.environment,
+        `${bundleID}.push-type.liveactivity`,
+        "liveactivity",
+        {
+          aps: {
+            timestamp,
+            event: "end",
+            "dismissal-date": timestamp + 60,
+            "content-state": {
+              endsAt,
+              responseCount: authors.size,
+              hasSubmitted: authors.has(registration.user_id),
+            },
+          },
+        },
+      )
+    ));
+
+    if (registrations?.length) {
+      await admin
+        .from("activity_registrations")
+        .update({ ended_at: now.toISOString() })
+        .in("id", registrations.map((registration) => registration.id));
+    }
+  }
+
+  if (prompts?.length) {
+    await admin
+      .from("daily_prompts")
+      .update({ state: "closed", closed_at: now.toISOString() })
+      .in("id", prompts.map((prompt) => prompt.id));
+  }
 }
 
 Deno.serve(async (request) => {
@@ -166,13 +289,8 @@ Deno.serve(async (request) => {
       outcomes.push({ promptID: prompt.id, error: message });
     }
   }
-
-  await admin
-    .from("daily_prompts")
-    .update({ state: "closed", closed_at: new Date().toISOString() })
-    .in("state", ["open", "dispatching"])
-    .lte("ends_at", new Date().toISOString());
+  await updateOpenActivities();
+  await closeExpiredPrompts();
 
   return Response.json({ claimed: outcomes.length, outcomes });
 });
-

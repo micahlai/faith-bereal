@@ -17,6 +17,7 @@
 		683C74774B522C0B71C3DAC5 /* BlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD086AB78C2411FC6492A448 /* BlessingRepository.swift */; };
 		68E89B000052B2EA87B3E842 /* CircleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */; };
 		69D5AACA21015D8BC316820F /* SpeechTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0892DC6E7C01070219AD240A /* SpeechTranscriber.swift */; };
+		6B1509197360169D25A8D398 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F6955EDCB72669D8C4B54E /* AppDelegate.swift */; };
 		6BF92E4D99CABF90A577F055 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234411076A53B6836F09CC17 /* CaptureView.swift */; };
 		6CB8153521635F4A4A1B73E0 /* SupabaseAuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */; };
 		6E3EA5BC5EB12D28AE3E167A /* BibleTextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94EA65921D482A449590AD64 /* BibleTextService.swift */; };
@@ -91,6 +92,7 @@
 		8C99F6499C089B93C6E1D931 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		94735A84240AC2C5107135A1 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		94EA65921D482A449590AD64 /* BibleTextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleTextService.swift; sourceTree = "<group>"; };
+		98F6955EDCB72669D8C4B54E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
 		A64B2CD999847E450C198DDA /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
@@ -239,6 +241,7 @@
 			isa = PBXGroup;
 			children = (
 				6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */,
+				98F6955EDCB72669D8C4B54E /* AppDelegate.swift */,
 				8C99F6499C089B93C6E1D931 /* AppModel.swift */,
 				33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */,
 			);
@@ -395,6 +398,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D39F594EE10456032E8678DE /* AppComposition.swift in Sources */,
+				6B1509197360169D25A8D398 /* AppDelegate.swift in Sources */,
 				821381643ABA5544F55B82B0 /* AppModel.swift in Sources */,
 				515DFFB02152CC5BA58CE379 /* AppTheme.swift in Sources */,
 				9D5FCA300508C441D2DCC72D /* BackendConfiguration.swift in Sources */,

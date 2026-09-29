@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct BlessingCircleApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model: AppModel
 
     init() {
@@ -13,6 +14,11 @@ struct BlessingCircleApp: App {
             RootView()
                 .environment(model)
                 .tint(AppTheme.iris)
+                .task {
+                    appDelegate.deviceTokenHandler = { token in
+                        model.receiveAPNSToken(token)
+                    }
+                }
         }
     }
 }
