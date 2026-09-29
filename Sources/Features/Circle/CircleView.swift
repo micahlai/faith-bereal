@@ -15,7 +15,6 @@ struct CircleView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     circleHeader
                     members
-                    biblePreference
                     actions
                 }
                 .frame(maxWidth: 680)
@@ -68,20 +67,18 @@ struct CircleView: View {
                 .disabled(model.circle == nil)
             }
 
-            if model.circle?.ownerID == model.currentUser?.id {
-                Divider()
-                Button { showingSettings = true } label: {
-                    HStack {
-                        Label("Circle settings", systemImage: "slider.horizontal.3")
-                        Spacer()
-                        Text(windowSummary)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
-                    .frame(minHeight: 44)
+            Divider()
+            Button { showingSettings = true } label: {
+                HStack {
+                    Label("Circle settings", systemImage: "slider.horizontal.3")
+                    Spacer()
+                    Text(windowSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.secondaryInk)
                 }
-                .buttonStyle(.plain)
+                .frame(minHeight: 44)
             }
+            .buttonStyle(.plain)
         }
         .blessingCard()
     }
@@ -136,31 +133,6 @@ struct CircleView: View {
                 .buttonStyle(.bordered)
             }
         }
-    }
-
-    private var biblePreference: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Your Bible version", systemImage: "book.closed")
-                .font(.headline)
-            Picker(
-                "Bible version",
-                selection: Binding(
-                    get: { model.selectedBibleTranslation.id },
-                    set: { versionID in Task { await model.updateBibleVersion(versionID) } }
-                )
-            ) {
-                ForEach(model.bibleTranslations) { translation in
-                    Text("\(translation.shortName) — \(translation.name)")
-                        .tag(translation.id)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            Text("Scripture references from everyone are rendered in this version. Public-domain translations are available.")
-                .font(.caption)
-                .foregroundStyle(AppTheme.secondaryInk)
-        }
-        .blessingCard()
     }
 
     private var joinSheet: some View {
@@ -227,6 +199,8 @@ private struct CircleSettingsView: View {
     @State private var randomWindowStart: Date
     @State private var randomWindowEnd: Date
     @State private var isSaving = false
+    @State private var isLeaving = false
+    @State private var showingLeaveConfirmation = false
 
     init(circle: CircleGroup, isPresented: Binding<Bool>) {
         self.circle = circle
@@ -251,102 +225,128 @@ private struct CircleSettingsView: View {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && randomWindowEndMinutes > randomWindowStartMinutes
     }
+    private var isOwner: Bool { circle.ownerID == model.currentUser?.id }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Circle") {
-                    TextField("Circle name", text: $name)
-                        .textContentType(.organizationName)
-                    NavigationLink {
-                        CircleTimeZonePicker(selection: $timeZoneIdentifier)
-                    } label: {
+                if isOwner {
+                    Section("Circle") {
+                        TextField("Circle name", text: $name)
+                            .textContentType(.organizationName)
+                        NavigationLink {
+                            CircleTimeZonePicker(selection: $timeZoneIdentifier)
+                        } label: {
+                            LabeledContent("Time zone", value: timeZoneDisplayName)
+                        }
+                    }
+
+                    Section {
+                        DatePicker(
+                            "Earliest time",
+                            selection: $randomWindowStart,
+                            displayedComponents: .hourAndMinute
+                        )
+                        DatePicker(
+                            "Latest time",
+                            selection: $randomWindowEnd,
+                            displayedComponents: .hourAndMinute
+                        )
+                        if randomWindowEndMinutes <= randomWindowStartMinutes {
+                            Label("Latest time must be after earliest time.", systemImage: "exclamationmark.triangle")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    } header: {
+                        Text("Random blessing time")
+                    } footer: {
+                        Text("The server chooses one shared moment inside this range using \(timeZoneIdentifier).")
+                    }
+
+                    Section {
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text("Response window")
+                                    .font(.headline)
+                                Spacer()
+                                Text(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                                    .font(.headline.monospacedDigit())
+                                    .foregroundStyle(AppTheme.iris)
+                            }
+
+                            Slider(
+                                value: $selectedIndex,
+                                in: 0...Double(ResponseWindowOptions.minutes.count - 1),
+                                step: 1
+                            ) {
+                                Text("Response window length")
+                            } minimumValueLabel: {
+                                Text("1m").font(.caption2)
+                            } maximumValueLabel: {
+                                Text("3h").font(.caption2)
+                            }
+                            .tint(AppTheme.iris)
+                            .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                        }
+                        .padding(.vertical, 6)
+                    } footer: {
+                        Text("This length is used when future daily prompts are scheduled. Today’s deadline does not move.")
+                    }
+
+                    Section {
+                        Toggle("Allow late blessings", isOn: $allowsLateBlessings)
+                    } footer: {
+                        Text("Members may share after the response window until the next daily prompt. Their post is marked Late in the timeline.")
+                    }
+
+                    Section {
+                        Button {
+                            isSaving = true
+                            Task {
+                                let saved = await model.updateCircleSettings(
+                                    name: name,
+                                    timeZoneIdentifier: timeZoneIdentifier,
+                                    randomWindowStartMinutes: randomWindowStartMinutes,
+                                    randomWindowEndMinutes: randomWindowEndMinutes,
+                                    responseWindowMinutes: selectedMinutes,
+                                    allowsLateBlessings: allowsLateBlessings
+                                )
+                                isSaving = false
+                                if saved { isPresented = false }
+                            }
+                        } label: {
+                            HStack {
+                                Text("Save settings")
+                                Spacer()
+                                if isSaving { ProgressView() }
+                            }
+                        }
+                        .disabled(isSaving || !settingsAreValid)
+                    }
+                } else {
+                    Section("Circle") {
+                        LabeledContent("Name", value: circle.name)
                         LabeledContent("Time zone", value: timeZoneDisplayName)
                     }
-                }
-
-                Section {
-                    DatePicker(
-                        "Earliest time",
-                        selection: $randomWindowStart,
-                        displayedComponents: .hourAndMinute
-                    )
-                    DatePicker(
-                        "Latest time",
-                        selection: $randomWindowEnd,
-                        displayedComponents: .hourAndMinute
-                    )
-                    if randomWindowEndMinutes <= randomWindowStartMinutes {
-                        Label("Latest time must be after earliest time.", systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                    Section("Schedule") {
+                        LabeledContent("Response window", value: selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                        LabeledContent("Late blessings", value: allowsLateBlessings ? "Allowed" : "Not allowed")
                     }
-                } header: {
-                    Text("Random blessing time")
-                } footer: {
-                    Text("The server chooses one shared moment inside this range using \(timeZoneIdentifier).")
                 }
 
                 Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("Response window")
-                                .font(.headline)
-                            Spacer()
-                            Text(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
-                                .font(.headline.monospacedDigit())
-                                .foregroundStyle(AppTheme.iris)
-                        }
-
-                        Slider(
-                            value: $selectedIndex,
-                            in: 0...Double(ResponseWindowOptions.minutes.count - 1),
-                            step: 1
-                        ) {
-                            Text("Response window length")
-                        } minimumValueLabel: {
-                            Text("1m").font(.caption2)
-                        } maximumValueLabel: {
-                            Text("3h").font(.caption2)
-                        }
-                        .tint(AppTheme.iris)
-                        .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
-
+                    Button("Leave circle", role: .destructive) {
+                        showingLeaveConfirmation = true
                     }
-                    .padding(.vertical, 6)
+                    .disabled(isLeaving)
                 } footer: {
-                    Text("This length is used when future daily prompts are scheduled. Today’s deadline does not move.")
-                }
-
-                Section {
-                    Toggle("Allow late blessings", isOn: $allowsLateBlessings)
-                } footer: {
-                    Text("Members may share after the response window until the next daily prompt. Their post is marked Late in the timeline.")
-                }
-
-                Section {
-                    Button {
-                        isSaving = true
-                        Task {
-                            let saved = await model.updateCircleSettings(
-                                name: name,
-                                timeZoneIdentifier: timeZoneIdentifier,
-                                randomWindowStartMinutes: randomWindowStartMinutes,
-                                randomWindowEndMinutes: randomWindowEndMinutes,
-                                responseWindowMinutes: selectedMinutes,
-                                allowsLateBlessings: allowsLateBlessings
-                            )
-                            isSaving = false
-                            if saved { isPresented = false }
-                        }
-                    } label: {
-                        HStack {
-                            Text("Save settings")
-                            Spacer()
-                            if isSaving { ProgressView() }
-                        }
+                    if isOwner {
+                        Text(circle.members.count == 1
+                             ? "Because you are the only member, leaving will delete this circle."
+                             : "Ownership will pass to the longest-standing remaining member.")
+                    } else {
+                        Text("Your blessing history remains in the circle, but you will no longer be able to view it.")
                     }
-                    .disabled(isSaving || !settingsAreValid)
                 }
             }
             .navigationTitle("Circle settings")
@@ -358,6 +358,24 @@ private struct CircleSettingsView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .confirmationDialog(
+            "Leave \(circle.name)?",
+            isPresented: $showingLeaveConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Leave circle", role: .destructive) {
+                isLeaving = true
+                Task {
+                    if await model.leaveCurrentCircle() { isPresented = false }
+                    isLeaving = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(isOwner && circle.members.count == 1
+                 ? "This circle has no other members and will be permanently deleted."
+                 : "You can only rejoin later with a valid invite code.")
+        }
     }
 
     private var timeZoneDisplayName: String {

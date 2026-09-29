@@ -224,4 +224,38 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(response.circleID, circle.id)
         XCTAssertEqual(loaded, [response])
     }
+
+    func testBootstrapLoadsMultipleCircleContexts() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+
+        XCTAssertEqual(bootstrap.circles.count, 2)
+        XCTAssertEqual(bootstrap.circle?.name, "Sunday Table")
+
+        let secondCircle = try XCTUnwrap(bootstrap.circles.last)
+        let context = try await repository.circleContext(circleID: secondCircle.id)
+
+        XCTAssertEqual(context.circle.name, "Morning Prayer")
+        XCTAssertEqual(context.prompt?.circleID, secondCircle.id)
+    }
+
+    func testLeavingOneCirclePreservesOtherMembership() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let before = try await repository.bootstrap()
+        let user = before.currentUser
+        let circleToLeave = try XCTUnwrap(before.circle)
+
+        try await repository.leaveCircle(circleID: circleToLeave.id, memberID: user.id)
+        let after = try await repository.bootstrap()
+
+        XCTAssertEqual(after.circles.map(\.name), ["Morning Prayer"])
+        XCTAssertEqual(after.circle?.name, "Morning Prayer")
+
+        do {
+            _ = try await repository.circleContext(circleID: circleToLeave.id)
+            XCTFail("Expected the departed circle to be inaccessible")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .circleNotFound)
+        }
+    }
 }

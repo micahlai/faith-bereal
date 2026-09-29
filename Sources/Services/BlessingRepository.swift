@@ -2,6 +2,7 @@ import Foundation
 
 protocol BlessingRepository: Sendable {
     func bootstrap() async throws -> AppBootstrap
+    func circleContext(circleID: UUID) async throws -> CircleContext
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane]
     func submit(
         promptID: UUID,
@@ -26,6 +27,7 @@ protocol BlessingRepository: Sendable {
         allowsLateBlessings: Bool
     ) async throws -> CircleGroup
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member
+    func leaveCircle(circleID: UUID, memberID: UUID) async throws
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse]
     func submitResponse(
         blessingID: UUID,

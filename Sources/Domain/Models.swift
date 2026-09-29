@@ -2,7 +2,18 @@ import Foundation
 
 struct AppBootstrap: Sendable {
     let currentUser: Member
-    let circle: CircleGroup?
+    let circles: [CircleGroup]
+    let selectedCircleID: UUID?
+    let prompt: DailyPrompt?
+
+    var circle: CircleGroup? {
+        guard let selectedCircleID else { return nil }
+        return circles.first { $0.id == selectedCircleID }
+    }
+}
+
+struct CircleContext: Sendable {
+    let circle: CircleGroup
     let prompt: DailyPrompt?
 }
 
@@ -158,6 +169,7 @@ enum BlessingError: LocalizedError, Equatable {
     case outsideResponseWindow
     case alreadySubmitted
     case cameraUnavailable
+    case circleNotFound
 
     var errorDescription: String? {
         switch self {
@@ -166,6 +178,7 @@ enum BlessingError: LocalizedError, Equatable {
         case .outsideResponseWindow: "This response window has closed."
         case .alreadySubmitted: "You already shared a blessing for this prompt."
         case .cameraUnavailable: "The camera is not available on this device."
+        case .circleNotFound: "That circle is no longer available. Choose another circle."
         }
     }
 }

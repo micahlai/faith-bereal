@@ -25,12 +25,14 @@ final class AppModel {
 
     var loadState: LoadState = .idle
     var currentUser: Member?
+    var circles: [CircleGroup] = []
     var circle: CircleGroup?
     var prompt: DailyPrompt?
     var lanes: [TimelineLane] = []
     var selectedTab = 0
     var isCapturePresented = false
     var isSubmitting = false
+    var isSwitchingCircle = false
     var message: String?
     var submittedBlessing: Blessing?
 
@@ -74,9 +76,20 @@ final class AppModel {
         do {
             let bootstrap = try await repository.bootstrap()
             self.currentUser = bootstrap.currentUser
-            self.circle = bootstrap.circle
-            self.prompt = bootstrap.prompt
-            if bootstrap.circle == nil { selectedTab = 2 }
+            self.circles = bootstrap.circles
+            let preferredID = Self.persistedCircleID.flatMap { id in
+                bootstrap.circles.contains(where: { $0.id == id }) ? id : nil
+            } ?? bootstrap.selectedCircleID
+            if let preferredID, preferredID != bootstrap.selectedCircleID {
+                let context = try await repository.circleContext(circleID: preferredID)
+                self.circle = context.circle
+                self.prompt = context.prompt
+            } else {
+                self.circle = bootstrap.circle
+                self.prompt = bootstrap.prompt
+            }
+            Self.persistedCircleID = self.circle?.id
+            if self.circle == nil { selectedTab = 2 }
             try await refreshTimeline()
             loadState = .ready
             startRealtimeUpdates()
@@ -113,6 +126,7 @@ final class AppModel {
         do {
             try await authentication.signOut()
             currentUser = nil
+            circles = []
             circle = nil
             prompt = nil
             lanes = []
@@ -129,6 +143,30 @@ final class AppModel {
     func refreshTimeline(now: Date = .now) async throws {
         guard let circle, let currentUser else { return }
         lanes = try await repository.timeline(circleID: circle.id, viewerID: currentUser.id, now: now)
+    }
+
+    func switchCircle(to circleID: UUID) async {
+        guard circle?.id != circleID, circles.contains(where: { $0.id == circleID }) else { return }
+        isSwitchingCircle = true
+        defer { isSwitchingCircle = false }
+        do {
+            let context = try await repository.circleContext(circleID: circleID)
+            circle = context.circle
+            prompt = context.prompt
+            submittedBlessing = nil
+            lanes = []
+            if let index = circles.firstIndex(where: { $0.id == circleID }) {
+                circles[index] = context.circle
+            }
+            Self.persistedCircleID = circleID
+            try await refreshTimeline()
+            startRealtimeUpdates()
+            if let prompt = context.prompt, prompt.phase(at: .now) == .open {
+                await activityController.startIfNeeded(prompt: prompt, circle: context.circle)
+            }
+        } catch {
+            message = error.localizedDescription
+        }
     }
 
     func submit(
@@ -170,10 +208,10 @@ final class AppModel {
     func joinCircle(code: String) async -> Bool {
         guard let currentUser else { return false }
         do {
-            circle = try await repository.joinCircle(code: code, memberID: currentUser.id)
-            try await refreshTimeline()
-            startRealtimeUpdates()
-            message = "You joined \(circle?.name ?? "the circle")."
+            let joinedCircle = try await repository.joinCircle(code: code, memberID: currentUser.id)
+            upsertCircle(joinedCircle)
+            await switchCircle(to: joinedCircle.id)
+            message = "You joined \(joinedCircle.name)."
             return true
         } catch {
             message = error.localizedDescription
@@ -184,9 +222,9 @@ final class AppModel {
     func createCircle(name: String) async -> Bool {
         guard let currentUser else { return false }
         do {
-            circle = try await repository.createCircle(name: name, member: currentUser)
-            try await refreshTimeline()
-            startRealtimeUpdates()
+            let createdCircle = try await repository.createCircle(name: name, member: currentUser)
+            upsertCircle(createdCircle)
+            await switchCircle(to: createdCircle.id)
             message = "Your new circle is ready."
             return true
         } catch {
@@ -205,7 +243,7 @@ final class AppModel {
     ) async -> Bool {
         guard let circle, let currentUser else { return false }
         do {
-            self.circle = try await repository.updateCircleSettings(
+            let updatedCircle = try await repository.updateCircleSettings(
                 circleID: circle.id,
                 ownerID: currentUser.id,
                 name: name,
@@ -215,6 +253,8 @@ final class AppModel {
                 responseWindowMinutes: responseWindowMinutes,
                 allowsLateBlessings: allowsLateBlessings
             )
+            self.circle = updatedCircle
+            upsertCircle(updatedCircle)
             message = "Circle settings saved. The response length applies to future prompts."
             return true
         } catch {
@@ -242,6 +282,33 @@ final class AppModel {
             )
         } catch {
             message = error.localizedDescription
+        }
+    }
+
+    func leaveCurrentCircle() async -> Bool {
+        guard let circle, let currentUser else { return false }
+        do {
+            try await repository.leaveCircle(circleID: circle.id, memberID: currentUser.id)
+            let leftName = circle.name
+            circles.removeAll { $0.id == circle.id }
+            realtimeTask?.cancel()
+            realtimeTask = nil
+            self.circle = nil
+            prompt = nil
+            lanes = []
+            submittedBlessing = nil
+            if let nextCircle = circles.first {
+                Self.persistedCircleID = nextCircle.id
+                await switchCircle(to: nextCircle.id)
+            } else {
+                Self.persistedCircleID = nil
+                selectedTab = 2
+            }
+            message = "You left \(leftName)."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
         }
     }
 
@@ -315,6 +382,14 @@ final class AppModel {
         }
     }
 
+    private func upsertCircle(_ circle: CircleGroup) {
+        if let index = circles.firstIndex(where: { $0.id == circle.id }) {
+            circles[index] = circle
+        } else {
+            circles.append(circle)
+        }
+    }
+
     private func configureRemoteServices() async {
         guard usesAuthentication, !remoteServicesConfigured else { return }
         remoteServicesConfigured = true
@@ -376,6 +451,16 @@ final class AppModel {
         let id = UUID()
         UserDefaults.standard.set(id.uuidString, forKey: key)
         return id
+    }
+
+    private static var persistedCircleID: UUID? {
+        get {
+            UserDefaults.standard.string(forKey: "blessingCircle.selectedCircleID")
+                .flatMap(UUID.init(uuidString:))
+        }
+        set {
+            UserDefaults.standard.set(newValue?.uuidString, forKey: "blessingCircle.selectedCircleID")
+        }
     }
 
     private static var pushEnvironment: String {

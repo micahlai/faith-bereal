@@ -20,27 +20,48 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .eq("user_id", value: userID)
             .is("removed_at", value: nil)
             .order("joined_at", ascending: false)
-            .limit(1)
             .execute()
             .value
-        guard let membership = memberships.first else {
-            return AppBootstrap(currentUser: currentUser, circle: nil, prompt: nil)
+        guard let selectedMembership = memberships.first else {
+            return AppBootstrap(
+                currentUser: currentUser,
+                circles: [],
+                selectedCircleID: nil,
+                prompt: nil
+            )
         }
 
-        let circle = try await fetchCircle(id: membership.circleID, inviteCode: "")
+        var circles: [CircleGroup] = []
+        for membership in memberships {
+            circles.append(try await fetchCircle(id: membership.circleID, inviteCode: ""))
+        }
         let prompts: [PromptRow] = try await client
             .from("daily_prompts")
             .select()
-            .eq("circle_id", value: circle.id)
+            .eq("circle_id", value: selectedMembership.circleID)
             .order("local_date", ascending: false)
             .limit(1)
             .execute()
             .value
         return AppBootstrap(
-            currentUser: member(from: profile, joinedAt: membership.joinedAt),
-            circle: circle,
+            currentUser: currentUser,
+            circles: circles,
+            selectedCircleID: selectedMembership.circleID,
             prompt: prompts.first.map(prompt(from:))
         )
+    }
+
+    func circleContext(circleID: UUID) async throws -> CircleContext {
+        let circle = try await fetchCircle(id: circleID, inviteCode: "")
+        let prompts: [PromptRow] = try await client
+            .from("daily_prompts")
+            .select()
+            .eq("circle_id", value: circleID)
+            .order("local_date", ascending: false)
+            .limit(1)
+            .execute()
+            .value
+        return CircleContext(circle: circle, prompt: prompts.first.map(prompt(from:)))
     }
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
@@ -228,6 +249,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
         .execute()
         .value
         return member(from: row, joinedAt: .distantPast)
+    }
+
+    func leaveCircle(circleID: UUID, memberID: UUID) async throws {
+        _ = try await client.rpc(
+            "leave_circle",
+            params: ["p_circle_id": circleID]
+        ).execute()
     }
 
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {

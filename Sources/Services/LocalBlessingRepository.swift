@@ -3,7 +3,7 @@ import Foundation
 actor LocalBlessingRepository: BlessingRepository {
     private let calendar: Calendar
     private var currentUser: Member
-    private var circle: CircleGroup
+    private var circles: [CircleGroup]
     private var prompts: [DailyPrompt]
     private var blessings: [Blessing]
     private var blessingResponses: [BlessingResponse]
@@ -37,7 +37,7 @@ actor LocalBlessingRepository: BlessingRepository {
         )
 
         currentUser = user
-        circle = CircleGroup(
+        let primaryCircle = CircleGroup(
             id: UUID(uuidString: "B0000000-0000-0000-0000-000000000001")!,
             name: "Sunday Table",
             inviteCode: "LIGHT7",
@@ -53,7 +53,7 @@ actor LocalBlessingRepository: BlessingRepository {
         let currentStart = now.addingTimeInterval(-60)
         let current = DailyPrompt(
             id: UUID(uuidString: "C0000000-0000-0000-0000-000000000001")!,
-            circleID: circle.id,
+            circleID: primaryCircle.id,
             localDate: startOfToday,
             startsAt: currentStart,
             endsAt: currentStart.addingTimeInterval(600)
@@ -62,7 +62,7 @@ actor LocalBlessingRepository: BlessingRepository {
         var seededBlessings: [Blessing] = [
             Blessing(
                 id: UUID(),
-                circleID: circle.id,
+                circleID: primaryCircle.id,
                 promptID: current.id,
                 authorID: ava.id,
                 captureMode: .voice,
@@ -87,7 +87,7 @@ actor LocalBlessingRepository: BlessingRepository {
             seededPrompts.append(
                 DailyPrompt(
                     id: promptID,
-                    circleID: circle.id,
+                    circleID: primaryCircle.id,
                     localDate: day,
                     startsAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713)),
                     endsAt: day.addingTimeInterval(12 * 3600 + Double(offset * 713) + 600)
@@ -96,7 +96,7 @@ actor LocalBlessingRepository: BlessingRepository {
             seededBlessings.append(
                 Blessing(
                     id: UUID(),
-                    circleID: circle.id,
+                    circleID: primaryCircle.id,
                     promptID: promptID,
                     authorID: user.id,
                     captureMode: .typed,
@@ -125,7 +125,7 @@ actor LocalBlessingRepository: BlessingRepository {
                 seededBlessings.append(
                     Blessing(
                         id: UUID(),
-                        circleID: circle.id,
+                        circleID: primaryCircle.id,
                         promptID: promptID,
                         authorID: ava.id,
                         captureMode: offset == 3 ? .voice : .typed,
@@ -145,16 +145,78 @@ actor LocalBlessingRepository: BlessingRepository {
             }
         }
 
+        let grace = Member(
+            id: UUID(uuidString: "A0000000-0000-0000-0000-000000000004")!,
+            displayName: "Grace",
+            initials: "GR",
+            tintSeed: 4,
+            joinedAt: calendar.date(byAdding: .day, value: -6, to: startOfToday)!
+        )
+        let prayerCircle = CircleGroup(
+            id: UUID(uuidString: "B0000000-0000-0000-0000-000000000002")!,
+            name: "Morning Prayer",
+            inviteCode: "GRACE8",
+            ownerID: grace.id,
+            members: [
+                Member(
+                    id: user.id,
+                    displayName: user.displayName,
+                    initials: user.initials,
+                    tintSeed: user.tintSeed,
+                    bibleVersionID: user.bibleVersionID,
+                    joinedAt: calendar.date(byAdding: .day, value: -5, to: startOfToday)!
+                ),
+                grace,
+            ],
+            timeZoneIdentifier: TimeZone.current.identifier,
+            randomWindowStartMinutes: 6 * 60,
+            randomWindowEndMinutes: 10 * 60,
+            responseWindowMinutes: 15,
+            allowsLateBlessings: false
+        )
+        let prayerStart = now.addingTimeInterval(-120)
+        seededPrompts.append(
+            DailyPrompt(
+                id: UUID(uuidString: "C0000000-0000-0000-0000-000000000002")!,
+                circleID: prayerCircle.id,
+                localDate: startOfToday,
+                startsAt: prayerStart,
+                endsAt: prayerStart.addingTimeInterval(900)
+            )
+        )
+
+        circles = [primaryCircle, prayerCircle]
         prompts = seededPrompts
         blessings = seededBlessings
         blessingResponses = []
     }
 
     func bootstrap() async throws -> AppBootstrap {
-        guard let prompt = prompts.max(by: { $0.localDate < $1.localDate }) else {
-            throw BlessingError.outsideResponseWindow
+        let memberCircles = circles.filter { circle in
+            circle.members.contains(where: { $0.id == currentUser.id })
         }
-        return AppBootstrap(currentUser: currentUser, circle: circle, prompt: prompt)
+        let selectedCircleID = memberCircles.first?.id
+        let prompt = selectedCircleID.flatMap { id in
+            prompts.filter { $0.circleID == id }.max(by: { $0.localDate < $1.localDate })
+        }
+        return AppBootstrap(
+            currentUser: currentUser,
+            circles: memberCircles,
+            selectedCircleID: selectedCircleID,
+            prompt: prompt
+        )
+    }
+
+    func circleContext(circleID: UUID) async throws -> CircleContext {
+        guard let circle = circles.first(where: {
+            $0.id == circleID && $0.members.contains(where: { $0.id == currentUser.id })
+        }) else {
+            throw BlessingError.circleNotFound
+        }
+        let prompt = prompts
+            .filter { $0.circleID == circleID }
+            .max(by: { $0.localDate < $1.localDate })
+        return CircleContext(circle: circle, prompt: prompt)
     }
 
     func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void> {
@@ -176,6 +238,9 @@ actor LocalBlessingRepository: BlessingRepository {
     ) async throws {}
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
+        guard let circle = circles.first(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
         let circlePrompts = prompts
             .filter { $0.circleID == circleID }
             .sorted { $0.localDate > $1.localDate }
@@ -234,6 +299,9 @@ actor LocalBlessingRepository: BlessingRepository {
             .filter { $0.circleID == prompt.circleID && $0.startsAt > prompt.startsAt }
             .map(\.startsAt)
             .min()
+        guard let circle = circles.first(where: { $0.id == prompt.circleID }) else {
+            throw BlessingError.circleNotFound
+        }
         let isWithinWindow = prompt.phase(at: now) == .open
         let isAcceptedLate = circle.allowsLateBlessings
             && now >= prompt.endsAt
@@ -272,14 +340,21 @@ actor LocalBlessingRepository: BlessingRepository {
 
     func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup {
         let normalized = code.uppercased().filter { $0.isLetter || $0.isNumber }
-        guard normalized == circle.inviteCode else { throw BlessingError.invalidInviteCode }
-        return circle
+        guard let index = circles.firstIndex(where: { $0.inviteCode == normalized }) else {
+            throw BlessingError.invalidInviteCode
+        }
+        if !circles[index].members.contains(where: { $0.id == memberID }) {
+            var member = currentUser
+            member.joinedAt = .now
+            circles[index].members.append(member)
+        }
+        return circles[index]
     }
 
     func createCircle(name: String, member: Member) async throws -> CircleGroup {
         let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { throw BlessingError.invalidInviteCode }
-        circle = CircleGroup(
+        let circle = CircleGroup(
             id: UUID(),
             name: cleaned,
             inviteCode: String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).uppercased(),
@@ -291,6 +366,7 @@ actor LocalBlessingRepository: BlessingRepository {
             responseWindowMinutes: 10,
             allowsLateBlessings: false
         )
+        circles.append(circle)
         return circle
     }
 
@@ -304,7 +380,8 @@ actor LocalBlessingRepository: BlessingRepository {
         responseWindowMinutes: Int,
         allowsLateBlessings: Bool
     ) async throws -> CircleGroup {
-        guard circle.id == circleID, circle.ownerID == ownerID else {
+        guard let index = circles.firstIndex(where: { $0.id == circleID }),
+              circles[index].ownerID == ownerID else {
             throw BlessingError.invalidInviteCode
         }
         guard ResponseWindowOptions.minutes.contains(responseWindowMinutes) else {
@@ -319,13 +396,13 @@ actor LocalBlessingRepository: BlessingRepository {
               randomWindowEndMinutes > randomWindowStartMinutes else {
             throw BlessingError.invalidInviteCode
         }
-        circle.name = cleanedName
-        circle.timeZoneIdentifier = timeZoneIdentifier
-        circle.randomWindowStartMinutes = randomWindowStartMinutes
-        circle.randomWindowEndMinutes = randomWindowEndMinutes
-        circle.responseWindowMinutes = responseWindowMinutes
-        circle.allowsLateBlessings = allowsLateBlessings
-        return circle
+        circles[index].name = cleanedName
+        circles[index].timeZoneIdentifier = timeZoneIdentifier
+        circles[index].randomWindowStartMinutes = randomWindowStartMinutes
+        circles[index].randomWindowEndMinutes = randomWindowEndMinutes
+        circles[index].responseWindowMinutes = responseWindowMinutes
+        circles[index].allowsLateBlessings = allowsLateBlessings
+        return circles[index]
     }
 
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member {
@@ -334,15 +411,32 @@ actor LocalBlessingRepository: BlessingRepository {
             throw BlessingError.invalidInviteCode
         }
         currentUser.bibleVersionID = versionID
-        if let index = circle.members.firstIndex(where: { $0.id == memberID }) {
-            circle.members[index].bibleVersionID = versionID
+        for circleIndex in circles.indices {
+            if let memberIndex = circles[circleIndex].members.firstIndex(where: { $0.id == memberID }) {
+                circles[circleIndex].members[memberIndex].bibleVersionID = versionID
+            }
         }
         return currentUser
     }
 
+    func leaveCircle(circleID: UUID, memberID: UUID) async throws {
+        guard let circleIndex = circles.firstIndex(where: { $0.id == circleID }),
+              let memberIndex = circles[circleIndex].members.firstIndex(where: { $0.id == memberID }) else {
+            throw BlessingError.circleNotFound
+        }
+        let wasOwner = circles[circleIndex].ownerID == memberID
+        circles[circleIndex].members.remove(at: memberIndex)
+        if circles[circleIndex].members.isEmpty {
+            circles.remove(at: circleIndex)
+        } else if wasOwner,
+                  let successor = circles[circleIndex].members.min(by: { $0.joinedAt < $1.joinedAt }) {
+            circles[circleIndex].ownerID = successor.id
+        }
+    }
+
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
         guard let blessing = blessings.first(where: { $0.id == blessingID }),
-              circle.id == blessing.circleID,
+              let circle = circles.first(where: { $0.id == blessing.circleID }),
               circle.members.contains(where: { $0.id == viewerID }) else {
             throw BlessingError.invalidInviteCode
         }
@@ -363,7 +457,7 @@ actor LocalBlessingRepository: BlessingRepository {
         let cleanedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let blessing = blessings.first(where: { $0.id == blessingID }),
               blessing.circleID == circleID,
-              circle.id == circleID,
+              let circle = circles.first(where: { $0.id == circleID }),
               circle.members.contains(where: { $0.id == authorID }),
               !cleanedBody.isEmpty else {
             throw BlessingError.emptyBlessing
