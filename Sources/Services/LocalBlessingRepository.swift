@@ -150,11 +150,11 @@ actor LocalBlessingRepository: BlessingRepository {
         blessingResponses = []
     }
 
-    func bootstrap() async throws -> (Member, CircleGroup, DailyPrompt) {
+    func bootstrap() async throws -> AppBootstrap {
         guard let prompt = prompts.max(by: { $0.localDate < $1.localDate }) else {
             throw BlessingError.outsideResponseWindow
         }
-        return (currentUser, circle, prompt)
+        return AppBootstrap(currentUser: currentUser, circle: circle, prompt: prompt)
     }
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {

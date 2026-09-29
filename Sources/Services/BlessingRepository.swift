@@ -1,7 +1,7 @@
 import Foundation
 
 protocol BlessingRepository: Sendable {
-    func bootstrap() async throws -> (Member, CircleGroup, DailyPrompt)
+    func bootstrap() async throws -> AppBootstrap
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane]
     func submit(
         promptID: UUID,
@@ -36,4 +36,10 @@ protocol BlessingRepository: Sendable {
         audioURL: URL?,
         now: Date
     ) async throws -> BlessingResponse
+}
+
+protocol AuthenticationProviding: Sendable {
+    func hasSession() async -> Bool
+    func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async throws
+    func signOut() async throws
 }

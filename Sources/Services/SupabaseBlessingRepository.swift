@@ -1,0 +1,686 @@
+import Foundation
+import Supabase
+
+actor SupabaseBlessingRepository: BlessingRepository {
+    private let client: SupabaseClient
+    private let mediaBucket = "blessing-media"
+
+    init(client: SupabaseClient) {
+        self.client = client
+    }
+
+    func bootstrap() async throws -> AppBootstrap {
+        let userID = try await client.auth.session.user.id
+        let profile = try await fetchProfile(userID: userID)
+        let currentUser = member(from: profile, joinedAt: .distantPast)
+
+        let memberships: [MembershipRow] = try await client
+            .from("circle_members")
+            .select()
+            .eq("user_id", value: userID)
+            .is("removed_at", value: nil)
+            .order("joined_at", ascending: false)
+            .limit(1)
+            .execute()
+            .value
+        guard let membership = memberships.first else {
+            return AppBootstrap(currentUser: currentUser, circle: nil, prompt: nil)
+        }
+
+        let circle = try await fetchCircle(id: membership.circleID, inviteCode: "")
+        let prompts: [PromptRow] = try await client
+            .from("daily_prompts")
+            .select()
+            .eq("circle_id", value: circle.id)
+            .order("local_date", ascending: false)
+            .limit(1)
+            .execute()
+            .value
+        return AppBootstrap(
+            currentUser: member(from: profile, joinedAt: membership.joinedAt),
+            circle: circle,
+            prompt: prompts.first.map(prompt(from:))
+        )
+    }
+
+    func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
+        let circle = try await fetchCircle(id: circleID, inviteCode: "")
+        let promptRows: [PromptRow] = try await client
+            .from("daily_prompts")
+            .select()
+            .eq("circle_id", value: circleID)
+            .order("local_date", ascending: false)
+            .execute()
+            .value
+        guard !promptRows.isEmpty else {
+            return circle.members.map {
+                TimelineLane(
+                    member: $0,
+                    events: [TimelineEvent(memberID: $0.id, date: $0.joinedAt, status: .joinedCircle)]
+                )
+            }
+        }
+
+        let blessingRows: [BlessingRow] = try await client
+            .from("blessings")
+            .select()
+            .in("prompt_id", values: promptRows.map(\.id))
+            .execute()
+            .value
+        var blessings: [Blessing] = []
+        for row in blessingRows {
+            blessings.append(try await blessing(from: row, circleID: circleID))
+        }
+
+        let calendar = circleCalendar(circle)
+        let currentPrompt = promptRows.first(where: { calendar.isDate($0.localDateValue, inSameDayAs: now) })
+        let viewerHasSubmitted = currentPrompt.map { promptRow in
+            blessings.contains { $0.promptID == promptRow.id && $0.authorID == viewerID }
+        } ?? false
+
+        return circle.members.map { member in
+            var events = promptRows
+                .filter { $0.startsAt >= member.joinedAt }
+                .map { row -> TimelineEvent in
+                    let prompt = prompt(from: row)
+                    let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
+                    let isToday = calendar.isDate(prompt.localDate, inSameDayAs: now)
+                    let status: TimelineStatus
+                    if let match {
+                        status = .blessing(match)
+                    } else if isToday && member.id != viewerID && !viewerHasSubmitted {
+                        status = .locked
+                    } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings) {
+                        status = .waiting
+                    } else {
+                        status = .missed
+                    }
+                    return TimelineEvent(memberID: member.id, date: prompt.localDate, status: status)
+                }
+            events.append(TimelineEvent(memberID: member.id, date: member.joinedAt, status: .joinedCircle))
+            return TimelineLane(member: member, events: events)
+        }
+    }
+
+    func submit(
+        promptID: UUID,
+        authorID: UUID,
+        mode: CaptureMode,
+        body: String?,
+        audioURL: URL?,
+        videoURL: URL?,
+        scriptureReference: ScriptureReference?,
+        now: Date
+    ) async throws -> Blessing {
+        let promptRow: PromptRow = try await client
+            .from("daily_prompts")
+            .select()
+            .eq("id", value: promptID)
+            .single()
+            .execute()
+            .value
+        var audioPath: String?
+        var videoPath: String?
+        let basePath = "\(promptRow.circleID)/\(promptID)/\(authorID)"
+        if let audioURL {
+            audioPath = "\(basePath)/voice-\(UUID().uuidString).caf"
+            try await upload(fileURL: audioURL, path: audioPath!, contentType: "audio/x-caf")
+        }
+        if let videoURL {
+            videoPath = "\(basePath)/video-\(UUID().uuidString).mov"
+            try await upload(fileURL: videoURL, path: videoPath!, contentType: "video/quicktime")
+        }
+
+        let row: BlessingRow
+        if mode == .video {
+            row = try await client.rpc(
+                "finalize_video_blessing",
+                params: FinalizeVideoParams(
+                    promptID: promptID,
+                    videoPath: videoPath,
+                    transcript: body,
+                    thumbnailPath: nil,
+                    reference: scriptureReference
+                )
+            )
+            .single()
+            .execute()
+            .value
+        } else {
+            row = try await client.rpc(
+                "submit_text_blessing",
+                params: SubmitTextParams(
+                    promptID: promptID,
+                    mode: mode.rawValue,
+                    body: body,
+                    audioPath: audioPath,
+                    reference: scriptureReference
+                )
+            )
+            .single()
+            .execute()
+            .value
+        }
+        return try await blessing(from: row, circleID: promptRow.circleID)
+    }
+
+    func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup {
+        let row: CircleRow = try await client.rpc(
+            "join_circle",
+            params: ["p_invite_code": code]
+        )
+        .single()
+        .execute()
+        .value
+        return try await fetchCircle(id: row.id, inviteCode: code.uppercased())
+    }
+
+    func createCircle(name: String, member: Member) async throws -> CircleGroup {
+        let code = Self.inviteCode()
+        let row: CircleRow = try await client.rpc(
+            "create_circle",
+            params: CreateCircleParams(
+                name: name,
+                inviteCode: code,
+                timeZone: TimeZone.current.identifier
+            )
+        )
+        .single()
+        .execute()
+        .value
+        return try await fetchCircle(id: row.id, inviteCode: code)
+    }
+
+    func updateCircleSettings(
+        circleID: UUID,
+        ownerID: UUID,
+        name: String,
+        timeZoneIdentifier: String,
+        randomWindowStartMinutes: Int,
+        randomWindowEndMinutes: Int,
+        responseWindowMinutes: Int,
+        allowsLateBlessings: Bool
+    ) async throws -> CircleGroup {
+        let row: CircleRow = try await client.rpc(
+            "update_circle_settings",
+            params: UpdateCircleSettingsParams(
+                circleID: circleID,
+                name: name,
+                timeZone: timeZoneIdentifier,
+                windowStart: Self.postgresTime(minutes: randomWindowStartMinutes),
+                windowEnd: Self.postgresTime(minutes: randomWindowEndMinutes),
+                responseWindowMinutes: responseWindowMinutes,
+                allowLateBlessings: allowsLateBlessings
+            )
+        )
+        .single()
+        .execute()
+        .value
+        return try await fetchCircle(id: row.id, inviteCode: "")
+    }
+
+    func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member {
+        let row: ProfileRow = try await client.rpc(
+            "update_bible_version",
+            params: ["p_version_id": versionID]
+        )
+        .single()
+        .execute()
+        .value
+        return member(from: row, joinedAt: .distantPast)
+    }
+
+    func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
+        let blessingRow = try await fetchBlessing(id: blessingID)
+        let rows: [ResponseRow] = try await client
+            .from("blessing_responses")
+            .select()
+            .eq("blessing_id", value: blessingID)
+            .order("submitted_at")
+            .execute()
+            .value
+        var result: [BlessingResponse] = []
+        for row in rows {
+            result.append(try await response(from: row, circleID: blessingRow.circleID))
+        }
+        return result
+    }
+
+    func submitResponse(
+        blessingID: UUID,
+        circleID: UUID,
+        authorID: UUID,
+        mode: ResponseMode,
+        body: String,
+        audioURL: URL?,
+        now: Date
+    ) async throws -> BlessingResponse {
+        let blessingRow = try await fetchBlessing(id: blessingID)
+        var audioPath: String?
+        if let audioURL {
+            audioPath = "\(circleID)/\(blessingRow.promptID)/\(authorID)/responses/\(blessingID)/\(UUID().uuidString).caf"
+            try await upload(fileURL: audioURL, path: audioPath!, contentType: "audio/x-caf")
+        }
+        let row: ResponseRow = try await client.rpc(
+            "submit_blessing_response",
+            params: SubmitResponseParams(
+                blessingID: blessingID,
+                mode: mode.rawValue,
+                body: body,
+                audioPath: audioPath
+            )
+        )
+        .single()
+        .execute()
+        .value
+        return try await response(from: row, circleID: circleID)
+    }
+
+    private func fetchProfile(userID: UUID) async throws -> ProfileRow {
+        try await client.from("profiles").select().eq("id", value: userID).single().execute().value
+    }
+
+    private func fetchCircle(id: UUID, inviteCode: String) async throws -> CircleGroup {
+        let row: CircleRow = try await client.from("circles").select().eq("id", value: id).single().execute().value
+        let membershipRows: [MembershipRow] = try await client
+            .from("circle_members")
+            .select()
+            .eq("circle_id", value: id)
+            .is("removed_at", value: nil)
+            .order("joined_at")
+            .execute()
+            .value
+        let ids: [any PostgrestFilterValue] = membershipRows.map(\.userID)
+        let profiles: [ProfileRow] = ids.isEmpty ? [] : try await client
+            .from("profiles")
+            .select()
+            .in("id", values: ids)
+            .execute()
+            .value
+        let members = membershipRows.compactMap { membership -> Member? in
+            guard let profile = profiles.first(where: { $0.id == membership.userID }) else { return nil }
+            return member(from: profile, joinedAt: membership.joinedAt)
+        }
+        return CircleGroup(
+            id: row.id,
+            name: row.name,
+            inviteCode: inviteCode,
+            ownerID: row.ownerID,
+            members: members,
+            timeZoneIdentifier: row.timeZone,
+            randomWindowStartMinutes: Self.minutes(postgresTime: row.windowStart),
+            randomWindowEndMinutes: Self.minutes(postgresTime: row.windowEnd),
+            responseWindowMinutes: row.responseWindowMinutes,
+            allowsLateBlessings: row.allowLateBlessings
+        )
+    }
+
+    private func fetchBlessing(id: UUID) async throws -> BlessingWithCircleRow {
+        try await client
+            .from("blessings")
+            .select("*, daily_prompts!inner(circle_id)")
+            .eq("id", value: id)
+            .single()
+            .execute()
+            .value
+    }
+
+    private func blessing(from row: BlessingRow, circleID: UUID) async throws -> Blessing {
+        Blessing(
+            id: row.id,
+            circleID: circleID,
+            promptID: row.promptID,
+            authorID: row.authorID,
+            captureMode: CaptureMode(rawValue: row.captureMode) ?? .typed,
+            body: row.body,
+            audioURL: try await signedURL(path: row.audioPath),
+            videoURL: try await signedURL(path: row.videoPath),
+            submittedAt: row.submittedAt,
+            isLate: row.isLate,
+            scriptureReference: row.scriptureReference
+        )
+    }
+
+    private func response(from row: ResponseRow, circleID: UUID) async throws -> BlessingResponse {
+        BlessingResponse(
+            id: row.id,
+            blessingID: row.blessingID,
+            circleID: circleID,
+            authorID: row.authorID,
+            mode: ResponseMode(rawValue: row.mode) ?? .typed,
+            body: row.body,
+            audioURL: try await signedURL(path: row.audioPath),
+            submittedAt: row.submittedAt
+        )
+    }
+
+    private func signedURL(path: String?) async throws -> URL? {
+        guard let path else { return nil }
+        return try await client.storage.from(mediaBucket).createSignedURL(path: path, expiresIn: 3_600)
+    }
+
+    private func upload(fileURL: URL, path: String, contentType: String) async throws {
+        _ = try await client.storage.from(mediaBucket).upload(
+            path,
+            fileURL: fileURL,
+            options: FileOptions(contentType: contentType, upsert: false)
+        )
+    }
+
+    private func prompt(from row: PromptRow) -> DailyPrompt {
+        DailyPrompt(
+            id: row.id,
+            circleID: row.circleID,
+            localDate: row.localDateValue,
+            startsAt: row.startsAt,
+            endsAt: row.endsAt
+        )
+    }
+
+    private func member(from row: ProfileRow, joinedAt: Date) -> Member {
+        let parts = row.displayName.split(separator: " ")
+        let initials = parts.prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
+        return Member(
+            id: row.id,
+            displayName: row.displayName,
+            initials: initials.isEmpty ? "BC" : initials,
+            tintSeed: row.id.uuidString.utf8.reduce(0) { $0 + Int($1) },
+            bibleVersionID: row.bibleVersionID,
+            joinedAt: joinedAt
+        )
+    }
+
+    private func circleCalendar(_ circle: CircleGroup) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+        return calendar
+    }
+
+    private static func inviteCode() -> String {
+        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        return String((0..<6).compactMap { _ in alphabet.randomElement() })
+    }
+
+    private static func minutes(postgresTime: String) -> Int {
+        let parts = postgresTime.split(separator: ":").compactMap { Int($0) }
+        guard parts.count >= 2 else { return 0 }
+        return parts[0] * 60 + parts[1]
+    }
+
+    private static func postgresTime(minutes: Int) -> String {
+        String(format: "%02d:%02d:00", minutes / 60, minutes % 60)
+    }
+}
+
+private struct ProfileRow: Codable, Sendable {
+    let id: UUID
+    let displayName: String
+    let bibleVersionID: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case displayName = "display_name"
+        case bibleVersionID = "bible_version_id"
+    }
+}
+
+private struct MembershipRow: Codable, Sendable {
+    let circleID: UUID
+    let userID: UUID
+    let joinedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case circleID = "circle_id"
+        case userID = "user_id"
+        case joinedAt = "joined_at"
+    }
+}
+
+private struct CircleRow: Codable, Sendable {
+    let id: UUID
+    let name: String
+    let ownerID: UUID
+    let timeZone: String
+    let windowStart: String
+    let windowEnd: String
+    let responseWindowMinutes: Int
+    let allowLateBlessings: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case ownerID = "owner_id"
+        case timeZone = "time_zone"
+        case windowStart = "window_start"
+        case windowEnd = "window_end"
+        case responseWindowMinutes = "response_window_minutes"
+        case allowLateBlessings = "allow_late_blessings"
+    }
+}
+
+private struct PromptRow: Codable, Sendable {
+    let id: UUID
+    let circleID: UUID
+    let localDate: String
+    let startsAt: Date
+    let endsAt: Date
+
+    var localDateValue: Date {
+        Self.dateFormatter.date(from: localDate) ?? startsAt
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case circleID = "circle_id"
+        case localDate = "local_date"
+        case startsAt = "starts_at"
+        case endsAt = "ends_at"
+    }
+}
+
+private struct BlessingRow: Codable, Sendable {
+    let id: UUID
+    let promptID: UUID
+    let authorID: UUID
+    let captureMode: String
+    let body: String?
+    let audioPath: String?
+    let videoPath: String?
+    let submittedAt: Date
+    let isLate: Bool
+    let scriptureBookSlug: String?
+    let scriptureBookName: String?
+    let scriptureChapter: Int?
+    let scriptureVerseStart: Int?
+    let scriptureVerseEnd: Int?
+
+    var scriptureReference: ScriptureReference? {
+        guard let scriptureBookSlug, let scriptureBookName, let scriptureChapter,
+              let scriptureVerseStart, let scriptureVerseEnd else { return nil }
+        return ScriptureReference(
+            bookSlug: scriptureBookSlug,
+            bookName: scriptureBookName,
+            chapter: scriptureChapter,
+            verseStart: scriptureVerseStart,
+            verseEnd: scriptureVerseEnd
+        )
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, body
+        case promptID = "prompt_id"
+        case authorID = "author_id"
+        case captureMode = "capture_mode"
+        case audioPath = "audio_path"
+        case videoPath = "video_path"
+        case submittedAt = "submitted_at"
+        case isLate = "is_late"
+        case scriptureBookSlug = "scripture_book_slug"
+        case scriptureBookName = "scripture_book_name"
+        case scriptureChapter = "scripture_chapter"
+        case scriptureVerseStart = "scripture_verse_start"
+        case scriptureVerseEnd = "scripture_verse_end"
+    }
+}
+
+private struct BlessingWithCircleRow: Codable, Sendable {
+    struct PromptCircle: Codable, Sendable {
+        let circleID: UUID
+        enum CodingKeys: String, CodingKey { case circleID = "circle_id" }
+    }
+    let promptID: UUID
+    let dailyPrompts: PromptCircle
+    var circleID: UUID { dailyPrompts.circleID }
+
+    enum CodingKeys: String, CodingKey {
+        case promptID = "prompt_id"
+        case dailyPrompts = "daily_prompts"
+    }
+}
+
+private struct ResponseRow: Codable, Sendable {
+    let id: UUID
+    let blessingID: UUID
+    let authorID: UUID
+    let mode: String
+    let body: String
+    let audioPath: String?
+    let submittedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, mode, body
+        case blessingID = "blessing_id"
+        case authorID = "author_id"
+        case audioPath = "audio_path"
+        case submittedAt = "submitted_at"
+    }
+}
+
+private struct CreateCircleParams: Encodable, Sendable {
+    let name: String
+    let inviteCode: String
+    let timeZone: String
+    enum CodingKeys: String, CodingKey {
+        case name = "p_name"
+        case inviteCode = "p_invite_code"
+        case timeZone = "p_time_zone"
+    }
+}
+
+private struct UpdateCircleSettingsParams: Encodable, Sendable {
+    let circleID: UUID
+    let name: String
+    let timeZone: String
+    let windowStart: String
+    let windowEnd: String
+    let responseWindowMinutes: Int
+    let allowLateBlessings: Bool
+    enum CodingKeys: String, CodingKey {
+        case circleID = "p_circle_id"
+        case name = "p_name"
+        case timeZone = "p_time_zone"
+        case windowStart = "p_window_start"
+        case windowEnd = "p_window_end"
+        case responseWindowMinutes = "p_response_window_minutes"
+        case allowLateBlessings = "p_allow_late_blessings"
+    }
+}
+
+private struct SubmitTextParams: Encodable, Sendable {
+    let promptID: UUID
+    let mode: String
+    let body: String?
+    let audioPath: String?
+    let scriptureBookSlug: String?
+    let scriptureBookName: String?
+    let scriptureChapter: Int?
+    let scriptureVerseStart: Int?
+    let scriptureVerseEnd: Int?
+
+    init(promptID: UUID, mode: String, body: String?, audioPath: String?, reference: ScriptureReference?) {
+        self.promptID = promptID
+        self.mode = mode
+        self.body = body
+        self.audioPath = audioPath
+        scriptureBookSlug = reference?.bookSlug
+        scriptureBookName = reference?.bookName
+        scriptureChapter = reference?.chapter
+        scriptureVerseStart = reference?.verseStart
+        scriptureVerseEnd = reference?.verseEnd
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case promptID = "p_prompt_id"
+        case mode = "p_mode"
+        case body = "p_body"
+        case audioPath = "p_audio_path"
+        case scriptureBookSlug = "p_scripture_book_slug"
+        case scriptureBookName = "p_scripture_book_name"
+        case scriptureChapter = "p_scripture_chapter"
+        case scriptureVerseStart = "p_scripture_verse_start"
+        case scriptureVerseEnd = "p_scripture_verse_end"
+    }
+}
+
+private struct FinalizeVideoParams: Encodable, Sendable {
+    let promptID: UUID
+    let videoPath: String?
+    let transcript: String?
+    let thumbnailPath: String?
+    let scriptureBookSlug: String?
+    let scriptureBookName: String?
+    let scriptureChapter: Int?
+    let scriptureVerseStart: Int?
+    let scriptureVerseEnd: Int?
+
+    init(
+        promptID: UUID,
+        videoPath: String?,
+        transcript: String?,
+        thumbnailPath: String?,
+        reference: ScriptureReference?
+    ) {
+        self.promptID = promptID
+        self.videoPath = videoPath
+        self.transcript = transcript
+        self.thumbnailPath = thumbnailPath
+        scriptureBookSlug = reference?.bookSlug
+        scriptureBookName = reference?.bookName
+        scriptureChapter = reference?.chapter
+        scriptureVerseStart = reference?.verseStart
+        scriptureVerseEnd = reference?.verseEnd
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case promptID = "p_prompt_id"
+        case videoPath = "p_video_path"
+        case transcript = "p_transcript"
+        case thumbnailPath = "p_thumbnail_path"
+        case scriptureBookSlug = "p_scripture_book_slug"
+        case scriptureBookName = "p_scripture_book_name"
+        case scriptureChapter = "p_scripture_chapter"
+        case scriptureVerseStart = "p_scripture_verse_start"
+        case scriptureVerseEnd = "p_scripture_verse_end"
+    }
+}
+
+private struct SubmitResponseParams: Encodable, Sendable {
+    let blessingID: UUID
+    let mode: String
+    let body: String
+    let audioPath: String?
+    enum CodingKeys: String, CodingKey {
+        case blessingID = "p_blessing_id"
+        case mode = "p_mode"
+        case body = "p_body"
+        case audioPath = "p_audio_path"
+    }
+}

@@ -10,6 +10,8 @@ struct RootView: View {
                 LoadingView()
             case .ready:
                 MainTabView()
+            case .signedOut:
+                SignInView()
             case let .failed(message):
                 ContentUnavailableView(
                     "Couldn’t open your circle",

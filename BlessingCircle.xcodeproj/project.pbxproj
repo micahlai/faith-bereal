@@ -18,7 +18,9 @@
 		68E89B000052B2EA87B3E842 /* CircleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */; };
 		69D5AACA21015D8BC316820F /* SpeechTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0892DC6E7C01070219AD240A /* SpeechTranscriber.swift */; };
 		6BF92E4D99CABF90A577F055 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234411076A53B6836F09CC17 /* CaptureView.swift */; };
+		6CB8153521635F4A4A1B73E0 /* SupabaseAuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */; };
 		6E3EA5BC5EB12D28AE3E167A /* BibleTextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94EA65921D482A449590AD64 /* BibleTextService.swift */; };
+		75E13967995B0BFF55A18ED9 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E10C692366BEAE2B09BBC9 /* SignInView.swift */; };
 		76D913FC848A66CB5A1A94BB /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94735A84240AC2C5107135A1 /* RootView.swift */; };
 		7D1922CBB7AFE9B86E780EA9 /* CircleTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF399AB3F16CF08C2399F2DF /* CircleTimelineView.swift */; };
 		821381643ABA5544F55B82B0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C99F6499C089B93C6E1D931 /* AppModel.swift */; };
@@ -31,8 +33,10 @@
 		A3A80BC1BB9ED561C129800B /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766D059B090295A07973C5B3 /* Models.swift */; };
 		B693844FB4B9B287A6CF7CCC /* LocalBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */; };
 		C5E886DC0C3FF80F1DF8B517 /* BlessingCircleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */; };
+		D39F594EE10456032E8678DE /* AppComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */; };
 		E8BF3EB4CB41784548937894 /* PromptActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */; };
 		EFE5536CCC884FDACDAAB6D4 /* BlessingCircleLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F58EC1B9E3233BD4F529E454 /* SupabaseBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,11 +76,14 @@
 		089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleModels.swift; sourceTree = "<group>"; };
 		1264492C64A180326D793D6F /* BlessingCircleTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		234411076A53B6836F09CC17 /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
+		28E10C692366BEAE2B09BBC9 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfiguration.swift; sourceTree = "<group>"; };
 		2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptActivityController.swift; sourceTree = "<group>"; };
 		33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleApp.swift; sourceTree = "<group>"; };
 		5EF821C48CC75D537252691D /* BibleReferencePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReferencePicker.swift; sourceTree = "<group>"; };
+		660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthenticationService.swift; sourceTree = "<group>"; };
 		6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptActivityAttributes.swift; sourceTree = "<group>"; };
+		6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppComposition.swift; sourceTree = "<group>"; };
 		766D059B090295A07973C5B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCaptureView.swift; sourceTree = "<group>"; };
 		86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalBlessingRepository.swift; sourceTree = "<group>"; };
@@ -90,6 +97,7 @@
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
 		ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleLiveActivity.swift; sourceTree = "<group>"; };
 		AF96D83DCB140C9B96F965AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseBlessingRepository.swift; sourceTree = "<group>"; };
 		BD086AB78C2411FC6492A448 /* BlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingRepository.swift; sourceTree = "<group>"; };
 		D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BlessingCircleLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9598DE0EDAB20B48B60056D /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
@@ -116,6 +124,8 @@
 				BD086AB78C2411FC6492A448 /* BlessingRepository.swift */,
 				86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */,
 				2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */,
+				660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */,
+				B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -138,6 +148,7 @@
 				C0B1E2F6B1C22AEB877FB30E /* Timeline */,
 				6F7816912646A49B20A5BE84 /* Today */,
 				94735A84240AC2C5107135A1 /* RootView.swift */,
+				28E10C692366BEAE2B09BBC9 /* SignInView.swift */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -227,6 +238,7 @@
 		E4E8EADE3F18623893E5FE28 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */,
 				8C99F6499C089B93C6E1D931 /* AppModel.swift */,
 				33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */,
 			);
@@ -382,6 +394,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D39F594EE10456032E8678DE /* AppComposition.swift in Sources */,
 				821381643ABA5544F55B82B0 /* AppModel.swift in Sources */,
 				515DFFB02152CC5BA58CE379 /* AppTheme.swift in Sources */,
 				9D5FCA300508C441D2DCC72D /* BackendConfiguration.swift in Sources */,
@@ -399,7 +412,10 @@
 				3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */,
 				E8BF3EB4CB41784548937894 /* PromptActivityController.swift in Sources */,
 				76D913FC848A66CB5A1A94BB /* RootView.swift in Sources */,
+				75E13967995B0BFF55A18ED9 /* SignInView.swift in Sources */,
 				69D5AACA21015D8BC316820F /* SpeechTranscriber.swift in Sources */,
+				6CB8153521635F4A4A1B73E0 /* SupabaseAuthenticationService.swift in Sources */,
+				F58EC1B9E3233BD4F529E454 /* SupabaseBlessingRepository.swift in Sources */,
 				13622CFB23BD69B5E99BEC74 /* TodayView.swift in Sources */,
 				8704FD748616E0FDC60A6B02 /* VideoCaptureView.swift in Sources */,
 			);

@@ -8,11 +8,13 @@ final class AppModel {
         case idle
         case loading
         case ready
+        case signedOut
         case failed(String)
     }
 
     private let repository: any BlessingRepository
     private let bibleService: any BibleTextProviding
+    private let authentication: (any AuthenticationProviding)?
     private let activityController = PromptActivityController()
 
     var loadState: LoadState = .idle
@@ -28,10 +30,12 @@ final class AppModel {
 
     init(
         repository: any BlessingRepository,
-        bibleService: any BibleTextProviding = BibleAPIService()
+        bibleService: any BibleTextProviding = BibleAPIService(),
+        authentication: (any AuthenticationProviding)? = nil
     ) {
         self.repository = repository
         self.bibleService = bibleService
+        self.authentication = authentication
     }
 
     var hasSubmittedToday: Bool {
@@ -57,18 +61,56 @@ final class AppModel {
     func bootstrap() async {
         guard loadState == .idle else { return }
         loadState = .loading
+        if let authentication, await !authentication.hasSession() {
+            loadState = .signedOut
+            return
+        }
         do {
-            let (user, circle, prompt) = try await repository.bootstrap()
-            self.currentUser = user
-            self.circle = circle
-            self.prompt = prompt
+            let bootstrap = try await repository.bootstrap()
+            self.currentUser = bootstrap.currentUser
+            self.circle = bootstrap.circle
+            self.prompt = bootstrap.prompt
+            if bootstrap.circle == nil { selectedTab = 2 }
             try await refreshTimeline()
             loadState = .ready
-            if prompt.phase(at: .now) == .open {
+            if let prompt = bootstrap.prompt,
+               let circle = bootstrap.circle,
+               prompt.phase(at: .now) == .open {
                 await activityController.startIfNeeded(prompt: prompt, circle: circle)
             }
         } catch {
             loadState = .failed(error.localizedDescription)
+        }
+    }
+
+    func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async {
+        guard let authentication else { return }
+        loadState = .loading
+        do {
+            try await authentication.signInWithApple(
+                idToken: idToken,
+                rawNonce: rawNonce,
+                fullName: fullName
+            )
+            loadState = .idle
+            await bootstrap()
+        } catch {
+            loadState = .signedOut
+            message = error.localizedDescription
+        }
+    }
+
+    func signOut() async {
+        guard let authentication else { return }
+        do {
+            try await authentication.signOut()
+            currentUser = nil
+            circle = nil
+            prompt = nil
+            lanes = []
+            loadState = .signedOut
+        } catch {
+            message = error.localizedDescription
         }
     }
 
@@ -174,6 +216,8 @@ final class AppModel {
         BibleTranslation.publicDomain.first(where: { $0.id == currentUser?.bibleVersionID })
             ?? BibleTranslation.publicDomain[0]
     }
+
+    var usesAuthentication: Bool { authentication != nil }
 
     func updateBibleVersion(_ versionID: String) async {
         guard let currentUser else { return }

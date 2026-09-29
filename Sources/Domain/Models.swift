@@ -1,5 +1,11 @@
 import Foundation
 
+struct AppBootstrap: Sendable {
+    let currentUser: Member
+    let circle: CircleGroup?
+    let prompt: DailyPrompt?
+}
+
 struct Member: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var displayName: String

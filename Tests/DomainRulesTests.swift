@@ -59,7 +59,9 @@ final class DomainRulesTests: XCTestCase {
     func testDuplicateSubmissionIsRejected() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
-        let (user, _, prompt) = try await repository.bootstrap()
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let prompt = try XCTUnwrap(bootstrap.prompt)
 
         _ = try await repository.submit(
             promptID: prompt.id,
@@ -91,7 +93,9 @@ final class DomainRulesTests: XCTestCase {
 
     func testOwnerCanChangeFutureResponseWindowAndAllowLateBlessings() async throws {
         let repository = LocalBlessingRepository(now: .now)
-        let (user, circle, _) = try await repository.bootstrap()
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
 
         let updated = try await repository.updateCircleSettings(
             circleID: circle.id,
@@ -113,7 +117,9 @@ final class DomainRulesTests: XCTestCase {
     func testLateSubmissionIsMarkedLateWhenCircleAllowsIt() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
-        let (user, _, prompt) = try await repository.bootstrap()
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let prompt = try XCTUnwrap(bootstrap.prompt)
         let lateTime = prompt.endsAt.addingTimeInterval(30)
 
         let blessing = try await repository.submit(
@@ -133,7 +139,9 @@ final class DomainRulesTests: XCTestCase {
     func testSubmissionStoresReferenceWithoutVerseText() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
-        let (user, _, prompt) = try await repository.bootstrap()
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let prompt = try XCTUnwrap(bootstrap.prompt)
         let reference = ScriptureReference(
             bookSlug: "john",
             bookName: "John",
@@ -159,7 +167,9 @@ final class DomainRulesTests: XCTestCase {
 
     func testBibleVersionPreferenceIsUserSpecific() async throws {
         let repository = LocalBlessingRepository(now: .now)
-        let (user, circle, _) = try await repository.bootstrap()
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
 
         let updated = try await repository.updateBibleVersion(memberID: user.id, versionID: "kjv")
 
@@ -170,7 +180,9 @@ final class DomainRulesTests: XCTestCase {
     func testTimelineEndsAtMembershipStartAndExcludesEarlierPrompts() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
-        let (user, circle, _) = try await repository.bootstrap()
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
         let lanes = try await repository.timeline(circleID: circle.id, viewerID: user.id, now: now)
         let newestMemberLane = try XCTUnwrap(lanes.first(where: { $0.member.displayName == "Ben" }))
 
@@ -183,7 +195,10 @@ final class DomainRulesTests: XCTestCase {
     func testResponseStaysAttachedToBlessingCircle() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
-        let (user, circle, prompt) = try await repository.bootstrap()
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let prompt = try XCTUnwrap(bootstrap.prompt)
         let blessing = try await repository.submit(
             promptID: prompt.id,
             authorID: user.id,
