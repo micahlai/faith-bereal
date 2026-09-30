@@ -251,6 +251,24 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return member(from: row, joinedAt: .distantPast)
     }
 
+    func transferCircleOwnership(
+        circleID: UUID,
+        ownerID: UUID,
+        newOwnerID: UUID
+    ) async throws -> CircleGroup {
+        let row: CircleRow = try await client.rpc(
+            "transfer_circle_ownership",
+            params: [
+                "p_circle_id": circleID,
+                "p_new_owner_id": newOwnerID,
+            ]
+        )
+        .single()
+        .execute()
+        .value
+        return try await fetchCircle(id: row.id, inviteCode: "")
+    }
+
     func leaveCircle(circleID: UUID, memberID: UUID) async throws {
         _ = try await client.rpc(
             "leave_circle",

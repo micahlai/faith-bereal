@@ -300,6 +300,27 @@ final class AppModel {
         }
     }
 
+    func transferCurrentCircleOwnership(to newOwnerID: UUID) async -> Bool {
+        guard let circle, let currentUser else { return false }
+        do {
+            let updatedCircle = try await repository.transferCircleOwnership(
+                circleID: circle.id,
+                ownerID: currentUser.id,
+                newOwnerID: newOwnerID
+            )
+            self.circle = updatedCircle
+            upsertCircle(updatedCircle)
+            let newOwnerName = updatedCircle.members
+                .first(where: { $0.id == newOwnerID })?
+                .displayName ?? "the new owner"
+            message = "Ownership transferred to \(newOwnerName)."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
     func leaveCurrentCircle() async -> Bool {
         guard let circle, let currentUser else { return false }
         do {

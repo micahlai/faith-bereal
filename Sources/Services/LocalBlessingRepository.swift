@@ -419,6 +419,25 @@ actor LocalBlessingRepository: BlessingRepository {
         return currentUser
     }
 
+    func transferCircleOwnership(
+        circleID: UUID,
+        ownerID: UUID,
+        newOwnerID: UUID
+    ) async throws -> CircleGroup {
+        guard let circleIndex = circles.firstIndex(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circles[circleIndex].ownerID == ownerID else {
+            throw BlessingError.notCircleOwner
+        }
+        guard newOwnerID != ownerID,
+              circles[circleIndex].members.contains(where: { $0.id == newOwnerID }) else {
+            throw BlessingError.invalidOwnerTransfer
+        }
+        circles[circleIndex].ownerID = newOwnerID
+        return circles[circleIndex]
+    }
+
     func leaveCircle(circleID: UUID, memberID: UUID) async throws {
         guard let circleIndex = circles.firstIndex(where: { $0.id == circleID }),
               let memberIndex = circles[circleIndex].members.firstIndex(where: { $0.id == memberID }) else {

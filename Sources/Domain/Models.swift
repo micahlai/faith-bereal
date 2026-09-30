@@ -176,6 +176,8 @@ enum BlessingError: LocalizedError, Equatable {
     case alreadySubmitted
     case cameraUnavailable
     case circleNotFound
+    case notCircleOwner
+    case invalidOwnerTransfer
 
     var errorDescription: String? {
         switch self {
@@ -185,6 +187,8 @@ enum BlessingError: LocalizedError, Equatable {
         case .alreadySubmitted: "You already shared a blessing for this prompt."
         case .cameraUnavailable: "The camera is not available on this device."
         case .circleNotFound: "That circle is no longer available. Choose another circle."
+        case .notCircleOwner: "Only the current circle owner can make that change."
+        case .invalidOwnerTransfer: "Choose another current member to become the circle owner."
         }
     }
 }

@@ -154,6 +154,41 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(updated.timeZoneIdentifier, "America/New_York")
     }
 
+    func testOwnerCanTransferCircleOwnershipToCurrentMember() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let successor = try XCTUnwrap(circle.members.first(where: { $0.id != user.id }))
+
+        let updated = try await repository.transferCircleOwnership(
+            circleID: circle.id,
+            ownerID: user.id,
+            newOwnerID: successor.id
+        )
+
+        XCTAssertEqual(updated.ownerID, successor.id)
+        XCTAssertTrue(updated.members.contains(where: { $0.id == user.id }))
+    }
+
+    func testNonOwnerCannotTransferCircleOwnership() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let nonOwner = try XCTUnwrap(circle.members.first(where: { $0.id != circle.ownerID }))
+
+        do {
+            _ = try await repository.transferCircleOwnership(
+                circleID: circle.id,
+                ownerID: nonOwner.id,
+                newOwnerID: circle.ownerID
+            )
+            XCTFail("Expected a non-owner transfer to fail")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .notCircleOwner)
+        }
+    }
+
     func testLateSubmissionIsMarkedLateWhenCircleAllowsIt() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
