@@ -211,9 +211,13 @@ private struct UserSettingsView: View {
                             set: { versionID in Task { await model.updateBibleVersion(versionID) } }
                         )
                     ) {
-                        ForEach(model.bibleTranslations) { translation in
-                            Text("\(translation.shortName) — \(translation.name)")
-                                .tag(translation.id)
+                        ForEach(model.bibleTranslationGroups) { group in
+                            Section(group.languageName) {
+                                ForEach(group.translations) { translation in
+                                    Text("\(translation.shortName) — \(translation.name)")
+                                        .tag(translation.id)
+                                }
+                            }
                         }
                     }
                 } header: {

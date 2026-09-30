@@ -18,17 +18,49 @@ struct BibleTranslation: Identifiable, Codable, Hashable, Sendable {
     let id: String
     let shortName: String
     let name: String
+    let languageCode: String
+    let languageName: String
 
     static let publicDomain: [BibleTranslation] = [
-        .init(id: "web", shortName: "WEB", name: "World English Bible"),
-        .init(id: "bsb", shortName: "BSB", name: "Berean Standard Bible"),
-        .init(id: "kjv", shortName: "KJV", name: "King James Version"),
-        .init(id: "asv", shortName: "ASV", name: "American Standard Version"),
-        .init(id: "ylt", shortName: "YLT", name: "Young's Literal Translation"),
-        .init(id: "dra", shortName: "DRA", name: "Douay-Rheims American Edition"),
-        .init(id: "bbe", shortName: "BBE", name: "Bible in Basic English"),
-        .init(id: "geneva1599", shortName: "GNV", name: "Geneva Bible 1599")
+        .init(id: "web", shortName: "WEB", name: "World English Bible", languageCode: "en", languageName: "English"),
+        .init(id: "bsb", shortName: "BSB", name: "Berean Standard Bible", languageCode: "en", languageName: "English"),
+        .init(id: "kjv", shortName: "KJV", name: "King James Version", languageCode: "en", languageName: "English"),
+        .init(id: "asv", shortName: "ASV", name: "American Standard Version", languageCode: "en", languageName: "English"),
+        .init(id: "ylt", shortName: "YLT", name: "Young's Literal Translation", languageCode: "en", languageName: "English"),
+        .init(id: "dra", shortName: "DRA", name: "Douay-Rheims American Edition", languageCode: "en", languageName: "English"),
+        .init(id: "bbe", shortName: "BBE", name: "Bible in Basic English", languageCode: "en", languageName: "English"),
+        .init(id: "geneva1599", shortName: "GNV", name: "Geneva Bible 1599", languageCode: "en", languageName: "English"),
+        .init(id: "rvr1909", shortName: "RVR1909", name: "Reina-Valera 1909", languageCode: "es", languageName: "Español"),
+        .init(id: "cuvs", shortName: "CUVS", name: "和合本（简体）", languageCode: "zh", languageName: "中文"),
+        .init(id: "cuv", shortName: "CUV", name: "和合本（繁體）", languageCode: "zh", languageName: "中文"),
+        .init(id: "svd", shortName: "SVD", name: "الكتاب المقدس فان دايك", languageCode: "ar", languageName: "العربية"),
+        .init(id: "lsg", shortName: "LSG", name: "Louis Segond 1910", languageCode: "fr", languageName: "Français"),
+        .init(id: "almeida-livre", shortName: "BL", name: "Bíblia Livre (Almeida 1819)", languageCode: "pt-br", languageName: "Português"),
+        .init(id: "synodal", shortName: "SYNODAL", name: "Синодальный перевод", languageCode: "ru", languageName: "Русский"),
+        .init(id: "luth1912", shortName: "LUTH1912", name: "Lutherbibel 1912", languageCode: "de", languageName: "Deutsch"),
+        .init(id: "kgy", shortName: "KGY", name: "口語訳聖書", languageCode: "ja", languageName: "日本語"),
+        .init(id: "vi1934", shortName: "VI1934", name: "Kinh Thánh 1934", languageCode: "vi", languageName: "Tiếng Việt"),
+        .init(id: "kor", shortName: "KOR", name: "개역한글판", languageCode: "ko", languageName: "한국어"),
+        .init(id: "riveduta", shortName: "RIVEDUTA", name: "Bibbia Riveduta 1927", languageCode: "it", languageName: "Italiano")
     ]
+
+    static let languagePopularityOrder = [
+        "en", "zh", "es", "ar", "fr", "pt-br", "ru", "de", "ja", "vi", "ko", "it",
+    ]
+
+    static var groups: [BibleTranslationGroup] {
+        languagePopularityOrder.compactMap { code in
+            let versions = publicDomain.filter { $0.languageCode == code }
+            guard let name = versions.first?.languageName, !versions.isEmpty else { return nil }
+            return BibleTranslationGroup(id: code, languageName: name, translations: versions)
+        }
+    }
+}
+
+struct BibleTranslationGroup: Identifiable, Hashable, Sendable {
+    let id: String
+    let languageName: String
+    let translations: [BibleTranslation]
 }
 
 struct BibleBook: Identifiable, Hashable, Sendable {
@@ -110,4 +142,3 @@ struct BibleBook: Identifiable, Hashable, Sendable {
 struct BibleChapter: Hashable, Sendable {
     let verses: [String]
 }
-

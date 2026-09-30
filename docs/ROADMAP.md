@@ -59,7 +59,7 @@ Exit: randomized prompts reliably open/close across devices without relying on t
 - [x] Add system/light/dark appearance preference
 - [x] Replace Today's post-submit state with the full current-day blessing feed
 - [x] Restrict response composition to Today and current-day Timeline details
-- [ ] Expand public-domain Bible translations and group the selector by language
+- [x] Expand public-domain Bible translations and group the selector by language
 - [ ] Add domain and UI coverage for the new business rules
 
 Exit: the expanded client loop is complete against the deterministic local repository and all existing production-service adapters still compile.

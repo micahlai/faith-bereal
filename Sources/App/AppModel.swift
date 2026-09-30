@@ -324,6 +324,7 @@ final class AppModel {
     }
 
     var bibleTranslations: [BibleTranslation] { BibleTranslation.publicDomain }
+    var bibleTranslationGroups: [BibleTranslationGroup] { BibleTranslation.groups }
     var bibleBooks: [BibleBook] { BibleBook.all }
 
     var selectedBibleTranslation: BibleTranslation {

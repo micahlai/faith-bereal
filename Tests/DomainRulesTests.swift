@@ -2,6 +2,15 @@ import XCTest
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testPublicDomainBibleVersionsAreGroupedInPopularityOrder() {
+        let groups = BibleTranslation.groups
+
+        XCTAssertEqual(groups.prefix(4).map(\.id), ["en", "zh", "es", "ar"])
+        XCTAssertTrue(groups.first(where: { $0.id == "es" })?.translations.contains(where: { $0.id == "rvr1909" }) == true)
+        XCTAssertTrue(groups.first(where: { $0.id == "ja" })?.translations.contains(where: { $0.id == "kgy" }) == true)
+        XCTAssertEqual(Set(BibleTranslation.publicDomain.map(\.languageCode)).count, 12)
+    }
+
     func testResponsesCanOnlyBeComposedForTheCurrentDayPrompt() {
         let now = Date(timeIntervalSince1970: 2_100_000_000)
         let prompt = DailyPrompt(
