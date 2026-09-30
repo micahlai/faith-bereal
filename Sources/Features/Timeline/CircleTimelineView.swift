@@ -16,14 +16,23 @@ struct CircleTimelineView: View {
                 )
             } else {
                 ScrollView([.horizontal, .vertical]) {
-                    HStack(alignment: .top, spacing: 20) {
-                        ForEach(model.lanes) { lane in
-                            TimelineLaneView(
-                                lane: lane,
-                                isCurrentUser: lane.member.id == model.currentUser?.id,
-                                onSelect: { blessing in
-                                    selection = BlessingSelection(member: lane.member, blessing: blessing)
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        Section {
+                            Grid(alignment: .topLeading, horizontalSpacing: 20, verticalSpacing: 0) {
+                                ForEach(TimelineRow.rows(for: model.lanes)) { row in
+                                    TimelineDayRow(
+                                        row: row,
+                                        lanes: model.lanes,
+                                        onSelect: { member, blessing in
+                                            selection = BlessingSelection(member: member, blessing: blessing)
+                                        }
+                                    )
                                 }
+                            }
+                        } header: {
+                            TimelineMemberHeader(
+                                lanes: model.lanes,
+                                currentUserID: model.currentUser?.id
                             )
                         }
                     }
@@ -49,38 +58,133 @@ private struct BlessingSelection: Identifiable {
     var id: UUID { blessing.id }
 }
 
-private struct TimelineLaneView: View {
-    let lane: TimelineLane
-    let isCurrentUser: Bool
-    let onSelect: (Blessing) -> Void
+private struct TimelineMemberHeader: View {
+    let lanes: [TimelineLane]
+    let currentUserID: UUID?
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                AvatarBadge(member: lane.member, size: 52)
-                Text(isCurrentUser ? "You" : lane.member.displayName)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.ink)
-            }
-            .padding(.bottom, 20)
-
-            ForEach(Array(lane.events.enumerated()), id: \.element.id) { index, event in
-                TimelineEventView(
-                    event: event,
-                    isLast: index == lane.events.count - 1,
-                    onSelect: onSelect
-                )
+        Grid(alignment: .bottomLeading, horizontalSpacing: 20) {
+            GridRow(alignment: .bottom) {
+                Color.clear
+                    .frame(width: 72, height: 1)
+                    .accessibilityHidden(true)
+                ForEach(lanes) { lane in
+                    VStack(spacing: 8) {
+                        AvatarBadge(member: lane.member, size: 48)
+                        Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.ink)
+                            .lineLimit(1)
+                    }
+                    .frame(width: 238)
+                }
             }
         }
-        .frame(width: 238)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(isCurrentUser ? "Your" : lane.member.displayName + "’s") timeline")
+        .padding(.vertical, 12)
+        .background(.regularMaterial)
+        .overlay(alignment: .bottom) { Divider() }
+        .zIndex(2)
+    }
+}
+
+private struct TimelineRow: Identifiable {
+    enum Kind: Int {
+        case prompt
+        case joined
+    }
+
+    let day: Date
+    let kind: Kind
+    let eventsByMemberID: [UUID: TimelineEvent]
+
+    var id: String { "\(day.timeIntervalSinceReferenceDate)-\(kind.rawValue)" }
+
+    static func rows(for lanes: [TimelineLane], calendar: Calendar = .current) -> [TimelineRow] {
+        var promptRows: [Date: [UUID: TimelineEvent]] = [:]
+        var joinedRows: [Date: [UUID: TimelineEvent]] = [:]
+
+        for lane in lanes {
+            for event in lane.events {
+                let day = calendar.startOfDay(for: event.date)
+                if case .joinedCircle = event.status {
+                    joinedRows[day, default: [:]][lane.member.id] = event
+                } else {
+                    promptRows[day, default: [:]][lane.member.id] = event
+                }
+            }
+        }
+
+        let prompts = promptRows.map {
+            TimelineRow(day: $0.key, kind: .prompt, eventsByMemberID: $0.value)
+        }
+        let joins = joinedRows.map {
+            TimelineRow(day: $0.key, kind: .joined, eventsByMemberID: $0.value)
+        }
+        return (prompts + joins).sorted { lhs, rhs in
+            if lhs.day != rhs.day { return lhs.day > rhs.day }
+            return lhs.kind.rawValue < rhs.kind.rawValue
+        }
+    }
+}
+
+private struct TimelineDayRow: View {
+    let row: TimelineRow
+    let lanes: [TimelineLane]
+    let onSelect: (Member, Blessing) -> Void
+
+    var body: some View {
+        GridRow(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.day.formatted(.dateTime.month(.abbreviated).day()))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+                if row.kind == .joined {
+                    Text("Joined")
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.iris)
+                }
+            }
+            .frame(width: 72, alignment: .leading)
+            .padding(.top, 3)
+
+            ForEach(lanes) { lane in
+                if let event = row.eventsByMemberID[lane.member.id] {
+                    TimelineEventView(
+                        event: event,
+                        onSelect: { blessing in onSelect(lane.member, blessing) }
+                    )
+                    .frame(width: 238)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                } else {
+                    TimelineConnectorView(
+                        isVisible: row.day >= Calendar.current.startOfDay(for: lane.member.joinedAt)
+                    )
+                    .frame(width: 238)
+                    .frame(minHeight: 42, maxHeight: .infinity, alignment: .top)
+                }
+            }
+        }
+    }
+}
+
+private struct TimelineConnectorView: View {
+    let isVisible: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Rectangle()
+                .fill(isVisible ? AppTheme.divider : .clear)
+                .frame(width: 2)
+                .frame(maxHeight: .infinity)
+                .padding(.leading, 11)
+            Spacer(minLength: 0)
+        }
+        .accessibilityHidden(true)
     }
 }
 
 private struct TimelineEventView: View {
     let event: TimelineEvent
-    let isLast: Bool
     let onSelect: (Blessing) -> Void
 
     var body: some View {
@@ -88,22 +192,26 @@ private struct TimelineEventView: View {
             VStack(spacing: 0) {
                 marker
                     .frame(width: 24, height: 24)
-                if !isLast {
+                if !isJoinedMarker {
                     Rectangle()
                         .fill(AppTheme.divider)
-                        .frame(width: 2, height: 184)
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
-                Text(event.date.formatted(.dateTime.month(.abbreviated).day()))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.secondaryInk)
                 content
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.bottom, isLast ? 0 : 22)
+            .padding(.bottom, isJoinedMarker ? 12 : 22)
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .accessibilityElement(children: .combine)
+    }
+
+    private var isJoinedMarker: Bool {
+        if case .joinedCircle = event.status { return true }
+        return false
     }
 
     @ViewBuilder
@@ -149,7 +257,7 @@ private struct TimelineEventView: View {
                     }
                     Text(blessing.body ?? "")
                         .font(.system(.subheadline, design: .serif))
-                        .lineLimit(4)
+                        .lineLimit(15)
                         .multilineTextAlignment(.leading)
                     HStack(spacing: 8) {
                         Text(blessing.submittedAt, style: .time)
@@ -167,6 +275,7 @@ private struct TimelineEventView: View {
                             .foregroundStyle(AppTheme.iris)
                             .lineLimit(1)
                     }
+                    TimelineResponderAvatars(blessing: blessing)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -211,6 +320,50 @@ private struct TimelineEventView: View {
             }
             .padding(.vertical, 10)
         }
+    }
+}
+
+private struct TimelineResponderAvatars: View {
+    @Environment(AppModel.self) private var model
+    let blessing: Blessing
+    @State private var responderIDs: [UUID] = []
+
+    var body: some View {
+        Group {
+            if !responders.isEmpty {
+                HStack(spacing: -6) {
+                    ForEach(responders.prefix(5)) { member in
+                        AvatarBadge(member: member, size: 24)
+                            .overlay { Circle().stroke(AppTheme.surface, lineWidth: 2) }
+                    }
+                    if responders.count > 5 {
+                        Text("+\(responders.count - 5)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .padding(.leading, 10)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(responseAccessibilityLabel)
+            }
+        }
+        .task(id: blessing.id) { await loadResponses() }
+    }
+
+    private var responders: [Member] {
+        let members = model.circle?.members ?? []
+        return responderIDs.compactMap { id in members.first(where: { $0.id == id }) }
+    }
+
+    private var responseAccessibilityLabel: String {
+        let names = responders.map(\.displayName)
+        return names.isEmpty ? "No responses" : "Responses from \(names.joined(separator: ", "))"
+    }
+
+    private func loadResponses() async {
+        let responses = await model.responses(for: blessing)
+        var seen = Set<UUID>()
+        responderIDs = responses.map(\.authorID).filter { seen.insert($0).inserted }
     }
 }
 
