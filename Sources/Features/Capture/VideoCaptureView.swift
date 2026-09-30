@@ -5,9 +5,10 @@ import UIKit
 struct VideoCaptureView: UIViewControllerRepresentable {
     let onCapture: (URL) -> Void
     let onCancel: () -> Void
+    let onFailure: (String) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onCapture: onCapture, onCancel: onCancel)
+        Coordinator(onCapture: onCapture, onCancel: onCancel, onFailure: onFailure)
     }
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -17,6 +18,7 @@ struct VideoCaptureView: UIViewControllerRepresentable {
         picker.mediaTypes = [UTType.movie.identifier]
         picker.videoMaximumDuration = 30
         picker.videoQuality = .typeHigh
+        picker.modalPresentationStyle = .fullScreen
         picker.delegate = context.coordinator
         return picker
     }
@@ -26,10 +28,16 @@ struct VideoCaptureView: UIViewControllerRepresentable {
     final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
         private let onCapture: (URL) -> Void
         private let onCancel: () -> Void
+        private let onFailure: (String) -> Void
 
-        init(onCapture: @escaping (URL) -> Void, onCancel: @escaping () -> Void) {
+        init(
+            onCapture: @escaping (URL) -> Void,
+            onCancel: @escaping () -> Void,
+            onFailure: @escaping (String) -> Void
+        ) {
             self.onCapture = onCapture
             self.onCancel = onCancel
+            self.onFailure = onFailure
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
@@ -44,8 +52,11 @@ struct VideoCaptureView: UIViewControllerRepresentable {
                 onCancel()
                 return
             }
-            onCapture(url)
+            do {
+                onCapture(try CaptureMediaStore.persistVideo(from: url))
+            } catch {
+                onFailure("The recorded video could not be saved. Please record it again.")
+            }
         }
     }
 }
-

@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import AVFoundation
+import AVKit
 
 struct CaptureView: View {
     @Environment(AppModel.self) private var model
@@ -11,7 +13,9 @@ struct CaptureView: View {
     @State private var showBiblePicker = false
     @State private var scriptureReference: ScriptureReference?
     @State private var isTranscribingVideo = false
+    @State private var isRequestingCameraAccess = false
     @State private var transcriber = SpeechTranscriber()
+    @State private var videoPlayer: AVPlayer?
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -44,6 +48,7 @@ struct CaptureView: View {
                 VideoCaptureView(
                     onCapture: { url in
                         videoURL = url
+                        videoPlayer = AVPlayer(url: url)
                         showCamera = false
                         text = ""
                         isTranscribingVideo = true
@@ -54,7 +59,11 @@ struct CaptureView: View {
                             isTranscribingVideo = false
                         }
                     },
-                    onCancel: { showCamera = false }
+                    onCancel: { showCamera = false },
+                    onFailure: { message in
+                        showCamera = false
+                        model.message = message
+                    }
                 )
                 .ignoresSafeArea()
             }
@@ -64,7 +73,10 @@ struct CaptureView: View {
             .onChange(of: transcriber.transcript) { _, newValue in
                 text = newValue
             }
-            .onDisappear { transcriber.stop() }
+            .onDisappear {
+                transcriber.stop()
+                videoPlayer?.pause()
+            }
         }
     }
 
@@ -155,6 +167,47 @@ struct CaptureView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+            }
+        case .video:
+            VStack(spacing: 18) {
+                Group {
+                    if let videoPlayer {
+                        VideoPlayer(player: videoPlayer)
+                    } else {
+                        RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                            .fill(AppTheme.surface)
+                            .overlay {
+                        VStack(spacing: 12) {
+                            Image(systemName: "video.badge.plus")
+                                .font(.system(size: 44, weight: .light))
+                                .foregroundStyle(AppTheme.dawn)
+                                .accessibilityHidden(true)
+                            Text("Record up to 30 seconds")
+                                .font(.headline)
+                            Text("You’ll review it here before sending.")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
+                    }
+                    }
+                }
+                .frame(height: 260)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+
+                Button {
+                    Task { await openCamera() }
+                } label: {
+                    HStack {
+                        Label(videoURL == nil ? "Open camera" : "Record again", systemImage: "camera")
+                        if isRequestingCameraAccess { ProgressView() }
+                    }
+                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(isRequestingCameraAccess)
 
                 if videoURL != nil {
                     if isTranscribingVideo {
@@ -173,39 +226,6 @@ struct CaptureView: View {
                             : "Review or edit the transcript before sending. \(text.count) of 600 characters"
                     )
                 }
-            }
-        case .video:
-            VStack(spacing: 18) {
-                RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
-                    .fill(AppTheme.surface)
-                    .frame(height: 260)
-                    .overlay {
-                        VStack(spacing: 12) {
-                            Image(systemName: videoURL == nil ? "video.badge.plus" : "checkmark.circle.fill")
-                                .font(.system(size: 44, weight: .light))
-                                .foregroundStyle(videoURL == nil ? AppTheme.dawn : AppTheme.iris)
-                                .accessibilityHidden(true)
-                            Text(videoURL == nil ? "Record up to 30 seconds" : "Video ready")
-                                .font(.headline)
-                            Text(videoURL == nil ? "You’ll review it here before sending." : "Record again if you want another take.")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.secondaryInk)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding()
-                    }
-                Button {
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        showCamera = true
-                    } else {
-                        model.message = BlessingError.cameraUnavailable.localizedDescription
-                    }
-                } label: {
-                    Label(videoURL == nil ? "Open camera" : "Record again", systemImage: "camera")
-                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
             }
         }
     }
@@ -283,5 +303,30 @@ struct CaptureView: View {
                 && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 && !isTranscribingVideo
         }
+    }
+
+    private func openCamera() async {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            model.message = BlessingError.cameraUnavailable.localizedDescription
+            return
+        }
+        isRequestingCameraAccess = true
+        defer { isRequestingCameraAccess = false }
+
+        let cameraAllowed: Bool
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            cameraAllowed = true
+        case .notDetermined:
+            cameraAllowed = await AVCaptureDevice.requestAccess(for: .video)
+        default:
+            cameraAllowed = false
+        }
+        let microphoneAllowed = await AVAudioApplication.requestRecordPermission()
+        guard cameraAllowed, microphoneAllowed else {
+            model.message = "Camera and microphone access are required for a video blessing. Enable them in Settings and try again."
+            return
+        }
+        showCamera = true
     }
 }

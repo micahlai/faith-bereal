@@ -2,6 +2,22 @@ import XCTest
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testCapturedVideoIsCopiedToStableAppStorage() throws {
+        let sourceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mov")
+        let data = Data("video-fixture".utf8)
+        try data.write(to: sourceURL)
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+
+        let persistedURL = try CaptureMediaStore.persistVideo(from: sourceURL)
+        defer { try? FileManager.default.removeItem(at: persistedURL) }
+
+        XCTAssertNotEqual(persistedURL, sourceURL)
+        XCTAssertEqual(try Data(contentsOf: persistedURL), data)
+        XCTAssertTrue(persistedURL.path.contains("BlessingCaptures"))
+    }
+
     func testCurrentDayPeerContentRequiresViewerSubmission() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
