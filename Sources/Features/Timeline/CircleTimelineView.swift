@@ -87,6 +87,7 @@ private struct TimelineMemberHeader: View {
         .padding(.vertical, 12)
         .background(.regularMaterial)
         .overlay(alignment: .bottom) { Divider() }
+        .accessibilityIdentifier("timeline.memberHeader")
         .zIndex(2)
     }
 }

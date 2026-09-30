@@ -75,6 +75,7 @@ targets:
     scheme:
       testTargets:
         - BlessingCircleTests
+        - BlessingCircleUITests
   BlessingCircleLiveActivity:
     type: app-extension
     platform: iOS
@@ -111,3 +112,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.tests
         GENERATE_INFOPLIST_FILE: YES
+  BlessingCircleUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: BlessingCircle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ui-tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: BlessingCircle

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		10596D0F5F4625E0FD03005C /* DomainRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */; };
+		11F93C0EA7D910BF3AD4ED3A /* BlessingCircleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8041666727C8764C007E33AB /* BlessingCircleUITests.swift */; };
 		13622CFB23BD69B5E99BEC74 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04A5ED107CC59C2FCAD788AC /* TodayView.swift */; };
 		2B3C310DE0DED51EBA4A5E4B /* BlessingResponsesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8971D0A1BC0819428DBA2CBB /* BlessingResponsesView.swift */; };
 		3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
@@ -46,6 +47,13 @@
 
 /* Begin PBXContainerItemProxy section */
 		4E9737839ADFCAAD99414677 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 41A9FBA0C18941FE87AC911D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 70E6D6604A824D653CA34ABD;
+			remoteInfo = BlessingCircle;
+		};
+		9AE264E85C4AFE29B63A2BF7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 41A9FBA0C18941FE87AC911D /* Project object */;
 			proxyType = 1;
@@ -93,6 +101,7 @@
 		6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppComposition.swift; sourceTree = "<group>"; };
 		766D059B090295A07973C5B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCaptureView.swift; sourceTree = "<group>"; };
+		8041666727C8764C007E33AB /* BlessingCircleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleUITests.swift; sourceTree = "<group>"; };
 		86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalBlessingRepository.swift; sourceTree = "<group>"; };
 		8971D0A1BC0819428DBA2CBB /* BlessingResponsesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingResponsesView.swift; sourceTree = "<group>"; };
 		8C99F6499C089B93C6E1D931 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -100,6 +109,7 @@
 		94EA65921D482A449590AD64 /* BibleTextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleTextService.swift; sourceTree = "<group>"; };
 		98F6955EDCB72669D8C4B54E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
 		A64B2CD999847E450C198DDA /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
@@ -125,6 +135,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1E30EB700DEA0514C8DA4947 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				8041666727C8764C007E33AB /* BlessingCircleUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
 		23439FBDF28F715D58E6EDC6 /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -145,6 +163,7 @@
 				98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */,
 				D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */,
 				1264492C64A180326D793D6F /* BlessingCircleTests.xctest */,
+				9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -226,6 +245,7 @@
 				91900FBAE9DF169DD82465C2 /* LiveActivityWidget */,
 				EF119E7ACC84229F89E6CD9A /* Sources */,
 				D118C97A2FE90BC8EB8F90AD /* Tests */,
+				1E30EB700DEA0514C8DA4947 /* UITests */,
 				4292E894609A37623544AC67 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -290,6 +310,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		140D70A2C8671E3C8BBD26F4 /* BlessingCircleUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 218BF2322A92C7DA0359021D /* Build configuration list for PBXNativeTarget "BlessingCircleUITests" */;
+			buildPhases = (
+				DACD724B31FC4C2257DDA5FC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				32F37C785A193C6AC9E12BD5 /* PBXTargetDependency */,
+			);
+			name = BlessingCircleUITests;
+			packageProductDependencies = (
+			);
+			productName = BlessingCircleUITests;
+			productReference = 9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		70E6D6604A824D653CA34ABD /* BlessingCircle */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B6077964679B6958FC99AE02 /* Build configuration list for PBXNativeTarget "BlessingCircle" */;
@@ -356,6 +394,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					140D70A2C8671E3C8BBD26F4 = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = 70E6D6604A824D653CA34ABD;
+					};
 					70E6D6604A824D653CA34ABD = {
 						ProvisioningStyle = Automatic;
 					};
@@ -387,6 +429,7 @@
 				70E6D6604A824D653CA34ABD /* BlessingCircle */,
 				E41EE15459D998174CB7B649 /* BlessingCircleLiveActivity */,
 				A488CAFE343697749AB4E9D8 /* BlessingCircleTests */,
+				140D70A2C8671E3C8BBD26F4 /* BlessingCircleUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -456,9 +499,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DACD724B31FC4C2257DDA5FC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11F93C0EA7D910BF3AD4ED3A /* BlessingCircleUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		32F37C785A193C6AC9E12BD5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 70E6D6604A824D653CA34ABD /* BlessingCircle */;
+			targetProxy = 9AE264E85C4AFE29B63A2BF7 /* PBXContainerItemProxy */;
+		};
 		7910F96E9F6A25F16454EEDD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E41EE15459D998174CB7B649 /* BlessingCircleLiveActivity */;
@@ -508,6 +564,23 @@
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BlessingCircle.app/BlessingCircle";
 			};
 			name = Debug;
+		};
+		272EB33A2B2D3D574DA6A7F2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "app.blessingcircle.ui-tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = BlessingCircle;
+			};
+			name = Release;
 		};
 		5F930E0ADB8C5D11CAE685BC /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -624,6 +697,23 @@
 			};
 			name = Debug;
 		};
+		86897670DDAF4F8D4FF0FDFB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "app.blessingcircle.ui-tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = BlessingCircle;
+			};
+			name = Debug;
+		};
 		887B2B2B006A95AB594FC151 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -732,6 +822,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		218BF2322A92C7DA0359021D /* Build configuration list for PBXNativeTarget "BlessingCircleUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				86897670DDAF4F8D4FF0FDFB /* Debug */,
+				272EB33A2B2D3D574DA6A7F2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		3197E46E7504FC6A48B61E3C /* Build configuration list for PBXProject "BlessingCircle" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

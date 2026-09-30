@@ -15,6 +15,8 @@ xcodebuild -project BlessingCircle.xcodeproj \
   test
 ```
 
+Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
+
 Use an available simulator name from `xcrun simctl list devices available` if the example device is unavailable.
 
 ## Unit tests

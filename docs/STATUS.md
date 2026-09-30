@@ -29,6 +29,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - Timeline uses pinned member headers and synchronized day rows, with 15-line previews, join boundaries, late state, and avatar-only response previews.
 - Response history remains visible on blessing details, while composition is limited to Today and current-day Timeline details.
 - The Bible selector now offers verified public-domain versions across 12 popularity-ordered language groups; only the reference remains stored with a blessing.
+- Milestone 3.5 has domain coverage plus a local-only simulator UI test for Today launch and the pinned Timeline member header.
 - The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated

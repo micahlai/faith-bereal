@@ -50,6 +50,17 @@
                ReferencedContainer = "container:BlessingCircle.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "140D70A2C8671E3C8BBD26F4"
+               BuildableName = "BlessingCircleUITests.xctest"
+               BlueprintName = "BlessingCircleUITests"
+               ReferencedContainer = "container:BlessingCircle.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

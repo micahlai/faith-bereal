@@ -1,8 +1,12 @@
+import Foundation
 import Supabase
 
 enum AppComposition {
     @MainActor
     static func makeModel(configuration: BackendConfiguration? = .load()) -> AppModel {
+        if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {
+            return AppModel(repository: LocalBlessingRepository())
+        }
         guard let configuration else {
             return AppModel(repository: LocalBlessingRepository())
         }
