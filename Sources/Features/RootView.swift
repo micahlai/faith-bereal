@@ -103,7 +103,11 @@ struct MainTabView: View {
             UserSettingsView(isPresented: $showingUserSettings)
         }
         .sheet(item: $model.deepLinkedBlessing) { item in
-            BlessingDetailView(member: item.member, blessing: item.blessing)
+            BlessingDetailView(
+                member: item.member,
+                blessing: item.blessing,
+                allowsResponses: model.canRespond(to: item.blessing)
+            )
         }
         .sensoryFeedback(.success, trigger: model.hasSubmittedToday)
     }

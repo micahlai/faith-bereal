@@ -463,6 +463,14 @@ final class AppModel {
         }
     }
 
+    func canRespond(to blessing: Blessing, at date: Date = .now) -> Bool {
+        ResponseCompositionPolicy.canRespond(
+            to: blessing,
+            currentPrompt: prompt,
+            isCurrentPromptToday: isCurrentPromptToday(at: date)
+        )
+    }
+
     func submitResponse(
         to blessing: Blessing,
         mode: ResponseMode,

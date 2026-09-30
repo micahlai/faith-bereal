@@ -183,6 +183,13 @@ struct BlessingResponse: Identifiable, Codable, Hashable, Sendable {
     let submittedAt: Date
 }
 
+enum ResponseCompositionPolicy {
+    static func canRespond(to blessing: Blessing, currentPrompt: DailyPrompt?, isCurrentPromptToday: Bool) -> Bool {
+        guard let currentPrompt, isCurrentPromptToday else { return false }
+        return blessing.promptID == currentPrompt.id
+    }
+}
+
 enum TimelineStatus: Hashable, Sendable {
     case blessing(Blessing)
     case missed

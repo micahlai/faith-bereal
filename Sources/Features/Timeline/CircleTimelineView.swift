@@ -47,7 +47,11 @@ struct CircleTimelineView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { try? await model.refreshTimeline() }
         .sheet(item: $selection) { selection in
-            BlessingDetailView(member: selection.member, blessing: selection.blessing)
+            BlessingDetailView(
+                member: selection.member,
+                blessing: selection.blessing,
+                allowsResponses: model.canRespond(to: selection.blessing)
+            )
         }
     }
 }
@@ -371,6 +375,7 @@ struct BlessingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let member: Member
     let blessing: Blessing
+    let allowsResponses: Bool
 
     var body: some View {
         NavigationStack {
@@ -381,7 +386,7 @@ struct BlessingDetailView: View {
                         header
                         BlessingContentView(blessing: blessing)
                             .id(blessing.id)
-                        BlessingResponsesView(blessing: blessing)
+                        BlessingResponsesView(blessing: blessing, allowsResponding: allowsResponses)
                         if let reference = blessing.scriptureReference {
                             ScripturePassageView(reference: reference)
                         }

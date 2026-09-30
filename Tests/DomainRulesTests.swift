@@ -2,6 +2,41 @@ import XCTest
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testResponsesCanOnlyBeComposedForTheCurrentDayPrompt() {
+        let now = Date(timeIntervalSince1970: 2_100_000_000)
+        let prompt = DailyPrompt(
+            id: UUID(),
+            circleID: UUID(),
+            localDate: now,
+            startsAt: now.addingTimeInterval(-60),
+            endsAt: now.addingTimeInterval(540)
+        )
+        let currentBlessing = Blessing.fixture(promptID: prompt.id, submittedAt: now)
+        let historicalBlessing = Blessing.fixture(promptID: UUID(), submittedAt: now.addingTimeInterval(-86_400))
+
+        XCTAssertTrue(
+            ResponseCompositionPolicy.canRespond(
+                to: currentBlessing,
+                currentPrompt: prompt,
+                isCurrentPromptToday: true
+            )
+        )
+        XCTAssertFalse(
+            ResponseCompositionPolicy.canRespond(
+                to: historicalBlessing,
+                currentPrompt: prompt,
+                isCurrentPromptToday: true
+            )
+        )
+        XCTAssertFalse(
+            ResponseCompositionPolicy.canRespond(
+                to: currentBlessing,
+                currentPrompt: prompt,
+                isCurrentPromptToday: false
+            )
+        )
+    }
+
     func testWidgetPrioritizesAnUnsubmittedActivePrompt() throws {
         let now = Date(timeIntervalSince1970: 2_100_000_000)
         let prompt = BlessingWidgetPrompt(
@@ -542,6 +577,24 @@ private extension BlessingWidgetBlessing {
             scriptureReference: nil,
             scriptureText: nil,
             bibleVersionName: nil
+        )
+    }
+}
+
+private extension Blessing {
+    static func fixture(promptID: UUID, submittedAt: Date) -> Blessing {
+        Blessing(
+            id: UUID(),
+            circleID: UUID(),
+            promptID: promptID,
+            authorID: UUID(),
+            captureMode: .typed,
+            body: "A test blessing",
+            audioURL: nil,
+            videoURL: nil,
+            submittedAt: submittedAt,
+            isLate: false,
+            scriptureReference: nil
         )
     }
 }

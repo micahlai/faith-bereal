@@ -143,7 +143,7 @@ private struct TodayBlessingCard: View {
                 ScripturePassageView(reference: reference)
             }
 
-            BlessingResponsesView(blessing: item.blessing)
+            BlessingResponsesView(blessing: item.blessing, allowsResponding: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

@@ -3,6 +3,7 @@ import SwiftUI
 struct BlessingResponsesView: View {
     @Environment(AppModel.self) private var model
     let blessing: Blessing
+    let allowsResponding: Bool
 
     @State private var responses: [BlessingResponse] = []
     @State private var mode: ResponseMode = .typed
@@ -21,7 +22,7 @@ struct BlessingResponsesView: View {
             }
 
             if !isLoading && responses.isEmpty {
-                Text("No responses yet. Add a word of encouragement.")
+                Text(allowsResponding ? "No responses yet. Add a word of encouragement." : "No responses yet.")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryInk)
             }
@@ -30,54 +31,56 @@ struct BlessingResponsesView: View {
                 responseRow(response)
             }
 
-            Divider()
-            Picker("Response type", selection: $mode) {
-                ForEach(ResponseMode.allCases) { option in
-                    Label(option.title, systemImage: option.systemImage).tag(option)
+            if allowsResponding {
+                Divider()
+                Picker("Response type", selection: $mode) {
+                    ForEach(ResponseMode.allCases) { option in
+                        Label(option.title, systemImage: option.systemImage).tag(option)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: mode) {
-                transcriber.reset()
-                text = ""
-            }
-
-            TextEditor(text: $text)
-                .font(.body)
-                .frame(minHeight: 92)
-                .padding(8)
-                .scrollContentBackground(.hidden)
-                .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider) }
-                .onChange(of: text) { _, value in
-                    if value.count > 600 { text = String(value.prefix(600)) }
+                .pickerStyle(.segmented)
+                .onChange(of: mode) {
+                    transcriber.reset()
+                    text = ""
                 }
-                .accessibilityLabel(mode == .voice ? "Voice response transcript" : "Text response")
 
-            if mode == .voice {
+                TextEditor(text: $text)
+                    .font(.body)
+                    .frame(minHeight: 92)
+                    .padding(8)
+                    .scrollContentBackground(.hidden)
+                    .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay { RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider) }
+                    .onChange(of: text) { _, value in
+                        if value.count > 600 { text = String(value.prefix(600)) }
+                    }
+                    .accessibilityLabel(mode == .voice ? "Voice response transcript" : "Text response")
+
+                if mode == .voice {
+                    Button {
+                        Task { await transcriber.toggle() }
+                    } label: {
+                        Label(
+                            transcriber.state == .listening ? "Stop recording" : "Record response",
+                            systemImage: transcriber.state == .listening ? "stop.fill" : "waveform"
+                        )
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
                 Button {
-                    Task { await transcriber.toggle() }
+                    send()
                 } label: {
-                    Label(
-                        transcriber.state == .listening ? "Stop recording" : "Record response",
-                        systemImage: transcriber.state == .listening ? "stop.fill" : "waveform"
-                    )
+                    HStack {
+                        Label("Send response", systemImage: "arrow.up.circle.fill")
+                        if isSending { ProgressView().tint(.white) }
+                    }
                     .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .disabled(!canSend || isSending)
             }
-
-            Button {
-                send()
-            } label: {
-                HStack {
-                    Label("Send response", systemImage: "arrow.up.circle.fill")
-                    if isSending { ProgressView().tint(.white) }
-                }
-                .frame(maxWidth: .infinity, minHeight: 44)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!canSend || isSending)
         }
         .blessingCard()
         .task(id: blessing.id) {
