@@ -74,6 +74,8 @@ Exit: the expanded client loop is complete against the deterministic local repos
   - [ ] Implement and validate hosted export, account deletion, storage cleanup, and retention controls
 - [ ] Abuse reporting and member removal
 - [ ] Load, battery, network, media, and push failure testing
+  - [x] Document and automate deterministic local widget, media, prompt, and repository edge cases
+  - [ ] Complete signed-device and hosted load, battery, network, media, and push matrix
 - [ ] App Store assets, review notes, and TestFlight cohort
   - [x] Draft App Review notes and a release-evidence checklist
   - [ ] Supply final icon/screenshots/metadata and complete TestFlight validation

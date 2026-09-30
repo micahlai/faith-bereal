@@ -123,6 +123,39 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(selected.id, prior.id)
     }
 
+    func testWidgetReturnsEmptyWhenNoPromptOrBlessingIsAvailable() {
+        let now = Date(timeIntervalSince1970: 2_100_000_000)
+
+        XCTAssertEqual(BlessingWidgetSnapshot.empty.content(at: now), .empty)
+        XCTAssertEqual(
+            BlessingWidgetSnapshot.empty.nextRefreshDate(after: now),
+            now.addingTimeInterval(30 * 60)
+        )
+    }
+
+    func testWidgetRefreshesAtTheNextPromptBoundaryBeforeTheRotationInterval() {
+        let now = Date(timeIntervalSince1970: 2_100_000_000)
+        let startsAt = now.addingTimeInterval(90)
+        let prompt = BlessingWidgetPrompt(
+            promptID: UUID(),
+            circleID: UUID(),
+            circleName: "Evening Prayer",
+            startsAt: startsAt,
+            endsAt: startsAt.addingTimeInterval(600),
+            viewerHasSubmitted: false,
+            isOnCurrentCircleDay: true
+        )
+        let snapshot = BlessingWidgetSnapshot(
+            generatedAt: now,
+            refreshIntervalMinutes: 30,
+            prompts: [prompt],
+            blessings: []
+        )
+
+        XCTAssertEqual(snapshot.nextRefreshDate(after: now), startsAt)
+        XCTAssertEqual(snapshot.content(at: startsAt), .share(prompt))
+    }
+
     @MainActor
     func testTodayFeedUnlocksAllVisibleCurrentPromptBlessingsAfterSubmission() async throws {
         let repository = LocalBlessingRepository(now: .now)
