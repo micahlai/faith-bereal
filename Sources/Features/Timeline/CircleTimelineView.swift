@@ -218,13 +218,6 @@ private struct BlessingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let member: Member
     let blessing: Blessing
-    @State private var videoPlayer: AVPlayer?
-
-    init(member: Member, blessing: Blessing) {
-        self.member = member
-        self.blessing = blessing
-        _videoPlayer = State(initialValue: blessing.videoURL.map { AVPlayer(url: $0) })
-    }
 
     var body: some View {
         NavigationStack {
@@ -233,7 +226,8 @@ private struct BlessingDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         header
-                        blessingContent
+                        BlessingContentView(blessing: blessing)
+                            .id(blessing.id)
                         BlessingResponsesView(blessing: blessing)
                         if let reference = blessing.scriptureReference {
                             ScripturePassageView(reference: reference)
@@ -252,7 +246,6 @@ private struct BlessingDetailView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .onDisappear { videoPlayer?.pause() }
         }
         .presentationDetents([.large])
     }
@@ -276,53 +269,66 @@ private struct BlessingDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private var blessingContent: some View {
-        switch blessing.captureMode {
-        case .typed:
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Reflection")
-                    .font(.headline)
-                Text(blessing.body ?? "")
-                    .font(.system(.title3, design: .serif))
-                    .textSelection(.enabled)
-            }
-            .blessingCard()
-        case .voice:
-            VStack(alignment: .leading, spacing: 16) {
-                if let audioURL = blessing.audioURL {
-                    AudioBlessingPlayer(url: audioURL)
-                } else {
-                    Label("Audio is unavailable", systemImage: "waveform.slash")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.secondaryInk)
+}
+
+struct BlessingContentView: View {
+    let blessing: Blessing
+    @State private var videoPlayer: AVPlayer?
+
+    init(blessing: Blessing) {
+        self.blessing = blessing
+        _videoPlayer = State(initialValue: blessing.videoURL.map { AVPlayer(url: $0) })
+    }
+
+    var body: some View {
+        Group {
+            switch blessing.captureMode {
+            case .typed:
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Reflection")
+                        .font(.headline)
+                    Text(blessing.body ?? "")
+                        .font(.system(.title3, design: .serif))
+                        .textSelection(.enabled)
                 }
-                Divider()
-                Text("Transcript")
-                    .font(.headline)
-                Text(blessing.body ?? "")
-                    .font(.system(.body, design: .serif))
-                    .textSelection(.enabled)
-            }
-            .blessingCard()
-        case .video:
-            VStack(alignment: .leading, spacing: 16) {
-                if let videoPlayer {
-                    VideoPlayer(player: videoPlayer)
-                        .frame(minHeight: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                } else {
-                    ContentUnavailableView("Video unavailable", systemImage: "video.slash")
+                .blessingCard()
+            case .voice:
+                VStack(alignment: .leading, spacing: 16) {
+                    if let audioURL = blessing.audioURL {
+                        AudioBlessingPlayer(url: audioURL)
+                    } else {
+                        Label("Audio is unavailable", systemImage: "waveform.slash")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    Divider()
+                    Text("Transcript")
+                        .font(.headline)
+                    Text(blessing.body ?? "")
+                        .font(.system(.body, design: .serif))
+                        .textSelection(.enabled)
                 }
-                Divider()
-                Text("Transcript")
-                    .font(.headline)
-                Text(blessing.body ?? "")
-                    .font(.system(.body, design: .serif))
-                    .textSelection(.enabled)
+                .blessingCard()
+            case .video:
+                VStack(alignment: .leading, spacing: 16) {
+                    if let videoPlayer {
+                        VideoPlayer(player: videoPlayer)
+                            .frame(minHeight: 220)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else {
+                        ContentUnavailableView("Video unavailable", systemImage: "video.slash")
+                    }
+                    Divider()
+                    Text("Transcript")
+                        .font(.headline)
+                    Text(blessing.body ?? "")
+                        .font(.system(.body, design: .serif))
+                        .textSelection(.enabled)
+                }
+                .blessingCard()
             }
-            .blessingCard()
         }
+        .onDisappear { videoPlayer?.pause() }
     }
 }
 
@@ -365,7 +371,7 @@ struct AudioBlessingPlayer: View {
     }
 }
 
-private struct ScripturePassageView: View {
+struct ScripturePassageView: View {
     @Environment(AppModel.self) private var model
     let reference: ScriptureReference
     @State private var text: String?

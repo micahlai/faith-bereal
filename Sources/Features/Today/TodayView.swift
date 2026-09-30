@@ -4,31 +4,47 @@ struct TodayView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        ZStack {
-            AppTheme.canvas.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    header
-                    if let prompt = model.prompt {
-                        PromptWindowView(
-                            prompt: prompt,
-                            hasSubmitted: model.hasSubmittedToday,
-                            allowsLateBlessings: model.circle?.allowsLateBlessings == true,
-                            shareAction: { model.isCapturePresented = true },
-                            timelineAction: { model.selectedTab = 1 }
-                        )
+        SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
+            ZStack {
+                AppTheme.canvas.ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 28) {
+                        header
+                        todayContent(at: context.date)
+                        intention
                     }
-                    intention
+                    .frame(maxWidth: 680)
+                    .padding(.horizontal, AppTheme.pagePadding)
+                    .padding(.vertical, 18)
+                    .padding(.bottom, 100)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: 680)
-                .padding(.horizontal, AppTheme.pagePadding)
-                .padding(.vertical, 18)
-                .padding(.bottom, 100)
-                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func todayContent(at date: Date) -> some View {
+        if let blessing = model.currentUserBlessing(at: date) {
+            TodayBlessingView(
+                blessing: blessing,
+                timelineAction: { model.selectedTab = 1 }
+            )
+        } else if let prompt = model.prompt,
+                  model.isCurrentPromptToday(at: date),
+                  prompt.phase(at: date) == .open ||
+                    (prompt.phase(at: date) == .closed && model.circle?.allowsLateBlessings == true) {
+            PromptWindowView(
+                prompt: prompt,
+                date: date,
+                allowsLateBlessings: model.circle?.allowsLateBlessings == true,
+                shareAction: { model.isCapturePresented = true }
+            )
+        } else {
+            WaitingForPromptView(circleName: model.circle?.name)
+        }
     }
 
     private var header: some View {
@@ -63,18 +79,85 @@ struct TodayView: View {
     }
 }
 
-private struct PromptWindowView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let prompt: DailyPrompt
-    let hasSubmitted: Bool
-    let allowsLateBlessings: Bool
-    let shareAction: () -> Void
+private struct WaitingForPromptView: View {
+    let circleName: String?
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "bell.badge")
+                .font(.system(size: 42, weight: .medium))
+                .foregroundStyle(AppTheme.iris)
+                .frame(width: 88, height: 88)
+                .background(AppTheme.iris.opacity(0.10), in: Circle())
+                .accessibilityHidden(true)
+            Text("Wait for today’s blessing notification")
+                .font(.system(.title2, design: .serif, weight: .semibold))
+                .foregroundStyle(AppTheme.ink)
+                .multilineTextAlignment(.center)
+            Text("Everyone in \(circleName ?? "your circle") will be invited to share at the same moment.")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.secondaryInk)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .blessingCard()
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct TodayBlessingView: View {
+    let blessing: Blessing
     let timelineAction: () -> Void
 
     var body: some View {
-        SwiftUI.TimelineView(.periodic(from: Date.now, by: 1.0)) { context in
-            promptContent(at: context.date)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(AppTheme.iris)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Shared today")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.ink)
+                    Text(blessing.submittedAt.formatted(date: .omitted, time: .shortened))
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+                Spacer()
+                if blessing.isLate {
+                    Label("Late", systemImage: "clock.badge.exclamationmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.candle)
+                }
+            }
+
+            BlessingContentView(blessing: blessing)
+                .id(blessing.id)
+
+            if let reference = blessing.scriptureReference {
+                ScripturePassageView(reference: reference)
+            }
+
+            Button(action: timelineAction) {
+                Label("See today’s circle", systemImage: "person.3.fill")
+                    .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
+    }
+}
+
+private struct PromptWindowView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let prompt: DailyPrompt
+    let date: Date
+    let allowsLateBlessings: Bool
+    let shareAction: () -> Void
+
+    var body: some View {
+        promptContent(at: date)
     }
 
     private func promptContent(at date: Date) -> some View {
@@ -100,23 +183,10 @@ private struct PromptWindowView: View {
                     .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: progress)
 
                 VStack(spacing: 4) {
-                    if hasSubmitted {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(AppTheme.iris)
-                            .accessibilityHidden(true)
-                        Text("Shared")
-                            .font(.headline)
-                    } else if phase == .open {
+                    if phase == .open {
                         Text(durationString(remaining))
                             .font(.system(.title, design: .rounded, weight: .bold).monospacedDigit())
                         Text("to respond")
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    } else if phase == .scheduled {
-                        Text(prompt.startsAt, style: .time)
-                            .font(.system(.title2, design: .rounded, weight: .bold))
-                        Text("today’s moment")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.secondaryInk)
                     } else if allowsLateBlessings {
@@ -141,22 +211,13 @@ private struct PromptWindowView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityLabel(phase: phase, remaining: remaining))
 
-            if hasSubmitted {
-                Button(action: timelineAction) {
-                    Label("See today’s circle", systemImage: "person.3.fill")
-                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-            } else {
-                Button(action: shareAction) {
-                    Label("Share a blessing", systemImage: "plus")
-                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(phase != .open && !(phase == .closed && allowsLateBlessings))
+            Button(action: shareAction) {
+                Label("Share a blessing", systemImage: "plus")
+                    .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(phase != .open && !(phase == .closed && allowsLateBlessings))
         }
         .blessingCard()
     }
@@ -167,7 +228,6 @@ private struct PromptWindowView: View {
     }
 
     private func accessibilityLabel(phase: PromptPhase, remaining: TimeInterval) -> String {
-        if hasSubmitted { return "Your blessing was shared" }
         return switch phase {
         case .scheduled: "Today’s prompt starts at \(prompt.startsAt.formatted(date: .omitted, time: .shortened))"
         case .open: "\(durationString(remaining)) remaining to share your blessing"

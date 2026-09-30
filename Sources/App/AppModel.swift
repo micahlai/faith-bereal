@@ -47,21 +47,33 @@ final class AppModel {
     }
 
     var hasSubmittedToday: Bool {
-        guard let currentUser, let prompt else { return false }
-        if submittedBlessing?.promptID == prompt.id { return true }
+        currentUserBlessing() != nil
+    }
+
+    func isCurrentPromptToday(at date: Date = .now) -> Bool {
+        guard let prompt, let circle else { return false }
+        return prompt.occursOnCircleDay(at: date, timeZoneIdentifier: circle.timeZoneIdentifier)
+    }
+
+    func currentUserBlessing(at date: Date = .now) -> Blessing? {
+        guard let currentUser, let prompt, isCurrentPromptToday(at: date) else { return nil }
+        if let submittedBlessing, submittedBlessing.promptID == prompt.id {
+            return submittedBlessing
+        }
         return lanes
             .first(where: { $0.member.id == currentUser.id })?
             .events
-            .contains(where: { event in
+            .compactMap { event -> Blessing? in
                 if case let .blessing(blessing) = event.status {
-                    return blessing.promptID == prompt.id
+                    return blessing
                 }
-                return false
-            }) == true
+                return nil
+            }
+            .first(where: { $0.promptID == prompt.id })
     }
 
     var canSubmitCurrentPrompt: Bool {
-        guard let prompt, let circle, !hasSubmittedToday else { return false }
+        guard let prompt, let circle, isCurrentPromptToday(at: .now), !hasSubmittedToday else { return false }
         let phase = prompt.phase(at: .now)
         return phase == .open || (phase == .closed && circle.allowsLateBlessings)
     }
@@ -176,7 +188,10 @@ final class AppModel {
         videoURL: URL?,
         scriptureReference: ScriptureReference?
     ) async -> Bool {
-        guard let prompt, let currentUser else { return false }
+        guard let prompt, let currentUser, isCurrentPromptToday(at: .now) else {
+            message = BlessingError.outsideResponseWindow.localizedDescription
+            return false
+        }
         isSubmitting = true
         defer { isSubmitting = false }
         do {

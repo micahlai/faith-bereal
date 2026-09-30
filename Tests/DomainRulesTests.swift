@@ -56,6 +56,30 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(prompt.phase(at: start.addingTimeInterval(600)), .closed)
     }
 
+    func testPromptStopsBeingTodayAtMidnightInCircleTimeZone() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+        let start = try XCTUnwrap(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 18))
+        )
+        let beforeMidnight = try XCTUnwrap(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 23, minute: 59))
+        )
+        let midnight = try XCTUnwrap(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 0))
+        )
+        let prompt = DailyPrompt(
+            id: UUID(),
+            circleID: UUID(),
+            localDate: calendar.startOfDay(for: start),
+            startsAt: start,
+            endsAt: start.addingTimeInterval(600)
+        )
+
+        XCTAssertTrue(prompt.occursOnCircleDay(at: beforeMidnight, timeZoneIdentifier: "America/New_York"))
+        XCTAssertFalse(prompt.occursOnCircleDay(at: midnight, timeZoneIdentifier: "America/New_York"))
+    }
+
     func testDuplicateSubmissionIsRejected() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)

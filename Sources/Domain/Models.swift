@@ -59,6 +59,12 @@ struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
         if date < endsAt { return .open }
         return .closed
     }
+
+    func occursOnCircleDay(at date: Date, timeZoneIdentifier: String) -> Bool {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        return calendar.isDate(startsAt, inSameDayAs: date)
+    }
 }
 
 enum PromptPhase: String, Codable, Sendable {
