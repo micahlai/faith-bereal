@@ -459,6 +459,41 @@ final class DomainRulesTests: XCTestCase {
         }
     }
 
+    func testOwnerCanRemoveAnotherCurrentCircleMember() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let owner = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let member = try XCTUnwrap(circle.members.first(where: { $0.id != owner.id }))
+
+        let updated = try await repository.removeCircleMember(
+            circleID: circle.id,
+            ownerID: owner.id,
+            memberID: member.id
+        )
+
+        XCTAssertFalse(updated.members.contains(where: { $0.id == member.id }))
+        XCTAssertEqual(updated.ownerID, owner.id)
+    }
+
+    func testOwnerCannotRemoveThemself() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let owner = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+
+        do {
+            _ = try await repository.removeCircleMember(
+                circleID: circle.id,
+                ownerID: owner.id,
+                memberID: owner.id
+            )
+            XCTFail("Expected self-removal to require the leave flow")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .invalidMemberRemoval)
+        }
+    }
+
     func testLateSubmissionIsMarkedLateWhenCircleAllowsIt() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)

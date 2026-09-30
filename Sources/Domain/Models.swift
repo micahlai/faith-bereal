@@ -237,6 +237,7 @@ enum BlessingError: LocalizedError, Equatable {
     case circleNotFound
     case notCircleOwner
     case invalidOwnerTransfer
+    case invalidMemberRemoval
 
     var errorDescription: String? {
         switch self {
@@ -248,6 +249,7 @@ enum BlessingError: LocalizedError, Equatable {
         case .circleNotFound: "That circle is no longer available. Choose another circle."
         case .notCircleOwner: "Only the current circle owner can make that change."
         case .invalidOwnerTransfer: "Choose another current member to become the circle owner."
+        case .invalidMemberRemoval: "Choose another current member to remove from the circle."
         }
     }
 }

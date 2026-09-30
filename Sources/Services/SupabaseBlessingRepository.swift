@@ -271,6 +271,20 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await fetchCircle(id: row.id, inviteCode: "")
     }
 
+    func removeCircleMember(circleID: UUID, ownerID: UUID, memberID: UUID) async throws -> CircleGroup {
+        let row: CircleRow = try await client.rpc(
+            "remove_circle_member",
+            params: [
+                "p_circle_id": circleID,
+                "p_member_id": memberID,
+            ]
+        )
+        .single()
+        .execute()
+        .value
+        return try await fetchCircle(id: row.id, inviteCode: "")
+    }
+
     func recentBlessings(authorID: UUID, submittedAfter: Date) async throws -> [Blessing] {
         let rows: [BlessingRow] = try await client
             .from("blessings")

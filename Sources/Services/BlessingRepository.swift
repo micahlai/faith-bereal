@@ -29,6 +29,7 @@ protocol BlessingRepository: Sendable {
     ) async throws -> CircleGroup
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member
     func transferCircleOwnership(circleID: UUID, ownerID: UUID, newOwnerID: UUID) async throws -> CircleGroup
+    func removeCircleMember(circleID: UUID, ownerID: UUID, memberID: UUID) async throws -> CircleGroup
     func recentBlessings(authorID: UUID, submittedAfter: Date) async throws -> [Blessing]
     func repeatBlessing(
         sourceBlessingID: UUID,

@@ -73,6 +73,8 @@ Exit: the expanded client loop is complete against the deterministic local repos
   - [x] Add app/extension privacy manifests and a data-retention/export/deletion contract
   - [ ] Implement and validate hosted export, account deletion, storage cleanup, and retention controls
 - [ ] Abuse reporting and member removal
+  - [x] Add owner-confirmed member removal with local coverage and a server-authorized RPC
+  - [ ] Add blessing/response abuse reports and validate moderation against hosted accounts
 - [ ] Load, battery, network, media, and push failure testing
   - [x] Document and automate deterministic local widget, media, prompt, and repository edge cases
   - [ ] Complete signed-device and hosted load, battery, network, media, and push matrix

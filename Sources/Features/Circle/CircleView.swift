@@ -203,6 +203,8 @@ private struct CircleSettingsView: View {
     @State private var isLeaving = false
     @State private var showingLeaveConfirmation = false
     @State private var showingOwnershipTransfer = false
+    @State private var memberToRemove: Member?
+    @State private var isRemovingMember = false
 
     init(circle: CircleGroup, isPresented: Binding<Bool>) {
         self.circle = circle
@@ -326,6 +328,21 @@ private struct CircleSettingsView: View {
                         } footer: {
                             Text("The new owner can change circle settings and transfer ownership again. You will remain a member.")
                         }
+
+                        Section("Manage members") {
+                            ForEach((model.circle?.members ?? circle.members).filter { $0.id != model.currentUser?.id }) { member in
+                                HStack(spacing: 12) {
+                                    AvatarBadge(member: member, size: 36)
+                                    Text(member.displayName)
+                                    Spacer()
+                                    Button("Remove", role: .destructive) {
+                                        memberToRemove = member
+                                    }
+                                    .disabled(isRemovingMember)
+                                }
+                                .frame(minHeight: 44)
+                            }
+                        }
                     }
 
                     Section {
@@ -413,6 +430,28 @@ private struct CircleSettingsView: View {
             Text(isOwner && circle.members.count == 1
                  ? "This circle has no other members and will be permanently deleted."
                  : "You can only rejoin later with a valid invite code.")
+        }
+        .confirmationDialog(
+            "Remove \(memberToRemove?.displayName ?? "this member")?",
+            isPresented: Binding(
+                get: { memberToRemove != nil },
+                set: { if !$0 { memberToRemove = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let memberToRemove {
+                Button("Remove member", role: .destructive) {
+                    isRemovingMember = true
+                    Task {
+                        _ = await model.removeMemberFromCurrentCircle(memberToRemove.id)
+                        isRemovingMember = false
+                        self.memberToRemove = nil
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { memberToRemove = nil }
+        } message: {
+            Text("They will lose access immediately. Their existing blessing history remains visible to current circle members.")
         }
     }
 

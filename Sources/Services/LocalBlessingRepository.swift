@@ -446,6 +446,21 @@ actor LocalBlessingRepository: BlessingRepository {
         return circles[circleIndex]
     }
 
+    func removeCircleMember(circleID: UUID, ownerID: UUID, memberID: UUID) async throws -> CircleGroup {
+        guard let circleIndex = circles.firstIndex(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circles[circleIndex].ownerID == ownerID else {
+            throw BlessingError.notCircleOwner
+        }
+        guard memberID != ownerID,
+              let memberIndex = circles[circleIndex].members.firstIndex(where: { $0.id == memberID }) else {
+            throw BlessingError.invalidMemberRemoval
+        }
+        circles[circleIndex].members.remove(at: memberIndex)
+        return circles[circleIndex]
+    }
+
     func recentBlessings(authorID: UUID, submittedAfter: Date) async throws -> [Blessing] {
         blessings
             .filter { $0.authorID == authorID && $0.submittedAt >= submittedAfter }

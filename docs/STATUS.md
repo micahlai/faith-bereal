@@ -34,6 +34,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - App and widget privacy manifests plus a retention/export/deletion contract are checked in; hosted deletion, export, and Storage cleanup remain unimplemented and unvalidated.
 - Draft App Review notes and a release checklist now separate locally verified behavior from release-environment evidence and outstanding safety work.
 - The local failure matrix covers deterministic prompt, visibility, repeat, media, widget, and UI edges; signed-device load/battery/network/media/push evidence remains open.
+- Circle owners can remove another active member through a confirmed settings action; the server-authorized RPC is checked in but awaits hosted migration and two-account validation. Abuse reporting remains open.
 - The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated

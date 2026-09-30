@@ -369,6 +369,26 @@ final class AppModel {
         }
     }
 
+    func removeMemberFromCurrentCircle(_ memberID: UUID) async -> Bool {
+        guard let circle, let currentUser else { return false }
+        do {
+            let updatedCircle = try await repository.removeCircleMember(
+                circleID: circle.id,
+                ownerID: currentUser.id,
+                memberID: memberID
+            )
+            self.circle = updatedCircle
+            upsertCircle(updatedCircle)
+            try await refreshTimeline(now: .now)
+            scheduleWidgetSnapshotRefresh()
+            message = "Member removed from \(updatedCircle.name)."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
     func repeatBlessingCandidates(now: Date = .now) async -> [Blessing] {
         guard let circle, let currentUser else { return [] }
         let earliest = now.addingTimeInterval(-TimeInterval(circle.repeatWindowMinutes * 60))
