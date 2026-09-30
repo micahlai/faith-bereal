@@ -220,7 +220,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
         randomWindowStartMinutes: Int,
         randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
-        allowsLateBlessings: Bool
+        allowsLateBlessings: Bool,
+        repeatWindowMinutes: Int
     ) async throws -> CircleGroup {
         let row: CircleRow = try await client.rpc(
             "update_circle_settings",
@@ -231,7 +232,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 windowStart: Self.postgresTime(minutes: randomWindowStartMinutes),
                 windowEnd: Self.postgresTime(minutes: randomWindowEndMinutes),
                 responseWindowMinutes: responseWindowMinutes,
-                allowLateBlessings: allowsLateBlessings
+                allowLateBlessings: allowsLateBlessings,
+                repeatWindowMinutes: repeatWindowMinutes
             )
         )
         .single()
@@ -267,6 +269,49 @@ actor SupabaseBlessingRepository: BlessingRepository {
         .execute()
         .value
         return try await fetchCircle(id: row.id, inviteCode: "")
+    }
+
+    func recentBlessings(authorID: UUID, submittedAfter: Date) async throws -> [Blessing] {
+        let rows: [BlessingRow] = try await client
+            .from("blessings")
+            .select("*, daily_prompts!inner(circle_id)")
+            .eq("author_id", value: authorID)
+            .gte("submitted_at", value: ISO8601DateFormatter().string(from: submittedAfter))
+            .order("submitted_at", ascending: false)
+            .execute()
+            .value
+        var result: [Blessing] = []
+        for row in rows {
+            guard let circleID = row.dailyPrompts?.circleID else { continue }
+            result.append(try await blessing(from: row, circleID: circleID))
+        }
+        return result
+    }
+
+    func repeatBlessing(
+        sourceBlessingID: UUID,
+        targetPromptID: UUID,
+        authorID: UUID,
+        now: Date
+    ) async throws -> Blessing {
+        let promptRow: PromptRow = try await client
+            .from("daily_prompts")
+            .select()
+            .eq("id", value: targetPromptID)
+            .single()
+            .execute()
+            .value
+        let row: BlessingRow = try await client.rpc(
+            "repeat_blessing",
+            params: [
+                "p_source_blessing_id": sourceBlessingID,
+                "p_target_prompt_id": targetPromptID,
+            ]
+        )
+        .single()
+        .execute()
+        .value
+        return try await blessing(from: row, circleID: promptRow.circleID)
     }
 
     func leaveCircle(circleID: UUID, memberID: UUID) async throws {
@@ -423,7 +468,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             randomWindowStartMinutes: Self.minutes(postgresTime: row.windowStart),
             randomWindowEndMinutes: Self.minutes(postgresTime: row.windowEnd),
             responseWindowMinutes: row.responseWindowMinutes,
-            allowsLateBlessings: row.allowLateBlessings
+            allowsLateBlessings: row.allowLateBlessings,
+            repeatWindowMinutes: row.repeatWindowMinutes
         )
     }
 
@@ -449,7 +495,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             videoURL: try await signedURL(path: row.videoPath),
             submittedAt: row.submittedAt,
             isLate: row.isLate,
-            scriptureReference: row.scriptureReference
+            scriptureReference: row.scriptureReference,
+            repeatedFromBlessingID: row.repeatedFromBlessingID
         )
     }
 
@@ -557,6 +604,7 @@ private struct CircleRow: Codable, Sendable {
     let windowEnd: String
     let responseWindowMinutes: Int
     let allowLateBlessings: Bool
+    let repeatWindowMinutes: Int
 
     enum CodingKeys: String, CodingKey {
         case id, name
@@ -566,6 +614,7 @@ private struct CircleRow: Codable, Sendable {
         case windowEnd = "window_end"
         case responseWindowMinutes = "response_window_minutes"
         case allowLateBlessings = "allow_late_blessings"
+        case repeatWindowMinutes = "repeat_window_minutes"
     }
 }
 
@@ -613,6 +662,8 @@ private struct BlessingRow: Codable, Sendable {
     let scriptureChapter: Int?
     let scriptureVerseStart: Int?
     let scriptureVerseEnd: Int?
+    let repeatedFromBlessingID: UUID?
+    let dailyPrompts: PromptCircleRow?
 
     var scriptureReference: ScriptureReference? {
         guard let scriptureBookSlug, let scriptureBookName, let scriptureChapter,
@@ -640,16 +691,19 @@ private struct BlessingRow: Codable, Sendable {
         case scriptureChapter = "scripture_chapter"
         case scriptureVerseStart = "scripture_verse_start"
         case scriptureVerseEnd = "scripture_verse_end"
+        case repeatedFromBlessingID = "repeated_from_blessing_id"
+        case dailyPrompts = "daily_prompts"
     }
 }
 
+private struct PromptCircleRow: Codable, Sendable {
+    let circleID: UUID
+    enum CodingKeys: String, CodingKey { case circleID = "circle_id" }
+}
+
 private struct BlessingWithCircleRow: Codable, Sendable {
-    struct PromptCircle: Codable, Sendable {
-        let circleID: UUID
-        enum CodingKeys: String, CodingKey { case circleID = "circle_id" }
-    }
     let promptID: UUID
-    let dailyPrompts: PromptCircle
+    let dailyPrompts: PromptCircleRow
     var circleID: UUID { dailyPrompts.circleID }
 
     enum CodingKeys: String, CodingKey {
@@ -695,6 +749,7 @@ private struct UpdateCircleSettingsParams: Encodable, Sendable {
     let windowEnd: String
     let responseWindowMinutes: Int
     let allowLateBlessings: Bool
+    let repeatWindowMinutes: Int
     enum CodingKeys: String, CodingKey {
         case circleID = "p_circle_id"
         case name = "p_name"
@@ -703,6 +758,7 @@ private struct UpdateCircleSettingsParams: Encodable, Sendable {
         case windowEnd = "p_window_end"
         case responseWindowMinutes = "p_response_window_minutes"
         case allowLateBlessings = "p_allow_late_blessings"
+        case repeatWindowMinutes = "p_repeat_window_minutes"
     }
 }
 

@@ -16,6 +16,8 @@ struct CaptureView: View {
     @State private var isRequestingCameraAccess = false
     @State private var transcriber = SpeechTranscriber()
     @State private var videoPlayer: AVPlayer?
+    @State private var repeatCandidates: [Blessing] = []
+    @State private var repeatSource: Blessing?
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -25,9 +27,14 @@ struct CaptureView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         promptHeader
-                        modePicker
-                        captureArea
-                        scriptureTag
+                        if repeatSource == nil {
+                            repeatOptions
+                            modePicker
+                            captureArea
+                            scriptureTag
+                        } else {
+                            repeatedBlessingPreview
+                        }
                         sendButton
                     }
                     .frame(maxWidth: 680)
@@ -77,7 +84,88 @@ struct CaptureView: View {
                 transcriber.stop()
                 videoPlayer?.pause()
             }
+            .task {
+                repeatCandidates = await model.repeatBlessingCandidates()
+            }
         }
+    }
+
+    @ViewBuilder
+    private var repeatOptions: some View {
+        if !repeatCandidates.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Reuse a recent blessing")
+                    .font(.headline)
+                Text("Available because it is still inside this circle’s reuse window.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                ForEach(repeatCandidates) { blessing in
+                    Button {
+                        repeatSource = blessing
+                        mode = .typed
+                        text = blessing.body ?? ""
+                        scriptureReference = blessing.scriptureReference
+                        videoURL = nil
+                        videoPlayer = nil
+                    } label: {
+                        VStack(alignment: .leading, spacing: 7) {
+                            HStack {
+                                Text(sourceCircleName(for: blessing))
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer()
+                                Text(blessing.submittedAt, style: .relative)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.secondaryInk)
+                            }
+                            Text(blessing.body ?? "")
+                                .font(.system(.subheadline, design: .serif))
+                                .lineLimit(3)
+                                .multilineTextAlignment(.leading)
+                            if let reference = blessing.scriptureReference {
+                                Label(reference.displayName, systemImage: "book.closed")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.iris)
+                            }
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Reuses this message and Bible verse in the current circle")
+                }
+            }
+            .blessingCard()
+        }
+    }
+
+    private var repeatedBlessingPreview: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label("Reusing your blessing", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.iris)
+                Spacer()
+                Button("Choose another") {
+                    repeatSource = nil
+                    text = ""
+                    scriptureReference = nil
+                }
+                .font(.subheadline)
+            }
+            Text(text)
+                .font(.system(.title3, design: .serif))
+                .textSelection(.enabled)
+            if let scriptureReference {
+                Label(scriptureReference.displayName, systemImage: "book.closed")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.iris)
+            }
+            Text("This is sent as a new text blessing in \(model.circle?.name ?? "this circle").")
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+        .blessingCard()
     }
 
     private var scriptureTag: some View {
@@ -266,13 +354,19 @@ struct CaptureView: View {
         Button {
             Task {
                 transcriber.stop()
-                if await model.submit(
-                    mode: mode,
-                    body: text,
-                    audioURL: mode == .voice ? transcriber.recordingURL : nil,
-                    videoURL: videoURL,
-                    scriptureReference: scriptureReference
-                ) {
+                let succeeded: Bool
+                if let repeatSource {
+                    succeeded = await model.repeatBlessing(repeatSource)
+                } else {
+                    succeeded = await model.submit(
+                        mode: mode,
+                        body: text,
+                        audioURL: mode == .voice ? transcriber.recordingURL : nil,
+                        videoURL: videoURL,
+                        scriptureReference: scriptureReference
+                    )
+                }
+                if succeeded {
                     dismiss()
                 }
             }
@@ -292,7 +386,8 @@ struct CaptureView: View {
     }
 
     private var canSubmit: Bool {
-        switch mode {
+        if repeatSource != nil { return true }
+        return switch mode {
         case .typed: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .voice:
             !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -303,6 +398,10 @@ struct CaptureView: View {
                 && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 && !isTranscribingVideo
         }
+    }
+
+    private func sourceCircleName(for blessing: Blessing) -> String {
+        model.circles.first(where: { $0.id == blessing.circleID })?.name ?? "Another circle"
     }
 
     private func openCamera() async {

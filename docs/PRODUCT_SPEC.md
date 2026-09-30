@@ -59,7 +59,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Optional scripture tag: book and chapter dropdowns, then a drag-select square verse grid. Preview in the user's chosen public-domain Bible translation before sending.
 - Submission shows an explicit progress state and cannot be duplicated by repeated taps.
 - The server is authoritative for membership, prompt state, deadline, and uniqueness.
-- When eligible, capture offers a quiet “Reuse a recent blessing” action. It copies the original capture payload and optional scripture reference into the target circle as a new blessing; it never exposes unavailable or expired reuse choices.
+- When eligible, capture offers a quiet “Reuse a recent blessing” action. It copies the original message or transcript and optional scripture reference into the target circle as a new typed blessing; it never exposes unavailable or expired reuse choices.
 - Voice capture records playable audio while producing an editable transcript. Camera capture owns its recording lifecycle and handles authorization, interruption, denial, and unavailable hardware on physical devices.
 
 ### Today

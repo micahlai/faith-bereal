@@ -24,10 +24,18 @@ protocol BlessingRepository: Sendable {
         randomWindowStartMinutes: Int,
         randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
-        allowsLateBlessings: Bool
+        allowsLateBlessings: Bool,
+        repeatWindowMinutes: Int
     ) async throws -> CircleGroup
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member
     func transferCircleOwnership(circleID: UUID, ownerID: UUID, newOwnerID: UUID) async throws -> CircleGroup
+    func recentBlessings(authorID: UUID, submittedAfter: Date) async throws -> [Blessing]
+    func repeatBlessing(
+        sourceBlessingID: UUID,
+        targetPromptID: UUID,
+        authorID: UUID,
+        now: Date
+    ) async throws -> Blessing
     func leaveCircle(circleID: UUID, memberID: UUID) async throws
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse]
     func submitResponse(

@@ -52,9 +52,9 @@ Exit: randomized prompts reliably open/close across devices without relying on t
 
 ## Milestone 3.5 — client experience expansion
 
-- [ ] Repair physical-device voice recording/transcription and camera capture lifecycles
-- [ ] Add explicit circle ownership transfer
-- [ ] Add target-circle repeat windows and eligible blessing reuse
+- [x] Repair physical-device voice recording/transcription and camera capture lifecycles
+- [x] Add explicit circle ownership transfer
+- [x] Add target-circle repeat windows and eligible blessing reuse
 - [ ] Rebuild Timeline with pinned member headers, synchronized dynamic day rows, 15-line previews, and responder avatars
 - [ ] Add system/light/dark appearance preference
 - [ ] Replace Today's post-submit state with the full current-day blessing feed
