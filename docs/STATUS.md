@@ -1,10 +1,10 @@
 # Project status
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 ## Current phase
 
-Milestone 2 — production backend implementation complete; credentialed deployment pending.
+Milestone 2 — production backend deployed; end-to-end validation pending.
 
 ## Completed
 
@@ -24,19 +24,22 @@ Milestone 2 — production backend implementation complete; credentialed deploym
 - Circle owner settings, late indicators, Bible tagging/preview/version preference, drag verse selection, media detail, responses, and joined-circle timeline markers are implemented.
 - Multiple circles are loaded and switched globally; user settings live behind the hamburger menu, and circle settings include a confirmed leave flow with owner handoff.
 - Today now has three date-aware states per active circle: waiting for the notification, the active response timer, and the current user's complete shared blessing until the circle's next local day.
+- The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
-## In progress
+## In progress — not yet validated
 
-- Deploying and exercising the migrations and Edge Function against the project owner's provisioned Supabase environment.
+- Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
+- Completing Apple Developer capability and Supabase Apple-provider configuration; simulator logs currently reject the app as an invalid Sign in with Apple client because the generated provisioning profile lacks the requested entitlement.
 - Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
 
 ## Not yet production-ready
 
-- Supabase resources are not provisioned and no credentials are present.
-- Sign in with Apple capabilities and APNs entitlements require an Apple Developer team.
+- The Supabase deployment is a configuration checkpoint only and has not passed the acceptance matrix.
+- Sign in with Apple and APNs capabilities are not present in the generated provisioning profile.
+- The Supabase Apple authentication provider is not yet confirmed enabled.
 - Remote push-to-start Live Activities require server/APNs setup and physical-device verification.
 - Privacy copy, moderation flows, account deletion, and App Store materials remain incomplete.
 
 ## Next operational task
 
-Follow `docs/MILESTONE_2_RUNBOOK.md` with Supabase access, an Apple Developer team, APNs key material, and two physical-device accounts. The current machine has no Docker daemon, Deno installation, Supabase access token, or project reference, so hosted mutation and device delivery were intentionally not attempted.
+Enable the app identifier's Sign in with Apple and Push Notifications capabilities, regenerate the provisioning profile, confirm the Supabase Apple provider, and then execute the two-device acceptance matrix in `docs/MILESTONE_2_RUNBOOK.md`. Treat the hosted environment as unvalidated until that run succeeds.
