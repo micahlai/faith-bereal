@@ -98,9 +98,11 @@ struct BibleReferencePicker: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text(reference.displayName)
                                 .font(.headline)
-                            Text(previewText)
-                                .font(.system(.body, design: .serif))
-                                .textSelection(.enabled)
+                            ExpandablePassageText(
+                                text: previewText,
+                                title: reference.displayName,
+                                translationName: model.selectedBibleTranslation.shortName
+                            )
                             Text(model.selectedBibleTranslation.shortName)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(AppTheme.secondaryInk)

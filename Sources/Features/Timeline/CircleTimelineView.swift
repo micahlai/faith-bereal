@@ -192,6 +192,7 @@ private struct TimelineConnectorView: View {
 private struct TimelineEventView: View {
     let event: TimelineEvent
     let onSelect: (Blessing) -> Void
+    @State private var isBodyTruncated = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -261,10 +262,12 @@ private struct TimelineEventView: View {
                         )
                         .font(.caption.weight(.semibold))
                     }
-                    Text(blessing.body ?? "")
-                        .font(.system(.subheadline, design: .serif))
-                        .lineLimit(15)
-                        .multilineTextAlignment(.leading)
+                    TruncationAwareText(
+                        text: blessing.body ?? "",
+                        lineLimit: 15,
+                        font: .system(.subheadline, design: .serif),
+                        isTruncated: $isBodyTruncated
+                    )
                     HStack(spacing: 8) {
                         Text(blessing.submittedAt, style: .time)
                             .font(.caption2)
@@ -287,11 +290,13 @@ private struct TimelineEventView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(alignment: .topTrailing) {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(AppTheme.secondaryInk)
-                        .padding(10)
-                        .accessibilityHidden(true)
+                    if isBodyTruncated {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .padding(10)
+                            .accessibilityHidden(true)
+                    }
                 }
             }
             .buttonStyle(.plain)
@@ -388,10 +393,10 @@ struct BlessingDetailView: View {
                         header
                         BlessingContentView(blessing: blessing)
                             .id(blessing.id)
-                        BlessingResponsesView(blessing: blessing, allowsResponding: allowsResponses)
                         if let reference = blessing.scriptureReference {
                             ScripturePassageView(reference: reference)
                         }
+                        BlessingResponsesView(blessing: blessing, allowsResponding: allowsResponses)
                     }
                     .frame(maxWidth: 680)
                     .padding(AppTheme.pagePadding)
@@ -543,9 +548,11 @@ struct ScripturePassageView: View {
                 .font(.headline)
                 .foregroundStyle(AppTheme.iris)
             if let text {
-                Text(text)
-                    .font(.system(.body, design: .serif))
-                    .textSelection(.enabled)
+                ExpandablePassageText(
+                    text: text,
+                    title: reference.displayName,
+                    translationName: model.selectedBibleTranslation.shortName
+                )
                 Text(model.selectedBibleTranslation.shortName)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(AppTheme.secondaryInk)
@@ -580,6 +587,115 @@ struct ScripturePassageView: View {
             errorMessage = "The verse could not be loaded. Check your connection and try again."
         }
     }
+}
+
+struct ExpandablePassageText: View {
+    let text: String
+    let title: String
+    let translationName: String
+    @State private var isTruncated = false
+    @State private var showingFullPassage = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TruncationAwareText(
+                text: text,
+                lineLimit: 5,
+                font: .system(.body, design: .serif),
+                isTruncated: $isTruncated
+            )
+            .textSelection(.enabled)
+
+            if isTruncated {
+                Button {
+                    showingFullPassage = true
+                } label: {
+                    Label("Read full passage", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(AppTheme.iris)
+            }
+        }
+        .sheet(isPresented: $showingFullPassage) {
+            NavigationStack {
+                ScrollView {
+                    Text(text)
+                        .font(.system(.title3, design: .serif))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(AppTheme.pagePadding)
+                }
+                .background(AppTheme.canvas)
+                .navigationTitle(title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showingFullPassage = false }
+                    }
+                }
+                .safeAreaInset(edge: .bottom) {
+                    Text(translationName)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .padding(.vertical, 8)
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+struct TruncationAwareText: View {
+    let text: String
+    let lineLimit: Int
+    let font: Font
+    @Binding var isTruncated: Bool
+    @State private var limitedHeight: CGFloat = 0
+    @State private var fullHeight: CGFloat = 0
+
+    var body: some View {
+        Text(text)
+            .font(font)
+            .lineLimit(lineLimit)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(key: LimitedTextHeightKey.self, value: proxy.size.height)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                Text(text)
+                    .font(font)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .hidden()
+                    .accessibilityHidden(true)
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear.preference(key: FullTextHeightKey.self, value: proxy.size.height)
+                        }
+                    }
+            }
+            .onPreferenceChange(LimitedTextHeightKey.self) { limitedHeight = $0; updateTruncation() }
+            .onPreferenceChange(FullTextHeightKey.self) { fullHeight = $0; updateTruncation() }
+    }
+
+    private func updateTruncation() {
+        let truncated = fullHeight > limitedHeight + 1
+        if isTruncated != truncated { isTruncated = truncated }
+    }
+}
+
+private struct LimitedTextHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+private struct FullTextHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 struct AvatarBadge: View {
