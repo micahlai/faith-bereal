@@ -56,7 +56,7 @@ Exit: randomized prompts reliably open/close across devices without relying on t
 - [x] Add explicit circle ownership transfer
 - [x] Add target-circle repeat windows and eligible blessing reuse
 - [ ] Rebuild Timeline with pinned member headers, synchronized dynamic day rows, 15-line previews, and responder avatars
-- [ ] Add system/light/dark appearance preference
+- [x] Add system/light/dark appearance preference
 - [ ] Replace Today's post-submit state with the full current-day blessing feed
 - [ ] Restrict response composition to Today and current-day Timeline details
 - [ ] Expand public-domain Bible translations and group the selector by language

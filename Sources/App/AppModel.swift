@@ -35,6 +35,9 @@ final class AppModel {
     var isSwitchingCircle = false
     var message: String?
     var submittedBlessing: Blessing?
+    var appearancePreference: AppearancePreference {
+        didSet { UserDefaults.standard.set(appearancePreference.rawValue, forKey: Self.appearanceKey) }
+    }
 
     init(
         repository: any BlessingRepository,
@@ -44,6 +47,9 @@ final class AppModel {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
+        self.appearancePreference = AppearancePreference(
+            rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
+        ) ?? .automatic
     }
 
     var hasSubmittedToday: Bool {
@@ -469,6 +475,8 @@ final class AppModel {
             circles.append(circle)
         }
     }
+
+    private static let appearanceKey = "user.appearancePreference"
 
     private func configureRemoteServices() async {
         guard usesAuthentication, !remoteServicesConfigured else { return }

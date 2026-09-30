@@ -37,6 +37,15 @@ struct RootView: View {
             model.selectedTab = 0
             if url.path == "/capture" { model.isCapturePresented = true }
         }
+        .preferredColorScheme(preferredColorScheme)
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch model.appearancePreference {
+        case .automatic: nil
+        case .light: .light
+        case .dark: .dark
+        }
     }
 }
 
@@ -205,6 +214,19 @@ private struct UserSettingsView: View {
                     Text("Scripture")
                 } footer: {
                     Text("Every tagged passage is displayed in this public-domain translation, regardless of which circle it came from.")
+                }
+
+                Section("Appearance") {
+                    Picker("Appearance", selection: Binding(
+                        get: { model.appearancePreference },
+                        set: { model.appearancePreference = $0 }
+                    )) {
+                        ForEach(AppearancePreference.allCases) { preference in
+                            Label(preference.title, systemImage: preference.systemImage)
+                                .tag(preference)
+                        }
+                    }
+                    .pickerStyle(.inline)
                 }
             }
             .navigationTitle("User settings")

@@ -1,5 +1,29 @@
 import Foundation
 
+enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
+    case automatic
+    case light
+    case dark
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .automatic: "circle.lefthalf.filled"
+        case .light: "sun.max.fill"
+        case .dark: "moon.fill"
+        }
+    }
+}
+
 struct AppBootstrap: Sendable {
     let currentUser: Member
     let circles: [CircleGroup]
