@@ -12,6 +12,7 @@
 		13622CFB23BD69B5E99BEC74 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04A5ED107CC59C2FCAD788AC /* TodayView.swift */; };
 		2B3C310DE0DED51EBA4A5E4B /* BlessingResponsesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8971D0A1BC0819428DBA2CBB /* BlessingResponsesView.swift */; };
 		3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
+		4CFB5E6D1A6F3B7C3560DC32 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */; };
 		4FBFFAFAD04AB8B07EFE16FA /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */; };
 		515DFFB02152CC5BA58CE379 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9598DE0EDAB20B48B60056D /* AppTheme.swift */; };
 		548797F524C7B56B5041CA56 /* BlessingCircleLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */; };
@@ -36,6 +37,7 @@
 		A10C6380402E660050B78294 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AF96D83DCB140C9B96F965AB /* Assets.xcassets */; };
 		A3A80BC1BB9ED561C129800B /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766D059B090295A07973C5B3 /* Models.swift */; };
 		A84C21D6ED0FE43EA1F4E975 /* BlessingWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46B4D2ACEF8C03D2F117DE3 /* BlessingWidgetSnapshot.swift */; };
+		B2D27388B9EAD4325B01637D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */; };
 		B693844FB4B9B287A6CF7CCC /* LocalBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */; };
 		C5E886DC0C3FF80F1DF8B517 /* BlessingCircleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */; };
 		CED8F4825F464AFB5F2C7264 /* BlessingCircleHomeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */; };
@@ -100,6 +102,7 @@
 		6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptActivityAttributes.swift; sourceTree = "<group>"; };
 		6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppComposition.swift; sourceTree = "<group>"; };
 		766D059B090295A07973C5B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCaptureView.swift; sourceTree = "<group>"; };
 		8041666727C8764C007E33AB /* BlessingCircleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleUITests.swift; sourceTree = "<group>"; };
 		86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalBlessingRepository.swift; sourceTree = "<group>"; };
@@ -113,6 +116,7 @@
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
 		A64B2CD999847E450C198DDA /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
+		AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleLiveActivity.swift; sourceTree = "<group>"; };
 		AF96D83DCB140C9B96F965AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseBlessingRepository.swift; sourceTree = "<group>"; };
@@ -155,6 +159,14 @@
 				B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		3C0938108310E64070011D16 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		4292E894609A37623544AC67 /* Products */ = {
@@ -206,6 +218,7 @@
 			children = (
 				0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */,
 				ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */,
+				77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */,
 			);
 			name = LiveActivityWidget;
 			path = Sources/LiveActivityWidget;
@@ -301,6 +314,7 @@
 				DB46F97E9370A52DE5A79EA0 /* DesignSystem */,
 				B912FA04B8A5490E657E0814 /* Domain */,
 				43A14A305E46F35BAD28AB48 /* Features */,
+				3C0938108310E64070011D16 /* Resources */,
 				23439FBDF28F715D58E6EDC6 /* Services */,
 				C8161291A24140A0CB29BCAE /* Shared */,
 			);
@@ -373,6 +387,7 @@
 			buildConfigurationList = 3F837F526A048739820DEC17 /* Build configuration list for PBXNativeTarget "BlessingCircleLiveActivity" */;
 			buildPhases = (
 				C30BC5A6F35898AB0A8FEFBD /* Sources */,
+				48AE9740CCA95A01EF0A8B8E /* Resources */,
 			);
 			buildRules = (
 			);
@@ -435,11 +450,20 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		48AE9740CCA95A01EF0A8B8E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4CFB5E6D1A6F3B7C3560DC32 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C30B2A2865AB7C0D9B517F0E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				A10C6380402E660050B78294 /* Assets.xcassets in Resources */,
+				B2D27388B9EAD4325B01637D /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

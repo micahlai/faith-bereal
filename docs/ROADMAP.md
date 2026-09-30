@@ -70,6 +70,8 @@ Exit: the expanded client loop is complete against the deterministic local repos
   - [x] Complete simulator contrast, largest-text, dark-mode, touch-target, and Reduce Motion pass
   - [ ] Complete physical-device VoiceOver, Increased Contrast, media, and lock-screen pass
 - [ ] Privacy manifest, retention controls, account deletion, export path
+  - [x] Add app/extension privacy manifests and a data-retention/export/deletion contract
+  - [ ] Implement and validate hosted export, account deletion, storage cleanup, and retention controls
 - [ ] Abuse reporting and member removal
 - [ ] Load, battery, network, media, and push failure testing
 - [ ] App Store assets, review notes, and TestFlight cohort

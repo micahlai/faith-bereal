@@ -31,6 +31,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - The Bible selector now offers verified public-domain versions across 12 popularity-ordered language groups; only the reference remains stored with a blessing.
 - Milestone 3.5 has domain coverage plus a local-only simulator UI test for Today launch and the pinned Timeline member header.
 - The local accessibility pass corrected light-mode accent contrast, added non-drag verse controls, and added largest-text dark-mode UI coverage; physical-device VoiceOver/media checks remain open.
+- App and widget privacy manifests plus a retention/export/deletion contract are checked in; hosted deletion, export, and Storage cleanup remain unimplemented and unvalidated.
 - The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated
