@@ -75,6 +75,8 @@ Exit: the expanded client loop is complete against the deterministic local repos
 - [ ] Abuse reporting and member removal
 - [ ] Load, battery, network, media, and push failure testing
 - [ ] App Store assets, review notes, and TestFlight cohort
+  - [x] Draft App Review notes and a release-evidence checklist
+  - [ ] Supply final icon/screenshots/metadata and complete TestFlight validation
 
 Exit: release candidate meets App Review, privacy, reliability, and accessibility requirements.
 

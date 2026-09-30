@@ -4,7 +4,7 @@ Last updated: 2026-09-30
 
 ## Current phase
 
-Milestone 2 — production backend deployed; end-to-end validation pending.
+Milestone 3.5 is complete against the local repository. Milestone 4 release-readiness work is in progress; Apple-account, physical-device, and hosted-backend acceptance remains pending.
 
 ## Completed
 
@@ -32,6 +32,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - Milestone 3.5 has domain coverage plus a local-only simulator UI test for Today launch and the pinned Timeline member header.
 - The local accessibility pass corrected light-mode accent contrast, added non-drag verse controls, and added largest-text dark-mode UI coverage; physical-device VoiceOver/media checks remain open.
 - App and widget privacy manifests plus a retention/export/deletion contract are checked in; hosted deletion, export, and Storage cleanup remain unimplemented and unvalidated.
+- Draft App Review notes and a release checklist now separate locally verified behavior from release-environment evidence and outstanding safety work.
 - The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated
@@ -39,7 +40,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
 - Completing Apple Developer capability and Supabase Apple-provider configuration; simulator logs currently reject the app as an invalid Sign in with Apple client because the generated provisioning profile lacks the requested entitlement.
 - Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
-- Milestone 3.5 client expansion on `codex/client-expansion`, using the local demo backend for capture repair, ownership transfer, repeat blessings, Today/Timeline changes, appearance, and Bible translation expansion.
+- Completing Milestone 4 work that depends on hosted Supabase, Apple Developer capabilities, physical devices, and final distribution assets.
 
 ## Not yet production-ready
 
@@ -48,8 +49,8 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - The Supabase Apple authentication provider is not yet confirmed enabled.
 - Remote push-to-start Live Activities require server/APNs setup and physical-device verification.
 - Widget App Group signing and on-device refresh cadence still require Apple Developer capability and physical-device validation.
-- Privacy copy, moderation flows, account deletion, and App Store materials remain incomplete.
+- Customer-facing privacy copy, moderation flows, account deletion/export, final App Store assets, and TestFlight validation remain incomplete.
 
 ## Next operational task
 
-Complete and verify Milestone 3.5 locally. Hosted Supabase and Apple signing work remains isolated on the `supabase` baseline and can resume through `docs/MILESTONE_2_RUNBOOK.md` after the client changes stabilize.
+Resume the hosted two-account and physical-device acceptance matrix in `docs/MILESTONE_2_RUNBOOK.md`, then implement the remaining deletion/export and moderation release blockers.
