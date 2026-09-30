@@ -2,6 +2,29 @@ import XCTest
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    @MainActor
+    func testTodayFeedUnlocksAllVisibleCurrentPromptBlessingsAfterSubmission() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let model = AppModel(repository: repository)
+        await model.bootstrap()
+        let primaryCircleID = try XCTUnwrap(model.circles.first?.id)
+        await model.switchCircle(to: primaryCircleID)
+
+        XCTAssertTrue(model.currentPromptBlessings().isEmpty)
+        let didSubmit = await model.submit(
+            mode: .typed,
+            body: "A local test blessing",
+            audioURL: nil,
+            videoURL: nil,
+            scriptureReference: nil
+        )
+
+        XCTAssertTrue(didSubmit)
+        let visibleNames = Set(model.currentPromptBlessings().map(\.member.displayName))
+        XCTAssertTrue(visibleNames.contains("Micah"), "The viewer's blessing should be in the Today feed")
+        XCTAssertTrue(visibleNames.contains("Ava"), "A visible peer blessing should be in the Today feed")
+    }
+
     func testCapturedVideoIsCopiedToStableAppStorage() throws {
         let sourceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

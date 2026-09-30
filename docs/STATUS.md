@@ -24,6 +24,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - Circle owner settings, late indicators, Bible tagging/preview/version preference, drag verse selection, media detail, responses, and joined-circle timeline markers are implemented.
 - Multiple circles are loaded and switched globally; user settings live behind the hamburger menu, and circle settings include a confirmed leave flow with owner handoff.
 - Today now has three date-aware states per active circle: waiting for the notification, the active response timer, and the current user's complete shared blessing until the circle's next local day.
+- After the current user shares, Today expands into the full visible current-prompt feed with member identity, media or transcript, scripture, and responses.
 - The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated

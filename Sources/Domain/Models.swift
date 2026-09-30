@@ -141,6 +141,13 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     var repeatedFromBlessingID: UUID? = nil
 }
 
+struct BlessingFeedItem: Identifiable, Hashable, Sendable {
+    let member: Member
+    let blessing: Blessing
+
+    var id: UUID { blessing.id }
+}
+
 enum RepeatBlessingPolicy {
     static func isEligible(
         source: Blessing,

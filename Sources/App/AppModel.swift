@@ -78,6 +78,27 @@ final class AppModel {
             .first(where: { $0.promptID == prompt.id })
     }
 
+    func currentPromptBlessings(at date: Date = .now) -> [BlessingFeedItem] {
+        guard let prompt, isCurrentPromptToday(at: date), currentUserBlessing(at: date) != nil else {
+            return []
+        }
+        return lanes.compactMap { lane in
+            lane.events.compactMap { event -> Blessing? in
+                guard case let .blessing(blessing) = event.status,
+                      blessing.promptID == prompt.id else { return nil }
+                return blessing
+            }
+            .first
+            .map { BlessingFeedItem(member: lane.member, blessing: $0) }
+        }
+        .sorted { lhs, rhs in
+            if lhs.blessing.submittedAt != rhs.blessing.submittedAt {
+                return lhs.blessing.submittedAt < rhs.blessing.submittedAt
+            }
+            return lhs.member.displayName.localizedCaseInsensitiveCompare(rhs.member.displayName) == .orderedAscending
+        }
+    }
+
     var canSubmitCurrentPrompt: Bool {
         guard let prompt, let circle, isCurrentPromptToday(at: .now), !hasSubmittedToday else { return false }
         let phase = prompt.phase(at: .now)

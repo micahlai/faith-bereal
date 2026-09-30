@@ -11,7 +11,6 @@ struct TodayView: View {
                     VStack(alignment: .leading, spacing: 28) {
                         header
                         todayContent(at: context.date)
-                        intention
                     }
                     .frame(maxWidth: 680)
                     .padding(.horizontal, AppTheme.pagePadding)
@@ -19,6 +18,7 @@ struct TodayView: View {
                     .padding(.bottom, 100)
                     .frame(maxWidth: .infinity)
                 }
+                .refreshable { try? await model.refreshTimeline() }
             }
         }
         .navigationTitle("Today")
@@ -27,11 +27,8 @@ struct TodayView: View {
 
     @ViewBuilder
     private func todayContent(at date: Date) -> some View {
-        if let blessing = model.currentUserBlessing(at: date) {
-            TodayBlessingView(
-                blessing: blessing,
-                timelineAction: { model.selectedTab = 1 }
-            )
+        if model.currentUserBlessing(at: date) != nil {
+            TodayBlessingsFeed(items: model.currentPromptBlessings(at: date))
         } else if let prompt = model.prompt,
                   model.isCurrentPromptToday(at: date),
                   prompt.phase(at: date) == .open ||
@@ -59,24 +56,6 @@ struct TodayView: View {
         }
     }
 
-    private var intention: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: "lock.shield")
-                .font(.title3)
-                .foregroundStyle(AppTheme.dawn)
-                .frame(width: 28)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Share before you scroll")
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.ink)
-                Text("Past blessings are always here. Today’s words from your circle open after you add your own.")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.secondaryInk)
-            }
-        }
-        .blessingCard()
-    }
 }
 
 private struct WaitingForPromptView: View {
@@ -105,47 +84,68 @@ private struct WaitingForPromptView: View {
     }
 }
 
-private struct TodayBlessingView: View {
-    let blessing: Blessing
-    let timelineAction: () -> Void
+private struct TodayBlessingsFeed: View {
+    let items: [BlessingFeedItem]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(AppTheme.iris)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Shared today")
-                        .font(.headline)
+        LazyVStack(alignment: .leading, spacing: 28) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Today’s circle")
+                        .font(.system(.title2, design: .serif, weight: .semibold))
                         .foregroundStyle(AppTheme.ink)
-                    Text(blessing.submittedAt.formatted(date: .omitted, time: .shortened))
+                    Text(items.count == 1 ? "1 blessing shared" : "\(items.count) blessings shared")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.secondaryInk)
                 }
                 Spacer()
-                if blessing.isLate {
+                Image(systemName: "person.3.fill")
+                    .foregroundStyle(AppTheme.iris)
+                    .accessibilityHidden(true)
+            }
+
+            ForEach(items) { item in
+                TodayBlessingCard(item: item)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct TodayBlessingCard: View {
+    let item: BlessingFeedItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 12) {
+                AvatarBadge(member: item.member, size: 46)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.member.displayName)
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.ink)
+                    Text(item.blessing.submittedAt.formatted(date: .omitted, time: .shortened))
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+                Spacer(minLength: 8)
+                if item.blessing.isLate {
                     Label("Late", systemImage: "clock.badge.exclamationmark")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(AppTheme.candle)
                 }
             }
+            .accessibilityElement(children: .combine)
 
-            BlessingContentView(blessing: blessing)
-                .id(blessing.id)
+            BlessingContentView(blessing: item.blessing)
+                .id(item.blessing.id)
 
-            if let reference = blessing.scriptureReference {
+            if let reference = item.blessing.scriptureReference {
                 ScripturePassageView(reference: reference)
             }
 
-            Button(action: timelineAction) {
-                Label("See today’s circle", systemImage: "person.3.fill")
-                    .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            BlessingResponsesView(blessing: item.blessing)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
