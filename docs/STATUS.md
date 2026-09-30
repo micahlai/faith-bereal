@@ -31,6 +31,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
 - Completing Apple Developer capability and Supabase Apple-provider configuration; simulator logs currently reject the app as an invalid Sign in with Apple client because the generated provisioning profile lacks the requested entitlement.
 - Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
+- Milestone 3.5 client expansion on `codex/client-expansion`, using the local demo backend for capture repair, ownership transfer, repeat blessings, Today/Timeline changes, appearance, and Bible translation expansion.
 
 ## Not yet production-ready
 
@@ -42,4 +43,4 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 
 ## Next operational task
 
-Enable the app identifier's Sign in with Apple and Push Notifications capabilities, regenerate the provisioning profile, confirm the Supabase Apple provider, and then execute the two-device acceptance matrix in `docs/MILESTONE_2_RUNBOOK.md`. Treat the hosted environment as unvalidated until that run succeeds.
+Complete and verify Milestone 3.5 locally. Hosted Supabase and Apple signing work remains isolated on the `supabase` baseline and can resume through `docs/MILESTONE_2_RUNBOOK.md` after the client changes stabilize.
