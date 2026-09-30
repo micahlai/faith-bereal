@@ -214,7 +214,7 @@ private struct TimelineEventView: View {
     }
 }
 
-private struct BlessingDetailView: View {
+struct BlessingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let member: Member
     let blessing: Blessing

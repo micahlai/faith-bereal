@@ -44,6 +44,8 @@ targets:
         aps-environment: development
         com.apple.developer.applesignin:
           - Default
+        com.apple.security.application-groups:
+          - group.app.blessingcircle.shared
     configFiles:
       Debug: Configuration/Development.xcconfig
       Release: Configuration/Development.xcconfig
@@ -79,6 +81,7 @@ targets:
     sources:
       - path: Sources/LiveActivityWidget
       - path: Sources/Shared/PromptActivityAttributes.swift
+      - path: Sources/Shared/BlessingWidgetSnapshot.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios.live-activity
@@ -86,6 +89,11 @@ targets:
         SKIP_INSTALL: YES
         APPLICATION_EXTENSION_API_ONLY: YES
         INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Configuration/BlessingCircleWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.blessingcircle.shared
     info:
       path: Configuration/Widget-Info.plist
       properties:

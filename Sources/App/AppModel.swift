@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import UIKit
 import UserNotifications
+import WidgetKit
 
 @MainActor
 @Observable
@@ -19,6 +20,7 @@ final class AppModel {
     private let authentication: (any AuthenticationProviding)?
     private let activityController = PromptActivityController()
     private var realtimeTask: Task<Void, Never>?
+    private var widgetSnapshotTask: Task<Void, Never>?
     private var remoteServicesConfigured = false
     private var apnsToken: String?
     private var pushToStartToken: String?
@@ -35,8 +37,15 @@ final class AppModel {
     var isSwitchingCircle = false
     var message: String?
     var submittedBlessing: Blessing?
+    var deepLinkedBlessing: BlessingFeedItem?
     var appearancePreference: AppearancePreference {
         didSet { UserDefaults.standard.set(appearancePreference.rawValue, forKey: Self.appearanceKey) }
+    }
+    var widgetRefreshMinutes: Int {
+        didSet {
+            UserDefaults.standard.set(widgetRefreshMinutes, forKey: Self.widgetRefreshKey)
+            scheduleWidgetSnapshotRefresh()
+        }
     }
 
     init(
@@ -50,6 +59,10 @@ final class AppModel {
         self.appearancePreference = AppearancePreference(
             rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
         ) ?? .automatic
+        let savedWidgetInterval = UserDefaults.standard.integer(forKey: Self.widgetRefreshKey)
+        self.widgetRefreshMinutes = Self.widgetRefreshOptions.contains(savedWidgetInterval)
+            ? savedWidgetInterval
+            : 30
     }
 
     var hasSubmittedToday: Bool {
@@ -174,6 +187,8 @@ final class AppModel {
             activityController.stopMonitoringTokens()
             remoteServicesConfigured = false
             loadState = .signedOut
+            BlessingWidgetSnapshotStore.save(.empty)
+            WidgetCenter.shared.reloadAllTimelines()
         } catch {
             message = error.localizedDescription
         }
@@ -182,6 +197,7 @@ final class AppModel {
     func refreshTimeline(now: Date = .now) async throws {
         guard let circle, let currentUser else { return }
         lanes = try await repository.timeline(circleID: circle.id, viewerID: currentUser.id, now: now)
+        scheduleWidgetSnapshotRefresh(now: now)
     }
 
     func switchCircle(to circleID: UUID) async {
@@ -324,6 +340,7 @@ final class AppModel {
                 memberID: currentUser.id,
                 versionID: versionID
             )
+            scheduleWidgetSnapshotRefresh()
         } catch {
             message = error.localizedDescription
         }
@@ -339,6 +356,7 @@ final class AppModel {
             )
             self.circle = updatedCircle
             upsertCircle(updatedCircle)
+            scheduleWidgetSnapshotRefresh()
             let newOwnerName = updatedCircle.members
                 .first(where: { $0.id == newOwnerID })?
                 .displayName ?? "the new owner"
@@ -410,6 +428,7 @@ final class AppModel {
             } else {
                 Self.persistedCircleID = nil
                 selectedTab = 2
+                scheduleWidgetSnapshotRefresh()
             }
             message = "You left \(leftName)."
             return true
@@ -467,6 +486,29 @@ final class AppModel {
         }
     }
 
+    func handleDeepLink(_ url: URL) async {
+        guard url.scheme == "blessingcircle" else { return }
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        if let circleValue = components?.queryItems?.first(where: { $0.name == "circle" })?.value,
+           let circleID = UUID(uuidString: circleValue),
+           circles.contains(where: { $0.id == circleID }) {
+            await switchCircle(to: circleID)
+        }
+
+        switch url.host {
+        case "today":
+            selectedTab = 0
+            if url.path == "/capture" { isCapturePresented = true }
+        case "blessing":
+            guard let blessingID = url.pathComponents.dropFirst().first.flatMap(UUID.init(uuidString:)),
+                  let item = blessingFeedItem(id: blessingID) else { return }
+            selectedTab = 1
+            deepLinkedBlessing = item
+        default:
+            return
+        }
+    }
+
     func receiveAPNSToken(_ token: String) {
         apnsToken = token
         Task { await syncDeviceRegistration() }
@@ -498,6 +540,157 @@ final class AppModel {
     }
 
     private static let appearanceKey = "user.appearancePreference"
+    private static let widgetRefreshKey = "user.widgetRefreshMinutes"
+    static let widgetRefreshOptions = [15, 30, 60, 120, 240]
+
+    private func blessingFeedItem(id: UUID) -> BlessingFeedItem? {
+        for lane in lanes {
+            for event in lane.events {
+                if case let .blessing(blessing) = event.status, blessing.id == id {
+                    return BlessingFeedItem(member: lane.member, blessing: blessing)
+                }
+            }
+        }
+        return nil
+    }
+
+    private func scheduleWidgetSnapshotRefresh(now: Date = .now) {
+        widgetSnapshotTask?.cancel()
+        widgetSnapshotTask = Task { [weak self] in
+            await self?.writeWidgetSnapshot(now: now)
+        }
+    }
+
+    private func writeWidgetSnapshot(now: Date) async {
+        guard let currentUser else {
+            BlessingWidgetSnapshotStore.save(.empty)
+            WidgetCenter.shared.reloadAllTimelines()
+            return
+        }
+
+        struct Candidate {
+            let circle: CircleGroup
+            let member: Member
+            let blessing: Blessing
+            let isFromCurrentCircleDay: Bool
+        }
+
+        var promptSnapshots: [BlessingWidgetPrompt] = []
+        var candidates: [Candidate] = []
+
+        for membership in circles {
+            guard !Task.isCancelled else { return }
+            do {
+                let context = try await repository.circleContext(circleID: membership.id)
+                let circleLanes = try await repository.timeline(
+                    circleID: membership.id,
+                    viewerID: currentUser.id,
+                    now: now
+                )
+                let currentPromptIsToday = context.prompt?.occursOnCircleDay(
+                    at: now,
+                    timeZoneIdentifier: context.circle.timeZoneIdentifier
+                ) == true
+
+                if let prompt = context.prompt, currentPromptIsToday {
+                    let viewerHasSubmitted = circleLanes
+                        .first(where: { $0.member.id == currentUser.id })?
+                        .events
+                        .contains(where: { event in
+                            guard case let .blessing(blessing) = event.status else { return false }
+                            return blessing.promptID == prompt.id
+                        }) == true
+                    promptSnapshots.append(
+                        BlessingWidgetPrompt(
+                            promptID: prompt.id,
+                            circleID: context.circle.id,
+                            circleName: context.circle.name,
+                            startsAt: prompt.startsAt,
+                            endsAt: prompt.endsAt,
+                            viewerHasSubmitted: viewerHasSubmitted,
+                            isOnCurrentCircleDay: true
+                        )
+                    )
+                }
+
+                for lane in circleLanes {
+                    for event in lane.events {
+                        guard case let .blessing(blessing) = event.status else { continue }
+                        candidates.append(
+                            Candidate(
+                                circle: context.circle,
+                                member: lane.member,
+                                blessing: blessing,
+                                isFromCurrentCircleDay: currentPromptIsToday
+                                    && blessing.promptID == context.prompt?.id
+                            )
+                        )
+                    }
+                }
+            } catch {
+                continue
+            }
+        }
+
+        var seenBlessingIDs = Set<UUID>()
+        let uniqueCandidates = candidates
+            .sorted { $0.blessing.submittedAt > $1.blessing.submittedAt }
+            .filter { seenBlessingIDs.insert($0.blessing.id).inserted }
+            .prefix(30)
+        var blessingSnapshots: [BlessingWidgetBlessing] = []
+        var referencesToLoad: [(UUID, ScriptureReference)] = []
+
+        for (index, candidate) in uniqueCandidates.enumerated() {
+            guard !Task.isCancelled else { return }
+            let reference = candidate.blessing.scriptureReference
+            if index < 8, let reference { referencesToLoad.append((candidate.blessing.id, reference)) }
+            blessingSnapshots.append(
+                BlessingWidgetBlessing(
+                    id: candidate.blessing.id,
+                    circleID: candidate.circle.id,
+                    circleName: candidate.circle.name,
+                    authorName: candidate.member.displayName,
+                    captureMode: BlessingWidgetCaptureMode(rawValue: candidate.blessing.captureMode.rawValue) ?? .typed,
+                    transcript: candidate.blessing.body ?? "",
+                    submittedAt: candidate.blessing.submittedAt,
+                    isFromCurrentCircleDay: candidate.isFromCurrentCircleDay,
+                    scriptureReference: reference?.displayName,
+                    scriptureText: nil,
+                    bibleVersionName: reference == nil ? nil : selectedBibleTranslation.shortName
+                )
+            )
+        }
+
+        var snapshot = BlessingWidgetSnapshot(
+            generatedAt: now,
+            refreshIntervalMinutes: widgetRefreshMinutes,
+            prompts: promptSnapshots,
+            blessings: blessingSnapshots
+        )
+        BlessingWidgetSnapshotStore.save(snapshot)
+        WidgetCenter.shared.reloadAllTimelines()
+
+        let versionID = selectedBibleTranslation.id
+        let loadedPassages = await withTaskGroup(of: (UUID, String?).self) { group in
+            for (blessingID, reference) in referencesToLoad {
+                group.addTask { [bibleService] in
+                    let text = try? await bibleService.passage(versionID: versionID, reference: reference)
+                    return (blessingID, text)
+                }
+            }
+            var results: [UUID: String] = [:]
+            for await (blessingID, text) in group {
+                if let text { results[blessingID] = text }
+            }
+            return results
+        }
+        guard !Task.isCancelled, !loadedPassages.isEmpty else { return }
+        for index in snapshot.blessings.indices {
+            snapshot.blessings[index].scriptureText = loadedPassages[snapshot.blessings[index].id]
+        }
+        BlessingWidgetSnapshotStore.save(snapshot)
+        WidgetCenter.shared.reloadAllTimelines()
+    }
 
     private func configureRemoteServices() async {
         guard usesAuthentication, !remoteServicesConfigured else { return }

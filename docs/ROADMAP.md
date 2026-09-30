@@ -76,7 +76,7 @@ Exit: release candidate meets App Review, privacy, reliability, and accessibilit
 
 ## Later — widgets
 
-- [ ] Add WidgetKit timeline provider and deep-link routing
-- [ ] Surface active share windows across all circles
-- [ ] Rotate eligible blessings using the user-configured refresh interval
-- [ ] Track recently displayed widget blessings locally to improve variety
+- [x] Add WidgetKit timeline provider and deep-link routing
+- [x] Surface active share windows across all circles
+- [x] Rotate eligible blessings using the user-configured refresh interval
+- [x] Track recently displayed widget blessings locally to improve variety

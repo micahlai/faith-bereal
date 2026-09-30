@@ -25,6 +25,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - Multiple circles are loaded and switched globally; user settings live behind the hamburger menu, and circle settings include a confirmed leave flow with owner handoff.
 - Today now has three date-aware states per active circle: waiting for the notification, the active response timer, and the current user's complete shared blessing until the circle's next local day.
 - After the current user shares, Today expands into the full visible current-prompt feed with member identity, media or transcript, scripture, and responses.
+- A small/medium WidgetKit widget shares App Group snapshots, prioritizes active prompts across circles, rotates visible blessings at a user-selected interval, and deep-links to Today or blessing detail.
 - The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated
@@ -40,6 +41,7 @@ Milestone 2 — production backend deployed; end-to-end validation pending.
 - Sign in with Apple and APNs capabilities are not present in the generated provisioning profile.
 - The Supabase Apple authentication provider is not yet confirmed enabled.
 - Remote push-to-start Live Activities require server/APNs setup and physical-device verification.
+- Widget App Group signing and on-device refresh cadence still require Apple Developer capability and physical-device validation.
 - Privacy copy, moderation flows, account deletion, and App Store materials remain incomplete.
 
 ## Next operational task

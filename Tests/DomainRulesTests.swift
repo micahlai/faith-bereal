@@ -2,6 +2,83 @@ import XCTest
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testWidgetPrioritizesAnUnsubmittedActivePrompt() throws {
+        let now = Date(timeIntervalSince1970: 2_100_000_000)
+        let prompt = BlessingWidgetPrompt(
+            promptID: UUID(),
+            circleID: UUID(),
+            circleName: "Morning Prayer",
+            startsAt: now.addingTimeInterval(-60),
+            endsAt: now.addingTimeInterval(540),
+            viewerHasSubmitted: false,
+            isOnCurrentCircleDay: true
+        )
+        let snapshot = BlessingWidgetSnapshot(
+            generatedAt: now,
+            refreshIntervalMinutes: 30,
+            prompts: [prompt],
+            blessings: [.fixture(submittedAt: now.addingTimeInterval(-120), isToday: true)]
+        )
+
+        guard case let .share(selected) = snapshot.content(at: now) else {
+            return XCTFail("Expected the active prompt to take precedence")
+        }
+        XCTAssertEqual(selected.circleName, "Morning Prayer")
+    }
+
+    func testWidgetPrefersUnseenCurrentDayBlessingsAfterPromptStarts() throws {
+        let now = Date(timeIntervalSince1970: 2_100_000_000)
+        let shown = BlessingWidgetBlessing.fixture(submittedAt: now.addingTimeInterval(-60), isToday: true)
+        let unseen = BlessingWidgetBlessing.fixture(submittedAt: now.addingTimeInterval(-120), isToday: true)
+        let prior = BlessingWidgetBlessing.fixture(submittedAt: now.addingTimeInterval(-86_400), isToday: false)
+        let prompt = BlessingWidgetPrompt(
+            promptID: UUID(),
+            circleID: UUID(),
+            circleName: "Sunday Table",
+            startsAt: now.addingTimeInterval(-600),
+            endsAt: now.addingTimeInterval(-1),
+            viewerHasSubmitted: true,
+            isOnCurrentCircleDay: true
+        )
+        let snapshot = BlessingWidgetSnapshot(
+            generatedAt: now,
+            refreshIntervalMinutes: 30,
+            prompts: [prompt],
+            blessings: [shown, unseen, prior]
+        )
+
+        guard case let .blessing(selected) = snapshot.content(at: now, recentlyShownIDs: [shown.id]) else {
+            return XCTFail("Expected a blessing")
+        }
+        XCTAssertEqual(selected.id, unseen.id)
+    }
+
+    func testWidgetFallsBackToPriorDayBeforeAnyPromptStarts() throws {
+        let now = Date(timeIntervalSince1970: 2_100_000_000)
+        let futurePrompt = BlessingWidgetPrompt(
+            promptID: UUID(),
+            circleID: UUID(),
+            circleName: "Sunday Table",
+            startsAt: now.addingTimeInterval(600),
+            endsAt: now.addingTimeInterval(1_200),
+            viewerHasSubmitted: false,
+            isOnCurrentCircleDay: true
+        )
+        let today = BlessingWidgetBlessing.fixture(submittedAt: now, isToday: true)
+        let prior = BlessingWidgetBlessing.fixture(submittedAt: now.addingTimeInterval(-86_400), isToday: false)
+        let snapshot = BlessingWidgetSnapshot(
+            generatedAt: now,
+            refreshIntervalMinutes: 30,
+            prompts: [futurePrompt],
+            blessings: [today, prior]
+        )
+
+        guard case let .blessing(selected) = snapshot.content(at: now) else {
+            return XCTFail("Expected the prior-day fallback")
+        }
+        XCTAssertEqual(selected.id, prior.id)
+    }
+
     @MainActor
     func testTodayFeedUnlocksAllVisibleCurrentPromptBlessingsAfterSubmission() async throws {
         let repository = LocalBlessingRepository(now: .now)
@@ -448,5 +525,23 @@ final class DomainRulesTests: XCTestCase {
         } catch let error as BlessingError {
             XCTAssertEqual(error, .circleNotFound)
         }
+    }
+}
+
+private extension BlessingWidgetBlessing {
+    static func fixture(submittedAt: Date, isToday: Bool) -> BlessingWidgetBlessing {
+        BlessingWidgetBlessing(
+            id: UUID(),
+            circleID: UUID(),
+            circleName: "Sunday Table",
+            authorName: "Ava",
+            captureMode: .typed,
+            transcript: "A test blessing",
+            submittedAt: submittedAt,
+            isFromCurrentCircleDay: isToday,
+            scriptureReference: nil,
+            scriptureText: nil,
+            bibleVersionName: nil
+        )
     }
 }

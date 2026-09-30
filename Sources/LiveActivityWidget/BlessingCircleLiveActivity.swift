@@ -5,6 +5,7 @@ import WidgetKit
 @main
 struct BlessingCircleWidgetBundle: WidgetBundle {
     var body: some Widget {
+        BlessingCircleHomeWidget()
         BlessingCircleLiveActivity()
     }
 }
@@ -68,4 +69,3 @@ struct BlessingCircleLiveActivity: Widget {
         }
     }
 }
-

@@ -33,9 +33,7 @@ struct RootView: View {
             Text(model.message ?? "")
         }
         .onOpenURL { url in
-            guard url.scheme == "blessingcircle", url.host == "today" else { return }
-            model.selectedTab = 0
-            if url.path == "/capture" { model.isCapturePresented = true }
+            Task { await model.handleDeepLink(url) }
         }
         .preferredColorScheme(preferredColorScheme)
     }
@@ -103,6 +101,9 @@ struct MainTabView: View {
         }
         .sheet(isPresented: $showingUserSettings) {
             UserSettingsView(isPresented: $showingUserSettings)
+        }
+        .sheet(item: $model.deepLinkedBlessing) { item in
+            BlessingDetailView(member: item.member, blessing: item.blessing)
         }
         .sensoryFeedback(.success, trigger: model.hasSubmittedToday)
     }
@@ -189,6 +190,7 @@ private struct UserSettingsView: View {
     @Binding var isPresented: Bool
 
     var body: some View {
+        @Bindable var model = model
         NavigationStack {
             Form {
                 if let user = model.currentUser {
@@ -227,6 +229,19 @@ private struct UserSettingsView: View {
                         }
                     }
                     .pickerStyle(.inline)
+                }
+
+                Section {
+                    Picker("Refresh interval", selection: $model.widgetRefreshMinutes) {
+                        ForEach(AppModel.widgetRefreshOptions, id: \.self) { minutes in
+                            Text(minutes < 60 ? "\(minutes) minutes" : "\(minutes / 60) hours")
+                                .tag(minutes)
+                        }
+                    }
+                } header: {
+                    Text("Home Screen Widget")
+                } footer: {
+                    Text("Blessings rotate at about this interval when no circle is waiting for your response. iOS may refresh less often to preserve battery life.")
                 }
             }
             .navigationTitle("User settings")
