@@ -68,7 +68,11 @@ struct BibleReferencePicker: View {
                                 start: $verseStart,
                                 end: $verseEnd
                             )
-                            Text("Drag across the grid to select a continuous range.")
+                            VStack(spacing: 8) {
+                                Stepper("Start verse: \(verseStart)", value: $verseStart, in: 1...verseEnd)
+                                Stepper("End verse: \(verseEnd)", value: $verseEnd, in: verseStart...verseCount)
+                            }
+                            Text("Drag or tap the grid, or use the start and end controls to select a continuous range.")
                                 .font(.caption)
                                 .foregroundStyle(AppTheme.secondaryInk)
                         }
@@ -183,7 +187,7 @@ private struct VerseRangeGrid: View {
                 } label: {
                     Text("\(verse)")
                         .font(.subheadline.weight(isSelected(verse) ? .bold : .regular).monospacedDigit())
-                        .frame(maxWidth: .infinity, minHeight: 42)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .foregroundStyle(isSelected(verse) ? Color.white : AppTheme.ink)
                         .background(
                             isSelected(verse) ? AppTheme.iris : AppTheme.surface,

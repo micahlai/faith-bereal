@@ -6,6 +6,7 @@ import AVKit
 struct CaptureView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var mode: CaptureMode = .typed
     @State private var text = ""
     @State private var videoURL: URL?
@@ -215,7 +216,10 @@ struct CaptureView: View {
     }
 
     private var modePicker: some View {
-        HStack(spacing: 8) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
             ForEach(CaptureMode.allCases) { option in
                 Button {
                     if mode == .voice { transcriber.stop() }

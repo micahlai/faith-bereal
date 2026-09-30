@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BlessingResponsesView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let blessing: Blessing
     let allowsResponding: Bool
 
@@ -33,15 +34,23 @@ struct BlessingResponsesView: View {
 
             if allowsResponding {
                 Divider()
-                Picker("Response type", selection: $mode) {
-                    ForEach(ResponseMode.allCases) { option in
-                        Label(option.title, systemImage: option.systemImage).tag(option)
+                if dynamicTypeSize.isAccessibilitySize {
+                    Picker("Response type", selection: $mode) {
+                        ForEach(ResponseMode.allCases) { option in
+                            Label(option.title, systemImage: option.systemImage).tag(option)
+                        }
                     }
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: mode) {
-                    transcriber.reset()
-                    text = ""
+                    .pickerStyle(.menu)
+                    .frame(minHeight: 44)
+                    .onChange(of: mode) { resetComposer() }
+                } else {
+                    Picker("Response type", selection: $mode) {
+                        ForEach(ResponseMode.allCases) { option in
+                            Label(option.title, systemImage: option.systemImage).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: mode) { resetComposer() }
                 }
 
                 TextEditor(text: $text)
@@ -119,6 +128,11 @@ struct BlessingResponsesView: View {
         let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if mode == .typed { return hasText }
         return hasText && transcriber.recordingURL != nil && transcriber.state != .listening
+    }
+
+    private func resetComposer() {
+        transcriber.reset()
+        text = ""
     }
 
     private func send() {

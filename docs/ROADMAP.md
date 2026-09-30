@@ -67,6 +67,8 @@ Exit: the expanded client loop is complete against the deterministic local repos
 ## Milestone 4 — release readiness
 
 - [ ] Accessibility audit: VoiceOver, Dynamic Type, contrast, Reduced Motion
+  - [x] Complete simulator contrast, largest-text, dark-mode, touch-target, and Reduce Motion pass
+  - [ ] Complete physical-device VoiceOver, Increased Contrast, media, and lock-screen pass
 - [ ] Privacy manifest, retention controls, account deletion, export path
 - [ ] Abuse reporting and member removal
 - [ ] Load, battery, network, media, and push failure testing
