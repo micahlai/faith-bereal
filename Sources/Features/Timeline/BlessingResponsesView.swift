@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BlessingResponsesView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let blessing: Blessing
     let allowsResponding: Bool
 
@@ -12,86 +11,15 @@ struct BlessingResponsesView: View {
     @State private var isLoading = true
     @State private var isSending = false
     @State private var transcriber = SpeechTranscriber()
+    @FocusState private var composerFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Responses")
-                    .font(.headline)
-                Spacer()
-                if isLoading { ProgressView().controlSize(.small) }
-            }
-
-            if !isLoading && responses.isEmpty {
-                Text(allowsResponding ? "No responses yet. Add a word of encouragement." : "No responses yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.secondaryInk)
-            }
-
-            ForEach(responses) { response in
-                responseRow(response)
-            }
-
-            if allowsResponding {
-                Divider()
-                if dynamicTypeSize.isAccessibilitySize {
-                    Picker("Response type", selection: $mode) {
-                        ForEach(ResponseMode.allCases) { option in
-                            Label(option.title, systemImage: option.systemImage).tag(option)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(minHeight: 44)
-                    .onChange(of: mode) { resetComposer() }
-                } else {
-                    Picker("Response type", selection: $mode) {
-                        ForEach(ResponseMode.allCases) { option in
-                            Label(option.title, systemImage: option.systemImage).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: mode) { resetComposer() }
-                }
-
-                TextEditor(text: $text)
-                    .font(.body)
-                    .frame(minHeight: 92)
-                    .padding(8)
-                    .scrollContentBackground(.hidden)
-                    .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay { RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider) }
-                    .onChange(of: text) { _, value in
-                        if value.count > 600 { text = String(value.prefix(600)) }
-                    }
-                    .accessibilityLabel(mode == .voice ? "Voice response transcript" : "Text response")
-
-                if mode == .voice {
-                    Button {
-                        Task { await transcriber.toggle() }
-                    } label: {
-                        Label(
-                            transcriber.state == .listening ? "Stop recording" : "Record response",
-                            systemImage: transcriber.state == .listening ? "stop.fill" : "waveform"
-                        )
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                Button {
-                    send()
-                } label: {
-                    HStack {
-                        Label("Send response", systemImage: "arrow.up.circle.fill")
-                        if isSending { ProgressView().tint(.white) }
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canSend || isSending)
+        Group {
+            if allowsResponding || isLoading || !responses.isEmpty {
+                responseContent
+                    .blessingCard()
             }
         }
-        .blessingCard()
         .task(id: blessing.id) {
             responses = await model.responses(for: blessing)
             isLoading = false
@@ -99,7 +27,87 @@ struct BlessingResponsesView: View {
         .onChange(of: transcriber.transcript) { _, value in
             text = String(value.prefix(600))
         }
+        .onChange(of: composerFocused) { _, isFocused in
+            guard isFocused, transcriber.state != .listening else { return }
+            mode = .typed
+            if transcriber.recordingURL != nil { transcriber.reset() }
+        }
         .onDisappear { transcriber.stop() }
+    }
+
+    private var responseContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if isLoading || !responses.isEmpty {
+                HStack {
+                    Text("Responses")
+                        .font(.headline)
+                    Spacer()
+                    if isLoading { ProgressView().controlSize(.small) }
+                }
+            }
+
+            ForEach(responses) { response in
+                responseRow(response)
+            }
+
+            if allowsResponding {
+                if !responses.isEmpty {
+                    Divider()
+                }
+                HStack(alignment: .bottom, spacing: 8) {
+                    Button {
+                        mode = .voice
+                        composerFocused = false
+                        Task { await transcriber.toggle() }
+                    } label: {
+                        Image(systemName: transcriber.state == .listening ? "stop.fill" : "waveform")
+                            .font(.headline)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                transcriber.state == .listening ? AppTheme.candle : AppTheme.canvas,
+                                in: Circle()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(transcriber.state == .listening ? "Stop voice response" : "Record voice response")
+
+                    TextField("Response", text: $text, axis: .vertical)
+                        .focused($composerFocused)
+                        .lineLimit(1...5)
+                        .font(.body)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(minHeight: 44)
+                        .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(AppTheme.divider)
+                        }
+                        .onChange(of: text) { _, value in
+                            if value.count > 600 { text = String(value.prefix(600)) }
+                        }
+                        .accessibilityLabel(mode == .voice ? "Voice response transcript" : "Text response")
+
+                    Button { send() } label: {
+                        Group {
+                            if isSending {
+                                ProgressView().tint(.white)
+                            } else {
+                                Image(systemName: "arrow.up")
+                                    .font(.headline.weight(.bold))
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(AppTheme.iris, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSend || isSending)
+                    .opacity(canSend && !isSending ? 1 : 0.45)
+                    .accessibilityLabel("Send response")
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -128,11 +136,6 @@ struct BlessingResponsesView: View {
         let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if mode == .typed { return hasText }
         return hasText && transcriber.recordingURL != nil && transcriber.state != .listening
-    }
-
-    private func resetComposer() {
-        transcriber.reset()
-        text = ""
     }
 
     private func send() {
