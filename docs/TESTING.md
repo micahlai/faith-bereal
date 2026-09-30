@@ -30,7 +30,9 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - repeat eligibility uses the target circle's window and the original submission time;
 - repeat choices exclude expired, same-circle, and other-user blessings;
 - ownership transfer requires the current owner and a current target member;
+- member removal requires the current owner, rejects self-removal, and removes only the selected membership;
 - historical details cannot author responses while current-day details can.
+- widget selection covers active, current-day, prior-day, empty, and prompt-boundary refresh states.
 
 ## Integration tests
 

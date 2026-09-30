@@ -16,7 +16,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Ten domain tests pass on an iPhone 17 Pro simulator.
+- Twenty-eight domain tests pass on an iPhone simulator, with two local UI tests covering Today, Timeline scrolling, dark appearance, and accessibility-size text.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols; blank configuration safely falls back to the local demo.
@@ -35,7 +35,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - Draft App Review notes and a release checklist now separate locally verified behavior from release-environment evidence and outstanding safety work.
 - The local failure matrix covers deterministic prompt, visibility, repeat, media, widget, and UI edges; signed-device load/battery/network/media/push evidence remains open.
 - Circle owners can remove another active member through a confirmed settings action; the server-authorized RPC is checked in but awaits hosted migration and two-account validation. Abuse reporting remains open.
-- The hosted Supabase project is linked and migrations `202609290001` through `202609290009` have been applied. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
+- The hosted Supabase project is linked and migrations `202609290001` through `202609290009` were previously applied. Later ownership-transfer and member-removal migrations are checked in but require deployment and validation. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated
 

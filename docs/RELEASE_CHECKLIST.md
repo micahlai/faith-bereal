@@ -25,7 +25,8 @@ This checklist separates work that can be proven locally from work that needs pr
 - [ ] Complete the two-account acceptance matrix for authentication, circles, RLS, realtime, Storage, RPCs, and gating.
 - [ ] Validate randomized scheduling, retry/idempotency, invalid-token cleanup, and observability.
 - [ ] Implement and validate account export, account deletion, media cleanup, and retention controls.
-- [ ] Implement and validate abuse reporting and owner member removal.
+- [x] Implement owner-confirmed member removal in the client, local repository, and server RPC.
+- [ ] Deploy and validate member removal with two hosted accounts; implement and validate abuse reporting.
 - [ ] Exercise offline, slow-network, upload interruption, expired signed URL, and service-failure recovery.
 
 ## Distribution

@@ -49,7 +49,7 @@ The widget deep-links to Today during an active share window. Otherwise it rotat
 
 The app does not track users for advertising. Privacy manifests are included for the app and widget. The planned collection, retention, export, and deletion behavior is documented in `PRIVACY_AND_RETENTION.md`.
 
-**Release blockers:** in-app account deletion/export, durable media cleanup, abuse reporting, owner member-removal controls, and production validation of Row Level Security are not complete. These must not be represented as available in App Store metadata.
+**Release blockers:** in-app account deletion/export, durable media cleanup, abuse reporting, hosted validation of owner member removal, and production validation of Row Level Security are not complete. These must not be represented as production-ready in App Store metadata.
 
 ## App Store Connect inputs still required
 
