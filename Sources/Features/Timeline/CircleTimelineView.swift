@@ -37,14 +37,15 @@ struct CircleTimelineView: View {
                         }
                     }
                     .padding(.horizontal, AppTheme.pagePadding)
-                    .padding(.vertical, 18)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, 118)
                 }
                 .scrollIndicators(.visible)
             }
         }
         .navigationTitle("Timeline")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(AppTheme.canvas, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .refreshable { try? await model.refreshTimeline() }
         .sheet(item: $selection) { selection in
             BlessingDetailView(
@@ -85,7 +86,7 @@ private struct TimelineMemberHeader: View {
             }
         }
         .padding(.vertical, 12)
-        .background(.regularMaterial)
+        .background(AppTheme.canvas)
         .overlay(alignment: .bottom) { Divider() }
         .accessibilityIdentifier("timeline.memberHeader")
         .zIndex(2)
