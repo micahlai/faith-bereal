@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import AVFoundation
+import AVKit
 
 struct CaptureView: View {
     @Environment(AppModel.self) private var model
@@ -11,7 +13,11 @@ struct CaptureView: View {
     @State private var showBiblePicker = false
     @State private var scriptureReference: ScriptureReference?
     @State private var isTranscribingVideo = false
+    @State private var isRequestingCameraAccess = false
     @State private var transcriber = SpeechTranscriber()
+    @State private var videoPlayer: AVPlayer?
+    @State private var repeatCandidates: [Blessing] = []
+    @State private var repeatSource: Blessing?
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -21,9 +27,14 @@ struct CaptureView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         promptHeader
-                        modePicker
-                        captureArea
-                        scriptureTag
+                        if repeatSource == nil {
+                            repeatOptions
+                            modePicker
+                            captureArea
+                            scriptureTag
+                        } else {
+                            repeatedBlessingPreview
+                        }
                         sendButton
                     }
                     .frame(maxWidth: 680)
@@ -44,6 +55,7 @@ struct CaptureView: View {
                 VideoCaptureView(
                     onCapture: { url in
                         videoURL = url
+                        videoPlayer = AVPlayer(url: url)
                         showCamera = false
                         text = ""
                         isTranscribingVideo = true
@@ -54,7 +66,11 @@ struct CaptureView: View {
                             isTranscribingVideo = false
                         }
                     },
-                    onCancel: { showCamera = false }
+                    onCancel: { showCamera = false },
+                    onFailure: { message in
+                        showCamera = false
+                        model.message = message
+                    }
                 )
                 .ignoresSafeArea()
             }
@@ -64,8 +80,92 @@ struct CaptureView: View {
             .onChange(of: transcriber.transcript) { _, newValue in
                 text = newValue
             }
-            .onDisappear { transcriber.stop() }
+            .onDisappear {
+                transcriber.stop()
+                videoPlayer?.pause()
+            }
+            .task {
+                repeatCandidates = await model.repeatBlessingCandidates()
+            }
         }
+    }
+
+    @ViewBuilder
+    private var repeatOptions: some View {
+        if !repeatCandidates.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Reuse a recent blessing")
+                    .font(.headline)
+                Text("Available because it is still inside this circle’s reuse window.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                ForEach(repeatCandidates) { blessing in
+                    Button {
+                        repeatSource = blessing
+                        mode = .typed
+                        text = blessing.body ?? ""
+                        scriptureReference = blessing.scriptureReference
+                        videoURL = nil
+                        videoPlayer = nil
+                    } label: {
+                        VStack(alignment: .leading, spacing: 7) {
+                            HStack {
+                                Text(sourceCircleName(for: blessing))
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer()
+                                Text(blessing.submittedAt, style: .relative)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.secondaryInk)
+                            }
+                            Text(blessing.body ?? "")
+                                .font(.system(.subheadline, design: .serif))
+                                .lineLimit(3)
+                                .multilineTextAlignment(.leading)
+                            if let reference = blessing.scriptureReference {
+                                Label(reference.displayName, systemImage: "book.closed")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppTheme.iris)
+                            }
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Reuses this message and Bible verse in the current circle")
+                }
+            }
+            .blessingCard()
+        }
+    }
+
+    private var repeatedBlessingPreview: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label("Reusing your blessing", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.iris)
+                Spacer()
+                Button("Choose another") {
+                    repeatSource = nil
+                    text = ""
+                    scriptureReference = nil
+                }
+                .font(.subheadline)
+            }
+            Text(text)
+                .font(.system(.title3, design: .serif))
+                .textSelection(.enabled)
+            if let scriptureReference {
+                Label(scriptureReference.displayName, systemImage: "book.closed")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.iris)
+            }
+            Text("This is sent as a new text blessing in \(model.circle?.name ?? "this circle").")
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+        .blessingCard()
     }
 
     private var scriptureTag: some View {
@@ -155,6 +255,47 @@ struct CaptureView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+            }
+        case .video:
+            VStack(spacing: 18) {
+                Group {
+                    if let videoPlayer {
+                        VideoPlayer(player: videoPlayer)
+                    } else {
+                        RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                            .fill(AppTheme.surface)
+                            .overlay {
+                        VStack(spacing: 12) {
+                            Image(systemName: "video.badge.plus")
+                                .font(.system(size: 44, weight: .light))
+                                .foregroundStyle(AppTheme.dawn)
+                                .accessibilityHidden(true)
+                            Text("Record up to 30 seconds")
+                                .font(.headline)
+                            Text("You’ll review it here before sending.")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
+                    }
+                    }
+                }
+                .frame(height: 260)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+
+                Button {
+                    Task { await openCamera() }
+                } label: {
+                    HStack {
+                        Label(videoURL == nil ? "Open camera" : "Record again", systemImage: "camera")
+                        if isRequestingCameraAccess { ProgressView() }
+                    }
+                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(isRequestingCameraAccess)
 
                 if videoURL != nil {
                     if isTranscribingVideo {
@@ -173,39 +314,6 @@ struct CaptureView: View {
                             : "Review or edit the transcript before sending. \(text.count) of 600 characters"
                     )
                 }
-            }
-        case .video:
-            VStack(spacing: 18) {
-                RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
-                    .fill(AppTheme.surface)
-                    .frame(height: 260)
-                    .overlay {
-                        VStack(spacing: 12) {
-                            Image(systemName: videoURL == nil ? "video.badge.plus" : "checkmark.circle.fill")
-                                .font(.system(size: 44, weight: .light))
-                                .foregroundStyle(videoURL == nil ? AppTheme.dawn : AppTheme.iris)
-                                .accessibilityHidden(true)
-                            Text(videoURL == nil ? "Record up to 30 seconds" : "Video ready")
-                                .font(.headline)
-                            Text(videoURL == nil ? "You’ll review it here before sending." : "Record again if you want another take.")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.secondaryInk)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding()
-                    }
-                Button {
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        showCamera = true
-                    } else {
-                        model.message = BlessingError.cameraUnavailable.localizedDescription
-                    }
-                } label: {
-                    Label(videoURL == nil ? "Open camera" : "Record again", systemImage: "camera")
-                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
             }
         }
     }
@@ -246,13 +354,19 @@ struct CaptureView: View {
         Button {
             Task {
                 transcriber.stop()
-                if await model.submit(
-                    mode: mode,
-                    body: text,
-                    audioURL: mode == .voice ? transcriber.recordingURL : nil,
-                    videoURL: videoURL,
-                    scriptureReference: scriptureReference
-                ) {
+                let succeeded: Bool
+                if let repeatSource {
+                    succeeded = await model.repeatBlessing(repeatSource)
+                } else {
+                    succeeded = await model.submit(
+                        mode: mode,
+                        body: text,
+                        audioURL: mode == .voice ? transcriber.recordingURL : nil,
+                        videoURL: videoURL,
+                        scriptureReference: scriptureReference
+                    )
+                }
+                if succeeded {
                     dismiss()
                 }
             }
@@ -272,7 +386,8 @@ struct CaptureView: View {
     }
 
     private var canSubmit: Bool {
-        switch mode {
+        if repeatSource != nil { return true }
+        return switch mode {
         case .typed: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .voice:
             !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -283,5 +398,34 @@ struct CaptureView: View {
                 && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 && !isTranscribingVideo
         }
+    }
+
+    private func sourceCircleName(for blessing: Blessing) -> String {
+        model.circles.first(where: { $0.id == blessing.circleID })?.name ?? "Another circle"
+    }
+
+    private func openCamera() async {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            model.message = BlessingError.cameraUnavailable.localizedDescription
+            return
+        }
+        isRequestingCameraAccess = true
+        defer { isRequestingCameraAccess = false }
+
+        let cameraAllowed: Bool
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            cameraAllowed = true
+        case .notDetermined:
+            cameraAllowed = await AVCaptureDevice.requestAccess(for: .video)
+        default:
+            cameraAllowed = false
+        }
+        let microphoneAllowed = await AVAudioApplication.requestRecordPermission()
+        guard cameraAllowed, microphoneAllowed else {
+            model.message = "Camera and microphone access are required for a video blessing. Enable them in Settings and try again."
+            return
+        }
+        showCamera = true
     }
 }

@@ -25,6 +25,10 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - deterministic timeline grouping and missed-state generation;
 - invite-code normalization;
 - countdown formatting and prompt-state transitions.
+- repeat eligibility uses the target circle's window and the original submission time;
+- repeat choices exclude expired, same-circle, and other-user blessings;
+- ownership transfer requires the current owner and a current target member;
+- historical details cannot author responses while current-day details can.
 
 ## Integration tests
 
@@ -55,3 +59,5 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - lock-screen privacy settings;
 - background video upload interruption;
 - speech transcription latency and audio-session interruption.
+- voice capture produces a playable audio file after permission grant, interruption, stop, and relaunch;
+- camera capture presents, records, returns a playable file, and recovers from denial or interruption.

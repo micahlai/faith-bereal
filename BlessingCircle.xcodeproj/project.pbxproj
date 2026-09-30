@@ -14,6 +14,7 @@
 		4FBFFAFAD04AB8B07EFE16FA /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */; };
 		515DFFB02152CC5BA58CE379 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9598DE0EDAB20B48B60056D /* AppTheme.swift */; };
 		548797F524C7B56B5041CA56 /* BlessingCircleLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */; };
+		6545467C2B8B3C77A6BF2989 /* CaptureMediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B2B67B866D8C3A3B56F2CC /* CaptureMediaStore.swift */; };
 		683C74774B522C0B71C3DAC5 /* BlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD086AB78C2411FC6492A448 /* BlessingRepository.swift */; };
 		68E89B000052B2EA87B3E842 /* CircleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */; };
 		69D5AACA21015D8BC316820F /* SpeechTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0892DC6E7C01070219AD240A /* SpeechTranscriber.swift */; };
@@ -76,6 +77,7 @@
 		0892DC6E7C01070219AD240A /* SpeechTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechTranscriber.swift; sourceTree = "<group>"; };
 		089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleModels.swift; sourceTree = "<group>"; };
 		1264492C64A180326D793D6F /* BlessingCircleTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		16B2B67B866D8C3A3B56F2CC /* CaptureMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureMediaStore.swift; sourceTree = "<group>"; };
 		234411076A53B6836F09CC17 /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
 		28E10C692366BEAE2B09BBC9 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfiguration.swift; sourceTree = "<group>"; };
@@ -167,6 +169,7 @@
 			isa = PBXGroup;
 			children = (
 				5EF821C48CC75D537252691D /* BibleReferencePicker.swift */,
+				16B2B67B866D8C3A3B56F2CC /* CaptureMediaStore.swift */,
 				234411076A53B6836F09CC17 /* CaptureView.swift */,
 				0892DC6E7C01070219AD240A /* SpeechTranscriber.swift */,
 				7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */,
@@ -408,6 +411,7 @@
 				C5E886DC0C3FF80F1DF8B517 /* BlessingCircleApp.swift in Sources */,
 				683C74774B522C0B71C3DAC5 /* BlessingRepository.swift in Sources */,
 				2B3C310DE0DED51EBA4A5E4B /* BlessingResponsesView.swift in Sources */,
+				6545467C2B8B3C77A6BF2989 /* CaptureMediaStore.swift in Sources */,
 				6BF92E4D99CABF90A577F055 /* CaptureView.swift in Sources */,
 				7D1922CBB7AFE9B86E780EA9 /* CircleTimelineView.swift in Sources */,
 				68E89B000052B2EA87B3E842 /* CircleView.swift in Sources */,
@@ -571,7 +575,7 @@
 				INFOPLIST_FILE = "Configuration/App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Blessing Circle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Blessing Circle uses the camera when you choose to record a video blessing.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Blessing Circle uses the microphone only while you dictate a blessing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Blessing Circle uses the microphone while you record a voice or video blessing.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Blessing Circle can import a video you choose for your blessing.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Blessing Circle transcribes your spoken blessing into editable text.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -635,7 +639,7 @@
 				INFOPLIST_FILE = "Configuration/App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Blessing Circle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Blessing Circle uses the camera when you choose to record a video blessing.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Blessing Circle uses the microphone only while you dictate a blessing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Blessing Circle uses the microphone while you record a voice or video blessing.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Blessing Circle can import a video you choose for your blessing.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Blessing Circle transcribes your spoken blessing into editable text.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

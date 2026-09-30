@@ -1,5 +1,29 @@
 import Foundation
 
+enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
+    case automatic
+    case light
+    case dark
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .automatic: "circle.lefthalf.filled"
+        case .light: "sun.max.fill"
+        case .dark: "moon.fill"
+        }
+    }
+}
+
 struct AppBootstrap: Sendable {
     let currentUser: Member
     let circles: [CircleGroup]
@@ -37,6 +61,7 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     var randomWindowEndMinutes: Int
     var responseWindowMinutes: Int
     var allowsLateBlessings: Bool
+    var repeatWindowMinutes: Int
 
     var responseWindowDuration: TimeInterval {
         TimeInterval(responseWindowMinutes * 60)
@@ -45,6 +70,10 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
 
 enum ResponseWindowOptions {
     static let minutes = [1, 2, 3, 5, 10, 15, 20, 40, 60, 90, 120, 180]
+}
+
+enum RepeatWindowOptions {
+    static let minutes = [15, 30, 60, 90, 120, 180, 360, 720, 1_440]
 }
 
 struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
@@ -109,6 +138,22 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let submittedAt: Date
     let isLate: Bool
     let scriptureReference: ScriptureReference?
+    var repeatedFromBlessingID: UUID? = nil
+}
+
+enum RepeatBlessingPolicy {
+    static func isEligible(
+        source: Blessing,
+        targetCircle: CircleGroup,
+        authorID: UUID,
+        now: Date
+    ) -> Bool {
+        guard source.authorID == authorID,
+              source.circleID != targetCircle.id,
+              source.submittedAt <= now else { return false }
+        return now.timeIntervalSince(source.submittedAt)
+            <= TimeInterval(targetCircle.repeatWindowMinutes * 60)
+    }
 }
 
 enum ResponseMode: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -176,6 +221,8 @@ enum BlessingError: LocalizedError, Equatable {
     case alreadySubmitted
     case cameraUnavailable
     case circleNotFound
+    case notCircleOwner
+    case invalidOwnerTransfer
 
     var errorDescription: String? {
         switch self {
@@ -185,6 +232,8 @@ enum BlessingError: LocalizedError, Equatable {
         case .alreadySubmitted: "You already shared a blessing for this prompt."
         case .cameraUnavailable: "The camera is not available on this device."
         case .circleNotFound: "That circle is no longer available. Choose another circle."
+        case .notCircleOwner: "Only the current circle owner can make that change."
+        case .invalidOwnerTransfer: "Choose another current member to become the circle owner."
         }
     }
 }

@@ -31,7 +31,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         INFOPLIST_KEY_CFBundleDisplayName: Blessing Circle
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: Blessing Circle uses the microphone only while you dictate a blessing.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Blessing Circle uses the microphone while you record a voice or video blessing.
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Blessing Circle transcribes your spoken blessing into editable text.
         INFOPLIST_KEY_NSCameraUsageDescription: Blessing Circle uses the camera when you choose to record a video blessing.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Blessing Circle can import a video you choose for your blessing.
@@ -56,7 +56,7 @@ targets:
             CFBundleURLName: app.blessingcircle.ios
             CFBundleURLSchemes:
               - blessingcircle
-        NSMicrophoneUsageDescription: Blessing Circle uses the microphone only while you dictate a blessing.
+        NSMicrophoneUsageDescription: Blessing Circle uses the microphone while you record a voice or video blessing.
         NSSpeechRecognitionUsageDescription: Blessing Circle transcribes your spoken blessing into editable text.
         NSCameraUsageDescription: Blessing Circle uses the camera when you choose to record a video blessing.
         NSPhotoLibraryUsageDescription: Blessing Circle can import a video you choose for your blessing.

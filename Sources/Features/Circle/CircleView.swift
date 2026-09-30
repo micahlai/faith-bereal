@@ -194,6 +194,7 @@ private struct CircleSettingsView: View {
     @Binding var isPresented: Bool
     @State private var selectedIndex: Double
     @State private var allowsLateBlessings: Bool
+    @State private var repeatWindowMinutes: Int
     @State private var name: String
     @State private var timeZoneIdentifier: String
     @State private var randomWindowStart: Date
@@ -201,6 +202,7 @@ private struct CircleSettingsView: View {
     @State private var isSaving = false
     @State private var isLeaving = false
     @State private var showingLeaveConfirmation = false
+    @State private var showingOwnershipTransfer = false
 
     init(circle: CircleGroup, isPresented: Binding<Bool>) {
         self.circle = circle
@@ -208,6 +210,7 @@ private struct CircleSettingsView: View {
         let index = ResponseWindowOptions.minutes.firstIndex(of: circle.responseWindowMinutes) ?? 4
         _selectedIndex = State(initialValue: Double(index))
         _allowsLateBlessings = State(initialValue: circle.allowsLateBlessings)
+        _repeatWindowMinutes = State(initialValue: circle.repeatWindowMinutes)
         _name = State(initialValue: circle.name)
         _timeZoneIdentifier = State(initialValue: circle.timeZoneIdentifier)
         _randomWindowStart = State(initialValue: Self.wallClockDate(minutes: circle.randomWindowStartMinutes))
@@ -225,7 +228,7 @@ private struct CircleSettingsView: View {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && randomWindowEndMinutes > randomWindowStartMinutes
     }
-    private var isOwner: Bool { circle.ownerID == model.currentUser?.id }
+    private var isOwner: Bool { model.circle?.ownerID == model.currentUser?.id }
 
     var body: some View {
         NavigationStack {
@@ -300,6 +303,32 @@ private struct CircleSettingsView: View {
                     }
 
                     Section {
+                        Picker("Reuse window", selection: $repeatWindowMinutes) {
+                            ForEach(RepeatWindowOptions.minutes, id: \.self) { minutes in
+                                Text(Self.durationLabel(minutes)).tag(minutes)
+                            }
+                        }
+                    } header: {
+                        Text("Repeat blessings")
+                    } footer: {
+                        Text("A member can reuse their own blessing from another circle only within this much time of when they originally sent it.")
+                    }
+
+                    if circle.members.count > 1 {
+                        Section {
+                            Button {
+                                showingOwnershipTransfer = true
+                            } label: {
+                                Label("Transfer circle ownership", systemImage: "person.2.arrow.trianglehead.counterclockwise")
+                            }
+                        } header: {
+                            Text("Ownership")
+                        } footer: {
+                            Text("The new owner can change circle settings and transfer ownership again. You will remain a member.")
+                        }
+                    }
+
+                    Section {
                         Button {
                             isSaving = true
                             Task {
@@ -309,7 +338,8 @@ private struct CircleSettingsView: View {
                                     randomWindowStartMinutes: randomWindowStartMinutes,
                                     randomWindowEndMinutes: randomWindowEndMinutes,
                                     responseWindowMinutes: selectedMinutes,
-                                    allowsLateBlessings: allowsLateBlessings
+                                    allowsLateBlessings: allowsLateBlessings,
+                                    repeatWindowMinutes: repeatWindowMinutes
                                 )
                                 isSaving = false
                                 if saved { isPresented = false }
@@ -331,6 +361,7 @@ private struct CircleSettingsView: View {
                     Section("Schedule") {
                         LabeledContent("Response window", value: selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
                         LabeledContent("Late blessings", value: allowsLateBlessings ? "Allowed" : "Not allowed")
+                        LabeledContent("Reuse window", value: Self.durationLabel(repeatWindowMinutes))
                     }
                 }
 
@@ -358,6 +389,13 @@ private struct CircleSettingsView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showingOwnershipTransfer) {
+            OwnershipTransferView(
+                members: circle.members.filter { $0.id != model.currentUser?.id },
+                isPresented: $showingOwnershipTransfer,
+                closeSettings: { isPresented = false }
+            )
+        }
         .confirmationDialog(
             "Leave \(circle.name)?",
             isPresented: $showingLeaveConfirmation,
@@ -392,6 +430,81 @@ private struct CircleSettingsView: View {
     private static func minutes(from date: Date) -> Int {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+    }
+
+    private static func durationLabel(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes) min" }
+        if minutes % 60 == 0 {
+            let hours = minutes / 60
+            return hours == 1 ? "1 hour" : "\(hours) hours"
+        }
+        return "\(minutes / 60)h \(minutes % 60)m"
+    }
+}
+
+private struct OwnershipTransferView: View {
+    @Environment(AppModel.self) private var model
+    let members: [Member]
+    @Binding var isPresented: Bool
+    let closeSettings: () -> Void
+    @State private var candidate: Member?
+    @State private var isTransferring = false
+
+    var body: some View {
+        NavigationStack {
+            List(members) { member in
+                Button {
+                    candidate = member
+                } label: {
+                    HStack(spacing: 12) {
+                        AvatarBadge(member: member, size: 42)
+                        Text(member.displayName)
+                            .foregroundStyle(AppTheme.ink)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.secondaryInk)
+                            .accessibilityHidden(true)
+                    }
+                    .frame(minHeight: 44)
+                }
+                .disabled(isTransferring)
+            }
+            .navigationTitle("Choose new owner")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresented = false }
+                        .disabled(isTransferring)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .confirmationDialog(
+            "Transfer ownership to \(candidate?.displayName ?? "this member")?",
+            isPresented: Binding(
+                get: { candidate != nil },
+                set: { if !$0 { candidate = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let candidate {
+                Button("Transfer ownership") {
+                    isTransferring = true
+                    Task {
+                        if await model.transferCurrentCircleOwnership(to: candidate.id) {
+                            isPresented = false
+                            closeSettings()
+                        }
+                        isTransferring = false
+                        self.candidate = nil
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) { candidate = nil }
+        } message: {
+            Text("You will remain in the circle, but only the new owner will be able to change its settings.")
+        }
     }
 }
 

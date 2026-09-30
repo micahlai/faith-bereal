@@ -24,6 +24,7 @@ final class SpeechTranscriber: NSObject {
     private var hasInputTap = false
     private var recordedAudioFile: AVAudioFile?
     private var fileContinuation: CheckedContinuation<String?, Never>?
+    private var recognitionSessionID: UUID?
 
     func toggle() async {
         if state == .listening {
@@ -34,16 +35,18 @@ final class SpeechTranscriber: NSObject {
     }
 
     func stop() {
+        recognitionSessionID = nil
         if audioEngine.isRunning { audioEngine.stop() }
         if hasInputTap {
             audioEngine.inputNode.removeTap(onBus: 0)
             hasInputTap = false
         }
         request?.endAudio()
-        task?.cancel()
+        task?.finish()
         request = nil
         task = nil
         recordedAudioFile = nil
+        deactivateAudioSession()
         state = .idle
     }
 
@@ -87,28 +90,48 @@ final class SpeechTranscriber: NSObject {
             state = .denied
             return
         }
-        start()
+        await start()
     }
 
-    private func start() {
+    private func start() async {
         stop()
         transcript = ""
+        guard let recognizer, recognizer.isAvailable else {
+            state = .failed("Speech recognition is temporarily unavailable.")
+            return
+        }
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try session.setActive(true)
+        } catch {
+            state = .failed("The microphone could not be started. Check audio access and try again.")
+            return
+        }
+
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         self.request = request
 
         let input = audioEngine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("blessing-\(UUID().uuidString)")
-            .appendingPathExtension("caf")
+        let format = input.inputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            deactivateAudioSession()
+            state = .failed("No microphone input is available.")
+            return
+        }
+
+        let outputURL: URL
         let audioFile: AVAudioFile
         do {
+            outputURL = try CaptureMediaStore.newRecordingURL(pathExtension: "caf")
             audioFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
             recordedAudioFile = audioFile
             recordingURL = outputURL
         } catch {
             recordingURL = nil
+            deactivateAudioSession()
             state = .failed("The audio recording could not be created.")
             return
         }
@@ -127,19 +150,27 @@ final class SpeechTranscriber: NSObject {
             return
         }
 
-        task = recognizer?.recognitionTask(with: request) { [weak self] result, error in
+        let sessionID = UUID()
+        recognitionSessionID = sessionID
+        task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
+                guard let self else { return }
+                guard self.recognitionSessionID == sessionID else { return }
                 if let result {
-                    self?.transcript = result.bestTranscription.formattedString
+                    self.transcript = result.bestTranscription.formattedString
                 }
                 if let error {
-                    self?.stop()
-                    self?.state = .failed(error.localizedDescription)
+                    self.stop()
+                    self.state = .failed(error.localizedDescription)
                 } else if result?.isFinal == true {
-                    self?.stop()
+                    self.stop()
                 }
             }
         }
+    }
+
+    private func deactivateAudioSession() {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func finishFileTranscription(with text: String?) {

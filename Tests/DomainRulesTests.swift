@@ -2,6 +2,22 @@ import XCTest
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testCapturedVideoIsCopiedToStableAppStorage() throws {
+        let sourceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mov")
+        let data = Data("video-fixture".utf8)
+        try data.write(to: sourceURL)
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+
+        let persistedURL = try CaptureMediaStore.persistVideo(from: sourceURL)
+        defer { try? FileManager.default.removeItem(at: persistedURL) }
+
+        XCTAssertNotEqual(persistedURL, sourceURL)
+        XCTAssertEqual(try Data(contentsOf: persistedURL), data)
+        XCTAssertTrue(persistedURL.path.contains("BlessingCaptures"))
+    }
+
     func testCurrentDayPeerContentRequiresViewerSubmission() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -129,13 +145,141 @@ final class DomainRulesTests: XCTestCase {
             randomWindowStartMinutes: 7 * 60,
             randomWindowEndMinutes: 18 * 60,
             responseWindowMinutes: 40,
-            allowsLateBlessings: true
+            allowsLateBlessings: true,
+            repeatWindowMinutes: 180
         )
 
         XCTAssertEqual(updated.responseWindowMinutes, 40)
         XCTAssertTrue(updated.allowsLateBlessings)
         XCTAssertEqual(updated.name, "Morning Light")
         XCTAssertEqual(updated.timeZoneIdentifier, "America/New_York")
+        XCTAssertEqual(updated.repeatWindowMinutes, 180)
+    }
+
+    func testRepeatEligibilityUsesTargetCircleWindowAndOriginalSubmissionTime() throws {
+        let authorID = UUID()
+        let sourceCircleID = UUID()
+        let targetCircle = CircleGroup(
+            id: UUID(),
+            name: "Second circle",
+            inviteCode: "SECOND",
+            ownerID: authorID,
+            members: [],
+            timeZoneIdentifier: "UTC",
+            randomWindowStartMinutes: 480,
+            randomWindowEndMinutes: 1_200,
+            responseWindowMinutes: 10,
+            allowsLateBlessings: false,
+            repeatWindowMinutes: 60
+        )
+        let sentAt = Date(timeIntervalSince1970: 2_000_000_000)
+        let source = Blessing(
+            id: UUID(),
+            circleID: sourceCircleID,
+            promptID: UUID(),
+            authorID: authorID,
+            captureMode: .voice,
+            body: "A timely blessing",
+            audioURL: URL(fileURLWithPath: "/tmp/source.caf"),
+            videoURL: nil,
+            submittedAt: sentAt,
+            isLate: false,
+            scriptureReference: nil
+        )
+
+        XCTAssertTrue(
+            RepeatBlessingPolicy.isEligible(
+                source: source,
+                targetCircle: targetCircle,
+                authorID: authorID,
+                now: sentAt.addingTimeInterval(3_600)
+            )
+        )
+        XCTAssertFalse(
+            RepeatBlessingPolicy.isEligible(
+                source: source,
+                targetCircle: targetCircle,
+                authorID: authorID,
+                now: sentAt.addingTimeInterval(3_601)
+            )
+        )
+    }
+
+    func testRepeatingBlessingCopiesMessageAndScriptureIntoTargetCircle() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let sourcePrompt = try XCTUnwrap(bootstrap.prompt)
+        let targetCircle = try XCTUnwrap(bootstrap.circles.last)
+        let targetContext = try await repository.circleContext(circleID: targetCircle.id)
+        let targetPrompt = try XCTUnwrap(targetContext.prompt)
+        let reference = ScriptureReference(
+            bookSlug: "psalms",
+            bookName: "Psalms",
+            chapter: 23,
+            verseStart: 1,
+            verseEnd: 2
+        )
+        let source = try await repository.submit(
+            promptID: sourcePrompt.id,
+            authorID: user.id,
+            mode: .voice,
+            body: "Provision in a difficult week.",
+            audioURL: URL(fileURLWithPath: "/tmp/source.caf"),
+            videoURL: nil,
+            scriptureReference: reference,
+            now: now
+        )
+
+        let repeated = try await repository.repeatBlessing(
+            sourceBlessingID: source.id,
+            targetPromptID: targetPrompt.id,
+            authorID: user.id,
+            now: now.addingTimeInterval(60)
+        )
+
+        XCTAssertEqual(repeated.circleID, targetCircle.id)
+        XCTAssertEqual(repeated.captureMode, .typed)
+        XCTAssertEqual(repeated.body, source.body)
+        XCTAssertEqual(repeated.scriptureReference, reference)
+        XCTAssertEqual(repeated.repeatedFromBlessingID, source.id)
+        XCTAssertNil(repeated.audioURL)
+    }
+
+    func testOwnerCanTransferCircleOwnershipToCurrentMember() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let successor = try XCTUnwrap(circle.members.first(where: { $0.id != user.id }))
+
+        let updated = try await repository.transferCircleOwnership(
+            circleID: circle.id,
+            ownerID: user.id,
+            newOwnerID: successor.id
+        )
+
+        XCTAssertEqual(updated.ownerID, successor.id)
+        XCTAssertTrue(updated.members.contains(where: { $0.id == user.id }))
+    }
+
+    func testNonOwnerCannotTransferCircleOwnership() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let nonOwner = try XCTUnwrap(circle.members.first(where: { $0.id != circle.ownerID }))
+
+        do {
+            _ = try await repository.transferCircleOwnership(
+                circleID: circle.id,
+                ownerID: nonOwner.id,
+                newOwnerID: circle.ownerID
+            )
+            XCTFail("Expected a non-owner transfer to fail")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .notCircleOwner)
+        }
     }
 
     func testLateSubmissionIsMarkedLateWhenCircleAllowsIt() async throws {

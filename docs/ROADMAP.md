@@ -50,6 +50,20 @@ Code exit: a configured build is ready for two physical devices in one circle to
 
 Exit: randomized prompts reliably open/close across devices without relying on the app being foregrounded.
 
+## Milestone 3.5 — client experience expansion
+
+- [x] Repair physical-device voice recording/transcription and camera capture lifecycles
+- [x] Add explicit circle ownership transfer
+- [x] Add target-circle repeat windows and eligible blessing reuse
+- [ ] Rebuild Timeline with pinned member headers, synchronized dynamic day rows, 15-line previews, and responder avatars
+- [x] Add system/light/dark appearance preference
+- [ ] Replace Today's post-submit state with the full current-day blessing feed
+- [ ] Restrict response composition to Today and current-day Timeline details
+- [ ] Expand public-domain Bible translations and group the selector by language
+- [ ] Add domain and UI coverage for the new business rules
+
+Exit: the expanded client loop is complete against the deterministic local repository and all existing production-service adapters still compile.
+
 ## Milestone 4 — release readiness
 
 - [ ] Accessibility audit: VoiceOver, Dynamic Type, contrast, Reduced Motion
@@ -59,3 +73,10 @@ Exit: randomized prompts reliably open/close across devices without relying on t
 - [ ] App Store assets, review notes, and TestFlight cohort
 
 Exit: release candidate meets App Review, privacy, reliability, and accessibility requirements.
+
+## Later — widgets
+
+- [ ] Add WidgetKit timeline provider and deep-link routing
+- [ ] Surface active share windows across all circles
+- [ ] Rotate eligible blessings using the user-configured refresh interval
+- [ ] Track recently displayed widget blessings locally to improve variety

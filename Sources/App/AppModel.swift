@@ -35,6 +35,9 @@ final class AppModel {
     var isSwitchingCircle = false
     var message: String?
     var submittedBlessing: Blessing?
+    var appearancePreference: AppearancePreference {
+        didSet { UserDefaults.standard.set(appearancePreference.rawValue, forKey: Self.appearanceKey) }
+    }
 
     init(
         repository: any BlessingRepository,
@@ -44,6 +47,9 @@ final class AppModel {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
+        self.appearancePreference = AppearancePreference(
+            rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
+        ) ?? .automatic
     }
 
     var hasSubmittedToday: Bool {
@@ -254,7 +260,8 @@ final class AppModel {
         randomWindowStartMinutes: Int,
         randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
-        allowsLateBlessings: Bool
+        allowsLateBlessings: Bool,
+        repeatWindowMinutes: Int
     ) async -> Bool {
         guard let circle, let currentUser else { return false }
         do {
@@ -266,7 +273,8 @@ final class AppModel {
                 randomWindowStartMinutes: randomWindowStartMinutes,
                 randomWindowEndMinutes: randomWindowEndMinutes,
                 responseWindowMinutes: responseWindowMinutes,
-                allowsLateBlessings: allowsLateBlessings
+                allowsLateBlessings: allowsLateBlessings,
+                repeatWindowMinutes: repeatWindowMinutes
             )
             self.circle = updatedCircle
             upsertCircle(updatedCircle)
@@ -297,6 +305,69 @@ final class AppModel {
             )
         } catch {
             message = error.localizedDescription
+        }
+    }
+
+    func transferCurrentCircleOwnership(to newOwnerID: UUID) async -> Bool {
+        guard let circle, let currentUser else { return false }
+        do {
+            let updatedCircle = try await repository.transferCircleOwnership(
+                circleID: circle.id,
+                ownerID: currentUser.id,
+                newOwnerID: newOwnerID
+            )
+            self.circle = updatedCircle
+            upsertCircle(updatedCircle)
+            let newOwnerName = updatedCircle.members
+                .first(where: { $0.id == newOwnerID })?
+                .displayName ?? "the new owner"
+            message = "Ownership transferred to \(newOwnerName)."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func repeatBlessingCandidates(now: Date = .now) async -> [Blessing] {
+        guard let circle, let currentUser else { return [] }
+        let earliest = now.addingTimeInterval(-TimeInterval(circle.repeatWindowMinutes * 60))
+        do {
+            return try await repository.recentBlessings(
+                authorID: currentUser.id,
+                submittedAfter: earliest
+            )
+            .filter {
+                RepeatBlessingPolicy.isEligible(
+                    source: $0,
+                    targetCircle: circle,
+                    authorID: currentUser.id,
+                    now: now
+                )
+            }
+        } catch {
+            message = error.localizedDescription
+            return []
+        }
+    }
+
+    func repeatBlessing(_ source: Blessing, now: Date = .now) async -> Bool {
+        guard let prompt, let currentUser else { return false }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        do {
+            submittedBlessing = try await repository.repeatBlessing(
+                sourceBlessingID: source.id,
+                targetPromptID: prompt.id,
+                authorID: currentUser.id,
+                now: now
+            )
+            try await refreshTimeline(now: now)
+            message = "Your blessing was reused in this circle."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
         }
     }
 
@@ -404,6 +475,8 @@ final class AppModel {
             circles.append(circle)
         }
     }
+
+    private static let appearanceKey = "user.appearancePreference"
 
     private func configureRemoteServices() async {
         guard usesAuthentication, !remoteServicesConfigured else { return }

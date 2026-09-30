@@ -47,7 +47,8 @@ actor LocalBlessingRepository: BlessingRepository {
             randomWindowStartMinutes: 8 * 60,
             randomWindowEndMinutes: 20 * 60,
             responseWindowMinutes: 10,
-            allowsLateBlessings: true
+            allowsLateBlessings: true,
+            repeatWindowMinutes: 120
         )
 
         let currentStart = now.addingTimeInterval(-60)
@@ -172,7 +173,8 @@ actor LocalBlessingRepository: BlessingRepository {
             randomWindowStartMinutes: 6 * 60,
             randomWindowEndMinutes: 10 * 60,
             responseWindowMinutes: 15,
-            allowsLateBlessings: false
+            allowsLateBlessings: false,
+            repeatWindowMinutes: 90
         )
         let prayerStart = now.addingTimeInterval(-120)
         seededPrompts.append(
@@ -364,7 +366,8 @@ actor LocalBlessingRepository: BlessingRepository {
             randomWindowStartMinutes: 8 * 60,
             randomWindowEndMinutes: 20 * 60,
             responseWindowMinutes: 10,
-            allowsLateBlessings: false
+            allowsLateBlessings: false,
+            repeatWindowMinutes: 120
         )
         circles.append(circle)
         return circle
@@ -378,7 +381,8 @@ actor LocalBlessingRepository: BlessingRepository {
         randomWindowStartMinutes: Int,
         randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
-        allowsLateBlessings: Bool
+        allowsLateBlessings: Bool,
+        repeatWindowMinutes: Int
     ) async throws -> CircleGroup {
         guard let index = circles.firstIndex(where: { $0.id == circleID }),
               circles[index].ownerID == ownerID else {
@@ -386,6 +390,9 @@ actor LocalBlessingRepository: BlessingRepository {
         }
         guard ResponseWindowOptions.minutes.contains(responseWindowMinutes) else {
             throw BlessingError.outsideResponseWindow
+        }
+        guard RepeatWindowOptions.minutes.contains(repeatWindowMinutes) else {
+            throw BlessingError.invalidInviteCode
         }
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanedName.isEmpty,
@@ -402,6 +409,7 @@ actor LocalBlessingRepository: BlessingRepository {
         circles[index].randomWindowEndMinutes = randomWindowEndMinutes
         circles[index].responseWindowMinutes = responseWindowMinutes
         circles[index].allowsLateBlessings = allowsLateBlessings
+        circles[index].repeatWindowMinutes = repeatWindowMinutes
         return circles[index]
     }
 
@@ -417,6 +425,68 @@ actor LocalBlessingRepository: BlessingRepository {
             }
         }
         return currentUser
+    }
+
+    func transferCircleOwnership(
+        circleID: UUID,
+        ownerID: UUID,
+        newOwnerID: UUID
+    ) async throws -> CircleGroup {
+        guard let circleIndex = circles.firstIndex(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circles[circleIndex].ownerID == ownerID else {
+            throw BlessingError.notCircleOwner
+        }
+        guard newOwnerID != ownerID,
+              circles[circleIndex].members.contains(where: { $0.id == newOwnerID }) else {
+            throw BlessingError.invalidOwnerTransfer
+        }
+        circles[circleIndex].ownerID = newOwnerID
+        return circles[circleIndex]
+    }
+
+    func recentBlessings(authorID: UUID, submittedAfter: Date) async throws -> [Blessing] {
+        blessings
+            .filter { $0.authorID == authorID && $0.submittedAt >= submittedAfter }
+            .sorted { $0.submittedAt > $1.submittedAt }
+    }
+
+    func repeatBlessing(
+        sourceBlessingID: UUID,
+        targetPromptID: UUID,
+        authorID: UUID,
+        now: Date
+    ) async throws -> Blessing {
+        guard let source = blessings.first(where: { $0.id == sourceBlessingID }),
+              let targetPrompt = prompts.first(where: { $0.id == targetPromptID }),
+              let targetCircle = circles.first(where: { $0.id == targetPrompt.circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard RepeatBlessingPolicy.isEligible(
+            source: source,
+            targetCircle: targetCircle,
+            authorID: authorID,
+            now: now
+        ) else {
+            throw BlessingError.outsideResponseWindow
+        }
+
+        var repeated = try await submit(
+            promptID: targetPromptID,
+            authorID: authorID,
+            mode: .typed,
+            body: source.body,
+            audioURL: nil,
+            videoURL: nil,
+            scriptureReference: source.scriptureReference,
+            now: now
+        )
+        repeated.repeatedFromBlessingID = source.id
+        if let index = blessings.firstIndex(where: { $0.id == repeated.id }) {
+            blessings[index] = repeated
+        }
+        return repeated
     }
 
     func leaveCircle(circleID: UUID, memberID: UUID) async throws {
