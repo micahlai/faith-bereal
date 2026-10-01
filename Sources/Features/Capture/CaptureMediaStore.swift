@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 enum CaptureMediaStore {
     private static let folderName = "BlessingCaptures"
@@ -14,6 +15,16 @@ enum CaptureMediaStore {
         let pathExtension = sourceURL.pathExtension.isEmpty ? "mov" : sourceURL.pathExtension
         let destinationURL = try newRecordingURL(pathExtension: pathExtension)
         try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        return destinationURL
+    }
+
+    static func persistPhoto(data: Data) throws -> URL {
+        guard let image = UIImage(data: data),
+              let jpegData = image.jpegData(compressionQuality: 0.88) else {
+            throw BlessingError.cameraUnavailable
+        }
+        let destinationURL = try newRecordingURL(pathExtension: "jpg")
+        try jpegData.write(to: destinationURL, options: .atomic)
         return destinationURL
     }
 

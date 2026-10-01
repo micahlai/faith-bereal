@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
@@ -193,6 +194,91 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertNotEqual(persistedURL, sourceURL)
         XCTAssertEqual(try Data(contentsOf: persistedURL), data)
         XCTAssertTrue(persistedURL.path.contains("BlessingCaptures"))
+    }
+
+    func testSelectedPhotoIsConvertedToStableJPEGStorage() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8)).image { context in
+            UIColor.systemPurple.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+        }
+        let sourceData = try XCTUnwrap(image.pngData())
+
+        let persistedURL = try CaptureMediaStore.persistPhoto(data: sourceData)
+        defer { try? FileManager.default.removeItem(at: persistedURL) }
+
+        XCTAssertEqual(persistedURL.pathExtension, "jpg")
+        XCTAssertNotNil(UIImage(contentsOfFile: persistedURL.path))
+        XCTAssertTrue(persistedURL.path.contains("BlessingCaptures"))
+    }
+
+    func testTypedBlessingCanIncludeOptionalPhoto() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+        let photoURL = URL(fileURLWithPath: "/tmp/blessing-photo.jpg")
+
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: bootstrap.currentUser.id,
+            mode: .typed,
+            body: "A photographed blessing",
+            audioURL: nil,
+            videoURL: nil,
+            photoURL: photoURL,
+            scriptureReference: nil,
+            now: now
+        )
+
+        XCTAssertEqual(blessing.photoURL, photoURL)
+    }
+
+    func testVoiceBlessingCanIncludeOptionalPhoto() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+        let audioURL = URL(fileURLWithPath: "/tmp/blessing-audio.caf")
+        let photoURL = URL(fileURLWithPath: "/tmp/blessing-photo.jpg")
+
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: bootstrap.currentUser.id,
+            mode: .voice,
+            body: "A spoken blessing with a photo",
+            audioURL: audioURL,
+            videoURL: nil,
+            photoURL: photoURL,
+            scriptureReference: nil,
+            now: now
+        )
+
+        XCTAssertEqual(blessing.audioURL, audioURL)
+        XCTAssertEqual(blessing.photoURL, photoURL)
+    }
+
+    func testVideoBlessingRejectsPhotoAttachment() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+
+        do {
+            _ = try await repository.submit(
+                promptID: prompt.id,
+                authorID: bootstrap.currentUser.id,
+                mode: .video,
+                body: "Video transcript",
+                audioURL: nil,
+                videoURL: URL(fileURLWithPath: "/tmp/blessing.mov"),
+                photoURL: URL(fileURLWithPath: "/tmp/blessing-photo.jpg"),
+                scriptureReference: nil,
+                now: now
+            )
+            XCTFail("Expected video-plus-photo submission to fail")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .emptyBlessing)
+        }
     }
 
     func testCurrentDayPeerContentRequiresViewerSubmission() {

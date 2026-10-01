@@ -16,7 +16,7 @@ Last updated: 2026-09-30
 | Name, user ID, Bible-version preference | Account and personalized scripture display | Supabase Auth/profile | Until account deletion completes |
 | Circle membership and join date | Access control and accurate Timeline history | Supabase database | Until the user leaves or account/circle deletion completes |
 | Blessing text/transcripts and scripture references | Core private-circle history | Supabase database | Until account/circle deletion; per-post deletion policy still requires a product decision |
-| Voice and video files | Playback for the selected capture mode | Private Supabase Storage | Same as the parent blessing; abandoned upload cleanup must be automated |
+| Voice, video, and optional blessing photos | Playback or display for the selected capture mode | Private Supabase Storage | Same as the parent blessing; abandoned upload cleanup must be automated |
 | Text/voice responses | Circle conversation | Supabase database/private storage | Same as the parent blessing |
 | APNs, push-to-start, and activity tokens | Notifications and Live Activities | Supabase database | Replaced on rotation; invalid and stale tokens must be revoked |
 | Local capture files | Recording, preview, and upload staging | App cache | Remove after successful upload or abandonment cleanup |

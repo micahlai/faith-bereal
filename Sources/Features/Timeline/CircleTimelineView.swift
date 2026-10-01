@@ -255,11 +255,18 @@ private struct TimelineEventView: View {
         case let .blessing(blessing):
             Button { onSelect(blessing) } label: {
                 VStack(alignment: .leading, spacing: 8) {
-                    if blessing.captureMode != .typed {
-                        Label(
-                            blessing.captureMode == .video ? "Video" : "Voice",
-                            systemImage: blessing.captureMode == .video ? "play.rectangle.fill" : "waveform"
-                        )
+                    if blessing.captureMode != .typed || blessing.photoURL != nil {
+                        HStack(spacing: 10) {
+                            if blessing.captureMode != .typed {
+                                Label(
+                                    blessing.captureMode == .video ? "Video" : "Voice",
+                                    systemImage: blessing.captureMode == .video ? "play.rectangle.fill" : "waveform"
+                                )
+                            }
+                            if blessing.photoURL != nil {
+                                Label("Photo", systemImage: "photo.fill")
+                            }
+                        }
                         .font(.caption.weight(.semibold))
                     }
                     TruncationAwareText(
@@ -450,6 +457,9 @@ struct BlessingContentView: View {
             switch blessing.captureMode {
             case .typed:
                 VStack(alignment: .leading, spacing: 10) {
+                    if let photoURL = blessing.photoURL {
+                        BlessingPhotoView(url: photoURL)
+                    }
                     Text("Reflection")
                         .font(.headline)
                     Text(blessing.body ?? "")
@@ -465,6 +475,9 @@ struct BlessingContentView: View {
                         Label("Audio is unavailable", systemImage: "waveform.slash")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    if let photoURL = blessing.photoURL {
+                        BlessingPhotoView(url: photoURL)
                     }
                     Divider()
                     Text("Transcript")
@@ -494,6 +507,39 @@ struct BlessingContentView: View {
             }
         }
         .onDisappear { videoPlayer?.pause() }
+    }
+}
+
+private struct BlessingPhotoView: View {
+    let url: URL
+
+    var body: some View {
+        Group {
+            if url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
+                Image(uiImage: image)
+                    .resizable()
+            } else {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case let .success(image): image.resizable()
+                    case .failure:
+                        ContentUnavailableView("Photo unavailable", systemImage: "photo.badge.exclamationmark")
+                    case .empty:
+                        ZStack {
+                            AppTheme.canvas
+                            ProgressView().accessibilityLabel("Loading photo")
+                        }
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            }
+        }
+        .scaledToFill()
+        .frame(maxWidth: .infinity)
+        .frame(height: 260)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityLabel("Blessing photo")
     }
 }
 

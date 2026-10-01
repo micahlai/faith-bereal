@@ -139,6 +139,7 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let isLate: Bool
     let scriptureReference: ScriptureReference?
     var repeatedFromBlessingID: UUID? = nil
+    var photoURL: URL? = nil
 }
 
 struct BlessingFeedItem: Identifiable, Hashable, Sendable {

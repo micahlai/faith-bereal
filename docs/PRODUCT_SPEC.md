@@ -53,8 +53,8 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Capture
 
-- Typed: multiline text, 1–600 characters.
-- Voice: in-app live transcription that the user can edit before submission, with private audio playback in detail.
+- Typed: multiline text, 1–600 characters, with an optional captured or uploaded photo.
+- Voice: in-app live transcription that the user can edit before submission, with private audio playback in detail and an optional captured or uploaded photo.
 - Video: camera capture with editable transcript and private playback.
 - Optional scripture tag: book and chapter dropdowns, then a drag-select square verse grid. Preview in the user's chosen public-domain Bible translation before sending.
 - Submission shows an explicit progress state and cannot be duplicated by repeated taps.
@@ -77,7 +77,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Current-day peer content is replaced by a locked state until the viewer posts.
 - Previews show up to 15 lines of original text or transcript plus the reference when present. Every member cell for a given day shares the height of that day's longest preview.
 - Timeline blessing previews show only the profile icons of members who responded, without response text.
-- Tapping a blessing opens text, audio plus transcript, or video plus transcript; responses follow, and the full tagged passage appears at the bottom in the viewer's selected translation. Historical responses are view-only; current-day details may include the response composer.
+- Tapping a blessing opens text, audio plus transcript, or video plus transcript. An optional photo appears with text or audio content, tagged scripture appears before responses in the viewer's selected translation, and historical responses are view-only; current-day details may include the response composer.
 - Each member lane stops at a “Joined circle” marker and never fabricates missed days before membership began.
 
 ### Later scope: widgets

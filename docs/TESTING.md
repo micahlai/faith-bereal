@@ -33,6 +33,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - member removal requires the current owner, rejects self-removal, and removes only the selected membership;
 - historical details cannot author responses while current-day details can.
 - widget selection covers active, current-day, prior-day, empty, and prompt-boundary refresh states.
+- selected photos are normalized into stable local JPEG files instead of depending on temporary picker URLs;
+- text and voice blessings accept an optional photo, while video blessings reject a separate photo attachment.
 
 ## Integration tests
 

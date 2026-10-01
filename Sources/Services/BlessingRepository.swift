@@ -11,6 +11,7 @@ protocol BlessingRepository: Sendable {
         body: String?,
         audioURL: URL?,
         videoURL: URL?,
+        photoURL: URL?,
         scriptureReference: ScriptureReference?,
         now: Date
     ) async throws -> Blessing

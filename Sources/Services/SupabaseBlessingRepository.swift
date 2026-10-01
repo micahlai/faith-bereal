@@ -130,9 +130,11 @@ actor SupabaseBlessingRepository: BlessingRepository {
         body: String?,
         audioURL: URL?,
         videoURL: URL?,
+        photoURL: URL? = nil,
         scriptureReference: ScriptureReference?,
         now: Date
     ) async throws -> Blessing {
+        if mode == .video, photoURL != nil { throw BlessingError.emptyBlessing }
         let promptRow: PromptRow = try await client
             .from("daily_prompts")
             .select()
@@ -142,6 +144,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .value
         var audioPath: String?
         var videoPath: String?
+        var photoPath: String?
         let basePath = "\(promptRow.circleID)/\(promptID)/\(authorID)"
         if let audioURL {
             audioPath = "\(basePath)/voice-\(UUID().uuidString).caf"
@@ -150,6 +153,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
         if let videoURL {
             videoPath = "\(basePath)/video-\(UUID().uuidString).mov"
             try await upload(fileURL: videoURL, path: videoPath!, contentType: "video/quicktime")
+        }
+        if let photoURL {
+            photoPath = "\(basePath)/photo-\(UUID().uuidString).jpg"
+            try await upload(fileURL: photoURL, path: photoPath!, contentType: "image/jpeg")
         }
 
         let row: BlessingRow
@@ -175,6 +182,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                     mode: mode.rawValue,
                     body: body,
                     audioPath: audioPath,
+                    photoPath: photoPath,
                     reference: scriptureReference
                 )
             )
@@ -510,7 +518,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             submittedAt: row.submittedAt,
             isLate: row.isLate,
             scriptureReference: row.scriptureReference,
-            repeatedFromBlessingID: row.repeatedFromBlessingID
+            repeatedFromBlessingID: row.repeatedFromBlessingID,
+            photoURL: try await signedURL(path: row.photoPath)
         )
     }
 
@@ -669,6 +678,7 @@ private struct BlessingRow: Codable, Sendable {
     let body: String?
     let audioPath: String?
     let videoPath: String?
+    let photoPath: String?
     let submittedAt: Date
     let isLate: Bool
     let scriptureBookSlug: String?
@@ -698,6 +708,7 @@ private struct BlessingRow: Codable, Sendable {
         case captureMode = "capture_mode"
         case audioPath = "audio_path"
         case videoPath = "video_path"
+        case photoPath = "photo_path"
         case submittedAt = "submitted_at"
         case isLate = "is_late"
         case scriptureBookSlug = "scripture_book_slug"
@@ -781,17 +792,26 @@ private struct SubmitTextParams: Encodable, Sendable {
     let mode: String
     let body: String?
     let audioPath: String?
+    let photoPath: String?
     let scriptureBookSlug: String?
     let scriptureBookName: String?
     let scriptureChapter: Int?
     let scriptureVerseStart: Int?
     let scriptureVerseEnd: Int?
 
-    init(promptID: UUID, mode: String, body: String?, audioPath: String?, reference: ScriptureReference?) {
+    init(
+        promptID: UUID,
+        mode: String,
+        body: String?,
+        audioPath: String?,
+        photoPath: String?,
+        reference: ScriptureReference?
+    ) {
         self.promptID = promptID
         self.mode = mode
         self.body = body
         self.audioPath = audioPath
+        self.photoPath = photoPath
         scriptureBookSlug = reference?.bookSlug
         scriptureBookName = reference?.bookName
         scriptureChapter = reference?.chapter
@@ -804,6 +824,7 @@ private struct SubmitTextParams: Encodable, Sendable {
         case mode = "p_mode"
         case body = "p_body"
         case audioPath = "p_audio_path"
+        case photoPath = "p_photo_path"
         case scriptureBookSlug = "p_scripture_book_slug"
         case scriptureBookName = "p_scripture_book_name"
         case scriptureChapter = "p_scripture_chapter"

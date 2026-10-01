@@ -35,4 +35,25 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["What feels like a blessing today?"].exists)
         XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 3))
     }
+
+    @MainActor
+    func testPhotoAttachmentIsAvailableForTextAndVoiceButNotVideo() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 5))
+        app.buttons["Share a blessing"].tap()
+        XCTAssertTrue(app.buttons["Take photo"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Upload"].exists)
+
+        app.buttons["Speak"].tap()
+        XCTAssertTrue(app.buttons["Take photo"].exists)
+        XCTAssertTrue(app.buttons["Upload"].exists)
+
+        app.buttons["Video"].tap()
+        XCTAssertFalse(app.buttons["Take photo"].exists)
+        XCTAssertFalse(app.buttons["Upload"].exists)
+    }
 }

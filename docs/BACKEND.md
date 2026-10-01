@@ -38,9 +38,9 @@ Unique `(circle_id, local_date)`. `ends_at` is constrained to the response durat
 
 ### `blessings`
 
-`id`, `prompt_id`, `author_id`, `capture_mode`, `body`, `audio_path`, `video_path`, `thumbnail_path`, `submitted_at`, `is_late`, scripture book/chapter/start/end fields, `created_at`
+`id`, `prompt_id`, `author_id`, `capture_mode`, `body`, `audio_path`, `video_path`, `thumbnail_path`, `photo_path`, `submitted_at`, `is_late`, scripture book/chapter/start/end fields, `created_at`
 
-Unique `(prompt_id, author_id)`. Voice and video transcripts are stored in `body`. Scripture text is never persisted; it is rendered from the viewer's selected public-domain translation.
+Unique `(prompt_id, author_id)`. Voice and video transcripts are stored in `body`. Typed and voice blessings may reference one private photo; video blessings cannot. Scripture text is never persisted; it is rendered from the viewer's selected public-domain translation.
 
 ### `blessing_responses`
 
@@ -77,6 +77,7 @@ Because “today” varies by circle time zone and policy expressions should sta
 ```text
 blessing-media/{circle_id}/{prompt_id}/{author_id}/original.mov
 blessing-media/{circle_id}/{prompt_id}/{author_id}/thumbnail.jpg
+blessing-media/{circle_id}/{prompt_id}/{author_id}/photo-{id}.jpg
 blessing-media/{circle_id}/{prompt_id}/{author_id}/voice-{id}.caf
 blessing-media/{circle_id}/{prompt_id}/{author_id}/responses/{blessing_id}/{id}.caf
 avatars/{user_id}/avatar.jpg

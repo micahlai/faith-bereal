@@ -34,11 +34,11 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Blessing Circle uses the camera when you choose to record a video blessing.</string>
+	<string>Blessing Circle uses the camera when you choose to take a photo or record a video blessing.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Blessing Circle uses the microphone while you record a voice or video blessing.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Blessing Circle can import a video you choose for your blessing.</string>
+	<string>Blessing Circle can import a photo or video you choose for your blessing.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Blessing Circle transcribes your spoken blessing into editable text.</string>
 	<key>NSSupportsLiveActivities</key>

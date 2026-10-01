@@ -291,6 +291,7 @@ actor LocalBlessingRepository: BlessingRepository {
         body: String?,
         audioURL: URL?,
         videoURL: URL?,
+        photoURL: URL? = nil,
         scriptureReference: ScriptureReference?,
         now: Date
     ) async throws -> Blessing {
@@ -320,7 +321,7 @@ actor LocalBlessingRepository: BlessingRepository {
         case .voice:
             guard audioURL != nil else { throw BlessingError.emptyBlessing }
         case .video:
-            guard videoURL != nil else { throw BlessingError.emptyBlessing }
+            guard videoURL != nil, photoURL == nil else { throw BlessingError.emptyBlessing }
         }
 
         let blessing = Blessing(
@@ -334,7 +335,8 @@ actor LocalBlessingRepository: BlessingRepository {
             videoURL: videoURL,
             submittedAt: now,
             isLate: now >= prompt.endsAt,
-            scriptureReference: scriptureReference
+            scriptureReference: scriptureReference,
+            photoURL: photoURL
         )
         blessings.append(blessing)
         return blessing
@@ -494,6 +496,7 @@ actor LocalBlessingRepository: BlessingRepository {
             body: source.body,
             audioURL: nil,
             videoURL: nil,
+            photoURL: nil,
             scriptureReference: source.scriptureReference,
             now: now
         )

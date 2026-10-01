@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import AVFoundation
 import AVKit
+import PhotosUI
 
 struct CaptureView: View {
     @Environment(AppModel.self) private var model
@@ -10,11 +11,15 @@ struct CaptureView: View {
     @State private var mode: CaptureMode = .typed
     @State private var text = ""
     @State private var videoURL: URL?
+    @State private var photoURL: URL?
+    @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showCamera = false
+    @State private var showPhotoCamera = false
     @State private var showBiblePicker = false
     @State private var scriptureReference: ScriptureReference?
     @State private var isTranscribingVideo = false
     @State private var isRequestingCameraAccess = false
+    @State private var isLoadingPhoto = false
     @State private var transcriber = SpeechTranscriber()
     @State private var videoPlayer: AVPlayer?
     @State private var repeatCandidates: [Blessing] = []
@@ -32,6 +37,7 @@ struct CaptureView: View {
                             repeatOptions
                             modePicker
                             captureArea
+                            if mode != .video { photoAttachment }
                             scriptureTag
                         } else {
                             repeatedBlessingPreview
@@ -75,11 +81,29 @@ struct CaptureView: View {
                 )
                 .ignoresSafeArea()
             }
+            .fullScreenCover(isPresented: $showPhotoCamera) {
+                PhotoCaptureView(
+                    onCapture: { url in
+                        photoURL = url
+                        showPhotoCamera = false
+                    },
+                    onCancel: { showPhotoCamera = false },
+                    onFailure: { message in
+                        showPhotoCamera = false
+                        model.message = message
+                    }
+                )
+                .ignoresSafeArea()
+            }
             .sheet(isPresented: $showBiblePicker) {
                 BibleReferencePicker(selection: $scriptureReference)
             }
             .onChange(of: transcriber.transcript) { _, newValue in
                 text = newValue
+            }
+            .onChange(of: selectedPhotoItem) { _, item in
+                guard let item else { return }
+                Task { await loadPhoto(item) }
             }
             .onDisappear {
                 transcriber.stop()
@@ -106,6 +130,7 @@ struct CaptureView: View {
                         mode = .typed
                         text = blessing.body ?? ""
                         scriptureReference = blessing.scriptureReference
+                        photoURL = nil
                         videoURL = nil
                         videoPlayer = nil
                     } label: {
@@ -224,6 +249,10 @@ struct CaptureView: View {
                 Button {
                     if mode == .voice { transcriber.stop() }
                     mode = option
+                    if option == .video {
+                        photoURL = nil
+                        selectedPhotoItem = nil
+                    }
                     if option == .typed { editorFocused = true }
                 } label: {
                     Label(option.title, systemImage: option.systemImage)
@@ -238,6 +267,62 @@ struct CaptureView: View {
                 .accessibilityAddTraits(mode == option ? .isSelected : [])
             }
         }
+    }
+
+    private var photoAttachment: some View {
+        let hasPhoto = photoURL != nil
+        let cameraTitle = hasPhoto ? "Retake" : "Take photo"
+        let libraryTitle = hasPhoto ? "Replace" : "Upload"
+        let actionLayout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Photo", systemImage: "photo")
+                    .font(.headline)
+                Spacer()
+                Text("Optional")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+
+            if let photoURL, let image = UIImage(contentsOfFile: photoURL.path) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .accessibilityLabel("Attached blessing photo")
+            }
+
+            actionLayout {
+                Button {
+                    Task { await openPhotoCamera() }
+                } label: {
+                    Label(cameraTitle, systemImage: "camera")
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Label(libraryTitle, systemImage: "photo.on.rectangle")
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+
+                if photoURL != nil {
+                    Button("Remove", role: .destructive) {
+                        photoURL = nil
+                        selectedPhotoItem = nil
+                    }
+                    .frame(minHeight: 44)
+                }
+
+                if isLoadingPhoto { ProgressView().controlSize(.small) }
+            }
+        }
+        .blessingCard()
     }
 
     @ViewBuilder
@@ -367,6 +452,7 @@ struct CaptureView: View {
                         body: text,
                         audioURL: mode == .voice ? transcriber.recordingURL : nil,
                         videoURL: videoURL,
+                        photoURL: mode == .video ? nil : photoURL,
                         scriptureReference: scriptureReference
                     )
                 }
@@ -431,5 +517,37 @@ struct CaptureView: View {
             return
         }
         showCamera = true
+    }
+
+    private func openPhotoCamera() async {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            model.message = BlessingError.cameraUnavailable.localizedDescription
+            return
+        }
+        let allowed: Bool
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized: allowed = true
+        case .notDetermined: allowed = await AVCaptureDevice.requestAccess(for: .video)
+        default: allowed = false
+        }
+        guard allowed else {
+            model.message = "Camera access is required to take a photo. Enable it in Settings or upload one from Photos."
+            return
+        }
+        showPhotoCamera = true
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem) async {
+        isLoadingPhoto = true
+        defer { isLoadingPhoto = false }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                model.message = "The selected photo could not be loaded. Choose another photo."
+                return
+            }
+            photoURL = try CaptureMediaStore.persistPhoto(data: data)
+        } catch {
+            model.message = "The selected photo could not be saved. Choose another photo."
+        }
     }
 }

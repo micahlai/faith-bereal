@@ -229,6 +229,7 @@ final class AppModel {
         body: String?,
         audioURL: URL?,
         videoURL: URL?,
+        photoURL: URL? = nil,
         scriptureReference: ScriptureReference?
     ) async -> Bool {
         guard let prompt, let currentUser, isCurrentPromptToday(at: .now) else {
@@ -245,6 +246,7 @@ final class AppModel {
                 body: body,
                 audioURL: audioURL,
                 videoURL: videoURL,
+                photoURL: photoURL,
                 scriptureReference: scriptureReference,
                 now: .now
             )
