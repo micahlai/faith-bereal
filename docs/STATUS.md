@@ -36,7 +36,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - The local failure matrix covers deterministic prompt, visibility, repeat, media, widget, and UI edges; signed-device load/battery/network/media/push evidence remains open.
 - Circle owners can remove another active member through a confirmed settings action; the server-authorized RPC is checked in but awaits hosted migration and two-account validation. Abuse reporting remains open.
 - Typed and voice blessings can include one optional captured or uploaded photo, persisted locally and represented by a private `photo_path` in the production adapter; video blessings cannot add a separate photo.
-- The hosted Supabase project is linked and migrations `202609290001` through `202609290009` were previously applied. Later ownership-transfer and member-removal migrations are checked in but require deployment and validation. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
+- The hosted Supabase project is linked and migrations `202609290001` through `202609290009` were previously applied. Later ownership-transfer, member-removal, and blessing-photo migrations are checked in but require deployment and validation. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 
 ## In progress — not yet validated
 
