@@ -18,6 +18,9 @@ struct BlessingCircleApp: App {
                     appDelegate.deviceTokenHandler = { token in
                         model.receiveAPNSToken(token)
                     }
+                    appDelegate.notificationURLHandler = { url in
+                        Task { await model.handleDeepLink(url) }
+                    }
                 }
         }
     }

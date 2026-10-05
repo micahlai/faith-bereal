@@ -16,7 +16,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Thirty-two domain tests and three UI tests pass on both the simulator and a signed iPhone 14 Pro running iOS 26.6.2. The UI coverage includes Today, Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
+- Thirty-three domain tests and four UI tests pass on the simulator; the prior 32-domain/3-UI suite also passed on a signed iPhone 14 Pro running iOS 26.6.2. The UI coverage includes Today, Timeline scrolling, dark appearance, accessibility-size text, text/voice-versus-video photo attachment availability, and the local daily-blessing debug control.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols; blank configuration safely falls back to the local demo.
@@ -39,6 +39,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - The hosted Supabase project is linked and migrations through `202609300004` are applied. Ownership transfer, repeat blessings, member removal, and blessing-photo persistence remain subject to two-account/physical-media acceptance. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 - The Supabase Apple provider is enabled for native bundle ID `app.blessingcircle.ios`. A signed physical-device flow completed Apple token exchange, profile bootstrap, membership loading, device registration, and circle creation against the hosted project on 2026-10-05.
 - After the `202609300002` circle backfill deployed, the physical-device client loaded circles, profiles, memberships, and prompts without the prior missing-field decoding failure.
+- Debug builds expose native User Settings controls for a local push-style notification and a daily-blessing test. Local demo mode supports the full reset/timer/capture/Live Activity flow; hosted mode is a non-submittable timer/Live Activity preview so server-authored prompt timing and hosted data remain protected. Release builds contain neither control.
 
 ## In progress — not yet validated
 

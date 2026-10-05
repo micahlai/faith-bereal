@@ -567,3 +567,45 @@ actor LocalBlessingRepository: BlessingRepository {
         return response
     }
 }
+
+#if DEBUG
+extension LocalBlessingRepository: DebugPromptProviding {
+    func beginDebugPrompt(circleID: UUID, now: Date) async throws -> DailyPrompt {
+        guard let circle = circles.first(where: {
+            $0.id == circleID && $0.members.contains(where: { $0.id == currentUser.id })
+        }) else {
+            throw BlessingError.circleNotFound
+        }
+
+        var circleCalendar = Calendar(identifier: .gregorian)
+        circleCalendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+        let localDate = circleCalendar.startOfDay(for: now)
+        let existingIndex = prompts.firstIndex {
+            $0.circleID == circleID && circleCalendar.isDate($0.localDate, inSameDayAs: now)
+        }
+        let promptID = existingIndex.map { prompts[$0].id } ?? UUID()
+        let debugPrompt = DailyPrompt(
+            id: promptID,
+            circleID: circleID,
+            localDate: localDate,
+            startsAt: now,
+            endsAt: now.addingTimeInterval(circle.responseWindowDuration)
+        )
+
+        let resetBlessingIDs = Set(
+            blessings
+                .filter { $0.promptID == promptID && $0.authorID == currentUser.id }
+                .map(\.id)
+        )
+        blessings.removeAll { resetBlessingIDs.contains($0.id) }
+        blessingResponses.removeAll { resetBlessingIDs.contains($0.blessingID) }
+
+        if let existingIndex {
+            prompts[existingIndex] = debugPrompt
+        } else {
+            prompts.append(debugPrompt)
+        }
+        return debugPrompt
+    }
+}
+#endif

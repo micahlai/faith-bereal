@@ -56,4 +56,30 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Take photo"].exists)
         XCTAssertFalse(app.buttons["Upload"].exists)
     }
+
+    @MainActor
+    func testDebugDailyBlessingControlsAreAvailableWithLocalData() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.buttons["App menu"].waitForExistence(timeout: 5))
+        app.buttons["App menu"].tap()
+        app.buttons["User settings"].tap()
+
+        let startButton = app.buttons["Start daily blessing test"]
+        for _ in 0..<3 where !startButton.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(app.buttons["Send test notification"].exists)
+        XCTAssertTrue(startButton.exists)
+        startButton.tap()
+
+        let confirmation = app.alerts["Blessing Circle"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
+        XCTAssertTrue(confirmation.staticTexts["Local daily blessing test started. The timer, capture flow, and Live Activity are ready."].exists)
+        confirmation.buttons["OK"].tap()
+        XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 3))
+    }
 }

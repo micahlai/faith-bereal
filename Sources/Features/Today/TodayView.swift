@@ -37,11 +37,20 @@ struct TodayView: View {
                 prompt: prompt,
                 date: date,
                 allowsLateBlessings: model.circle?.allowsLateBlessings == true,
+                allowsSharing: allowsSharing,
                 shareAction: { model.isCapturePresented = true }
             )
         } else {
             WaitingForPromptView(circleName: model.circle?.name)
         }
+    }
+
+    private var allowsSharing: Bool {
+#if DEBUG
+        !model.isDebugPromptPreview
+#else
+        true
+#endif
     }
 
     private var header: some View {
@@ -154,6 +163,7 @@ private struct PromptWindowView: View {
     let prompt: DailyPrompt
     let date: Date
     let allowsLateBlessings: Bool
+    let allowsSharing: Bool
     let shareAction: () -> Void
 
     var body: some View {
@@ -212,12 +222,12 @@ private struct PromptWindowView: View {
             .accessibilityLabel(accessibilityLabel(phase: phase, remaining: remaining))
 
             Button(action: shareAction) {
-                Label("Share a blessing", systemImage: "plus")
+                Label(allowsSharing ? "Share a blessing" : "Hosted preview only", systemImage: allowsSharing ? "plus" : "eye")
                     .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(phase != .open && !(phase == .closed && allowsLateBlessings))
+            .disabled(!allowsSharing || (phase != .open && !(phase == .closed && allowsLateBlessings)))
         }
         .blessingCard()
     }

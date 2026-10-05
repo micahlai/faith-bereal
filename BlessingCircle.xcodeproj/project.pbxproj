@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		081FDE84368F337DA538DBDB /* DebugPromptProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */; };
 		10596D0F5F4625E0FD03005C /* DomainRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */; };
 		11F93C0EA7D910BF3AD4ED3A /* BlessingCircleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8041666727C8764C007E33AB /* BlessingCircleUITests.swift */; };
 		13622CFB23BD69B5E99BEC74 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04A5ED107CC59C2FCAD788AC /* TodayView.swift */; };
@@ -113,6 +114,7 @@
 		98F6955EDCB72669D8C4B54E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugPromptProviding.swift; sourceTree = "<group>"; };
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
 		A64B2CD999847E450C198DDA /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
@@ -153,6 +155,7 @@
 				2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */,
 				94EA65921D482A449590AD64 /* BibleTextService.swift */,
 				BD086AB78C2411FC6492A448 /* BlessingRepository.swift */,
+				A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */,
 				86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */,
 				2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */,
 				660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */,
@@ -494,6 +497,7 @@
 				6BF92E4D99CABF90A577F055 /* CaptureView.swift in Sources */,
 				7D1922CBB7AFE9B86E780EA9 /* CircleTimelineView.swift in Sources */,
 				68E89B000052B2EA87B3E842 /* CircleView.swift in Sources */,
+				081FDE84368F337DA538DBDB /* DebugPromptProviding.swift in Sources */,
 				B693844FB4B9B287A6CF7CCC /* LocalBlessingRepository.swift in Sources */,
 				A3A80BC1BB9ED561C129800B /* Models.swift in Sources */,
 				3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */,

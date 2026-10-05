@@ -180,6 +180,38 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertTrue(visibleNames.contains("Ava"), "A visible peer blessing should be in the Today feed")
     }
 
+#if DEBUG
+    @MainActor
+    func testDebugPromptRestartsLocalWindowAndAllowsFreshSubmission() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let model = AppModel(repository: repository)
+        await model.bootstrap()
+
+        let firstSubmissionSucceeded = await model.submit(
+            mode: .typed,
+            body: "First local test",
+            audioURL: nil,
+            videoURL: nil,
+            scriptureReference: nil
+        )
+        XCTAssertTrue(firstSubmissionSucceeded)
+        XCTAssertTrue(model.hasSubmittedToday)
+
+        let restartedAt = Date().addingTimeInterval(-1)
+        await model.startDebugDailyBlessing(now: restartedAt)
+
+        XCTAssertEqual(model.prompt?.startsAt, restartedAt)
+        XCTAssertEqual(
+            model.prompt?.endsAt,
+            restartedAt.addingTimeInterval(TimeInterval(model.circle?.responseWindowMinutes ?? 0) * 60)
+        )
+        XCTAssertFalse(model.hasSubmittedToday)
+        XCTAssertFalse(model.isDebugPromptPreview)
+        XCTAssertTrue(model.canSubmitCurrentPrompt)
+    }
+#endif
+
     func testCapturedVideoIsCopiedToStableAppStorage() throws {
         let sourceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

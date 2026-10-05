@@ -251,6 +251,43 @@ private struct UserSettingsView: View {
                 } footer: {
                     Text("Blessings rotate at about this interval when no circle is waiting for your response. iOS may refresh less often to preserve battery life.")
                 }
+
+#if DEBUG
+                Section {
+                    Button {
+                        Task { await model.scheduleDebugNotification() }
+                    } label: {
+                        Label("Send test notification", systemImage: "bell.badge.fill")
+                    }
+                    .disabled(model.circle == nil || model.isRunningDebugAction)
+
+                    Button {
+                        Task {
+                            await model.startDebugDailyBlessing()
+                            if model.prompt != nil { isPresented = false }
+                        }
+                    } label: {
+                        Label("Start daily blessing test", systemImage: "timer")
+                    }
+                    .disabled(model.circle == nil || model.isRunningDebugAction)
+
+                    if model.isRunningDebugAction {
+                        HStack {
+                            ProgressView()
+                            Text("Preparing test…")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Developer testing")
+                } footer: {
+                    if model.supportsInteractiveDebugPrompt {
+                        Text("Debug builds only. The daily test resets today’s local-demo prompt and starts its Live Activity. Hosted data is never changed.")
+                    } else {
+                        Text("Debug builds only. The notification is delivered locally. The daily test previews the timer and Live Activity; hosted sharing stays disabled because prompt times are server-controlled.")
+                    }
+                }
+#endif
             }
             .navigationTitle("User settings")
             .navigationBarTitleDisplayMode(.inline)

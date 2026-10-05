@@ -17,6 +17,16 @@ xcodebuild -project BlessingCircle.xcodeproj \
 
 Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
 
+## Debug notification and daily prompt controls
+
+Debug builds add a **Developer testing** section at the bottom of User settings:
+
+- **Send test notification** schedules a local, time-sensitive notification after five seconds. Background the app before it fires. Tapping it follows the same `blessingcircle://today/capture` route as the production APNs alert.
+- **Start daily blessing test** restarts today's prompt when the app is using `LocalBlessingRepository`, clears only the current local user's submission for that prompt, opens the full capture flow, and starts a local Live Activity.
+- With a hosted Supabase session, the daily control is preview-only: it exercises the Today timer and Live Activity but disables sharing. This preserves server-authoritative prompt timing and never writes test state to the hosted database.
+
+Launch with `BLESSING_CIRCLE_FORCE_LOCAL=1` when a complete debug submission flow is needed. These controls are compiled out of Release builds.
+
 Use an available simulator name from `xcrun simctl list devices available` if the example device is unavailable.
 
 ## Unit tests
@@ -35,6 +45,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - widget selection covers active, current-day, prior-day, empty, and prompt-boundary refresh states.
 - selected photos are normalized into stable local JPEG files instead of depending on temporary picker URLs;
 - text and voice blessings accept an optional photo, while video blessings reject a separate photo attachment.
+- restarting a local debug prompt resets the current user's submission and reopens a server-shaped response window without changing peer history.
 
 ## Integration tests
 

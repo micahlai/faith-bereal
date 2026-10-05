@@ -38,6 +38,10 @@ final class AppModel {
     var message: String?
     var submittedBlessing: Blessing?
     var deepLinkedBlessing: BlessingFeedItem?
+#if DEBUG
+    var isRunningDebugAction = false
+    var isDebugPromptPreview = false
+#endif
     var appearancePreference: AppearancePreference {
         didSet { UserDefaults.standard.set(appearancePreference.rawValue, forKey: Self.appearanceKey) }
     }
@@ -113,6 +117,9 @@ final class AppModel {
     }
 
     var canSubmitCurrentPrompt: Bool {
+#if DEBUG
+        guard !isDebugPromptPreview else { return false }
+#endif
         guard let prompt, let circle, isCurrentPromptToday(at: .now), !hasSubmittedToday else { return false }
         let phase = prompt.phase(at: .now)
         return phase == .open || (phase == .closed && circle.allowsLateBlessings)
@@ -208,6 +215,9 @@ final class AppModel {
             let context = try await repository.circleContext(circleID: circleID)
             circle = context.circle
             prompt = context.prompt
+#if DEBUG
+            isDebugPromptPreview = false
+#endif
             submittedBlessing = nil
             lanes = []
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
@@ -544,6 +554,104 @@ final class AppModel {
         apnsToken = token
         Task { await syncDeviceRegistration() }
     }
+
+#if DEBUG
+    var supportsInteractiveDebugPrompt: Bool {
+        repository is any DebugPromptProviding
+    }
+
+    func scheduleDebugNotification(delay: TimeInterval = 5) async {
+        guard let circle else {
+            message = "Choose a circle before sending a test notification."
+            return
+        }
+        isRunningDebugAction = true
+        defer { isRunningDebugAction = false }
+
+        let center = UNUserNotificationCenter.current()
+        do {
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus == .notDetermined {
+                _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            }
+            let updatedSettings = await center.notificationSettings()
+            guard updatedSettings.authorizationStatus == .authorized ||
+                    updatedSettings.authorizationStatus == .provisional else {
+                message = "Notifications are disabled. Enable them in Settings, then try again."
+                return
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = "\(circle.name) is ready"
+            content.body = "You have \(circle.responseWindowMinutes) minutes to share today’s blessing."
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+            content.threadIdentifier = circle.id.uuidString
+            content.userInfo = [
+                "route": "blessingcircle://today/capture?circle=\(circle.id.uuidString)",
+                "debug": true,
+            ]
+            let request = UNNotificationRequest(
+                identifier: "debug-daily-blessing-\(circle.id.uuidString)",
+                content: content,
+                trigger: UNTimeIntervalNotificationTrigger(
+                    timeInterval: max(1, delay),
+                    repeats: false
+                )
+            )
+            center.removePendingNotificationRequests(
+                withIdentifiers: ["debug-daily-blessing-\(circle.id.uuidString)"]
+            )
+            try await center.add(request)
+            message = "Test notification scheduled. Background the app to see it in about \(Int(max(1, delay))) seconds."
+        } catch {
+            message = "Couldn’t schedule the test notification: \(error.localizedDescription)"
+        }
+    }
+
+    func startDebugDailyBlessing(now: Date = .now) async {
+        guard let circle else {
+            message = "Choose a circle before starting a daily blessing test."
+            return
+        }
+        isRunningDebugAction = true
+        defer { isRunningDebugAction = false }
+
+        do {
+            let testPrompt: DailyPrompt
+            if let debugRepository = repository as? any DebugPromptProviding {
+                testPrompt = try await debugRepository.beginDebugPrompt(circleID: circle.id, now: now)
+                isDebugPromptPreview = false
+            } else {
+                var circleCalendar = Calendar(identifier: .gregorian)
+                circleCalendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+                testPrompt = DailyPrompt(
+                    id: UUID(),
+                    circleID: circle.id,
+                    localDate: circleCalendar.startOfDay(for: now),
+                    startsAt: now,
+                    endsAt: now.addingTimeInterval(circle.responseWindowDuration)
+                )
+                isDebugPromptPreview = true
+            }
+
+            await activityController.end()
+            prompt = testPrompt
+            submittedBlessing = nil
+            isCapturePresented = false
+            selectedTab = 0
+            if !isDebugPromptPreview {
+                try await refreshTimeline(now: now)
+            }
+            await activityController.startIfNeeded(prompt: testPrompt, circle: circle)
+            message = isDebugPromptPreview
+                ? "Daily blessing preview started. Hosted submissions stay disabled because only the server can open a real prompt."
+                : "Local daily blessing test started. The timer, capture flow, and Live Activity are ready."
+        } catch {
+            message = "Couldn’t start the daily blessing test: \(error.localizedDescription)"
+        }
+    }
+#endif
 
     private func startRealtimeUpdates() {
         realtimeTask?.cancel()
