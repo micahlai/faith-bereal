@@ -4,7 +4,7 @@ Last updated: 2026-09-30
 
 ## Principles
 
-- Blessing Circle does not track users or use data for advertising.
+- manna circle does not track users or use data for advertising.
 - Circle content is private to current members and is used only for app functionality.
 - The app stores a Bible reference, never a copied verse text, with a blessing.
 - Service-role, APNs, and Apple private keys never ship in the app.

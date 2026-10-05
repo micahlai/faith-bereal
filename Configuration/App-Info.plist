@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Blessing Circle</string>
+	<string>manna circle - daily blessings</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>manna circle</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -34,13 +34,13 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Blessing Circle uses the camera when you choose to take a photo or record a video blessing.</string>
+	<string>manna circle uses the camera when you choose to take a photo or record a video blessing.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Blessing Circle uses the microphone while you record a voice or video blessing.</string>
+	<string>manna circle uses the microphone while you record a voice or video blessing.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Blessing Circle can import a photo or video you choose for your blessing.</string>
+	<string>manna circle can import a photo or video you choose for your blessing.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Blessing Circle transcribes your spoken blessing into editable text.</string>
+	<string>manna circle transcribes your spoken blessing into editable text.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>SupabasePublishableKey</key>
@@ -54,5 +54,15 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 </dict>
 </plist>

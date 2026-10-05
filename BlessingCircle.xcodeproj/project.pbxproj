@@ -694,15 +694,15 @@
 				CODE_SIGN_ENTITLEMENTS = Configuration/BlessingCircle.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = "Configuration/App-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Blessing Circle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Blessing Circle uses the camera when you choose to take a photo or record a video blessing.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Blessing Circle uses the microphone while you record a voice or video blessing.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Blessing Circle can import a photo or video you choose for your blessing.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Blessing Circle transcribes your spoken blessing into editable text.";
+				INFOPLIST_KEY_CFBundleDisplayName = "manna circle - daily blessings";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "manna circle uses the camera when you choose to take a photo or record a video blessing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "manna circle uses the microphone while you record a voice or video blessing.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "manna circle can import a photo or video you choose for your blessing.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "manna circle transcribes your spoken blessing into editable text.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -776,15 +776,15 @@
 				CODE_SIGN_ENTITLEMENTS = Configuration/BlessingCircle.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = "Configuration/App-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Blessing Circle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Blessing Circle uses the camera when you choose to take a photo or record a video blessing.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Blessing Circle uses the microphone while you record a voice or video blessing.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Blessing Circle can import a photo or video you choose for your blessing.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Blessing Circle transcribes your spoken blessing into editable text.";
+				INFOPLIST_KEY_CFBundleDisplayName = "manna circle - daily blessings";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "manna circle uses the camera when you choose to take a photo or record a video blessing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "manna circle uses the microphone while you record a voice or video blessing.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "manna circle can import a photo or video you choose for your blessing.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "manna circle transcribes your spoken blessing into editable text.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

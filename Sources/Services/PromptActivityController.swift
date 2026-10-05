@@ -15,7 +15,7 @@ enum PromptActivityStartResult: Equatable {
         case .alreadyRunning:
             "Live Activity is already running."
         case .disabled:
-            "Live Activities are off for Blessing Circle. Enable them in Settings, then try again."
+            "Live Activities are off for manna circle. Enable them in Settings, then try again."
         case let .failed(message):
             "Live Activity couldn’t start: \(message)"
         }

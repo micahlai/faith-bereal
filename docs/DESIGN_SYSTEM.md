@@ -4,7 +4,7 @@
 
 The memorable element is a circular ten-minute “light window”: layered arcs of dawn blue, violet, and candle gold move only as time changes. Everything around it stays calm, tactile, and native. The faith-adjacent premise is expressed through light, gathering, and reflection—not religious symbols, gamification, or faux parchment.
 
-The generic dark-dashboard recommendation generated during design discovery was rejected: it would make a private gratitude ritual feel like a utility console. Blessing Circle supports both system appearances and uses Apple materials sparingly.
+The generic dark-dashboard recommendation generated during design discovery was rejected: it would make a private gratitude ritual feel like a utility console. manna circle supports both system appearances and uses Apple materials sparingly.
 
 ## Tokens
 
@@ -58,4 +58,3 @@ Today                 Capture               Timeline
 - Reduced Motion replaces arc transitions with immediate state updates.
 - VoiceOver reads member, date, submission status, capture mode, and content as one coherent timeline element.
 - Current-day locked content explains exactly how to unlock it.
-

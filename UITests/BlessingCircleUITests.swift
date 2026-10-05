@@ -82,7 +82,7 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertTrue(startButton.exists)
         startButton.tap()
 
-        let confirmation = app.alerts["Blessing Circle"]
+        let confirmation = app.alerts["manna circle"]
         XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
         let activityStatus = confirmation.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Live Activity started.")

@@ -16,7 +16,7 @@ struct SignInView: View {
                     .foregroundStyle(AppTheme.iris)
                     .accessibilityHidden(true)
                 VStack(spacing: 8) {
-                    Text("Blessing Circle")
+                    Text("manna circle")
                         .font(.system(.largeTitle, design: .serif, weight: .semibold))
                     Text("A shared daily pause for what is good.")
                         .font(.body)

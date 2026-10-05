@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** Blessing Circle
+**Project:** manna circle
 **Generated:** 2026-09-29 12:16:59
 **Category:** Anonymous Community / Confession
 **Design Dials:** Variance 6/10 (Balanced / Modern) | Motion 3/10 (Subtle) | Density 4/10 (Standard)

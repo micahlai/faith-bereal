@@ -30,15 +30,15 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios
         PRODUCT_MODULE_NAME: BlessingCircle
         TARGETED_DEVICE_FAMILY: "1,2"
-        INFOPLIST_KEY_CFBundleDisplayName: Blessing Circle
+        INFOPLIST_KEY_CFBundleDisplayName: manna circle - daily blessings
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: Blessing Circle uses the microphone while you record a voice or video blessing.
-        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Blessing Circle transcribes your spoken blessing into editable text.
-        INFOPLIST_KEY_NSCameraUsageDescription: Blessing Circle uses the camera when you choose to take a photo or record a video blessing.
-        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Blessing Circle can import a photo or video you choose for your blessing.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: manna circle uses the microphone while you record a voice or video blessing.
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: manna circle transcribes your spoken blessing into editable text.
+        INFOPLIST_KEY_NSCameraUsageDescription: manna circle uses the camera when you choose to take a photo or record a video blessing.
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: manna circle can import a photo or video you choose for your blessing.
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
     entitlements:
       path: Configuration/BlessingCircle.entitlements
       properties:
@@ -53,22 +53,29 @@ targets:
     info:
       path: Configuration/App-Info.plist
       properties:
-        CFBundleDisplayName: Blessing Circle
+        CFBundleDisplayName: manna circle - daily blessings
+        CFBundleName: manna circle
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
             CFBundleURLName: app.blessingcircle.ios
             CFBundleURLSchemes:
               - blessingcircle
-        NSMicrophoneUsageDescription: Blessing Circle uses the microphone while you record a voice or video blessing.
-        NSSpeechRecognitionUsageDescription: Blessing Circle transcribes your spoken blessing into editable text.
-        NSCameraUsageDescription: Blessing Circle uses the camera when you choose to take a photo or record a video blessing.
-        NSPhotoLibraryUsageDescription: Blessing Circle can import a photo or video you choose for your blessing.
+        NSMicrophoneUsageDescription: manna circle uses the microphone while you record a voice or video blessing.
+        NSSpeechRecognitionUsageDescription: manna circle transcribes your spoken blessing into editable text.
+        NSCameraUsageDescription: manna circle uses the camera when you choose to take a photo or record a video blessing.
+        NSPhotoLibraryUsageDescription: manna circle can import a photo or video you choose for your blessing.
         NSSupportsLiveActivities: true
         SupabaseURL: $(SUPABASE_URL)
         SupabasePublishableKey: $(SUPABASE_PUBLISHABLE_KEY)
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
     dependencies:
       - target: BlessingCircleLiveActivity
         embed: true
@@ -99,7 +106,8 @@ targets:
     info:
       path: Configuration/Widget-Info.plist
       properties:
-        CFBundleDisplayName: Blessing Circle
+        CFBundleDisplayName: manna circle
+        CFBundleName: manna circle
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
   BlessingCircleTests:

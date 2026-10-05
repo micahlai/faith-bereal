@@ -2,7 +2,9 @@
 
 ## Product promise
 
-Blessing Circle creates a small, shared interruption for gratitude. The experience should feel intimate and present—not optimized for likes, streak anxiety, or public reach.
+manna circle creates a small, shared interruption for gratitude. The experience should feel intimate and present—not optimized for likes, streak anxiety, or public reach.
+
+The brand name is **manna**, the full product name is **manna circle**, and the fullest App Store name is **manna circle - daily blessings**.
 
 ## Audience
 
@@ -118,4 +120,4 @@ This resolves the example in the brief as “history is always readable; only th
 ## Open product decisions
 
 - Exact video retention policy and whether originals are downsampled after upload.
-- Whether the name “Blessing Circle” is final; trademark and App Store naming checks are required.
+- Trademark and App Store availability checks for “manna circle - daily blessings” are required before release.

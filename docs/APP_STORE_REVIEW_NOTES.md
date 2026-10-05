@@ -4,7 +4,7 @@ Status: draft for a future release candidate. Values marked **Release input requ
 
 ## App overview
 
-Blessing Circle is a private-circle gratitude app. A circle receives one server-authored prompt at a randomized time within the circle owner's configured schedule. Members have the circle's configured response window to share one blessing as typed text, voice-transcribed text, or video. Historical posts remain visible, while the current prompt's peer posts unlock only after the reviewing user submits their own blessing.
+manna circle - daily blessings is a private-circle gratitude app. A circle receives one server-authored prompt at a randomized time within the circle owner's configured schedule. Members have the circle's configured response window to share one blessing as typed text, voice-transcribed text, or video. Historical posts remain visible, while the current prompt's peer posts unlock only after the reviewing user submits their own blessing.
 
 The app also includes:
 
@@ -53,7 +53,7 @@ The app does not track users for advertising. Privacy manifests are included for
 
 ## App Store Connect inputs still required
 
-- final app name, subtitle, description, keywords, category, age rating, support URL, marketing URL, and privacy-policy URL;
+- App Store name availability for “manna circle - daily blessings,” plus the final subtitle, description, keywords, category, age rating, support URL, marketing URL, and privacy-policy URL;
 - 1024×1024 production app icon without transparency;
 - required iPhone and iPad screenshots from the signed release candidate;
 - privacy nutrition-label answers reconciled with the final backend and third-party SDK behavior;

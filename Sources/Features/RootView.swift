@@ -22,7 +22,7 @@ struct RootView: View {
         }
         .task { await model.bootstrap() }
         .alert(
-            "Blessing Circle",
+            "manna circle",
             isPresented: Binding(
                 get: { model.message != nil },
                 set: { if !$0 { model.message = nil } }

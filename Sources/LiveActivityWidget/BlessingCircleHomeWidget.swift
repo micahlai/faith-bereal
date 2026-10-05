@@ -8,7 +8,7 @@ struct BlessingCircleHomeWidget: Widget {
         StaticConfiguration(kind: kind, provider: BlessingWidgetProvider()) { entry in
             BlessingWidgetView(entry: entry)
         }
-        .configurationDisplayName("Blessing Circle")
+        .configurationDisplayName("manna circle")
         .description("See when it’s time to share or revisit a blessing from your circles.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
@@ -87,7 +87,7 @@ private struct BlessingWidgetView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Time to share blessings for \(prompt.circleName)")
-        .accessibilityHint("Opens Today in Blessing Circle")
+        .accessibilityHint("Opens Today in manna circle")
     }
 
     private func blessingView(_ blessing: BlessingWidgetBlessing) -> some View {
