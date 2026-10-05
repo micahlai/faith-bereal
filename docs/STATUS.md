@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-05 media activation crash fix
+
+- Fixed a Swift 6 actor-isolation crash when the Speech framework returned authorization on a background queue by moving permission callbacks through a nonisolated service boundary.
+- Fixed the physical-device video camera crash by validating movie capture support and configuring the picker media type before selecting video capture mode.
+- Photo and video camera permission requests now share the same concurrency-safe authorization path.
+
 Last updated: 2026-10-05
 
 ## Current phase

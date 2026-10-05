@@ -14,8 +14,8 @@ struct VideoCaptureView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
-        picker.cameraCaptureMode = .video
         picker.mediaTypes = [UTType.movie.identifier]
+        picker.cameraCaptureMode = .video
         picker.videoMaximumDuration = 30
         picker.videoQuality = .typeHigh
         picker.modalPresentationStyle = .fullScreen
@@ -73,7 +73,6 @@ struct PhotoCaptureView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
-        picker.cameraCaptureMode = .photo
         picker.modalPresentationStyle = .fullScreen
         picker.delegate = context.coordinator
         return picker

@@ -57,9 +57,7 @@ final class SpeechTranscriber: NSObject {
     }
 
     func transcribeVideo(at url: URL) async -> String? {
-        let speechStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-        }
+        let speechStatus = await MediaAuthorization.requestSpeechRecognitionAccess()
         guard speechStatus == .authorized, let recognizer, recognizer.isAvailable else { return nil }
 
         task?.cancel()
@@ -82,9 +80,7 @@ final class SpeechTranscriber: NSObject {
 
     private func requestPermissionAndStart() async {
         state = .requestingPermission
-        let speechStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-        }
+        let speechStatus = await MediaAuthorization.requestSpeechRecognitionAccess()
         let microphoneAllowed = await AVAudioApplication.requestRecordPermission()
         guard speechStatus == .authorized, microphoneAllowed else {
             state = .denied

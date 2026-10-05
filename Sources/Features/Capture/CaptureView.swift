@@ -499,6 +499,10 @@ struct CaptureView: View {
             model.message = BlessingError.cameraUnavailable.localizedDescription
             return
         }
+        guard UIImagePickerController.availableMediaTypes(for: .camera)?.contains(UTType.movie.identifier) == true else {
+            model.message = "This device's camera is not available for video recording."
+            return
+        }
         isRequestingCameraAccess = true
         defer { isRequestingCameraAccess = false }
 
@@ -507,7 +511,7 @@ struct CaptureView: View {
         case .authorized:
             cameraAllowed = true
         case .notDetermined:
-            cameraAllowed = await AVCaptureDevice.requestAccess(for: .video)
+            cameraAllowed = await MediaAuthorization.requestCameraAccess()
         default:
             cameraAllowed = false
         }
@@ -527,7 +531,7 @@ struct CaptureView: View {
         let allowed: Bool
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized: allowed = true
-        case .notDetermined: allowed = await AVCaptureDevice.requestAccess(for: .video)
+        case .notDetermined: allowed = await MediaAuthorization.requestCameraAccess()
         default: allowed = false
         }
         guard allowed else {
