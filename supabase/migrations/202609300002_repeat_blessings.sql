@@ -82,10 +82,13 @@ declare
 begin
   if v_user_id is null then raise exception 'authentication required'; end if;
 
-  select b, p.circle_id into v_source, v_source_circle_id
-  from public.blessings b
-  join public.daily_prompts p on p.id = b.prompt_id
-  where b.id = p_source_blessing_id and b.author_id = v_user_id;
+  select * into v_source
+  from public.blessings
+  where id = p_source_blessing_id and author_id = v_user_id;
+
+  select circle_id into v_source_circle_id
+  from public.daily_prompts
+  where id = v_source.prompt_id;
 
   select * into v_target_prompt
   from public.daily_prompts
