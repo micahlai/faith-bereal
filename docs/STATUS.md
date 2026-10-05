@@ -6,6 +6,13 @@
 - Fixed the physical-device video camera crash by validating movie capture support and configuring the picker media type before selecting video capture mode.
 - Photo and video camera permission requests now share the same concurrency-safe authorization path.
 
+## 2026-10-05 Live Activity reliability
+
+- Live Activities are restored into app state after relaunch and tracked independently by prompt instead of through one transient in-memory reference.
+- Local developer previews start without requiring a remote ActivityKit push token; hosted prompts still request one for server updates.
+- The developer control now reports whether the activity started, was already active, is disabled in Settings, or failed with an ActivityKit error.
+- Starting the app now uses the actually selected circle's prompt when deciding which Live Activity to show.
+
 Last updated: 2026-10-05
 
 ## Current phase

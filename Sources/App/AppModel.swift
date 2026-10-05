@@ -153,10 +153,10 @@ final class AppModel {
             loadState = .ready
             startRealtimeUpdates()
             await configureRemoteServices()
-            if let prompt = bootstrap.prompt,
-               let circle = bootstrap.circle,
+            if let prompt = self.prompt,
+               let circle = self.circle,
                prompt.phase(at: .now) == .open {
-                await activityController.startIfNeeded(prompt: prompt, circle: circle)
+                await startLiveActivity(for: prompt, circle: circle)
             }
         } catch {
             loadState = .failed(error.localizedDescription)
@@ -227,7 +227,7 @@ final class AppModel {
             try await refreshTimeline()
             startRealtimeUpdates()
             if let prompt = context.prompt, prompt.phase(at: .now) == .open {
-                await activityController.startIfNeeded(prompt: prompt, circle: context.circle)
+                await startLiveActivity(for: prompt, circle: context.circle)
             }
         } catch {
             message = error.localizedDescription
@@ -261,7 +261,7 @@ final class AppModel {
                 now: .now
             )
             try await refreshTimeline()
-            await activityController.markSubmitted(responseCount: lanes.compactMap { lane in
+            await activityController.markSubmitted(promptID: prompt.id, responseCount: lanes.compactMap { lane in
                 lane.events.first.flatMap { event -> Blessing? in
                     if case let .blessing(blessing) = event.status { return blessing }
                     return nil
@@ -643,15 +643,31 @@ final class AppModel {
             if !isDebugPromptPreview {
                 try await refreshTimeline(now: now)
             }
-            await activityController.startIfNeeded(prompt: testPrompt, circle: circle)
-            message = isDebugPromptPreview
+            let activityResult = await activityController.startIfNeeded(
+                prompt: testPrompt,
+                circle: circle,
+                requestsPushUpdates: false
+            )
+            let promptMessage = isDebugPromptPreview
                 ? "Daily blessing preview started. Hosted submissions stay disabled because only the server can open a real prompt."
-                : "Local daily blessing test started. The timer, capture flow, and Live Activity are ready."
+                : "Local daily blessing test started. The timer and capture flow are ready."
+            message = "\(promptMessage) \(activityResult.debugMessage)"
         } catch {
             message = "Couldn’t start the daily blessing test: \(error.localizedDescription)"
         }
     }
 #endif
+
+    private func startLiveActivity(for prompt: DailyPrompt, circle: CircleGroup) async {
+        let result = await activityController.startIfNeeded(
+            prompt: prompt,
+            circle: circle,
+            requestsPushUpdates: usesAuthentication
+        )
+        if case let .failed(reason) = result {
+            message = "The blessing window is open, but its Live Activity couldn’t start: \(reason)"
+        }
+    }
 
     private func startRealtimeUpdates() {
         realtimeTask?.cancel()

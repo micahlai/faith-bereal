@@ -64,9 +64,15 @@ final class BlessingCircleUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launch()
 
-        XCTAssertTrue(app.buttons["App menu"].waitForExistence(timeout: 5))
-        app.buttons["App menu"].tap()
-        app.buttons["User settings"].tap()
+        let menuButton = app.buttons["App menu"]
+        XCTAssertTrue(menuButton.waitForExistence(timeout: 5))
+        menuButton.tap()
+        let settingsButton = app.buttons["User settings"]
+        if !settingsButton.waitForExistence(timeout: 1) {
+            menuButton.tap()
+        }
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
+        settingsButton.tap()
 
         let startButton = app.buttons["Start daily blessing test"]
         for _ in 0..<3 where !startButton.exists {
@@ -78,8 +84,12 @@ final class BlessingCircleUITests: XCTestCase {
 
         let confirmation = app.alerts["Blessing Circle"]
         XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
-        XCTAssertTrue(confirmation.staticTexts["Local daily blessing test started. The timer, capture flow, and Live Activity are ready."].exists)
+        let activityStatus = confirmation.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Live Activity started.")
+        ).firstMatch
+        XCTAssertTrue(activityStatus.exists)
         confirmation.buttons["OK"].tap()
         XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 3))
     }
+
 }
