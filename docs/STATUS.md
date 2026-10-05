@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-30
+Last updated: 2026-10-05
 
 ## Current phase
 
@@ -16,7 +16,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Thirty-two domain tests pass on an iPhone simulator, with three local UI tests covering Today, Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
+- Thirty-two domain tests and three UI tests pass on both the simulator and a signed iPhone 14 Pro running iOS 26.6.2. The UI coverage includes Today, Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols; blank configuration safely falls back to the local demo.
@@ -37,20 +37,21 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - Circle owners can remove another active member through a confirmed settings action; the server-authorized RPC is checked in but awaits hosted migration and two-account validation. Abuse reporting remains open.
 - Typed and voice blessings can include one optional captured or uploaded photo, persisted locally and represented by a private `photo_path` in the production adapter; video blessings cannot add a separate photo.
 - The hosted Supabase project is linked and migrations `202609290001` through `202609290009` were previously applied. Later ownership-transfer, member-removal, and blessing-photo migrations are checked in but require deployment and validation. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
+- The Supabase Apple provider is enabled for native bundle ID `app.blessingcircle.ios`. A signed physical-device flow completed Apple token exchange, profile bootstrap, membership loading, device registration, and circle creation against the hosted project on 2026-10-05.
 
 ## In progress — not yet validated
 
 - Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
-- Completing Apple Developer capability and Supabase Apple-provider configuration; simulator logs currently reject the app as an invalid Sign in with Apple client because the generated provisioning profile lacks the requested entitlement.
+- Deploying and validating hosted migrations `202609300001` through `202609300004`; the linked project currently stops at `202609290009`.
+- Configuring APNs provider secrets, deploying and scheduling `dispatch-prompts`, and validating remote notification and Live Activity delivery. No Edge Function is currently deployed.
 - Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
 - Completing Milestone 4 work that depends on hosted Supabase, Apple Developer capabilities, physical devices, and final distribution assets.
 
 ## Not yet production-ready
 
 - The Supabase deployment is a configuration checkpoint only and has not passed the acceptance matrix.
-- Sign in with Apple and APNs capabilities are not present in the generated provisioning profile.
-- The Supabase Apple authentication provider is not yet confirmed enabled.
-- Remote push-to-start Live Activities require server/APNs setup and physical-device verification.
+- The signed development profile includes Sign in with Apple, development APNs, and the shared App Group; release/distribution provisioning remains unvalidated.
+- Remote push-to-start Live Activities require APNs secrets, Edge Function deployment/scheduling, and physical-device delivery verification.
 - Widget App Group signing and on-device refresh cadence still require Apple Developer capability and physical-device validation.
 - Customer-facing privacy copy, moderation flows, account deletion/export, final App Store assets, and TestFlight validation remain incomplete.
 
