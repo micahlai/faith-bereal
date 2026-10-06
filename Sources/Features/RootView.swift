@@ -156,19 +156,9 @@ private struct AppearanceOnboardingView: View {
                         .blessingCard()
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Picker(
-                                "App icon",
-                                selection: Binding(
-                                    get: { model.appIconPreference },
-                                    set: { preference in Task { await model.updateAppIcon(preference) } }
-                                )
-                            ) {
-                                ForEach(AppIconPreference.allCases) { preference in
-                                    Label(preference.title, systemImage: preference.systemImage).tag(preference)
-                                }
-                            }
-                            .pickerStyle(.inline)
-                            .disabled(model.isChangingAppIcon)
+                            Text("App icon")
+                                .font(.headline)
+                            AppIconChoiceGrid()
 
                             if model.isChangingAppIcon {
                                 HStack {
@@ -195,6 +185,93 @@ private struct AppearanceOnboardingView: View {
                 }
             }
         }
+    }
+}
+
+private struct AppIconChoiceGrid: View {
+    @Environment(AppModel.self) private var model
+    private let columns = [GridItem(.adaptive(minimum: 112), spacing: 12)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(AppIconPreference.allCases) { preference in
+                let isSelected = model.appIconPreference == preference
+                Button {
+                    Task { await model.updateAppIcon(preference) }
+                } label: {
+                    VStack(spacing: 10) {
+                        AppIconPreview(preference: preference)
+                            .frame(height: 78)
+                        HStack(spacing: 5) {
+                            Text(preference.title)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                            if isSelected {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(AppTheme.primary)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, minHeight: 132)
+                    .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 3 : 1)
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isChangingAppIcon)
+                .accessibilityLabel("\(preference.title) app icon")
+                .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+    }
+}
+
+private struct AppIconPreview: View {
+    let preference: AppIconPreference
+    private let cream = Color(red: 0.98, green: 0.95, blue: 0.86)
+    private let charcoal = Color(red: 0.08, green: 0.07, blue: 0.07)
+    private let orange = Color(red: 0.69, green: 0.36, blue: 0.13)
+
+    var body: some View {
+        switch preference {
+        case .automatic:
+            HStack(spacing: 6) {
+                logoTile(background: cream, foreground: charcoal)
+                logoTile(background: charcoal, foreground: cream)
+            }
+        case .cream:
+            logoTile(background: cream, foreground: charcoal)
+        case .midnight:
+            logoTile(background: charcoal, foreground: cream)
+        }
+    }
+
+    private func logoTile(background: Color, foreground: Color) -> some View {
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+            .fill(background)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                HStack(spacing: 0) {
+                    Text("m")
+                        .foregroundStyle(foreground)
+                    Text(".")
+                        .foregroundStyle(orange)
+                }
+                .font(.system(size: 31, weight: .bold, design: .serif))
+                .minimumScaleFactor(0.65)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .stroke(.white.opacity(0.14), lineWidth: 1)
+            }
+            .accessibilityHidden(true)
     }
 }
 
