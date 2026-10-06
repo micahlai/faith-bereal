@@ -139,27 +139,60 @@ private struct AppearanceOnboardingView: View {
         NavigationStack {
             ZStack {
                 AppTheme.canvas.ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Make it feel at home")
-                            .font(.system(.largeTitle, design: .serif, weight: .bold))
-                        Text("Choose how manna circle looks. You can change this anytime in User settings.")
-                            .foregroundStyle(AppTheme.secondaryInk)
-                    }
-                    Picker("Appearance", selection: $model.appearancePreference) {
-                        ForEach(AppearancePreference.allCases) { preference in
-                            Label(preference.title, systemImage: preference.systemImage).tag(preference)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Make it feel at home")
+                                .font(.system(.largeTitle, design: .serif, weight: .bold))
+                            Text("Choose how manna circle looks on screen and on your Home Screen. You can change both anytime in User settings.")
+                                .foregroundStyle(AppTheme.secondaryInk)
                         }
+                        Picker("Appearance", selection: $model.appearancePreference) {
+                            ForEach(AppearancePreference.allCases) { preference in
+                                Label(preference.title, systemImage: preference.systemImage).tag(preference)
+                            }
+                        }
+                        .pickerStyle(.inline)
+                        .blessingCard()
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Picker(
+                                "App icon",
+                                selection: Binding(
+                                    get: { model.appIconPreference },
+                                    set: { preference in Task { await model.updateAppIcon(preference) } }
+                                )
+                            ) {
+                                ForEach(AppIconPreference.allCases) { preference in
+                                    Label(preference.title, systemImage: preference.systemImage).tag(preference)
+                                }
+                            }
+                            .pickerStyle(.inline)
+                            .disabled(model.isChangingAppIcon)
+
+                            if model.isChangingAppIcon {
+                                HStack {
+                                    ProgressView()
+                                    Text("Changing app icon…")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.secondaryInk)
+                                }
+                            }
+                            Text("Automatic follows the Home Screen appearance. Cream and Midnight keep one logo style.")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                        }
+                        .blessingCard()
+
+                        Button("Continue") { onContinue() }
+                            .buttonStyle(.borderedProminent)
+                            .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+                            .disabled(model.isChangingAppIcon)
                     }
-                    .pickerStyle(.inline)
-                    .blessingCard()
-                    Spacer()
-                    Button("Continue") { onContinue() }
-                        .buttonStyle(.borderedProminent)
-                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+                    .frame(maxWidth: 620)
+                    .padding(AppTheme.pagePadding)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: 620)
-                .padding(AppTheme.pagePadding)
             }
         }
     }
