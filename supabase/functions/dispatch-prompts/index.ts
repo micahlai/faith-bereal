@@ -56,6 +56,31 @@ const admin = createClient(supabaseURL, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+function configuredSecretAPIKeys(): Set<string> {
+  const rawValue = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (!rawValue) return new Set();
+  try {
+    const parsed = JSON.parse(rawValue) as unknown;
+    const values = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === "object"
+      ? Object.values(parsed)
+      : [];
+    return new Set(values.filter((value): value is string => typeof value === "string"));
+  } catch {
+    console.error(JSON.stringify({ event: "invalid_supabase_secret_keys_configuration" }));
+    return new Set();
+  }
+}
+
+const scheduledAPIKeys = configuredSecretAPIKeys();
+
+function hasScheduledCredential(request: Request): boolean {
+  if (request.headers.get("x-dispatch-secret") === dispatchSecret) return true;
+  const apiKey = request.headers.get("apikey");
+  return apiKey === serviceRoleKey || (apiKey !== null && scheduledAPIKeys.has(apiKey));
+}
+
 let cachedToken: { value: string; createdAt: number } | undefined;
 
 async function providerToken(): Promise<string> {
@@ -394,7 +419,7 @@ async function closeExpiredPrompts(): Promise<void> {
 }
 
 Deno.serve(async (request) => {
-  const isScheduledDispatch = request.headers.get("x-dispatch-secret") === dispatchSecret;
+  const isScheduledDispatch = hasScheduledCredential(request);
   if (!isScheduledDispatch) {
     const authorization = request.headers.get("authorization");
     if (!authorization?.toLowerCase().startsWith("bearer ")) {
