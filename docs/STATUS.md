@@ -4,9 +4,10 @@
 
 - Supabase Cron now invokes `dispatch-prompts` once per minute with a server-only project credential. Three consecutive hosted calls returned HTTP 200 after the dispatcher RPC and least-privilege table grants deployed.
 - Interrupted prompts are reclaimable after five minutes while their response window is still open. The hosted recovery path reclaimed a real stuck prompt, moved it to `open`, and returned a structured delivery outcome instead of leaving it in `dispatching`.
-- That recovered dispatch reached APNs: 2 of 8 Sandbox alert/Live Activity requests were accepted across four registered device rows, while 6 failed. This proves the scheduler, Edge Function, and APNs provider connection are live, but on-device alert and Live Activity presentation plus the remaining failures still require physical-device investigation.
+- That recovered dispatch reached APNs: 2 of 8 Sandbox alert/Live Activity requests were accepted across four registered device rows, while 6 failed with `TooManyProviderTokenUpdates`. This proves the scheduler, Edge Function, and APNs provider connection are live and identified stateless-runtime JWT rotation as the partial-delivery cause.
+- Migration `202610060009` and `dispatch-prompts` version 6 now atomically reuse one server-only APNs provider JWT for 45 minutes across Edge Function runtimes. The cache table is unreadable to app users and directly unreadable even to `service_role`; only its service-role RPC can return the short-lived token. A post-cooldown APNs dispatch remains to be observed.
 - Invalid alert and push-to-start tokens are now cleared when APNs returns a permanent token error; registrations are revoked only when neither token remains. The latest partial-failure run did not classify any stored token as permanently invalid.
-- All migrations through `202610060008` match the linked hosted project, and `dispatch-prompts` version 5 is active.
+- All migrations through `202610060009` match the linked hosted project, and `dispatch-prompts` version 6 is active.
 - A generic iOS Release archive completed and passed strict code-signature verification. Its app and Live Activity/widget extension contain the expected Sign in with Apple/App Group capabilities, but the archive used an Apple Development identity, development APNs entitlement, and `get-task-allow`; an App Store distribution export remains unvalidated.
 
 ## 2026-10-06 media playback and notification registration
@@ -108,7 +109,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 
 - Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
 - Validating migrations `202609300001` through `202609300004` with two accounts and real text/voice photo uploads.
-- Investigating the six failed requests from the first hosted recovery dispatch and validating alert plus Live Activity presentation on physical devices.
+- Validating one post-cooldown dispatch through the durable APNs provider-token cache, then confirming alert plus Live Activity presentation on physical devices.
 - The owner force-notification client and server code are deployed, but cross-account delivery remains unvalidated until the two-account physical-device acceptance pass.
 - Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
 - Completing Milestone 4 work that depends on hosted Supabase, Apple Developer capabilities, physical devices, and final distribution assets.

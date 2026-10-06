@@ -25,7 +25,8 @@ This checklist separates work that can be proven locally from work that needs pr
 - [ ] Complete the two-account acceptance matrix for authentication, circles, RLS, realtime, Storage, RPCs, and gating.
 - [x] Run the hosted dispatcher once per minute and verify consecutive HTTP 200 responses.
 - [x] Recover a real interrupted dispatch and verify the prompt returns to `open`.
-- [ ] Resolve the partial APNs result (2 accepted, 6 failed), observe alert/Live Activity presentation, and validate Production/TestFlight device tokens.
+- [x] Diagnose the partial APNs result as provider-token rotation throttling and deploy a 45-minute server-only JWT cache.
+- [ ] Verify a post-cooldown dispatch has no `TooManyProviderTokenUpdates`, observe alert/Live Activity presentation, and validate Production/TestFlight device tokens.
 - [ ] Exercise a permanent APNs token error and verify invalid-token cleanup plus delivery observability.
 - [ ] Implement and validate account export, account deletion, media cleanup, and retention controls.
 - [x] Implement owner-confirmed member removal in the client, local repository, and server RPC.
