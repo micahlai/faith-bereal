@@ -57,7 +57,7 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(model.circle?.name ?? "Your circle")
                 .font(.headline)
-                .foregroundStyle(AppTheme.iris)
+                .foregroundStyle(AppTheme.primary)
             Text("What feels like a blessing today?")
                 .font(.system(.largeTitle, design: .serif, weight: .semibold))
                 .foregroundStyle(AppTheme.ink)
@@ -74,9 +74,9 @@ private struct WaitingForPromptView: View {
         VStack(spacing: 18) {
             Image(systemName: "bell.badge")
                 .font(.system(size: 42, weight: .medium))
-                .foregroundStyle(AppTheme.iris)
+                .foregroundStyle(AppTheme.primary)
                 .frame(width: 88, height: 88)
-                .background(AppTheme.iris.opacity(0.10), in: Circle())
+                .background(AppTheme.primary.opacity(0.10), in: Circle())
                 .accessibilityHidden(true)
             Text("Wait for today’s blessing notification")
                 .font(.system(.title2, design: .serif, weight: .semibold))
@@ -109,7 +109,7 @@ private struct TodayBlessingsFeed: View {
                 }
                 Spacer()
                 Image(systemName: "person.3.fill")
-                    .foregroundStyle(AppTheme.iris)
+                    .foregroundStyle(AppTheme.primary)
                     .accessibilityHidden(true)
             }
 

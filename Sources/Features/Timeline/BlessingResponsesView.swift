@@ -99,7 +99,7 @@ struct BlessingResponsesView: View {
                         }
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .background(AppTheme.iris, in: Circle())
+                        .background(AppTheme.primary, in: Circle())
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend || isSending)

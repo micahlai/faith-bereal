@@ -75,7 +75,7 @@ private struct BlessingWidgetView: View {
         VStack(alignment: .leading, spacing: 10) {
             Image(systemName: "bell.badge.fill")
                 .font(.title2)
-                .foregroundStyle(.purple)
+                .foregroundStyle(MannaWidgetTheme.primary)
                 .accessibilityHidden(true)
             Spacer(minLength: 0)
             Text("Time to share blessings for \(prompt.circleName)")
@@ -94,7 +94,7 @@ private struct BlessingWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: icon(for: blessing.captureMode))
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(MannaWidgetTheme.primary)
                     .accessibilityHidden(true)
                 Text(blessing.authorName)
                     .font(.caption.weight(.semibold))
@@ -117,7 +117,7 @@ private struct BlessingWidgetView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Label(reference, systemImage: "book.closed.fill")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(MannaWidgetTheme.scripture)
                     if family == .systemMedium, let scriptureText = blessing.scriptureText {
                         Text(scriptureText)
                             .font(.caption2)
@@ -140,7 +140,7 @@ private struct BlessingWidgetView: View {
         VStack(alignment: .leading, spacing: 10) {
             Image(systemName: "circle.hexagongrid.fill")
                 .font(.title2)
-                .foregroundStyle(.purple)
+                .foregroundStyle(MannaWidgetTheme.primary)
                 .accessibilityHidden(true)
             Spacer()
             Text("Blessings will gather here")

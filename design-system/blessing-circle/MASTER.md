@@ -19,24 +19,24 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#475569` | `--color-primary` |
+| Primary | `#975A24` | `--color-primary` |
 | On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#334155` | `--color-secondary` |
+| Secondary | `#6256A5` | `--color-secondary` |
 | On Secondary | `#FFFFFF` | `--color-on-secondary` |
-| Accent/CTA | `#0891B2` | `--color-accent` |
-| On Accent/CTA | `#000000` | `--color-on-accent` |
-| Background | `#0F172A` | `--color-background` |
-| Foreground | `#FFFFFF` | `--color-foreground` |
-| Card | `#192134` | `--color-card` |
-| Card Foreground | `#FFFFFF` | `--color-card-foreground` |
-| Muted | `#131B2F` | `--color-muted` |
-| Muted Foreground | `#94A3B8` | `--color-muted-foreground` |
-| Border | `rgba(255,255,255,0.08)` | `--color-border` |
-| Destructive | `#DC2626` | `--color-destructive` |
+| Accent/CTA | `#975A24` | `--color-accent` |
+| On Accent/CTA | `#FFFFFF` | `--color-on-accent` |
+| Background | `#F9F3E4` | `--color-background` |
+| Foreground | `#2D2B2B` | `--color-foreground` |
+| Card | `#FFFCF3` | `--color-card` |
+| Card Foreground | `#2D2B2B` | `--color-card-foreground` |
+| Muted | `#F1E7D4` | `--color-muted` |
+| Muted Foreground | `#665F56` | `--color-muted-foreground` |
+| Border | `#DED4C2` | `--color-border` |
+| Destructive | `#8B5963` | `--color-destructive` |
 | On Destructive | `#FFFFFF` | `--color-on-destructive` |
-| Ring | `#FFFFFF` | `--color-ring` |
+| Ring | `#975A24` | `--color-ring` |
 
-**Color Notes:** Protective grey + subtle teal on dark
+**Color Notes:** Palette follows `logo/logo1.png`: cream field, charcoal wordmark, and darker orange as the primary accent. Purple is reserved for scripture and reflective secondary emphasis. The native app has adaptive dark values documented in `docs/DESIGN_SYSTEM.md`.
 
 ### Typography
 
@@ -82,7 +82,7 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #0891B2;
+  background: #975A24;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -99,8 +99,8 @@
 /* Secondary Button */
 .btn-secondary {
   background: transparent;
-  color: #475569;
-  border: 2px solid #475569;
+  color: #975A24;
+  border: 2px solid #975A24;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
@@ -113,7 +113,7 @@
 
 ```css
 .card {
-  background: #0F172A;
+  background: #FFFCF3;
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--shadow-md);
@@ -139,9 +139,9 @@
 }
 
 .input:focus {
-  border-color: #475569;
+  border-color: #975A24;
   outline: none;
-  box-shadow: 0 0 0 3px #47556920;
+  box-shadow: 0 0 0 3px #975A2420;
 }
 ```
 

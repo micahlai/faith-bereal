@@ -1,8 +1,8 @@
 # Design system
 
-## Direction: quiet stained glass
+## Direction: warm manna
 
-The memorable element is a circular ten-minute “light window”: layered arcs of dawn blue, violet, and candle gold move only as time changes. Everything around it stays calm, tactile, and native. The faith-adjacent premise is expressed through light, gathering, and reflection—not religious symbols, gamification, or faux parchment.
+The visual system is drawn from `logo/logo1.png`: warm cream, charcoal ink, and a grounded orange mark. Dark orange is the primary interactive accent. Purple remains a deliberate supporting accent for scripture and reflective content, while the circular ten-minute “light window” blends the warm and supporting colors as time changes. Everything stays calm, tactile, and native.
 
 The generic dark-dashboard recommendation generated during design discovery was rejected: it would make a private gratitude ritual feel like a utility console. manna circle supports both system appearances and uses Apple materials sparingly.
 
@@ -10,17 +10,18 @@ The generic dark-dashboard recommendation generated during design discovery was 
 
 | Role | Light | Dark | Use |
 |---|---:|---:|---|
-| Canvas | `#F7F5FA` | `#111018` | Main background |
-| Surface | `#FFFFFF` | `#1C1A25` | Raised content |
-| Ink | `#211E2B` | `#F8F5FF` | Primary text |
-| Secondary ink | `#625D70` | `#C8C1D5` | Supporting text |
-| Iris | `#6256A5` | `#AFA3F5` | Primary action / active thread |
+| Canvas | `#F9F3E4` | `#1D1A17` | Main background; light value matches the logo field |
+| Surface | `#FFFCF3` | `#29231E` | Raised content |
+| Ink | `#2D2B2B` | `#FCF6E8` | Primary text; derived from the logo wordmark |
+| Secondary ink | `#665F56` | `#D3C6B3` | Supporting text |
+| Manna | `#975A24` | `#A85F20` | Primary action, selection, focus, and active thread |
+| Iris | `#6256A5` | `#AFA3F5` | Scripture and reflective secondary accent |
 | Dawn | `#4F86A8` | `#78B8D7` | Informational state |
-| Candle | `#B9772E` | `#F0B867` | Countdown / warmth |
+| Candle | `#A9672D` | `#E4AD70` | Countdown / warmth; related to the logo’s `#BA8347` dot |
 | Missed | `#8B5963` | `#E09AA8` | Missed state, always paired with icon/text |
-| Divider | `#DED9E6` | `#3A3545` | Lines and boundaries |
+| Divider | `#DED4C2` | `#4A4036` | Lines and boundaries |
 
-App code exposes semantic roles, not literal color names in feature views.
+App code exposes semantic roles, not literal color names in feature views. `Manna` maintains at least 4.5:1 contrast with white button text in both appearances; purple is not used as the primary CTA color.
 
 ## Typography
 

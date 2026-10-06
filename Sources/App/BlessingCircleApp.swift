@@ -13,7 +13,7 @@ struct BlessingCircleApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
-                .tint(AppTheme.iris)
+                .tint(AppTheme.primary)
                 .task {
                     appDelegate.deviceTokenHandler = { token in
                         model.receiveAPNSToken(token)

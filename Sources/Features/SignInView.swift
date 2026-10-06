@@ -13,7 +13,7 @@ struct SignInView: View {
                 Spacer()
                 Image(systemName: "circle.hexagongrid.fill")
                     .font(.system(size: 68, weight: .light))
-                    .foregroundStyle(AppTheme.iris)
+                    .foregroundStyle(AppTheme.primary)
                     .accessibilityHidden(true)
                 VStack(spacing: 8) {
                     Text("manna circle")

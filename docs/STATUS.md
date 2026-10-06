@@ -4,6 +4,7 @@
 
 - Renamed the public brand to **manna**, with **manna circle** as the full product name and **manna circle - daily blessings** as the fullest App Store name.
 - Updated in-app branding, Apple permission copy, widget metadata, release documentation, and generated bundle metadata while retaining existing bundle identifiers and deep links for compatibility.
+- Reworked the adaptive color system from `logo/logo1.png`: warm cream and charcoal surfaces now frame a dark-orange primary accent, while purple remains a supporting scripture accent.
 
 ## 2026-10-05 media activation crash fix
 

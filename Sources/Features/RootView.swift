@@ -54,7 +54,7 @@ private struct LoadingView: View {
             VStack(spacing: 18) {
                 Image(systemName: "circle.hexagongrid.fill")
                     .font(.system(size: 54, weight: .light))
-                    .foregroundStyle(AppTheme.iris)
+                    .foregroundStyle(AppTheme.primary)
                     .accessibilityHidden(true)
                 Text("Gathering your circle")
                     .font(.title3.weight(.semibold))

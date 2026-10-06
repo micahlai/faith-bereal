@@ -5,6 +5,7 @@ enum AppTheme {
     static let surface = Color("Surface", bundle: nil)
     static let ink = Color("Ink", bundle: nil)
     static let secondaryInk = Color("SecondaryInk", bundle: nil)
+    static let primary = Color("Manna", bundle: nil)
     static let iris = Color("Iris", bundle: nil)
     static let dawn = Color("Dawn", bundle: nil)
     static let candle = Color("Candle", bundle: nil)
@@ -27,4 +28,3 @@ extension View {
             }
     }
 }
-

@@ -53,7 +53,7 @@ targets:
     info:
       path: Configuration/App-Info.plist
       properties:
-        CFBundleDisplayName: manna circle - daily blessings
+        CFBundleDisplayName: manna circle
         CFBundleName: manna circle
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor

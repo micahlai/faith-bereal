@@ -170,7 +170,7 @@ struct CaptureView: View {
             HStack {
                 Label("Reusing your blessing", systemImage: "arrow.triangle.2.circlepath")
                     .font(.headline)
-                    .foregroundStyle(AppTheme.iris)
+                    .foregroundStyle(AppTheme.primary)
                 Spacer()
                 Button("Choose another") {
                     repeatSource = nil
@@ -258,7 +258,7 @@ struct CaptureView: View {
                     Label(option.title, systemImage: option.systemImage)
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(mode == option ? AppTheme.iris : AppTheme.surface)
+                        .background(mode == option ? AppTheme.primary : AppTheme.surface)
                         .foregroundStyle(mode == option ? Color.white : AppTheme.ink)
                         .clipShape(Capsule())
                         .overlay { Capsule().stroke(AppTheme.divider, lineWidth: mode == option ? 0 : 1) }

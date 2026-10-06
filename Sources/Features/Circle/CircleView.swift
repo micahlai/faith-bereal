@@ -39,7 +39,7 @@ struct CircleView: View {
             HStack(alignment: .center, spacing: 14) {
                 Image(systemName: "circle.hexagongrid.fill")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(AppTheme.iris)
+                    .foregroundStyle(AppTheme.primary)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.circle?.name ?? "Your circle")
@@ -276,7 +276,7 @@ private struct CircleSettingsView: View {
                                 Spacer()
                                 Text(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
                                     .font(.headline.monospacedDigit())
-                                    .foregroundStyle(AppTheme.iris)
+                                    .foregroundStyle(AppTheme.primary)
                             }
 
                             Slider(
@@ -290,7 +290,7 @@ private struct CircleSettingsView: View {
                             } maximumValueLabel: {
                                 Text("3h").font(.caption2)
                             }
-                            .tint(AppTheme.iris)
+                            .tint(AppTheme.primary)
                             .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
                         }
                         .padding(.vertical, 6)
@@ -576,7 +576,7 @@ private struct CircleTimeZonePicker: View {
                     Spacer()
                     if selection == identifier {
                         Image(systemName: "checkmark")
-                            .foregroundStyle(AppTheme.iris)
+                            .foregroundStyle(AppTheme.primary)
                             .accessibilityLabel("Selected")
                     }
                 }

@@ -147,7 +147,7 @@ private struct TimelineDayRow: View {
                 if row.kind == .joined {
                     Text("Joined")
                         .font(.caption2)
-                        .foregroundStyle(AppTheme.iris)
+                        .foregroundStyle(AppTheme.primary)
                 }
             }
             .frame(width: 72, alignment: .leading)
@@ -226,7 +226,7 @@ private struct TimelineEventView: View {
         switch event.status {
         case .blessing:
             Circle()
-                .fill(AppTheme.iris)
+                .fill(AppTheme.primary)
                 .overlay { Circle().stroke(AppTheme.surface, lineWidth: 5) }
         case .missed:
             Circle()
@@ -244,7 +244,7 @@ private struct TimelineEventView: View {
         case .joinedCircle:
             Image(systemName: "person.badge.plus")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.iris)
+                .foregroundStyle(AppTheme.primary)
                 .background(Circle().fill(AppTheme.surface).frame(width: 24, height: 24))
         }
     }
@@ -572,7 +572,7 @@ struct AudioBlessingPlayer: View {
                 }
                 Spacer()
                 Image(systemName: "waveform")
-                    .foregroundStyle(AppTheme.iris)
+                    .foregroundStyle(AppTheme.primary)
                     .accessibilityHidden(true)
             }
             .contentShape(Rectangle())

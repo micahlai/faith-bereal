@@ -16,7 +16,7 @@ struct BlessingCircleLiveActivity: Widget {
             HStack(spacing: 16) {
                 Image(systemName: context.state.hasSubmitted ? "checkmark.circle.fill" : "circle.hexagongrid.fill")
                     .font(.title)
-                    .foregroundStyle(context.state.hasSubmitted ? .green : .purple)
+                    .foregroundStyle(context.state.hasSubmitted ? Color.green : MannaWidgetTheme.primary)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(context.attributes.circleName)
                         .font(.headline)
@@ -32,13 +32,13 @@ struct BlessingCircleLiveActivity: Widget {
             }
             .padding()
             .activityBackgroundTint(Color(.systemBackground))
-            .activitySystemActionForegroundColor(.purple)
+            .activitySystemActionForegroundColor(MannaWidgetTheme.primary)
             .widgetURL(URL(string: "blessingcircle://today/capture"))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "circle.hexagongrid.fill")
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(MannaWidgetTheme.primary)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     if !context.state.hasSubmitted {
@@ -53,7 +53,7 @@ struct BlessingCircleLiveActivity: Widget {
                 }
             } compactLeading: {
                 Image(systemName: context.state.hasSubmitted ? "checkmark" : "circle.hexagongrid.fill")
-                    .foregroundStyle(context.state.hasSubmitted ? .green : .purple)
+                    .foregroundStyle(context.state.hasSubmitted ? Color.green : MannaWidgetTheme.primary)
             } compactTrailing: {
                 if !context.state.hasSubmitted {
                     Text(timerInterval: Date.now...context.state.endsAt, countsDown: true)
@@ -62,10 +62,10 @@ struct BlessingCircleLiveActivity: Widget {
                 }
             } minimal: {
                 Image(systemName: context.state.hasSubmitted ? "checkmark" : "circle.hexagongrid.fill")
-                    .foregroundStyle(context.state.hasSubmitted ? .green : .purple)
+                    .foregroundStyle(context.state.hasSubmitted ? Color.green : MannaWidgetTheme.primary)
             }
             .widgetURL(URL(string: "blessingcircle://today/capture"))
-            .keylineTint(.purple)
+            .keylineTint(MannaWidgetTheme.primary)
         }
     }
 }
