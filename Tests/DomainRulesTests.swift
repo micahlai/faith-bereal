@@ -3,6 +3,19 @@ import UIKit
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testHostedMediaPathUsesPostgresUUIDCasing() {
+        let path = SupabaseBlessingRepository.mediaPath(
+            circleID: UUID(uuidString: "D315040F-5F3D-4EEA-8C42-46145CCE2371")!,
+            promptID: UUID(uuidString: "1D30024F-D3D1-4539-81D1-B0A160F5012D")!,
+            userID: UUID(uuidString: "013F3D7F-1DA3-48AD-B70A-B496E6F3EE5E")!
+        )
+
+        XCTAssertEqual(
+            path,
+            "d315040f-5f3d-4eea-8c42-46145cce2371/1d30024f-d3d1-4539-81d1-b0a160f5012d/013f3d7f-1da3-48ad-b70a-b496e6f3ee5e"
+        )
+    }
+
     func testRefreshedCirclePreservesNewlyCreatedInviteCode() {
         let id = UUID()
         let ownerID = UUID()

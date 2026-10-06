@@ -145,17 +145,21 @@ actor SupabaseBlessingRepository: BlessingRepository {
         var audioPath: String?
         var videoPath: String?
         var photoPath: String?
-        let basePath = "\(promptRow.circleID)/\(promptID)/\(authorID)"
+        let basePath = Self.mediaPath(
+            circleID: promptRow.circleID,
+            promptID: promptID,
+            userID: authorID
+        )
         if let audioURL {
-            audioPath = "\(basePath)/voice-\(UUID().uuidString).caf"
+            audioPath = "\(basePath)/voice-\(UUID().uuidString.lowercased()).caf"
             try await upload(fileURL: audioURL, path: audioPath!, contentType: "audio/x-caf")
         }
         if let videoURL {
-            videoPath = "\(basePath)/video-\(UUID().uuidString).mov"
+            videoPath = "\(basePath)/video-\(UUID().uuidString.lowercased()).mov"
             try await upload(fileURL: videoURL, path: videoPath!, contentType: "video/quicktime")
         }
         if let photoURL {
-            photoPath = "\(basePath)/photo-\(UUID().uuidString).jpg"
+            photoPath = "\(basePath)/photo-\(UUID().uuidString.lowercased()).jpg"
             try await upload(fileURL: photoURL, path: photoPath!, contentType: "image/jpeg")
         }
 
@@ -395,7 +399,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
         let blessingRow = try await fetchBlessing(id: blessingID)
         var audioPath: String?
         if let audioURL {
-            audioPath = "\(circleID)/\(blessingRow.promptID)/\(authorID)/responses/\(blessingID)/\(UUID().uuidString).caf"
+            let basePath = Self.mediaPath(
+                circleID: circleID,
+                promptID: blessingRow.promptID,
+                userID: authorID
+            )
+            audioPath = "\(basePath)/responses/\(blessingID.uuidString.lowercased())/\(UUID().uuidString.lowercased()).caf"
             try await upload(fileURL: audioURL, path: audioPath!, contentType: "audio/x-caf")
         }
         let row: ResponseRow = try await client.rpc(
@@ -605,6 +614,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
     private static func inviteCode() -> String {
         let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
         return String((0..<6).compactMap { _ in alphabet.randomElement() })
+    }
+
+    static func mediaPath(circleID: UUID, promptID: UUID, userID: UUID) -> String {
+        [circleID, promptID, userID]
+            .map { $0.uuidString.lowercased() }
+            .joined(separator: "/")
     }
 
     private static func minutes(postgresTime: String) -> Int {
