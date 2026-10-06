@@ -1,5 +1,13 @@
 # Project status
 
+## 2026-10-06 physical-device build and test pass
+
+- Generated the Xcode project, then built and ran the complete test plan on a USB-connected iPhone 14 Pro running iOS 26.6.2.
+- All 47 tests passed on-device: 43 domain/unit tests and 4 UI tests, including owner force-local-prompt, photo availability by capture mode, Today/Timeline scrolling with the pinned member header, and largest-text dark mode.
+- The ordinary hosted-configuration app was installed and launched after the suite, and its process remained running on the phone.
+- The pass does not exercise real microphone/camera capture, hosted media upload, remote APNs presentation, or Live Activity presentation. Those remain part of the manual two-account physical-device acceptance matrix.
+- Non-failing diagnostics remain to review: the orientation declaration warning, App Group preferences access from the unit-test host, two sub-second launch-hang reports during extended UI-test launch, and Xcode's missing-debugger-version log from the UI test runner.
+
 ## 2026-10-06 hosted scheduler and release archive validation
 
 - Supabase Cron now invokes `dispatch-prompts` once per minute with a server-only project credential. Three consecutive hosted calls returned HTTP 200 after the dispatcher RPC and least-privilege table grants deployed.
@@ -17,7 +25,7 @@
 - Video playback now activates the correct shared audio-session mode, reports load failures, exposes a playhead, and includes a dedicated full-screen player.
 - Device registration retries transient server failures three times in the current session, reports APNs registration failures separately, and never registers an empty token set.
 - Hosted device registration now preserves an existing APNs or Live Activity token when its counterpart arrives separately; migration `202610060005` is deployed.
-- The current source builds, all 47 simulator tests pass, and a local-demo simulator launch renders successfully. A fresh physical-device launch is pending because the previously paired iPhone is currently offline from Xcode/CoreDevice.
+- The current source builds, all 47 simulator tests pass, a local-demo simulator launch renders successfully, and the same 47-test plan now passes on the paired iPhone 14 Pro.
 
 ## 2026-10-06 profiles, onboarding, and join-day access
 
@@ -79,7 +87,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Thirty-eight domain tests and four UI tests pass on the simulator; the prior 32-domain/3-UI suite also passed on a signed iPhone 14 Pro running iOS 26.6.2. The UI coverage includes Today, Timeline scrolling, dark appearance, accessibility-size text, text/voice-versus-video photo attachment availability, and the local owner force-notification flow.
+- Forty-three domain tests and four UI tests pass both on the simulator and on a signed iPhone 14 Pro running iOS 26.6.2. The UI coverage includes Today, Timeline scrolling, dark appearance, accessibility-size text, text/voice-versus-video photo attachment availability, and the local owner force-notification flow.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols; blank configuration safely falls back to the local demo.
