@@ -319,9 +319,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
         let avatarBucket = avatarBucket
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
+                let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
                 _ = try await client.storage.from(avatarBucket).upload(
                     path,
-                    fileURL: fileURL,
+                    data: data,
                     options: FileOptions(contentType: "image/jpeg", upsert: true)
                 )
             }
@@ -621,11 +622,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
     }
 
     private func upload(fileURL: URL, path: String, contentType: String) async throws {
-        _ = try await client.storage.from(mediaBucket).upload(
-            path,
-            fileURL: fileURL,
-            options: FileOptions(contentType: contentType, upsert: false)
-        )
+        let options = FileOptions(contentType: contentType, upsert: false)
+        if contentType.hasPrefix("video/") {
+            _ = try await client.storage.from(mediaBucket).upload(path, fileURL: fileURL, options: options)
+        } else {
+            let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+            _ = try await client.storage.from(mediaBucket).upload(path, data: data, options: options)
+        }
     }
 
     private func prompt(from row: PromptRow) -> DailyPrompt {
