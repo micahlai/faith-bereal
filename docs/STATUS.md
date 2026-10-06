@@ -1,5 +1,14 @@
 # Project status
 
+## 2026-10-06 media playback and notification registration
+
+- Voice recording now uses a speaker-safe play-and-record session, the microphone output format, visible write-failure detection, and empty-file validation for both blessings and responses.
+- Voice recordings have an accessible play/pause control, elapsed and total time, and a seekable playhead in capture previews, blessing details, and response history.
+- Video playback now activates the correct shared audio-session mode, reports load failures, exposes a playhead, and includes a dedicated full-screen player.
+- Device registration retries transient server failures three times in the current session, reports APNs registration failures separately, and never registers an empty token set.
+- Hosted device registration now preserves an existing APNs or Live Activity token when its counterpart arrives separately; migration `202610060005` is deployed.
+- The current source builds, all 47 simulator tests pass, and a local-demo simulator launch renders successfully. A fresh physical-device launch is pending because the previously paired iPhone is currently offline from Xcode/CoreDevice.
+
 ## 2026-10-06 profiles, onboarding, and join-day access
 
 - User settings now support changing the profile name and choosing a private profile photo; Apple’s first-authorization name remains the initial name, while initials are used until a photo is chosen because Sign in with Apple does not provide profile photos.

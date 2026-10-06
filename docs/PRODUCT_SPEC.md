@@ -62,7 +62,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Submission shows an explicit progress state and cannot be duplicated by repeated taps.
 - The server is authoritative for membership, prompt state, deadline, and uniqueness.
 - When eligible, capture offers a quiet “Reuse a recent blessing” action. It copies the original message or transcript and optional scripture reference into the target circle as a new typed blessing; it never exposes unavailable or expired reuse choices.
-- Voice capture records playable audio while producing an editable transcript. Camera capture owns its recording lifecycle and handles authorization, interruption, denial, and unavailable hardware on physical devices.
+- Voice capture records playable audio while producing an editable transcript. Capture previews and submitted voice content include play/pause, elapsed and total time, and a seekable playhead. Camera capture owns its recording lifecycle and handles authorization, interruption, denial, and unavailable hardware on physical devices.
 
 ### Today
 
@@ -79,7 +79,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Current-day peer content is replaced by a locked state until the viewer posts.
 - Previews show up to 15 lines of original text or transcript plus the reference when present. Every member cell for a given day shares the height of that day's longest preview.
 - Timeline blessing previews show only the profile icons of members who responded, without response text.
-- Tapping a blessing opens text, audio plus transcript, or video plus transcript. An optional photo appears with text or audio content, tagged scripture appears before responses in the viewer's selected translation, and historical responses are view-only; current-day details may include the response composer.
+- Tapping a blessing opens text, audio plus transcript, or video plus transcript. Audio and video expose a seekable playhead, and video includes a dedicated full-screen player. An optional photo appears with text or audio content, tagged scripture appears before responses in the viewer's selected translation, and historical responses are view-only; current-day details may include the response composer.
 - Each member lane stops at a “Joined circle” marker and never fabricates missed days before membership began.
 
 ### Later scope: widgets
