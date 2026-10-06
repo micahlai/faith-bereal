@@ -30,7 +30,8 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Circles
 
-- Create a circle and receive a human-readable, case-insensitive invite code.
+- Creating a circle first collects its name, IANA time zone, random-time range, response duration, late-post policy, and repeat window; the circle is committed only after the owner reviews those settings.
+- Create a circle and receive a human-readable, case-insensitive invite code. The owner can regenerate it later; rotation immediately invalidates the previous code without changing current memberships.
 - Join by code, leave, and view members. If an owner leaves, ownership passes to the longest-standing remaining member; leaving an owner-only circle deletes it.
 - The circle owner can rotate the invite code and remove members.
 - The circle owner can explicitly transfer ownership to another current member. The server performs the transfer atomically and the former owner remains a member.
@@ -49,8 +50,9 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 - One prompt per circle per local calendar day.
 - Random start time is selected server-side within a circle-configured window, default 08:00–20:00.
+- Circle creation transactionally schedules the current local-day prompt from the owner's initial settings so the selected time range and response duration apply on day one. The join-day exception still lets the creator share at any time that local day.
 - Start time is immutable after publication and identical for all circle members.
-- Response deadline is `starts_at + response_window_minutes`; setting changes apply to future prompts.
+- Response deadline is `starts_at + response_window_minutes`; edits made after circle creation apply to future prompts.
 - A notification and Live Activity deep-link to today's capture screen.
 
 ### Capture

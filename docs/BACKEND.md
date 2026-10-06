@@ -18,9 +18,13 @@
 
 ### `circles`
 
-`id`, `name`, `owner_id`, `invite_code_hash`, `time_zone`, `window_start`, `window_end`, `response_window_minutes`, `allow_late_blessings`, `created_at`
+`id`, `name`, `owner_id`, `invite_code_hash`, `time_zone`, `window_start`, `window_end`, `response_window_minutes`, `allow_late_blessings`, `repeat_window_minutes`, `created_at`
 
 Only a hash of the normalized invite code is stored. Joining happens through a security-definer RPC that rate-limits attempts.
+
+`create_circle` accepts the complete owner-selected configuration and transactionally inserts the owner membership plus the current local-day prompt. Prompt timing is server-authored from that initial range and duration, so creation settings take effect immediately without a client-side follow-up update.
+
+`regenerate_circle_invite_code` is owner-only and replaces the stored hash in one update. The former code becomes invalid immediately; existing memberships are unchanged.
 
 ### `circle_members`
 

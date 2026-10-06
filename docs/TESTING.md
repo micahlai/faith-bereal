@@ -38,6 +38,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - deterministic timeline grouping and missed-state generation;
 - invite-code normalization;
 - countdown formatting and prompt-state transitions.
+- circle creation preserves every selected setting and creates the current local-day prompt from the selected time zone, range, and response duration;
+- invite-code regeneration requires the owner and immediately invalidates the previous code;
 - repeat eligibility uses the target circle's window and the original submission time;
 - repeat choices exclude expired, same-circle, and other-user blessings;
 - ownership transfer requires the current owner and a current target member;
@@ -65,6 +67,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## UI and accessibility checks
 
+- circle creation exposes all owner settings before the final create action;
+- an owner can regenerate an invite code only after acknowledging that the old code will stop working;
 - small and large iPhone, iPad split view, portrait and landscape;
 - light/dark appearance, Increased Contrast, Reduce Motion;
 - Dynamic Type through accessibility sizes;
