@@ -362,24 +362,62 @@ actor LocalBlessingRepository: BlessingRepository {
         return circles[index]
     }
 
-    func createCircle(name: String, member: Member) async throws -> CircleGroup {
-        let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else { throw BlessingError.invalidInviteCode }
+    func createCircle(configuration: CircleConfiguration, member: Member) async throws -> CircleGroup {
+        guard configuration.isValid else { throw BlessingError.invalidInviteCode }
+        let now = Date.now
+        var owner = member
+        owner.joinedAt = now
         let circle = CircleGroup(
             id: UUID(),
-            name: cleaned,
-            inviteCode: String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).uppercased(),
+            name: configuration.name.trimmingCharacters(in: .whitespacesAndNewlines),
+            inviteCode: uniqueInviteCode(),
             ownerID: member.id,
-            members: [member],
-            timeZoneIdentifier: TimeZone.current.identifier,
-            randomWindowStartMinutes: 8 * 60,
-            randomWindowEndMinutes: 20 * 60,
-            responseWindowMinutes: 10,
-            allowsLateBlessings: false,
-            repeatWindowMinutes: 120
+            members: [owner],
+            timeZoneIdentifier: configuration.timeZoneIdentifier,
+            randomWindowStartMinutes: configuration.randomWindowStartMinutes,
+            randomWindowEndMinutes: configuration.randomWindowEndMinutes,
+            responseWindowMinutes: configuration.responseWindowMinutes,
+            allowsLateBlessings: configuration.allowsLateBlessings,
+            repeatWindowMinutes: configuration.repeatWindowMinutes
         )
         circles.append(circle)
+
+        var circleCalendar = Calendar(identifier: .gregorian)
+        circleCalendar.timeZone = TimeZone(identifier: configuration.timeZoneIdentifier) ?? .current
+        let localDate = circleCalendar.startOfDay(for: now)
+        let configuredStart = circleCalendar.date(
+            byAdding: .minute,
+            value: configuration.randomWindowStartMinutes,
+            to: localDate
+        ) ?? localDate
+        let configuredEnd = circleCalendar.date(
+            byAdding: .minute,
+            value: configuration.randomWindowEndMinutes,
+            to: localDate
+        ) ?? configuredStart
+        let availableStart = now < configuredEnd ? max(configuredStart, now) : configuredStart
+        let availableDuration = max(0, configuredEnd.timeIntervalSince(availableStart))
+        let randomOffset = availableDuration > 1 ? Double.random(in: 0..<availableDuration) : 0
+        let promptStart = availableStart.addingTimeInterval(randomOffset)
+        prompts.append(
+            DailyPrompt(
+                id: UUID(),
+                circleID: circle.id,
+                localDate: localDate,
+                startsAt: promptStart,
+                endsAt: promptStart.addingTimeInterval(circle.responseWindowDuration)
+            )
+        )
         return circle
+    }
+
+    func regenerateInviteCode(circleID: UUID, ownerID: UUID) async throws -> CircleGroup {
+        guard let index = circles.firstIndex(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circles[index].ownerID == ownerID else { throw BlessingError.notCircleOwner }
+        circles[index].inviteCode = uniqueInviteCode()
+        return circles[index]
     }
 
     func updateCircleSettings(
@@ -420,6 +458,15 @@ actor LocalBlessingRepository: BlessingRepository {
         circles[index].allowsLateBlessings = allowsLateBlessings
         circles[index].repeatWindowMinutes = repeatWindowMinutes
         return circles[index]
+    }
+
+    private func uniqueInviteCode() -> String {
+        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        var code: String
+        repeat {
+            code = String((0..<6).compactMap { _ in alphabet.randomElement() })
+        } while circles.contains(where: { $0.inviteCode == code })
+        return code
     }
 
     func forceCirclePrompt(

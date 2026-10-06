@@ -212,15 +212,32 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await fetchCircle(id: row.id, inviteCode: code.uppercased())
     }
 
-    func createCircle(name: String, member: Member) async throws -> CircleGroup {
+    func createCircle(configuration: CircleConfiguration, member: Member) async throws -> CircleGroup {
         let code = Self.inviteCode()
         let row: CircleRow = try await client.rpc(
             "create_circle",
             params: CreateCircleParams(
-                name: name,
+                name: configuration.name,
                 inviteCode: code,
-                timeZone: TimeZone.current.identifier
+                timeZone: configuration.timeZoneIdentifier,
+                windowStart: Self.postgresTime(minutes: configuration.randomWindowStartMinutes),
+                windowEnd: Self.postgresTime(minutes: configuration.randomWindowEndMinutes),
+                responseWindowMinutes: configuration.responseWindowMinutes,
+                allowLateBlessings: configuration.allowsLateBlessings,
+                repeatWindowMinutes: configuration.repeatWindowMinutes
             )
+        )
+        .single()
+        .execute()
+        .value
+        return try await fetchCircle(id: row.id, inviteCode: code)
+    }
+
+    func regenerateInviteCode(circleID: UUID, ownerID: UUID) async throws -> CircleGroup {
+        let code = Self.inviteCode()
+        let row: CircleRow = try await client.rpc(
+            "regenerate_circle_invite_code",
+            params: RegenerateInviteCodeParams(circleID: circleID, inviteCode: code)
         )
         .single()
         .execute()
@@ -895,10 +912,30 @@ private struct CreateCircleParams: Encodable, Sendable {
     let name: String
     let inviteCode: String
     let timeZone: String
+    let windowStart: String
+    let windowEnd: String
+    let responseWindowMinutes: Int
+    let allowLateBlessings: Bool
+    let repeatWindowMinutes: Int
     enum CodingKeys: String, CodingKey {
         case name = "p_name"
         case inviteCode = "p_invite_code"
         case timeZone = "p_time_zone"
+        case windowStart = "p_window_start"
+        case windowEnd = "p_window_end"
+        case responseWindowMinutes = "p_response_window_minutes"
+        case allowLateBlessings = "p_allow_late_blessings"
+        case repeatWindowMinutes = "p_repeat_window_minutes"
+    }
+}
+
+private struct RegenerateInviteCodeParams: Encodable, Sendable {
+    let circleID: UUID
+    let inviteCode: String
+
+    enum CodingKeys: String, CodingKey {
+        case circleID = "p_circle_id"
+        case inviteCode = "p_invite_code"
     }
 }
 

@@ -379,13 +379,37 @@ final class AppModel {
         }
     }
 
-    func createCircle(name: String) async -> Bool {
+    func createCircle(configuration: CircleConfiguration) async -> Bool {
         guard let currentUser else { return false }
         do {
-            let createdCircle = try await repository.createCircle(name: name, member: currentUser)
+            let createdCircle = try await repository.createCircle(
+                configuration: configuration,
+                member: currentUser
+            )
             upsertCircle(createdCircle)
             await switchCircle(to: createdCircle.id)
-            message = "Your new circle is ready."
+            message = "Your new circle and today’s blessing time are ready."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func regenerateCurrentCircleInviteCode() async -> Bool {
+        guard let circle, let currentUser else { return false }
+        guard circle.ownerID == currentUser.id else {
+            message = BlessingError.notCircleOwner.localizedDescription
+            return false
+        }
+        do {
+            let updatedCircle = try await repository.regenerateInviteCode(
+                circleID: circle.id,
+                ownerID: currentUser.id
+            )
+            self.circle = updatedCircle
+            upsertCircle(updatedCircle)
+            message = "A new circle code is ready. The previous code no longer works."
             return true
         } catch {
             message = error.localizedDescription

@@ -578,6 +578,93 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(updated.repeatWindowMinutes, 180)
     }
 
+    func testCircleCreationUsesChosenSettingsForCurrentLocalDay() async throws {
+        let now = Date.now
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let configuration = CircleConfiguration(
+            name: "  Evening Bread  ",
+            timeZoneIdentifier: "America/New_York",
+            randomWindowStartMinutes: 17 * 60,
+            randomWindowEndMinutes: 22 * 60,
+            responseWindowMinutes: 40,
+            allowsLateBlessings: true,
+            repeatWindowMinutes: 180
+        )
+
+        let created = try await repository.createCircle(
+            configuration: configuration,
+            member: bootstrap.currentUser
+        )
+        let context = try await repository.circleContext(circleID: created.id)
+        let prompt = try XCTUnwrap(context.prompt)
+        let owner = try XCTUnwrap(created.members.first)
+        var circleCalendar = Calendar(identifier: .gregorian)
+        circleCalendar.timeZone = try XCTUnwrap(TimeZone(identifier: configuration.timeZoneIdentifier))
+
+        XCTAssertEqual(created.name, "Evening Bread")
+        XCTAssertEqual(created.timeZoneIdentifier, configuration.timeZoneIdentifier)
+        XCTAssertEqual(created.randomWindowStartMinutes, configuration.randomWindowStartMinutes)
+        XCTAssertEqual(created.randomWindowEndMinutes, configuration.randomWindowEndMinutes)
+        XCTAssertEqual(created.responseWindowMinutes, 40)
+        XCTAssertTrue(created.allowsLateBlessings)
+        XCTAssertEqual(created.repeatWindowMinutes, 180)
+        XCTAssertTrue(circleCalendar.isDate(prompt.localDate, inSameDayAs: now))
+        XCTAssertEqual(prompt.endsAt.timeIntervalSince(prompt.startsAt), 40 * 60, accuracy: 0.001)
+        XCTAssertEqual(owner.joinedAt.timeIntervalSince(now), 0, accuracy: 2)
+
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: bootstrap.currentUser.id,
+            mode: .typed,
+            body: "A circle ready to begin today.",
+            audioURL: nil,
+            videoURL: nil,
+            scriptureReference: nil,
+            now: now
+        )
+        XCTAssertEqual(blessing.circleID, created.id)
+    }
+
+    func testCircleOwnerCanRegenerateInviteCodeAndInvalidatePreviousCode() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let circle = try XCTUnwrap(bootstrap.circles.first(where: { $0.ownerID == bootstrap.currentUser.id }))
+
+        let updated = try await repository.regenerateInviteCode(
+            circleID: circle.id,
+            ownerID: bootstrap.currentUser.id
+        )
+
+        XCTAssertNotEqual(updated.inviteCode, circle.inviteCode)
+        do {
+            _ = try await repository.joinCircle(code: circle.inviteCode, memberID: UUID())
+            XCTFail("Expected the previous code to stop working")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .invalidInviteCode)
+        }
+        let joined = try await repository.joinCircle(code: updated.inviteCode, memberID: UUID())
+        XCTAssertEqual(joined.id, circle.id)
+    }
+
+    func testNonOwnerCannotRegenerateInviteCode() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let memberOnlyCircle = try XCTUnwrap(
+            bootstrap.circles.first(where: { $0.ownerID != bootstrap.currentUser.id })
+        )
+
+        do {
+            _ = try await repository.regenerateInviteCode(
+                circleID: memberOnlyCircle.id,
+                ownerID: bootstrap.currentUser.id
+            )
+            XCTFail("Expected a non-owner rotation to fail")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .notCircleOwner)
+        }
+    }
+
     func testRepeatEligibilityUsesTargetCircleWindowAndOriginalSubmissionTime() throws {
         let authorID = UUID()
         let sourceCircleID = UUID()

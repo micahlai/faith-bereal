@@ -16,7 +16,8 @@ protocol BlessingRepository: Sendable {
         now: Date
     ) async throws -> Blessing
     func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup
-    func createCircle(name: String, member: Member) async throws -> CircleGroup
+    func createCircle(configuration: CircleConfiguration, member: Member) async throws -> CircleGroup
+    func regenerateInviteCode(circleID: UUID, ownerID: UUID) async throws -> CircleGroup
     func updateCircleSettings(
         circleID: UUID,
         ownerID: UUID,

@@ -135,6 +135,40 @@ enum RepeatWindowOptions {
     static let minutes = [15, 30, 60, 90, 120, 180, 360, 720, 1_440]
 }
 
+struct CircleConfiguration: Equatable, Sendable {
+    var name: String
+    var timeZoneIdentifier: String
+    var randomWindowStartMinutes: Int
+    var randomWindowEndMinutes: Int
+    var responseWindowMinutes: Int
+    var allowsLateBlessings: Bool
+    var repeatWindowMinutes: Int
+
+    static func defaults(timeZoneIdentifier: String = TimeZone.current.identifier) -> CircleConfiguration {
+        CircleConfiguration(
+            name: "",
+            timeZoneIdentifier: timeZoneIdentifier,
+            randomWindowStartMinutes: 8 * 60,
+            randomWindowEndMinutes: 20 * 60,
+            responseWindowMinutes: 10,
+            allowsLateBlessings: false,
+            repeatWindowMinutes: 120
+        )
+    }
+
+    var isValid: Bool {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !cleanedName.isEmpty
+            && cleanedName.count <= 80
+            && TimeZone(identifier: timeZoneIdentifier) != nil
+            && (0..<1_440).contains(randomWindowStartMinutes)
+            && (1...1_440).contains(randomWindowEndMinutes)
+            && randomWindowEndMinutes > randomWindowStartMinutes
+            && ResponseWindowOptions.minutes.contains(responseWindowMinutes)
+            && RepeatWindowOptions.minutes.contains(repeatWindowMinutes)
+    }
+}
+
 struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     let circleID: UUID
