@@ -17,6 +17,27 @@ private final class SpeechAudioTapSink: @unchecked Sendable {
     }
 }
 
+private enum SpeechCallbackFactory {
+    static func makeAudioTap(sink: SpeechAudioTapSink) -> AVAudioNodeTapBlock {
+        { buffer, _ in
+            sink.receive(buffer)
+        }
+    }
+
+    static func makeRecognitionHandler(
+        _ callback: @escaping @MainActor @Sendable (String?, Bool, String?) -> Void
+    ) -> @Sendable (SFSpeechRecognitionResult?, (any Error)?) -> Void {
+        { result, error in
+            let transcript = result?.bestTranscription.formattedString
+            let isFinal = result?.isFinal == true
+            let errorMessage = error?.localizedDescription
+            Task { @MainActor in
+                callback(transcript, isFinal, errorMessage)
+            }
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class SpeechTranscriber: NSObject {
@@ -82,16 +103,17 @@ final class SpeechTranscriber: NSObject {
         request.shouldReportPartialResults = false
         return await withCheckedContinuation { continuation in
             fileContinuation = continuation
-            task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                Task { @MainActor in
+            task = recognizer.recognitionTask(
+                with: request,
+                resultHandler: SpeechCallbackFactory.makeRecognitionHandler { [weak self] transcript, isFinal, errorMessage in
                     guard let self else { return }
-                    if let result, result.isFinal {
-                        self.finishFileTranscription(with: result.bestTranscription.formattedString)
-                    } else if error != nil {
+                    if isFinal {
+                        self.finishFileTranscription(with: transcript)
+                    } else if errorMessage != nil {
                         self.finishFileTranscription(with: nil)
                     }
                 }
-            }
+            )
         }
     }
 
@@ -150,9 +172,12 @@ final class SpeechTranscriber: NSObject {
         }
         let tapSink = SpeechAudioTapSink(request: request, audioFile: audioFile)
         self.tapSink = tapSink
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-            tapSink.receive(buffer)
-        }
+        input.installTap(
+            onBus: 0,
+            bufferSize: 1024,
+            format: format,
+            block: SpeechCallbackFactory.makeAudioTap(sink: tapSink)
+        )
         hasInputTap = true
 
         audioEngine.prepare()
@@ -160,27 +185,38 @@ final class SpeechTranscriber: NSObject {
             try audioEngine.start()
             state = .listening
         } catch {
+            if hasInputTap {
+                input.removeTap(onBus: 0)
+                hasInputTap = false
+            }
+            request.endAudio()
+            self.request = nil
+            self.tapSink = nil
+            recordedAudioFile = nil
+            recordingURL = nil
+            deactivateAudioSession()
             state = .failed(error.localizedDescription)
             return
         }
 
         let sessionID = UUID()
         recognitionSessionID = sessionID
-        task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            Task { @MainActor in
+        task = recognizer.recognitionTask(
+            with: request,
+            resultHandler: SpeechCallbackFactory.makeRecognitionHandler { [weak self] transcript, isFinal, errorMessage in
                 guard let self else { return }
                 guard self.recognitionSessionID == sessionID else { return }
-                if let result {
-                    self.transcript = result.bestTranscription.formattedString
+                if let transcript {
+                    self.transcript = transcript
                 }
-                if let error {
+                if let errorMessage {
                     self.stop()
-                    self.state = .failed(error.localizedDescription)
-                } else if result?.isFinal == true {
+                    self.state = .failed(errorMessage)
+                } else if isFinal {
                     self.stop()
                 }
             }
-        }
+        )
     }
 
     private func deactivateAudioSession() {

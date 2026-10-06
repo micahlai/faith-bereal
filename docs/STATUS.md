@@ -8,6 +8,12 @@
 - A member may share against the current circle-day prompt at any time on the local calendar day they join. This exception is enforced by the local repository, hosted submission RPC gate, and private media-upload policy dependency—not only by the UI.
 - Simulator UI tests can bypass the one-time onboarding with `BLESSING_CIRCLE_SKIP_ONBOARDING=1` while ordinary local-demo launches continue to exercise onboarding.
 
+## 2026-10-06 physical-device speech callback fix
+
+- Device crash reports from both blessing and response recording confirmed a Swift 6 executor trap on `RealtimeMessenger.mServiceQueue` inside the audio tap.
+- Audio tap and Speech framework callbacks are now created in a nonisolated factory. They move only Sendable transcript/error values onto the main actor, while real-time audio buffers remain entirely off the main actor.
+- Failed audio-engine startup now removes its installed tap and clears the partial recording instead of leaving a poisoned recorder lifecycle.
+
 ## 2026-10-05 invite-code display fix
 
 - Newly created and newly joined circle codes now survive the immediate hosted circle refresh instead of being replaced by the server's intentionally code-free circle row.
