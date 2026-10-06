@@ -52,9 +52,6 @@ const teamID = required("APNS_TEAM_ID");
 const keyID = required("APNS_KEY_ID");
 const bundleID = required("APNS_BUNDLE_ID");
 const privateKeyPEM = required("APNS_PRIVATE_KEY").replaceAll("\\n", "\n");
-const admin = createClient(supabaseURL, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
 
 function configuredSecretAPIKeys(): Set<string> {
   const rawValue = Deno.env.get("SUPABASE_SECRET_KEYS");
@@ -74,6 +71,10 @@ function configuredSecretAPIKeys(): Set<string> {
 }
 
 const scheduledAPIKeys = configuredSecretAPIKeys();
+const privilegedAPIKey = scheduledAPIKeys.values().next().value ?? serviceRoleKey;
+const admin = createClient(supabaseURL, privilegedAPIKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 function hasScheduledCredential(request: Request): boolean {
   if (request.headers.get("x-dispatch-secret") === dispatchSecret) return true;
