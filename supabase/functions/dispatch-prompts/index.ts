@@ -85,6 +85,7 @@ async function sendAPNs(
 type DispatchOutcome = {
   delivered: number;
   attempted: number;
+  failed: number;
   registeredDevices: number;
   memberCount: number;
 };
@@ -105,7 +106,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   if (membershipError) throw membershipError;
   const userIDs = (memberships ?? []).map((row) => row.user_id);
   if (userIDs.length === 0) {
-    return { delivered: 0, attempted: 0, registeredDevices: 0, memberCount: 0 };
+    return { delivered: 0, attempted: 0, failed: 0, registeredDevices: 0, memberCount: 0 };
   }
 
   const { data: devices, error: deviceError } = await admin
@@ -162,12 +163,22 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   }));
 
   const failures = results.filter((result) => result.status === "rejected");
-  if (failures.length === results.length && results.length > 0) {
-    throw new Error(`All ${failures.length} APNs requests failed`);
+  if (failures.length > 0) {
+    console.error(JSON.stringify({
+      event: "apns_dispatch_failures",
+      promptID: prompt.id,
+      circleID: prompt.circle_id,
+      failures: failures.map((result) =>
+        result.status === "rejected"
+          ? (result.reason instanceof Error ? result.reason.message : String(result.reason))
+          : ""
+      ),
+    }));
   }
   return {
     delivered: results.length - failures.length,
     attempted: results.length,
+    failed: failures.length,
     registeredDevices: activeDevices.length,
     memberCount: userIDs.length,
   };
@@ -318,7 +329,12 @@ Deno.serve(async (request) => {
       const outcome = await dispatchPrompt(prompt as Prompt);
       await admin
         .from("daily_prompts")
-        .update({ state: "open", failure_reason: null })
+        .update({
+          state: "open",
+          failure_reason: outcome.failed > 0
+            ? `${outcome.failed} of ${outcome.attempted} APNs requests failed`
+            : null,
+        })
         .eq("id", prompt.id);
       return Response.json({ promptID: prompt.id, ...outcome });
     } catch (dispatchError) {
@@ -339,7 +355,12 @@ Deno.serve(async (request) => {
   for (const prompt of (data ?? []) as Prompt[]) {
     try {
       const outcome = await dispatchPrompt(prompt);
-      await admin.from("daily_prompts").update({ state: "open", failure_reason: null }).eq("id", prompt.id);
+      await admin.from("daily_prompts").update({
+        state: "open",
+        failure_reason: outcome.failed > 0
+          ? `${outcome.failed} of ${outcome.attempted} APNs requests failed`
+          : null,
+      }).eq("id", prompt.id);
       outcomes.push({ promptID: prompt.id, ...outcome });
     } catch (dispatchError) {
       const message = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);

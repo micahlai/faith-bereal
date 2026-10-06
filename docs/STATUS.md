@@ -17,6 +17,7 @@
 - Audio and photo uploads now use the Supabase data-upload API so their declared MIME type is preserved. The private media bucket also accepts octet-stream for the SDK’s streamed video-upload path.
 - Widget snapshots now use an atomic file in the shared App Group container for reliable app-to-extension delivery on physical devices, with the former shared-defaults value retained as a migration fallback.
 - Circle switching now loads the destination context and timeline before changing visible state, retries one transient cancellation, and silently handles task cancellation instead of exposing Swift’s internal cancellation error.
+- Forced prompts now remain open and return delivery counts when every APNs request fails (for example because an app reinstall invalidated a device token). Individual APNs failures are logged and summarized on the prompt instead of turning the owner action into an opaque HTTP 502.
 
 ## 2026-10-05 invite-code display fix
 
