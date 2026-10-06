@@ -24,6 +24,46 @@ enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum AppIconPreference: String, CaseIterable, Identifiable, Sendable {
+    case automatic
+    case cream
+    case midnight
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .cream: "Cream"
+        case .midnight: "Midnight"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .automatic: "circle.lefthalf.filled"
+        case .cream: "sun.max.fill"
+        case .midnight: "moon.stars.fill"
+        }
+    }
+
+    var alternateIconName: String? {
+        switch self {
+        case .automatic: nil
+        case .cream: "MannaLight"
+        case .midnight: "MannaDark"
+        }
+    }
+
+    init(alternateIconName: String?) {
+        switch alternateIconName {
+        case "MannaLight": self = .cream
+        case "MannaDark": self = .midnight
+        default: self = .automatic
+        }
+    }
+}
+
 struct AppBootstrap: Sendable {
     let currentUser: Member
     let circles: [CircleGroup]

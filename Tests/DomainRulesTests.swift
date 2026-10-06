@@ -3,6 +3,15 @@ import UIKit
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testAppIconPreferenceMapsAlternateIconNames() {
+        XCTAssertEqual(AppIconPreference(alternateIconName: nil), .automatic)
+        XCTAssertEqual(AppIconPreference(alternateIconName: "MannaLight"), .cream)
+        XCTAssertEqual(AppIconPreference(alternateIconName: "MannaDark"), .midnight)
+        XCTAssertEqual(AppIconPreference.automatic.alternateIconName, nil)
+        XCTAssertEqual(AppIconPreference.cream.alternateIconName, "MannaLight")
+        XCTAssertEqual(AppIconPreference.midnight.alternateIconName, "MannaDark")
+    }
+
     func testPublicDomainBibleVersionsAreGroupedInPopularityOrder() {
         let groups = BibleTranslation.groups
 

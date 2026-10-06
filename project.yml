@@ -30,6 +30,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios
         PRODUCT_MODULE_NAME: BlessingCircle
         TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES:
+          - MannaLight
+          - MannaDark
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         INFOPLIST_KEY_CFBundleDisplayName: manna circle - daily blessings
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
         INFOPLIST_KEY_NSSupportsLiveActivities: YES

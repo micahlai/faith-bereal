@@ -226,7 +226,7 @@ private struct UserSettingsView: View {
                     Text("Every tagged passage is displayed in this public-domain translation, regardless of which circle it came from.")
                 }
 
-                Section("Appearance") {
+                Section {
                     Picker("Appearance", selection: Binding(
                         get: { model.appearancePreference },
                         set: { model.appearancePreference = $0 }
@@ -237,6 +237,34 @@ private struct UserSettingsView: View {
                         }
                     }
                     .pickerStyle(.inline)
+
+                    Picker(
+                        "App icon",
+                        selection: Binding(
+                            get: { model.appIconPreference },
+                            set: { preference in
+                                Task { await model.updateAppIcon(preference) }
+                            }
+                        )
+                    ) {
+                        ForEach(AppIconPreference.allCases) { preference in
+                            Label(preference.title, systemImage: preference.systemImage)
+                                .tag(preference)
+                        }
+                    }
+                    .disabled(model.isChangingAppIcon)
+
+                    if model.isChangingAppIcon {
+                        HStack {
+                            ProgressView()
+                            Text("Changing app icon…")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("Automatic lets iOS use the cream or midnight manna icon with the Home Screen appearance. Choose one to keep that logo all the time.")
                 }
 
                 Section {

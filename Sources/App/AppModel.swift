@@ -45,6 +45,8 @@ final class AppModel {
     var appearancePreference: AppearancePreference {
         didSet { UserDefaults.standard.set(appearancePreference.rawValue, forKey: Self.appearanceKey) }
     }
+    var appIconPreference: AppIconPreference
+    var isChangingAppIcon = false
     var widgetRefreshMinutes: Int {
         didSet {
             UserDefaults.standard.set(widgetRefreshMinutes, forKey: Self.widgetRefreshKey)
@@ -63,6 +65,9 @@ final class AppModel {
         self.appearancePreference = AppearancePreference(
             rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
         ) ?? .automatic
+        self.appIconPreference = AppIconPreference(
+            alternateIconName: UIApplication.shared.alternateIconName
+        )
         let savedWidgetInterval = UserDefaults.standard.integer(forKey: Self.widgetRefreshKey)
         self.widgetRefreshMinutes = Self.widgetRefreshOptions.contains(savedWidgetInterval)
             ? savedWidgetInterval
@@ -71,6 +76,32 @@ final class AppModel {
 
     var hasSubmittedToday: Bool {
         currentUserBlessing() != nil
+    }
+
+    func updateAppIcon(_ preference: AppIconPreference) async {
+        guard UIApplication.shared.supportsAlternateIcons else {
+            message = "This device does not support changing the app icon."
+            return
+        }
+        guard preference != appIconPreference, !isChangingAppIcon else { return }
+
+        isChangingAppIcon = true
+        defer { isChangingAppIcon = false }
+
+        let errorMessage: String? = await withCheckedContinuation { continuation in
+            UIApplication.shared.setAlternateIconName(preference.alternateIconName) { error in
+                continuation.resume(returning: error?.localizedDescription)
+            }
+        }
+
+        if let errorMessage {
+            appIconPreference = AppIconPreference(
+                alternateIconName: UIApplication.shared.alternateIconName
+            )
+            message = "Couldn’t change the app icon: \(errorMessage)"
+        } else {
+            appIconPreference = preference
+        }
     }
 
     func isCurrentPromptToday(at date: Date = .now) -> Bool {
