@@ -101,6 +101,7 @@ private struct AboutView: View {
                                 .foregroundStyle(AppTheme.secondaryInk)
                         }
                         VStack(alignment: .leading, spacing: 20) {
+                            aboutPoint("sun.haze", "About manna circle", "A friend told me that one of his prayer requests was to count his blessings from God throughout the day more. 1 John 1:7 tells us that our faith with God is meant to be shared, thus let's share our daily bread with each other throughout our day.")
                             aboutPoint("bell.badge", "One shared moment", "Each circle receives one daily blessing time, wherever its members are.")
                             aboutPoint("quote.bubble", "Share what blessed you", "Type it, speak it, or record a video—and optionally tag a Bible passage.")
                             aboutPoint("person.3", "Presence before scrolling", "Today’s posts unlock after you share. Circle history always stays available.")
