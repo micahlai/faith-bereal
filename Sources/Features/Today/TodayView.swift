@@ -31,12 +31,13 @@ struct TodayView: View {
             TodayBlessingsFeed(items: model.currentPromptBlessings(at: date))
         } else if let prompt = model.prompt,
                   model.isCurrentPromptToday(at: date),
-                  prompt.phase(at: date) == .open ||
+                  model.isFirstCircleDay(at: date) || prompt.phase(at: date) == .open ||
                     (prompt.phase(at: date) == .closed && model.circle?.allowsLateBlessings == true) {
             PromptWindowView(
                 prompt: prompt,
                 date: date,
                 allowsLateBlessings: model.circle?.allowsLateBlessings == true,
+                isFirstCircleDay: model.isFirstCircleDay(at: date),
                 allowsSharing: allowsSharing,
                 shareAction: { model.isCapturePresented = true }
             )
@@ -163,6 +164,7 @@ private struct PromptWindowView: View {
     let prompt: DailyPrompt
     let date: Date
     let allowsLateBlessings: Bool
+    let isFirstCircleDay: Bool
     let allowsSharing: Bool
     let shareAction: () -> Void
 
@@ -193,7 +195,16 @@ private struct PromptWindowView: View {
                     .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: progress)
 
                 VStack(spacing: 4) {
-                    if phase == .open {
+                    if isFirstCircleDay && phase != .open {
+                        Image(systemName: "sun.horizon.fill")
+                            .font(.title)
+                            .foregroundStyle(AppTheme.candle)
+                        Text("Your first day")
+                            .font(.headline)
+                        Text("Share anytime today")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    } else if phase == .open {
                         Text(durationString(remaining))
                             .font(.system(.title, design: .rounded, weight: .bold).monospacedDigit())
                         Text("to respond")
@@ -227,7 +238,7 @@ private struct PromptWindowView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(!allowsSharing || (phase != .open && !(phase == .closed && allowsLateBlessings)))
+            .disabled(!allowsSharing || (!isFirstCircleDay && phase != .open && !(phase == .closed && allowsLateBlessings)))
         }
         .blessingCard()
     }
@@ -238,6 +249,7 @@ private struct PromptWindowView: View {
     }
 
     private func accessibilityLabel(phase: PromptPhase, remaining: TimeInterval) -> String {
+        if isFirstCircleDay && phase != .open { return "On your first day in a circle, you can share anytime today" }
         return switch phase {
         case .scheduled: "Today’s prompt starts at \(prompt.startsAt.formatted(date: .omitted, time: .shortened))"
         case .open: "\(durationString(remaining)) remaining to share your blessing"

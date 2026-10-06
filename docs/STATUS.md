@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-06 profiles, onboarding, and join-day access
+
+- User settings now support changing the profile name and choosing a private profile photo; Apple’s first-authorization name remains the initial name, while initials are used until a photo is chosen because Sign in with Apple does not provide profile photos.
+- First launch now introduces manna circle, asks for an appearance preference, and then enters a focused join/create experience. Accounts with no circle remain in that experience, and About remains available from the app menu.
+- A member may share against the current circle-day prompt at any time on the local calendar day they join. This exception is enforced by the local repository, hosted submission RPC gate, and private media-upload policy dependency—not only by the UI.
+- Simulator UI tests can bypass the one-time onboarding with `BLESSING_CIRCLE_SKIP_ONBOARDING=1` while ordinary local-demo launches continue to exercise onboarding.
+
 ## 2026-10-05 invite-code display fix
 
 - Newly created and newly joined circle codes now survive the immediate hosted circle refresh instead of being replaced by the server's intentionally code-free circle row.
@@ -25,7 +32,7 @@
 - The developer control now reports whether the activity started, was already active, is disabled in Settings, or failed with an ActivityKit error.
 - Starting the app now uses the actually selected circle's prompt when deciding which Live Activity to show.
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 
 ## Current phase
 

@@ -102,7 +102,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
         return circle.members.map { member in
             var events = promptRows
-                .filter { $0.startsAt >= member.joinedAt }
+                .filter {
+                    $0.startsAt >= member.joinedAt
+                        || calendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
+                }
                 .map { row -> TimelineEvent in
                     let prompt = prompt(from: row)
                     let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
@@ -112,7 +115,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                         status = .blessing(match)
                     } else if isToday && member.id != viewerID && !viewerHasSubmitted {
                         status = .locked
-                    } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings) {
+                    } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings || FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)) {
                         status = .waiting
                     } else {
                         status = .missed

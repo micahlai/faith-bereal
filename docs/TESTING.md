@@ -16,6 +16,7 @@ xcodebuild -project BlessingCircle.xcodeproj \
 ```
 
 Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
+UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → Join/Create first-run flow.
 
 ## Owner force-notification control
 
@@ -47,6 +48,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - text and voice blessings accept an optional photo, while video blessings reject a separate photo attachment.
 - restarting a local debug prompt resets the current user's submission and reopens a server-shaped response window without changing peer history.
 - forcing a prompt requires the current circle owner and uses that circle's configured response length.
+- a member may submit before or after the response window on the local calendar day they join, but not on a later day unless ordinary late-sharing rules apply.
 
 ## Integration tests
 

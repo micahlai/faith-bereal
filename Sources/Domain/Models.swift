@@ -1,5 +1,14 @@
 import Foundation
 
+enum FirstDaySubmissionPolicy {
+    static func isEligible(memberJoinedAt: Date, prompt: DailyPrompt, circle: CircleGroup, now: Date) -> Bool {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+        return calendar.isDate(memberJoinedAt, inSameDayAs: prompt.startsAt)
+            && calendar.isDate(now, inSameDayAs: prompt.startsAt)
+    }
+}
+
 enum AppearancePreference: String, CaseIterable, Identifiable, Sendable {
     case automatic
     case light

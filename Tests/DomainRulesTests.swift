@@ -879,6 +879,32 @@ final class DomainRulesTests: XCTestCase {
             circle.members.first(where: { $0.id == updated.id })?.displayName == "Manna Friend"
         })
     }
+
+    func testFirstDayMemberCanSubmitOutsidePromptWindowOnlyOnJoinDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+        let day = calendar.startOfDay(for: Date(timeIntervalSince1970: 1_800_000_000))
+        let member = Member(id: UUID(), displayName: "New Friend", initials: "NF", tintSeed: 1, joinedAt: day.addingTimeInterval(8 * 3_600))
+        let circle = CircleGroup(
+            id: UUID(), name: "Test", inviteCode: "TEST12", ownerID: member.id, members: [member],
+            timeZoneIdentifier: calendar.timeZone.identifier, randomWindowStartMinutes: 480,
+            randomWindowEndMinutes: 1_200, responseWindowMinutes: 10,
+            allowsLateBlessings: false, repeatWindowMinutes: 60
+        )
+        let prompt = DailyPrompt(
+            id: UUID(), circleID: circle.id, localDate: day,
+            startsAt: day.addingTimeInterval(18 * 3_600), endsAt: day.addingTimeInterval(18 * 3_600 + 600)
+        )
+
+        XCTAssertTrue(FirstDaySubmissionPolicy.isEligible(
+            memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle,
+            now: day.addingTimeInterval(10 * 3_600)
+        ))
+        XCTAssertFalse(FirstDaySubmissionPolicy.isEligible(
+            memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle,
+            now: day.addingTimeInterval(26 * 3_600)
+        ))
+    }
 }
 
 private extension BlessingWidgetBlessing {

@@ -69,8 +69,9 @@ final class AppModel {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
-        self.hasSeenAbout = UserDefaults.standard.bool(forKey: Self.hasSeenAboutKey)
-        self.hasChosenInitialAppearance = UserDefaults.standard.bool(forKey: Self.hasChosenAppearanceKey)
+        let skipsOnboarding = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
+        self.hasSeenAbout = skipsOnboarding || UserDefaults.standard.bool(forKey: Self.hasSeenAboutKey)
+        self.hasChosenInitialAppearance = skipsOnboarding || UserDefaults.standard.bool(forKey: Self.hasChosenAppearanceKey)
         self.appearancePreference = AppearancePreference(
             rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
         ) ?? .automatic
@@ -161,8 +162,20 @@ final class AppModel {
         guard !isDebugPromptPreview else { return false }
 #endif
         guard let prompt, let circle, isCurrentPromptToday(at: .now), !hasSubmittedToday else { return false }
+        if isFirstCircleDay(at: .now) { return true }
         let phase = prompt.phase(at: .now)
         return phase == .open || (phase == .closed && circle.allowsLateBlessings)
+    }
+
+    func isFirstCircleDay(at date: Date) -> Bool {
+        guard let prompt, let circle, let userID = currentUser?.id,
+              let membership = circle.members.first(where: { $0.id == userID }) else { return false }
+        return FirstDaySubmissionPolicy.isEligible(
+            memberJoinedAt: membership.joinedAt,
+            prompt: prompt,
+            circle: circle,
+            now: date
+        )
     }
 
     func bootstrap() async {

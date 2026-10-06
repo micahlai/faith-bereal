@@ -6,6 +6,7 @@ final class BlessingCircleUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
 
         XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
@@ -25,6 +26,7 @@ final class BlessingCircleUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchArguments += [
             "-AppleInterfaceStyle", "Dark",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge",
@@ -41,6 +43,7 @@ final class BlessingCircleUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
 
         XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 5))
@@ -62,6 +65,7 @@ final class BlessingCircleUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
 
         app.tabBars.buttons["Circle"].tap()

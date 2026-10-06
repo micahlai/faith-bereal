@@ -253,7 +253,10 @@ actor LocalBlessingRepository: BlessingRepository {
 
         return circle.members.map { member in
             var events = circlePrompts
-                .filter { $0.startsAt >= member.joinedAt }
+                .filter {
+                    $0.startsAt >= member.joinedAt
+                        || calendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
+                }
                 .map { prompt -> TimelineEvent in
                 let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
                 let isToday = calendar.isDate(prompt.localDate, inSameDayAs: now)
@@ -270,7 +273,7 @@ actor LocalBlessingRepository: BlessingRepository {
                     } else {
                         status = .locked
                     }
-                } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings) {
+                } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings || FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)) {
                     status = .waiting
                 } else {
                     status = .missed
@@ -306,10 +309,14 @@ actor LocalBlessingRepository: BlessingRepository {
             throw BlessingError.circleNotFound
         }
         let isWithinWindow = prompt.phase(at: now) == .open
+        let joinedAt = circle.members.first(where: { $0.id == authorID })?.joinedAt
+        let isFirstDay = joinedAt.map {
+            FirstDaySubmissionPolicy.isEligible(memberJoinedAt: $0, prompt: prompt, circle: circle, now: now)
+        } ?? false
         let isAcceptedLate = circle.allowsLateBlessings
             && now >= prompt.endsAt
             && nextPromptStart.map { now < $0 } ?? true
-        guard isWithinWindow || isAcceptedLate else { throw BlessingError.outsideResponseWindow }
+        guard isWithinWindow || isAcceptedLate || isFirstDay else { throw BlessingError.outsideResponseWindow }
         guard !blessings.contains(where: { $0.promptID == promptID && $0.authorID == authorID }) else {
             throw BlessingError.alreadySubmitted
         }
