@@ -3,6 +3,49 @@ import UIKit
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testRefreshedCirclePreservesNewlyCreatedInviteCode() {
+        let id = UUID()
+        let ownerID = UUID()
+        let created = CircleGroup(
+            id: id,
+            name: "Morning Light",
+            inviteCode: "MANNA7",
+            ownerID: ownerID,
+            members: [],
+            timeZoneIdentifier: "UTC",
+            randomWindowStartMinutes: 480,
+            randomWindowEndMinutes: 1_200,
+            responseWindowMinutes: 10,
+            allowsLateBlessings: false,
+            repeatWindowMinutes: 120
+        )
+        var refreshed = created
+        refreshed.inviteCode = ""
+
+        XCTAssertEqual(
+            refreshed.preservingInviteCode(created.inviteCode).inviteCode,
+            "MANNA7"
+        )
+    }
+
+    func testRefreshDoesNotReplaceAProvidedInviteCode() {
+        let circle = CircleGroup(
+            id: UUID(),
+            name: "Morning Light",
+            inviteCode: "FRESH8",
+            ownerID: UUID(),
+            members: [],
+            timeZoneIdentifier: "UTC",
+            randomWindowStartMinutes: 480,
+            randomWindowEndMinutes: 1_200,
+            responseWindowMinutes: 10,
+            allowsLateBlessings: false,
+            repeatWindowMinutes: 120
+        )
+
+        XCTAssertEqual(circle.preservingInviteCode("OLDER7").inviteCode, "FRESH8")
+    }
+
     func testAppIconPreferenceMapsAlternateIconNames() {
         XCTAssertEqual(AppIconPreference(alternateIconName: nil), .automatic)
         XCTAssertEqual(AppIconPreference(alternateIconName: "MannaLight"), .cream)

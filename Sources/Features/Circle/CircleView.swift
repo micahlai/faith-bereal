@@ -59,7 +59,7 @@ struct CircleView: View {
                     Label("Share", systemImage: "square.and.arrow.up")
                         .frame(minHeight: 44)
                 }
-                .disabled(model.circle == nil)
+                .disabled(model.circle?.inviteCode.isEmpty != false)
             }
 
             Divider()

@@ -245,7 +245,9 @@ final class AppModel {
         defer { isSwitchingCircle = false }
         do {
             let context = try await repository.circleContext(circleID: circleID)
-            circle = context.circle
+            let knownInviteCode = circles.first(where: { $0.id == circleID })?.inviteCode
+            let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
+            circle = resolvedCircle
             prompt = context.prompt
 #if DEBUG
             isDebugPromptPreview = false
@@ -253,13 +255,13 @@ final class AppModel {
             submittedBlessing = nil
             lanes = []
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
-                circles[index] = context.circle
+                circles[index] = resolvedCircle
             }
             Self.persistedCircleID = circleID
             try await refreshTimeline()
             startRealtimeUpdates()
             if let prompt = context.prompt, prompt.phase(at: .now) == .open {
-                await startLiveActivity(for: prompt, circle: context.circle)
+                await startLiveActivity(for: prompt, circle: resolvedCircle)
             }
         } catch {
             message = error.localizedDescription
@@ -717,7 +719,7 @@ final class AppModel {
 
     private func upsertCircle(_ circle: CircleGroup) {
         if let index = circles.firstIndex(where: { $0.id == circle.id }) {
-            circles[index] = circle
+            circles[index] = circle.preservingInviteCode(circles[index].inviteCode)
         } else {
             circles.append(circle)
         }

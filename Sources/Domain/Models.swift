@@ -106,6 +106,15 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     var responseWindowDuration: TimeInterval {
         TimeInterval(responseWindowMinutes * 60)
     }
+
+    func preservingInviteCode(_ knownCode: String?) -> CircleGroup {
+        guard inviteCode.isEmpty,
+              let knownCode,
+              !knownCode.isEmpty else { return self }
+        var resolved = self
+        resolved.inviteCode = knownCode
+        return resolved
+    }
 }
 
 enum ResponseWindowOptions {
