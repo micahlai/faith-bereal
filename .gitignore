@@ -7,4 +7,4 @@ xcuserdata/
 .build/
 Configuration/Secrets.xcconfig
 supabase/.temp/
-
+graphify-out/
