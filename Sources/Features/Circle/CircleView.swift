@@ -3,7 +3,6 @@ import SwiftUI
 struct CircleView: View {
     @Environment(AppModel.self) private var model
     @State private var joinCode = ""
-    @State private var newCircleName = ""
     @State private var showingJoin = false
     @State private var showingCreate = false
     @State private var showingSettings = false
@@ -182,28 +181,200 @@ struct CircleView: View {
     }
 
     private var createSheet: some View {
+        CircleCreationView(isPresented: $showingCreate)
+    }
+}
+
+private struct CircleCreationView: View {
+    @Environment(AppModel.self) private var model
+    @Binding var isPresented: Bool
+    @State private var name = ""
+    @State private var timeZoneIdentifier: String
+    @State private var randomWindowStart: Date
+    @State private var randomWindowEnd: Date
+    @State private var selectedIndex: Double
+    @State private var allowsLateBlessings = false
+    @State private var repeatWindowMinutes = 120
+    @State private var isCreating = false
+
+    init(isPresented: Binding<Bool>) {
+        _isPresented = isPresented
+        let defaults = CircleConfiguration.defaults()
+        _timeZoneIdentifier = State(initialValue: defaults.timeZoneIdentifier)
+        _randomWindowStart = State(initialValue: Self.wallClockDate(minutes: defaults.randomWindowStartMinutes))
+        _randomWindowEnd = State(initialValue: Self.wallClockDate(minutes: defaults.randomWindowEndMinutes))
+        _selectedIndex = State(
+            initialValue: Double(ResponseWindowOptions.minutes.firstIndex(of: defaults.responseWindowMinutes) ?? 4)
+        )
+    }
+
+    private var selectedMinutes: Int {
+        let index = min(max(Int(selectedIndex.rounded()), 0), ResponseWindowOptions.minutes.count - 1)
+        return ResponseWindowOptions.minutes[index]
+    }
+
+    private var randomWindowStartMinutes: Int { Self.minutes(from: randomWindowStart) }
+    private var randomWindowEndMinutes: Int { Self.minutes(from: randomWindowEnd) }
+
+    private var configuration: CircleConfiguration {
+        CircleConfiguration(
+            name: name,
+            timeZoneIdentifier: timeZoneIdentifier,
+            randomWindowStartMinutes: randomWindowStartMinutes,
+            randomWindowEndMinutes: randomWindowEndMinutes,
+            responseWindowMinutes: selectedMinutes,
+            allowsLateBlessings: allowsLateBlessings,
+            repeatWindowMinutes: repeatWindowMinutes
+        )
+    }
+
+    var body: some View {
         NavigationStack {
             Form {
-                Section("Circle name") {
-                    TextField("Sunday Table", text: $newCircleName)
-                        .textContentType(.organizationName)
-                }
                 Section {
-                    Button("Create circle") {
-                        Task {
-                            if await model.createCircle(name: newCircleName) { showingCreate = false }
+                    TextField("Circle name", text: $name)
+                        .textContentType(.organizationName)
+                        .accessibilityIdentifier("create-circle-name")
+                    NavigationLink {
+                        CircleTimeZonePicker(selection: $timeZoneIdentifier)
+                    } label: {
+                        LabeledContent("Time zone", value: timeZoneDisplayName)
+                    }
+                } header: {
+                    Text("Circle")
+                } footer: {
+                    Text("The selected time zone keeps one shared blessing day for members wherever they live.")
+                }
+
+                Section {
+                    DatePicker(
+                        "Earliest time",
+                        selection: $randomWindowStart,
+                        displayedComponents: .hourAndMinute
+                    )
+                    DatePicker(
+                        "Latest time",
+                        selection: $randomWindowEnd,
+                        displayedComponents: .hourAndMinute
+                    )
+                    if randomWindowEndMinutes <= randomWindowStartMinutes {
+                        Label("Latest time must be after earliest time.", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("Random blessing time")
+                } footer: {
+                    Text("Today’s first blessing time will be chosen inside this range, using (timeZoneIdentifier).")
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Response window")
+                                .font(.headline)
+                            Spacer()
+                            Text(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                                .font(.headline.monospacedDigit())
+                                .foregroundStyle(AppTheme.primary)
+                        }
+                        Slider(
+                            value: $selectedIndex,
+                            in: 0...Double(ResponseWindowOptions.minutes.count - 1),
+                            step: 1
+                        ) {
+                            Text("Response window length")
+                        } minimumValueLabel: {
+                            Text("1m").font(.caption2)
+                        } maximumValueLabel: {
+                            Text("3h").font(.caption2)
+                        }
+                        .tint(AppTheme.primary)
+                        .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                    }
+                    .padding(.vertical, 6)
+                } footer: {
+                    Text("Members have this long after the shared notification to respond.")
+                }
+
+                Section {
+                    Toggle("Allow late blessings", isOn: $allowsLateBlessings)
+                } footer: {
+                    Text("Late posts remain available until the next daily prompt and are labeled in the timeline.")
+                }
+
+                Section {
+                    Picker("Reuse window", selection: $repeatWindowMinutes) {
+                        ForEach(RepeatWindowOptions.minutes, id: \.self) { minutes in
+                            Text(Self.durationLabel(minutes)).tag(minutes)
                         }
                     }
-                    .disabled(newCircleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } header: {
+                    Text("Repeat blessings")
+                } footer: {
+                    Text("Members can reuse their own blessing from another circle within this much time of sending it.")
+                }
+
+                Section {
+                    Button {
+                        isCreating = true
+                        let selectedConfiguration = configuration
+                        Task {
+                            if await model.createCircle(configuration: selectedConfiguration) {
+                                isPresented = false
+                            }
+                            isCreating = false
+                        }
+                    } label: {
+                        HStack {
+                            Text("Create circle")
+                            Spacer()
+                            if isCreating { ProgressView() }
+                        }
+                        .frame(minHeight: 44)
+                    }
+                    .disabled(isCreating || !configuration.isValid)
+                    .accessibilityIdentifier("create-circle-submit")
+                } footer: {
+                    Text("These settings apply from today. You can change future scheduling in Circle settings.")
                 }
             }
             .navigationTitle("New circle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingCreate = false } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresented = false }
+                        .disabled(isCreating)
+                }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
+        .interactiveDismissDisabled(isCreating)
+    }
+
+    private var timeZoneDisplayName: String {
+        guard let zone = TimeZone(identifier: timeZoneIdentifier) else { return timeZoneIdentifier }
+        return zone.localizedName(for: .standard, locale: .current) ?? timeZoneIdentifier
+    }
+
+    private static func wallClockDate(minutes: Int) -> Date {
+        Calendar.current.date(
+            from: DateComponents(year: 2001, month: 1, day: 1, hour: minutes / 60, minute: minutes % 60)
+        ) ?? .now
+    }
+
+    private static func minutes(from date: Date) -> Int {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+    }
+
+    private static func durationLabel(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes) min" }
+        if minutes % 60 == 0 {
+            let hours = minutes / 60
+            return hours == 1 ? "1 hour" : "\(hours) hours"
+        }
+        return "\(minutes / 60)h \(minutes % 60)m"
     }
 }
 
@@ -222,9 +393,11 @@ private struct CircleSettingsView: View {
     @State private var isLeaving = false
     @State private var showingLeaveConfirmation = false
     @State private var showingForcePromptConfirmation = false
+    @State private var showingCodeRegenerationConfirmation = false
     @State private var showingOwnershipTransfer = false
     @State private var memberToRemove: Member?
     @State private var isRemovingMember = false
+    @State private var isRegeneratingCode = false
 
     init(circle: CircleGroup, isPresented: Binding<Bool>) {
         self.circle = circle
@@ -264,6 +437,36 @@ private struct CircleSettingsView: View {
                         } label: {
                             LabeledContent("Time zone", value: timeZoneDisplayName)
                         }
+                    }
+
+                    Section {
+                        LabeledContent("Current code") {
+                            Text(currentInviteCode.isEmpty ? "Unavailable" : currentInviteCode)
+                                .font(.body.monospaced().weight(.semibold))
+                                .textSelection(.enabled)
+                                .accessibilityIdentifier("circle-settings-invite-code")
+                        }
+                        ShareLink(item: currentInviteCode) {
+                            Label("Share invite code", systemImage: "square.and.arrow.up")
+                                .frame(minHeight: 44)
+                        }
+                        .disabled(currentInviteCode.isEmpty || isRegeneratingCode)
+                        Button(role: .destructive) {
+                            showingCodeRegenerationConfirmation = true
+                        } label: {
+                            HStack {
+                                Label("Regenerate invite code", systemImage: "arrow.triangle.2.circlepath")
+                                Spacer()
+                                if isRegeneratingCode { ProgressView() }
+                            }
+                            .frame(minHeight: 44)
+                        }
+                        .disabled(isRegeneratingCode)
+                        .accessibilityIdentifier("regenerate-invite-code")
+                    } header: {
+                        Text("Invitations")
+                    } footer: {
+                        Text("Regenerating immediately invalidates the previous code. Existing members stay in the circle.")
                     }
 
                     Section {
@@ -457,6 +660,22 @@ private struct CircleSettingsView: View {
             )
         }
         .confirmationDialog(
+            "Regenerate the code for \(circle.name)?",
+            isPresented: $showingCodeRegenerationConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Regenerate code", role: .destructive) {
+                isRegeneratingCode = true
+                Task {
+                    _ = await model.regenerateCurrentCircleInviteCode()
+                    isRegeneratingCode = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Anyone using the previous code will no longer be able to join. Current members are not affected.")
+        }
+        .confirmationDialog(
             "Notify everyone in \(circle.name)?",
             isPresented: $showingForcePromptConfirmation,
             titleVisibility: .visible
@@ -517,6 +736,10 @@ private struct CircleSettingsView: View {
     private var timeZoneDisplayName: String {
         guard let zone = TimeZone(identifier: timeZoneIdentifier) else { return timeZoneIdentifier }
         return zone.localizedName(for: .standard, locale: .current) ?? timeZoneIdentifier
+    }
+
+    private var currentInviteCode: String {
+        model.circle?.id == circle.id ? (model.circle?.inviteCode ?? "") : circle.inviteCode
     }
 
     private static func wallClockDate(minutes: Int) -> Date {

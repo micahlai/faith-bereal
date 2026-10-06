@@ -89,4 +89,55 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 3))
     }
 
+    @MainActor
+    func testCircleCreationCollectsSettingsBeforeSubmitting() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launch()
+
+        app.tabBars.buttons["Circle"].tap()
+        XCTAssertTrue(app.buttons["Create a circle"].waitForExistence(timeout: 5))
+        app.buttons["Create a circle"].tap()
+
+        XCTAssertTrue(app.navigationBars["New circle"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.textFields["Circle name"].exists)
+        XCTAssertTrue(app.staticTexts["Random blessing time"].exists)
+        XCTAssertTrue(app.staticTexts["Response window"].exists)
+        app.swipeUp()
+        XCTAssertTrue(app.switches["Allow late blessings"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Reuse window"].exists)
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["Create circle"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testCircleOwnerCanRegenerateInviteCode() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launch()
+
+        app.tabBars.buttons["Circle"].tap()
+        let settingsButton = app.buttons["circle-settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
+        settingsButton.tap()
+
+        let regenerate = app.buttons["Regenerate invite code"]
+        XCTAssertTrue(regenerate.waitForExistence(timeout: 3))
+        regenerate.tap()
+        XCTAssertTrue(app.buttons["Regenerate code"].waitForExistence(timeout: 2))
+        app.buttons["Regenerate code"].tap()
+
+        let confirmation = app.alerts["manna circle"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
+        let successMessage = confirmation.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "new circle code")
+        ).firstMatch
+        XCTAssertTrue(successMessage.exists)
+        confirmation.buttons["OK"].tap()
+    }
+
 }
