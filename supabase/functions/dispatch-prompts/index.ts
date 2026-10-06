@@ -11,11 +11,24 @@ type Prompt = {
 };
 
 type Device = {
+  id: string;
   user_id: string;
   apns_token: string | null;
   push_to_start_token: string | null;
   environment: "sandbox" | "production";
 };
+
+type DeviceTokenField = "apns_token" | "push_to_start_token";
+
+class APNsDeliveryError extends Error {
+  constructor(
+    readonly status: number,
+    readonly reason: string,
+  ) {
+    super(`APNs ${status}: ${reason}`);
+    this.name = "APNsDeliveryError";
+  }
+}
 
 type ActivityRegistration = {
   id: string;
@@ -78,7 +91,47 @@ async function sendAPNs(
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    throw new Error(`APNs ${response.status}: ${await response.text()}`);
+    let reason = "Unknown";
+    try {
+      const body = await response.json() as { reason?: string };
+      reason = body.reason ?? reason;
+    } catch {
+      // APNs normally returns JSON. Avoid logging a token or an arbitrary body.
+    }
+    throw new APNsDeliveryError(response.status, reason);
+  }
+}
+
+function permanentlyInvalidToken(error: unknown): boolean {
+  return error instanceof APNsDeliveryError && (
+    error.status === 410 ||
+    (error.status === 400 && ["BadDeviceToken", "DeviceTokenNotForTopic", "Unregistered"].includes(error.reason))
+  );
+}
+
+async function clearInvalidDeviceTokens(
+  devices: Device[],
+  invalidByDevice: Map<string, Set<DeviceTokenField>>,
+): Promise<void> {
+  const devicesByID = new Map(devices.map((device) => [device.id, device]));
+  for (const [deviceID, fields] of invalidByDevice) {
+    const device = devicesByID.get(deviceID);
+    if (!device) continue;
+
+    const update: Record<string, string | null> = {};
+    for (const field of fields) update[field] = null;
+    const hasAPNsToken = device.apns_token !== null && !fields.has("apns_token");
+    const hasLiveActivityToken = device.push_to_start_token !== null && !fields.has("push_to_start_token");
+    if (!hasAPNsToken && !hasLiveActivityToken) update.revoked_at = new Date().toISOString();
+
+    const { error } = await admin.from("device_registrations").update(update).eq("id", deviceID);
+    if (error) {
+      console.error(JSON.stringify({
+        event: "device_token_cleanup_failed",
+        deviceID,
+        message: error.message,
+      }));
+    }
   }
 }
 
@@ -111,7 +164,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
 
   const { data: devices, error: deviceError } = await admin
     .from("device_registrations")
-    .select("user_id, apns_token, push_to_start_token, environment")
+    .select("id, user_id, apns_token, push_to_start_token, environment")
     .in("user_id", userIDs)
     .is("revoked_at", null);
   if (deviceError) throw deviceError;
@@ -122,47 +175,69 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   const windowLabel = prompt.response_window_minutes === 1
     ? "one minute"
     : `${prompt.response_window_minutes} minutes`;
-  const results = await Promise.allSettled(activeDevices.flatMap((device) => {
-    const sends: Promise<void>[] = [];
+  const sends = activeDevices.flatMap((device) => {
+    const deviceSends: Array<{
+      deviceID: string;
+      tokenField: DeviceTokenField;
+      promise: Promise<void>;
+    }> = [];
     if (device.apns_token) {
-      sends.push(sendAPNs(device.apns_token, device.environment, bundleID, "alert", {
-        aps: {
-          alert: { title: `${circle.name} is ready`, body: `You have ${windowLabel} to share today’s blessing.` },
-          sound: "default",
-          "thread-id": prompt.circle_id,
-          "interruption-level": "time-sensitive",
-        },
-        route: `blessingcircle://today/capture?circle=${prompt.circle_id}`,
-        prompt_id: prompt.id,
-      }));
+      deviceSends.push({
+        deviceID: device.id,
+        tokenField: "apns_token",
+        promise: sendAPNs(device.apns_token, device.environment, bundleID, "alert", {
+          aps: {
+            alert: { title: `${circle.name} is ready`, body: `You have ${windowLabel} to share today’s blessing.` },
+            sound: "default",
+            "thread-id": prompt.circle_id,
+            "interruption-level": "time-sensitive",
+          },
+          route: `blessingcircle://today/capture?circle=${prompt.circle_id}`,
+          prompt_id: prompt.id,
+        }),
+      });
     }
     if (device.push_to_start_token) {
-      sends.push(sendAPNs(
-        device.push_to_start_token,
-        device.environment,
-        `${bundleID}.push-type.liveactivity`,
-        "liveactivity",
-        {
-          aps: {
-            timestamp,
-            event: "start",
-            "input-push-token": 1,
-            "attributes-type": "PromptActivityAttributes",
-            attributes: { promptID: prompt.id, circleName: circle.name },
-            "content-state": { endsAt, responseCount: 0, hasSubmitted: false },
-            alert: {
-              title: `${circle.name} is ready`,
-              body: `You have ${windowLabel} to share today’s blessing.`,
-              sound: "default",
+      deviceSends.push({
+        deviceID: device.id,
+        tokenField: "push_to_start_token",
+        promise: sendAPNs(
+          device.push_to_start_token,
+          device.environment,
+          `${bundleID}.push-type.liveactivity`,
+          "liveactivity",
+          {
+            aps: {
+              timestamp,
+              event: "start",
+              "input-push-token": 1,
+              "attributes-type": "PromptActivityAttributes",
+              attributes: { promptID: prompt.id, circleName: circle.name },
+              "content-state": { endsAt, responseCount: 0, hasSubmitted: false },
+              alert: {
+                title: `${circle.name} is ready`,
+                body: `You have ${windowLabel} to share today’s blessing.`,
+                sound: "default",
+              },
             },
           },
-        },
-      ));
+        ),
+      });
     }
-    return sends;
-  }));
+    return deviceSends;
+  });
+  const results = await Promise.allSettled(sends.map((send) => send.promise));
 
   const failures = results.filter((result) => result.status === "rejected");
+  const invalidByDevice = new Map<string, Set<DeviceTokenField>>();
+  results.forEach((result, index) => {
+    if (result.status !== "rejected" || !permanentlyInvalidToken(result.reason)) return;
+    const send = sends[index];
+    const fields = invalidByDevice.get(send.deviceID) ?? new Set<DeviceTokenField>();
+    fields.add(send.tokenField);
+    invalidByDevice.set(send.deviceID, fields);
+  });
+  if (invalidByDevice.size > 0) await clearInvalidDeviceTokens(activeDevices, invalidByDevice);
   if (failures.length > 0) {
     console.error(JSON.stringify({
       event: "apns_dispatch_failures",
@@ -181,7 +256,30 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
     failed: failures.length,
     registeredDevices: activeDevices.length,
     memberCount: userIDs.length,
-  };
+};
+}
+
+async function markPromptOpen(promptID: string, outcome: DispatchOutcome): Promise<void> {
+  const { error } = await admin
+    .from("daily_prompts")
+    .update({
+      state: "open",
+      failure_reason: outcome.failed > 0
+        ? `${outcome.failed} of ${outcome.attempted} APNs requests failed`
+        : null,
+    })
+    .eq("id", promptID);
+  if (error) throw error;
+}
+
+async function markPromptFailed(promptID: string, message: string): Promise<void> {
+  const { error } = await admin
+    .from("daily_prompts")
+    .update({ state: "failed", failure_reason: message.slice(0, 500) })
+    .eq("id", promptID);
+  if (error) {
+    console.error(JSON.stringify({ event: "prompt_failure_update_failed", promptID, message: error.message }));
+  }
 }
 
 async function updateOpenActivities(): Promise<void> {
@@ -325,29 +423,20 @@ Deno.serve(async (request) => {
       return Response.json({ error: promptError.message }, { status });
     }
 
+    const forcedPrompt = prompt as Prompt;
     try {
-      const outcome = await dispatchPrompt(prompt as Prompt);
-      await admin
-        .from("daily_prompts")
-        .update({
-          state: "open",
-          failure_reason: outcome.failed > 0
-            ? `${outcome.failed} of ${outcome.attempted} APNs requests failed`
-            : null,
-        })
-        .eq("id", prompt.id);
-      return Response.json({ promptID: prompt.id, ...outcome });
+      const outcome = await dispatchPrompt(forcedPrompt);
+      await markPromptOpen(forcedPrompt.id, outcome);
+      return Response.json({ promptID: forcedPrompt.id, ...outcome });
     } catch (dispatchError) {
       const message = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
-      await admin
-        .from("daily_prompts")
-        .update({ state: "failed", failure_reason: message.slice(0, 500) })
-        .eq("id", prompt.id);
+      await markPromptFailed(forcedPrompt.id, message);
       return Response.json({ error: "Notification dispatch failed" }, { status: 502 });
     }
   }
 
-  await admin.rpc("ensure_tomorrow_prompts");
+  const { error: ensureError } = await admin.rpc("ensure_tomorrow_prompts");
+  if (ensureError) return Response.json({ error: ensureError.message }, { status: 500 });
   const { data, error } = await admin.rpc("claim_due_prompts", { p_limit: 100 });
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
@@ -355,16 +444,11 @@ Deno.serve(async (request) => {
   for (const prompt of (data ?? []) as Prompt[]) {
     try {
       const outcome = await dispatchPrompt(prompt);
-      await admin.from("daily_prompts").update({
-        state: "open",
-        failure_reason: outcome.failed > 0
-          ? `${outcome.failed} of ${outcome.attempted} APNs requests failed`
-          : null,
-      }).eq("id", prompt.id);
+      await markPromptOpen(prompt.id, outcome);
       outcomes.push({ promptID: prompt.id, ...outcome });
     } catch (dispatchError) {
       const message = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
-      await admin.from("daily_prompts").update({ state: "failed", failure_reason: message.slice(0, 500) }).eq("id", prompt.id);
+      await markPromptFailed(prompt.id, message);
       outcomes.push({ promptID: prompt.id, error: message });
     }
   }
