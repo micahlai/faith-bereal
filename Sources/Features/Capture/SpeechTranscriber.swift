@@ -5,6 +5,8 @@ import Speech
 private final class SpeechAudioTapSink: @unchecked Sendable {
     private let request: SFSpeechAudioBufferRecognitionRequest
     private let audioFile: AVAudioFile
+    private let lock = NSLock()
+    private var writeFailed = false
 
     init(request: SFSpeechAudioBufferRecognitionRequest, audioFile: AVAudioFile) {
         self.request = request
@@ -13,7 +15,19 @@ private final class SpeechAudioTapSink: @unchecked Sendable {
 
     func receive(_ buffer: AVAudioPCMBuffer) {
         request.append(buffer)
-        try? audioFile.write(from: buffer)
+        do {
+            try audioFile.write(from: buffer)
+        } catch {
+            lock.lock()
+            writeFailed = true
+            lock.unlock()
+        }
+    }
+
+    func hasWriteFailure() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return writeFailed
     }
 }
 
@@ -72,6 +86,8 @@ final class SpeechTranscriber: NSObject {
     }
 
     func stop() {
+        let capturedURL = recordingURL
+        let recordingWriteFailed = tapSink?.hasWriteFailure() == true
         recognitionSessionID = nil
         if audioEngine.isRunning { audioEngine.stop() }
         if hasInputTap {
@@ -85,7 +101,12 @@ final class SpeechTranscriber: NSObject {
         tapSink = nil
         recordedAudioFile = nil
         deactivateAudioSession()
-        state = .idle
+        if recordingWriteFailed || capturedURL.map(Self.isEmptyRecording) == true {
+            recordingURL = nil
+            state = .failed("The microphone started, but the recording could not be saved. Please try again.")
+        } else {
+            state = .idle
+        }
     }
 
     func reset() {
@@ -138,7 +159,11 @@ final class SpeechTranscriber: NSObject {
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try session.setCategory(
+                .playAndRecord,
+                mode: .measurement,
+                options: [.defaultToSpeaker, .allowBluetoothHFP]
+            )
             try session.setActive(true)
         } catch {
             state = .failed("The microphone could not be started. Check audio access and try again.")
@@ -147,10 +172,11 @@ final class SpeechTranscriber: NSObject {
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
+        request.addsPunctuation = true
         self.request = request
 
         let input = audioEngine.inputNode
-        let format = input.inputFormat(forBus: 0)
+        let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
             deactivateAudioSession()
             state = .failed("No microphone input is available.")
@@ -221,6 +247,12 @@ final class SpeechTranscriber: NSObject {
 
     private func deactivateAudioSession() {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private static func isEmptyRecording(_ url: URL) -> Bool {
+        guard let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
+              let fileSize = values.fileSize else { return true }
+        return fileSize < 512
     }
 
     private func finishFileTranscription(with text: String?) {
