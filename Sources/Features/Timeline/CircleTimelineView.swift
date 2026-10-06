@@ -445,12 +445,6 @@ struct BlessingDetailView: View {
 
 struct BlessingContentView: View {
     let blessing: Blessing
-    @State private var videoPlayer: AVPlayer?
-
-    init(blessing: Blessing) {
-        self.blessing = blessing
-        _videoPlayer = State(initialValue: blessing.videoURL.map { AVPlayer(url: $0) })
-    }
 
     var body: some View {
         Group {
@@ -489,10 +483,8 @@ struct BlessingContentView: View {
                 .blessingCard()
             case .video:
                 VStack(alignment: .leading, spacing: 16) {
-                    if let videoPlayer {
-                        VideoPlayer(player: videoPlayer)
-                            .frame(minHeight: 220)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    if let videoURL = blessing.videoURL {
+                        VideoBlessingPlayer(url: videoURL)
                     } else {
                         ContentUnavailableView("Video unavailable", systemImage: "video.slash")
                     }
@@ -506,7 +498,6 @@ struct BlessingContentView: View {
                 .blessingCard()
             }
         }
-        .onDisappear { videoPlayer?.pause() }
     }
 }
 
@@ -544,41 +535,165 @@ private struct BlessingPhotoView: View {
 }
 
 struct AudioBlessingPlayer: View {
-    @State private var player: AVPlayer
-    @State private var isPlaying = false
+    @State private var playback: MediaPlaybackController
 
     init(url: URL) {
-        _player = State(initialValue: AVPlayer(url: url))
+        _playback = State(initialValue: MediaPlaybackController(url: url, kind: .voice))
     }
 
     var body: some View {
-        Button {
-            if isPlaying {
-                player.pause()
+        VStack(alignment: .leading, spacing: 10) {
+            if let errorMessage = playback.errorMessage {
+                Label(errorMessage, systemImage: "waveform.slash")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                Button("Try again") { Task { await playback.retry() } }
+                    .frame(minHeight: 44)
             } else {
-                player.play()
-            }
-            isPlaying.toggle()
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 36))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(isPlaying ? "Pause recording" : "Play recording")
+                HStack(spacing: 12) {
+                    Button {
+                        Task { await playback.togglePlayback() }
+                    } label: {
+                        Group {
+                            if playback.isPreparing {
+                                ProgressView()
+                            } else {
+                                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                            }
+                        }
                         .font(.headline)
-                    Text("Voice blessing")
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.secondaryInk)
+                        .frame(width: 44, height: 44)
+                        .foregroundStyle(.white)
+                        .background(AppTheme.primary, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(playback.isPreparing)
+                    .accessibilityLabel(playback.isPlaying ? "Pause recording" : "Play recording")
+
+                    MediaPlayhead(playback: playback)
+                }
+            }
+        }
+        .task { await playback.prepare() }
+        .onDisappear { playback.pause() }
+    }
+}
+
+private struct MediaPlayhead: View {
+    let playback: MediaPlaybackController
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Slider(
+                value: Binding(
+                    get: { playback.currentTime },
+                    set: { value in Task { await playback.seek(to: value) } }
+                ),
+                in: 0...max(playback.duration, 1)
+            )
+            .disabled(playback.duration <= 0)
+            .accessibilityLabel("Recording position")
+            .accessibilityValue(
+                "\(MediaTimeFormatter.string(for: playback.currentTime)) of \(MediaTimeFormatter.string(for: playback.duration))"
+            )
+
+            HStack {
+                Text(MediaTimeFormatter.string(for: playback.currentTime))
+                Spacer()
+                Text(MediaTimeFormatter.string(for: playback.duration))
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(AppTheme.secondaryInk)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
+struct VideoBlessingPlayer: View {
+    @State private var playback: MediaPlaybackController
+    @State private var isFullscreen = false
+
+    init(url: URL) {
+        _playback = State(initialValue: MediaPlaybackController(url: url, kind: .video))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let errorMessage = playback.errorMessage {
+                ContentUnavailableView(
+                    "Video unavailable",
+                    systemImage: "video.slash",
+                    description: Text(errorMessage)
+                )
+                Button("Try again") { Task { await playback.retry() } }
+                    .frame(minHeight: 44)
+            } else {
+                ZStack(alignment: .topTrailing) {
+                    VideoPlayer(player: playback.player)
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                        .background(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    Button {
+                        isFullscreen = true
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.headline)
+                            .frame(width: 44, height: 44)
+                            .foregroundStyle(.white)
+                            .background(.black.opacity(0.64), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(8)
+                    .accessibilityLabel("Open video full screen")
+                }
+                MediaPlayhead(playback: playback)
+            }
+        }
+        .task { await playback.prepare() }
+        .onDisappear {
+            if !isFullscreen { playback.pause() }
+        }
+        .fullScreenCover(isPresented: $isFullscreen) {
+            FullscreenVideoPlayer(playback: playback)
+        }
+    }
+}
+
+private struct FullscreenVideoPlayer: View {
+    @Environment(\.dismiss) private var dismiss
+    let playback: MediaPlaybackController
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VideoPlayer(player: playback.player)
+                .ignoresSafeArea()
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.headline)
+                            .frame(width: 44, height: 44)
+                            .foregroundStyle(.white)
+                            .background(.black.opacity(0.64), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close full-screen video")
                 }
                 Spacer()
-                Image(systemName: "waveform")
-                    .foregroundStyle(AppTheme.primary)
-                    .accessibilityHidden(true)
+                MediaPlayhead(playback: playback)
+                    .tint(.white)
+                    .padding(16)
+                    .background(.black.opacity(0.64), in: RoundedRectangle(cornerRadius: 16))
             }
-            .contentShape(Rectangle())
+            .padding()
         }
-        .buttonStyle(.plain)
-        .onDisappear { player.pause() }
+        .task { await playback.play() }
+        .onDisappear { playback.pause() }
     }
 }
 

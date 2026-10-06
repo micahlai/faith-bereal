@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 import AVFoundation
-import AVKit
 import PhotosUI
 
 struct CaptureView: View {
@@ -21,7 +20,6 @@ struct CaptureView: View {
     @State private var isRequestingCameraAccess = false
     @State private var isLoadingPhoto = false
     @State private var transcriber = SpeechTranscriber()
-    @State private var videoPlayer: AVPlayer?
     @State private var repeatCandidates: [Blessing] = []
     @State private var repeatSource: Blessing?
     @FocusState private var editorFocused: Bool
@@ -62,7 +60,6 @@ struct CaptureView: View {
                 VideoCaptureView(
                     onCapture: { url in
                         videoURL = url
-                        videoPlayer = AVPlayer(url: url)
                         showCamera = false
                         text = ""
                         isTranscribingVideo = true
@@ -107,7 +104,6 @@ struct CaptureView: View {
             }
             .onDisappear {
                 transcriber.stop()
-                videoPlayer?.pause()
             }
             .task {
                 repeatCandidates = await model.repeatBlessingCandidates()
@@ -132,7 +128,6 @@ struct CaptureView: View {
                         scriptureReference = blessing.scriptureReference
                         photoURL = nil
                         videoURL = nil
-                        videoPlayer = nil
                     } label: {
                         VStack(alignment: .leading, spacing: 7) {
                             HStack {
@@ -333,6 +328,15 @@ struct CaptureView: View {
         case .voice:
             VStack(spacing: 18) {
                 editor(title: "Your words appear here", footer: speechFooter)
+                if transcriber.state != .listening, let recordingURL = transcriber.recordingURL {
+                    AudioBlessingPlayer(url: recordingURL)
+                        .padding(14)
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(AppTheme.divider)
+                        }
+                }
                 Button {
                     Task { await transcriber.toggle() }
                 } label: {
@@ -348,8 +352,8 @@ struct CaptureView: View {
         case .video:
             VStack(spacing: 18) {
                 Group {
-                    if let videoPlayer {
-                        VideoPlayer(player: videoPlayer)
+                    if let videoURL {
+                        VideoBlessingPlayer(url: videoURL)
                     } else {
                         RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
                             .fill(AppTheme.surface)
@@ -370,7 +374,7 @@ struct CaptureView: View {
                     }
                     }
                 }
-                .frame(height: 260)
+                .frame(minHeight: 260)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
 
                 Button {

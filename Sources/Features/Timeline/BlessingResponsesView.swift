@@ -106,6 +106,24 @@ struct BlessingResponsesView: View {
                     .opacity(canSend && !isSending ? 1 : 0.45)
                     .accessibilityLabel("Send response")
                 }
+
+                if transcriber.state != .listening, let recordingURL = transcriber.recordingURL {
+                    AudioBlessingPlayer(url: recordingURL)
+                        .padding(.horizontal, 4)
+                }
+
+                if case let .failed(message) = transcriber.state {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.candle)
+                } else if transcriber.state == .denied {
+                    Label(
+                        "Microphone or speech access is off. Enable it in Settings to record a response.",
+                        systemImage: "mic.slash"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                }
             }
         }
     }

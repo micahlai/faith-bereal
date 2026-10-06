@@ -3,6 +3,13 @@ import UIKit
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testMediaTimeFormatterUsesStableMinuteAndSecondLabels() {
+        XCTAssertEqual(MediaTimeFormatter.string(for: 0), "0:00")
+        XCTAssertEqual(MediaTimeFormatter.string(for: 9.9), "0:09")
+        XCTAssertEqual(MediaTimeFormatter.string(for: 65), "1:05")
+        XCTAssertEqual(MediaTimeFormatter.string(for: .infinity), "0:00")
+    }
+
     func testHostedMediaPathUsesPostgresUUIDCasing() {
         let path = SupabaseBlessingRepository.mediaPath(
             circleID: UUID(uuidString: "D315040F-5F3D-4EEA-8C42-46145CCE2371")!,
