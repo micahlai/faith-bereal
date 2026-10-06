@@ -23,7 +23,10 @@ This checklist separates work that can be proven locally from work that needs pr
 ## Hosted Supabase validation
 
 - [ ] Complete the two-account acceptance matrix for authentication, circles, RLS, realtime, Storage, RPCs, and gating.
-- [ ] Validate randomized scheduling, retry/idempotency, invalid-token cleanup, and observability.
+- [x] Run the hosted dispatcher once per minute and verify consecutive HTTP 200 responses.
+- [x] Recover a real interrupted dispatch and verify the prompt returns to `open`.
+- [ ] Resolve the partial APNs result (2 accepted, 6 failed), observe alert/Live Activity presentation, and validate Production/TestFlight device tokens.
+- [ ] Exercise a permanent APNs token error and verify invalid-token cleanup plus delivery observability.
 - [ ] Implement and validate account export, account deletion, media cleanup, and retention controls.
 - [x] Implement owner-confirmed member removal in the client, local repository, and server RPC.
 - [ ] Deploy and validate member removal with two hosted accounts; implement and validate abuse reporting.
@@ -31,7 +34,8 @@ This checklist separates work that can be proven locally from work that needs pr
 
 ## Distribution
 
-- [ ] Archive the signed Release configuration and inspect the privacy report and entitlements.
+- [x] Create a generic iOS Release archive and inspect its code signature and entitlements.
+- [ ] Export an App Store distribution archive and confirm production APNs, distribution provisioning, and `get-task-allow = false`.
 - [ ] Upload to App Store Connect and resolve validation warnings.
 - [ ] Run internal TestFlight, then the planned external cohort.
 - [ ] Re-run the acceptance matrix on the candidate build.

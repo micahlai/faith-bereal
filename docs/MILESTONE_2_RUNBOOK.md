@@ -35,7 +35,9 @@ npx supabase secrets set --env-file supabase/.env.production
 npx supabase functions deploy dispatch-prompts --no-verify-jwt
 ```
 
-Schedule an authenticated request to `dispatch-prompts` at least once per minute with `x-dispatch-secret`. Keep the service-role key and APNs `.p8` key out of the app and repository.
+Schedule an authenticated request to `dispatch-prompts` at least once per minute. Use either `x-dispatch-secret` sourced from Vault or the Supabase dashboard Cron integration's server secret `apikey`. Keep both forms of server credential and the APNs `.p8` key out of the app and repository.
+
+Do not treat a Cron row marked successful as proof that dispatch completed: inspect `net._http_response` and require a 2xx response body. A healthy idle run returns `{"claimed":0,"outcomes":[]}`. Interrupted prompts that are still open are reclaimed after five minutes; expired interrupted prompts are closed.
 
 After deployment, sign into two physical devices as members of the same circle. From the owner's Circle settings, confirm **Force blessing notification** and verify that both accounts receive the alert and Live Activity, while a non-owner does not see the owner control.
 
@@ -51,4 +53,4 @@ After deployment, sign into two physical devices as members of the same circle. 
 8. Attempt cross-circle reads, duplicate submission, unauthorized owner settings, and late submission with both policy values.
 9. Confirm a member who joins later sees “Joined circle” with no earlier missed markers.
 
-Record APNs response reasons, Edge Function logs, migration output, and the two-device test result without logging tokens, signed URLs, blessing text, or media.
+Record APNs response reasons, accepted/attempted counts, Edge Function logs, migration output, and the two-device test result without logging tokens, signed URLs, blessing text, or media. TestFlight registers Production tokens, so a Sandbox-device pass is necessary but not sufficient for release.

@@ -1,5 +1,14 @@
 # Project status
 
+## 2026-10-06 hosted scheduler and release archive validation
+
+- Supabase Cron now invokes `dispatch-prompts` once per minute with a server-only project credential. Three consecutive hosted calls returned HTTP 200 after the dispatcher RPC and least-privilege table grants deployed.
+- Interrupted prompts are reclaimable after five minutes while their response window is still open. The hosted recovery path reclaimed a real stuck prompt, moved it to `open`, and returned a structured delivery outcome instead of leaving it in `dispatching`.
+- That recovered dispatch reached APNs: 2 of 8 Sandbox alert/Live Activity requests were accepted across four registered device rows, while 6 failed. This proves the scheduler, Edge Function, and APNs provider connection are live, but on-device alert and Live Activity presentation plus the remaining failures still require physical-device investigation.
+- Invalid alert and push-to-start tokens are now cleared when APNs returns a permanent token error; registrations are revoked only when neither token remains. The latest partial-failure run did not classify any stored token as permanently invalid.
+- All migrations through `202610060008` match the linked hosted project, and `dispatch-prompts` version 5 is active.
+- A generic iOS Release archive completed and passed strict code-signature verification. Its app and Live Activity/widget extension contain the expected Sign in with Apple/App Group capabilities, but the archive used an Apple Development identity, development APNs entitlement, and `get-task-allow`; an App Store distribution export remains unvalidated.
+
 ## 2026-10-06 media playback and notification registration
 
 - Voice recording now uses a speaker-safe play-and-record session, the microphone output format, visible write-failure detection, and empty-file validation for both blessings and responses.
@@ -93,13 +102,13 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - The Supabase Apple provider is enabled for native bundle ID `app.blessingcircle.ios`. A signed physical-device flow completed Apple token exchange, profile bootstrap, membership loading, device registration, and circle creation against the hosted project on 2026-10-05.
 - After the `202609300002` circle backfill deployed, the physical-device client loaded circles, profiles, memberships, and prompts without the prior missing-field decoding failure.
 - Circle settings expose a confirmed owner-only force-notification action. Local demo mode restarts the timer/capture/Live Activity flow; hosted mode calls an owner-authorized server RPC and is designed to dispatch real APNs alerts and Live Activity start requests to every registered member device.
-- The hosted `dispatch-prompts` Edge Function is active with a Sandbox & Production APNs key and required project secrets. Its unauthenticated boundary returns 401 as expected; physical-device delivery and the once-per-minute scheduler remain unvalidated.
+- The hosted `dispatch-prompts` Edge Function is active with a Sandbox & Production APNs key and required project secrets. Its unauthenticated boundary returns 401 as expected, the once-per-minute scheduler is active, and one recovery dispatch received partial APNs acceptance. On-device presentation and Production/TestFlight token delivery remain unvalidated.
 
 ## In progress — not yet validated
 
 - Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
 - Validating migrations `202609300001` through `202609300004` with two accounts and real text/voice photo uploads.
-- Scheduling `dispatch-prompts` once per minute and validating remote notification and Live Activity delivery.
+- Investigating the six failed requests from the first hosted recovery dispatch and validating alert plus Live Activity presentation on physical devices.
 - The owner force-notification client and server code are deployed, but cross-account delivery remains unvalidated until the two-account physical-device acceptance pass.
 - Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
 - Completing Milestone 4 work that depends on hosted Supabase, Apple Developer capabilities, physical devices, and final distribution assets.
@@ -108,7 +117,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 
 - The Supabase deployment is a configuration checkpoint only and has not passed the acceptance matrix.
 - The signed development profile includes Sign in with Apple, development APNs, and the shared App Group; release/distribution provisioning remains unvalidated.
-- Remote push-to-start Live Activities require scheduler setup and physical-device delivery verification.
+- Remote push-to-start Live Activities have a running scheduler and partial APNs acceptance, but still require physical-device presentation plus update/end verification.
 - Widget App Group signing and on-device refresh cadence still require Apple Developer capability and physical-device validation.
 - Customer-facing privacy copy, moderation flows, account deletion/export, final App Store assets, and TestFlight validation remain incomplete.
 

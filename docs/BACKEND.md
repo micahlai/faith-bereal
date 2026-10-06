@@ -100,7 +100,7 @@ cp supabase/.env.example supabase/.env.local
 npx supabase functions serve dispatch-prompts --env-file supabase/.env.local
 ```
 
-Do not use the example values outside local development. Hosted deployment also needs a once-per-minute Cron/`pg_net` call to the function with `x-dispatch-secret` sourced from Vault.
+Do not use the example values outside local development. Hosted deployment also needs a once-per-minute Cron/`pg_net` call to the function. Authenticate that server-only call either with `x-dispatch-secret` sourced from Vault or the Supabase dashboard's server secret `apikey`; never put either credential in the app.
 
 The migrations deliberately revoke direct writes to circles, memberships, prompts, blessings, and responses. Clients use transactional RPCs so deadlines, membership, uniqueness, path ownership, and server timestamps cannot be bypassed by a modified app. Realtime tables are published, but RLS remains the read boundary.
 
