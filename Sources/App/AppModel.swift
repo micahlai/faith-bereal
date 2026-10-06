@@ -261,11 +261,19 @@ final class AppModel {
     }
 
     func switchCircle(to circleID: UUID) async {
-        guard circle?.id != circleID, circles.contains(where: { $0.id == circleID }) else { return }
+        guard !isSwitchingCircle,
+              circle?.id != circleID,
+              circles.contains(where: { $0.id == circleID }),
+              let currentUser else { return }
         isSwitchingCircle = true
         defer { isSwitchingCircle = false }
+        realtimeTask?.cancel()
+        realtimeTask = nil
         do {
-            let context = try await repository.circleContext(circleID: circleID)
+            let (context, targetLanes) = try await loadCircleSwitchData(
+                circleID: circleID,
+                viewerID: currentUser.id
+            )
             let knownInviteCode = circles.first(where: { $0.id == circleID })?.inviteCode
             let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
             circle = resolvedCircle
@@ -274,19 +282,46 @@ final class AppModel {
             isDebugPromptPreview = false
 #endif
             submittedBlessing = nil
-            lanes = []
+            lanes = targetLanes
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
                 circles[index] = resolvedCircle
             }
             Self.persistedCircleID = circleID
-            try await refreshTimeline()
+            scheduleWidgetSnapshotRefresh()
             startRealtimeUpdates()
             if let prompt = context.prompt, prompt.phase(at: .now) == .open {
                 await startLiveActivity(for: prompt, circle: resolvedCircle)
             }
         } catch {
-            message = error.localizedDescription
+            startRealtimeUpdates()
+            guard !Task.isCancelled else { return }
+            message = Self.isCancellation(error)
+                ? "The circle switch was interrupted. Please try again."
+                : error.localizedDescription
         }
+    }
+
+    private func loadCircleSwitchData(
+        circleID: UUID,
+        viewerID: UUID
+    ) async throws -> (CircleContext, [TimelineLane]) {
+        do {
+            let context = try await repository.circleContext(circleID: circleID)
+            let lanes = try await repository.timeline(circleID: circleID, viewerID: viewerID, now: .now)
+            return (context, lanes)
+        } catch {
+            guard Self.isCancellation(error), !Task.isCancelled else { throw error }
+            await Task.yield()
+            let context = try await repository.circleContext(circleID: circleID)
+            let lanes = try await repository.timeline(circleID: circleID, viewerID: viewerID, now: .now)
+            return (context, lanes)
+        }
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let error = error as NSError
+        return error.domain == "Swift.CancellationError" || error.code == NSURLErrorCancelled
     }
 
     func submit(

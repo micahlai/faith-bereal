@@ -16,6 +16,7 @@
 - Failed audio-engine startup now removes its installed tap and clears the partial recording instead of leaving a poisoned recorder lifecycle.
 - Audio and photo uploads now use the Supabase data-upload API so their declared MIME type is preserved. The private media bucket also accepts octet-stream for the SDK’s streamed video-upload path.
 - Widget snapshots now use an atomic file in the shared App Group container for reliable app-to-extension delivery on physical devices, with the former shared-defaults value retained as a migration fallback.
+- Circle switching now loads the destination context and timeline before changing visible state, retries one transient cancellation, and silently handles task cancellation instead of exposing Swift’s internal cancellation error.
 
 ## 2026-10-05 invite-code display fix
 
