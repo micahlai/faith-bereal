@@ -10,7 +10,15 @@ struct RootView: View {
             case .idle, .loading:
                 LoadingView()
             case .ready:
-                MainTabView()
+                if !model.hasSeenAbout {
+                    AboutView { model.hasSeenAbout = true }
+                } else if !model.hasChosenInitialAppearance {
+                    AppearanceOnboardingView { model.hasChosenInitialAppearance = true }
+                } else if model.circles.isEmpty {
+                    EmptyCircleShell()
+                } else {
+                    MainTabView()
+                }
             case .signedOut:
                 SignInView()
             case let .failed(message):
@@ -48,6 +56,115 @@ struct RootView: View {
     }
 }
 
+private struct EmptyCircleShell: View {
+    @State private var showingUserSettings = false
+    @State private var showingAbout = false
+
+    var body: some View {
+        NavigationStack {
+            CircleView()
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Menu {
+                            Button("About manna circle", systemImage: "info.circle") { showingAbout = true }
+                            Button("User settings", systemImage: "person.crop.circle") { showingUserSettings = true }
+                        } label: {
+                            Image(systemName: "line.3.horizontal").frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityLabel("App menu")
+                    }
+                }
+        }
+        .sheet(isPresented: $showingUserSettings) { UserSettingsView(isPresented: $showingUserSettings) }
+        .sheet(isPresented: $showingAbout) { AboutView(showsDismissButton: true) { showingAbout = false } }
+    }
+}
+
+private struct AboutView: View {
+    var showsDismissButton = false
+    let onContinue: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.canvas.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 28) {
+                        Image(systemName: "circle.hexagongrid.fill")
+                            .font(.system(size: 72, weight: .light))
+                            .foregroundStyle(AppTheme.primary)
+                        VStack(spacing: 8) {
+                            Text("manna circle")
+                                .font(.system(.largeTitle, design: .serif, weight: .bold))
+                            Text("daily blessings, shared together")
+                                .font(.title3)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                        }
+                        VStack(alignment: .leading, spacing: 20) {
+                            aboutPoint("bell.badge", "One shared moment", "Each circle receives one daily blessing time, wherever its members are.")
+                            aboutPoint("quote.bubble", "Share what blessed you", "Type it, speak it, or record a video—and optionally tag a Bible passage.")
+                            aboutPoint("person.3", "Presence before scrolling", "Today’s posts unlock after you share. Circle history always stays available.")
+                        }
+                        .blessingCard()
+                        Button(showsDismissButton ? "Done" : "Continue") { onContinue() }
+                            .buttonStyle(.borderedProminent)
+                            .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+                    }
+                    .frame(maxWidth: 620)
+                    .padding(AppTheme.pagePadding)
+                }
+            }
+            .navigationTitle(showsDismissButton ? "About" : "")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func aboutPoint(_ icon: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon).font(.title2).foregroundStyle(AppTheme.primary).frame(width: 32)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(detail).font(.subheadline).foregroundStyle(AppTheme.secondaryInk)
+            }
+        }
+    }
+}
+
+private struct AppearanceOnboardingView: View {
+    @Environment(AppModel.self) private var model
+    let onContinue: () -> Void
+
+    var body: some View {
+        @Bindable var model = model
+        NavigationStack {
+            ZStack {
+                AppTheme.canvas.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Make it feel at home")
+                            .font(.system(.largeTitle, design: .serif, weight: .bold))
+                        Text("Choose how manna circle looks. You can change this anytime in User settings.")
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    Picker("Appearance", selection: $model.appearancePreference) {
+                        ForEach(AppearancePreference.allCases) { preference in
+                            Label(preference.title, systemImage: preference.systemImage).tag(preference)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .blessingCard()
+                    Spacer()
+                    Button("Continue") { onContinue() }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+                }
+                .frame(maxWidth: 620)
+                .padding(AppTheme.pagePadding)
+            }
+        }
+    }
+}
+
 private struct LoadingView: View {
     var body: some View {
         ZStack {
@@ -70,27 +187,28 @@ private struct LoadingView: View {
 struct MainTabView: View {
     @Environment(AppModel.self) private var model
     @State private var showingUserSettings = false
+    @State private var showingAbout = false
 
     var body: some View {
         @Bindable var model = model
         TabView(selection: $model.selectedTab) {
             NavigationStack {
                 TodayView()
-                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings) }
+                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout) }
             }
             .tabItem { Label("Today", systemImage: "sun.max") }
             .tag(0)
 
             NavigationStack {
                 CircleTimelineView()
-                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings) }
+                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout) }
             }
             .tabItem { Label("Timeline", systemImage: "point.3.connected.trianglepath.dotted") }
             .tag(1)
 
             NavigationStack {
                 CircleView()
-                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings) }
+                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout) }
             }
             .tabItem { Label("Circle", systemImage: "person.3") }
             .tag(2)
@@ -103,6 +221,7 @@ struct MainTabView: View {
         .sheet(isPresented: $showingUserSettings) {
             UserSettingsView(isPresented: $showingUserSettings)
         }
+        .sheet(isPresented: $showingAbout) { AboutView(showsDismissButton: true) { showingAbout = false } }
         .sheet(item: $model.deepLinkedBlessing) { item in
             BlessingDetailView(
                 member: item.member,
@@ -117,10 +236,16 @@ struct MainTabView: View {
 private struct GlobalAppToolbar: ToolbarContent {
     @Environment(AppModel.self) private var model
     @Binding var showingUserSettings: Bool
+    @Binding var showingAbout: Bool
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Menu {
+                Button {
+                    showingAbout = true
+                } label: {
+                    Label("About manna circle", systemImage: "info.circle")
+                }
                 Button {
                     showingUserSettings = true
                 } label: {

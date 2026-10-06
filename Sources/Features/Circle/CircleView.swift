@@ -13,8 +13,12 @@ struct CircleView: View {
             AppTheme.canvas.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    circleHeader
-                    members
+                    if model.circle == nil {
+                        emptyHeader
+                    } else {
+                        circleHeader
+                        members
+                    }
                     actions
                 }
                 .frame(maxWidth: 680)
@@ -23,10 +27,23 @@ struct CircleView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .navigationTitle("Circle")
+        .navigationTitle(model.circle == nil ? "Let’s get started" : "Circle")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingJoin) { joinSheet }
         .sheet(isPresented: $showingCreate) { createSheet }
+    }
+
+    private var emptyHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: "person.3.sequence.fill")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(AppTheme.primary)
+            Text("Blessings are better together")
+                .font(.system(.title, design: .serif, weight: .semibold))
+            Text("Join with a code from someone you know, or start a new circle and invite them.")
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+        .blessingCard()
     }
 
     private var circleHeader: some View {
@@ -118,7 +135,7 @@ struct CircleView: View {
     private var actions: some View {
         VStack(spacing: 12) {
             Button { showingJoin = true } label: {
-                Label("Join another circle", systemImage: "person.badge.plus")
+                Label(model.circle == nil ? "Join a circle" : "Join another circle", systemImage: "person.badge.plus")
                     .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
             .buttonStyle(.borderedProminent)

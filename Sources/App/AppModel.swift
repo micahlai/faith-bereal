@@ -39,6 +39,12 @@ final class AppModel {
     var submittedBlessing: Blessing?
     var deepLinkedBlessing: BlessingFeedItem?
     var isForcingCirclePrompt = false
+    var hasSeenAbout: Bool {
+        didSet { UserDefaults.standard.set(hasSeenAbout, forKey: Self.hasSeenAboutKey) }
+    }
+    var hasChosenInitialAppearance: Bool {
+        didSet { UserDefaults.standard.set(hasChosenInitialAppearance, forKey: Self.hasChosenAppearanceKey) }
+    }
 #if DEBUG
     var isRunningDebugAction = false
     var isDebugPromptPreview = false
@@ -63,6 +69,8 @@ final class AppModel {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
+        self.hasSeenAbout = UserDefaults.standard.bool(forKey: Self.hasSeenAboutKey)
+        self.hasChosenInitialAppearance = UserDefaults.standard.bool(forKey: Self.hasChosenAppearanceKey)
         self.appearancePreference = AppearancePreference(
             rawValue: UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
         ) ?? .automatic
@@ -762,6 +770,8 @@ final class AppModel {
     }
 
     private static let appearanceKey = "user.appearancePreference"
+    private static let hasSeenAboutKey = "onboarding.hasSeenAbout"
+    private static let hasChosenAppearanceKey = "onboarding.hasChosenAppearance"
     private static let widgetRefreshKey = "user.widgetRefreshMinutes"
     static let widgetRefreshOptions = [15, 30, 60, 120, 240]
 
