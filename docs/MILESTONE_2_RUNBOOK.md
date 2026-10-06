@@ -28,7 +28,7 @@ Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the untracked file, regener
 
 ## 4. Configure and deploy APNs dispatch
 
-Set these Edge Function secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DISPATCH_SECRET`, `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_BUNDLE_ID`, and `APNS_PRIVATE_KEY`.
+For the hosted function, Supabase automatically provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. Set only these custom secrets: `DISPATCH_SECRET`, `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_BUNDLE_ID`, and `APNS_PRIVATE_KEY`. The local `supabase/.env.local` file also needs the Supabase values when serving the function locally.
 
 ```sh
 npx supabase secrets set --env-file supabase/.env.production
