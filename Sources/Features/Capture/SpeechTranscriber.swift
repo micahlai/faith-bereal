@@ -2,6 +2,21 @@ import AVFoundation
 import Observation
 import Speech
 
+private final class SpeechAudioTapSink: @unchecked Sendable {
+    private let request: SFSpeechAudioBufferRecognitionRequest
+    private let audioFile: AVAudioFile
+
+    init(request: SFSpeechAudioBufferRecognitionRequest, audioFile: AVAudioFile) {
+        self.request = request
+        self.audioFile = audioFile
+    }
+
+    func receive(_ buffer: AVAudioPCMBuffer) {
+        request.append(buffer)
+        try? audioFile.write(from: buffer)
+    }
+}
+
 @MainActor
 @Observable
 final class SpeechTranscriber: NSObject {
@@ -23,6 +38,7 @@ final class SpeechTranscriber: NSObject {
     private var task: SFSpeechRecognitionTask?
     private var hasInputTap = false
     private var recordedAudioFile: AVAudioFile?
+    private var tapSink: SpeechAudioTapSink?
     private var fileContinuation: CheckedContinuation<String?, Never>?
     private var recognitionSessionID: UUID?
 
@@ -45,6 +61,7 @@ final class SpeechTranscriber: NSObject {
         task?.finish()
         request = nil
         task = nil
+        tapSink = nil
         recordedAudioFile = nil
         deactivateAudioSession()
         state = .idle
@@ -131,9 +148,10 @@ final class SpeechTranscriber: NSObject {
             state = .failed("The audio recording could not be created.")
             return
         }
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, when in
-            request.append(buffer)
-            try? audioFile.write(from: buffer)
+        let tapSink = SpeechAudioTapSink(request: request, audioFile: audioFile)
+        self.tapSink = tapSink
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+            tapSink.receive(buffer)
         }
         hasInputTap = true
 
