@@ -727,6 +727,10 @@ final class AppModel {
         Task { await syncDeviceRegistration() }
     }
 
+    func receiveAPNSRegistrationFailure(_ failure: String) {
+        message = "This phone couldn’t register for notifications. Check that notifications are enabled, then reopen the app. \(failure)"
+    }
+
 #if DEBUG
     var supportsInteractiveDebugPrompt: Bool {
         repository is any DebugPromptProviding
@@ -988,6 +992,7 @@ final class AppModel {
                 options: [.alert, .sound, .badge]
             )
             UIApplication.shared.registerForRemoteNotifications()
+            await syncDeviceRegistration()
         } catch {
             message = "Notifications are off. You can enable them later in Settings."
         }
@@ -999,17 +1004,28 @@ final class AppModel {
     }
 
     private func syncDeviceRegistration() async {
-        guard loadState == .ready else { return }
-        do {
-            try await repository.registerDevice(
-                installationID: Self.installationID,
-                apnsToken: apnsToken,
-                pushToStartToken: pushToStartToken,
-                environment: Self.pushEnvironment
-            )
-        } catch {
-            message = "Push registration will retry next time the app opens."
+        guard loadState == .ready, apnsToken != nil || pushToStartToken != nil else { return }
+        var lastError: (any Error)?
+        for retryDelay in [Duration.zero, .seconds(1), .seconds(3)] {
+            do {
+                if retryDelay > .zero { try await Task.sleep(for: retryDelay) }
+                try Task.checkCancellation()
+                try await repository.registerDevice(
+                    installationID: Self.installationID,
+                    apnsToken: apnsToken,
+                    pushToStartToken: pushToStartToken,
+                    environment: Self.pushEnvironment
+                )
+                if message?.hasPrefix("Push registration") == true { message = nil }
+                return
+            } catch is CancellationError {
+                return
+            } catch {
+                lastError = error
+            }
         }
+        let detail = lastError?.localizedDescription ?? "The server did not respond."
+        message = "Push registration couldn’t reach the server after three attempts. Reopen the app to retry. \(detail)"
     }
 
     private func registerActivity(promptID: UUID, activityID: String, token: String) async {

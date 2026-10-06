@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             if let lastDeviceToken { deviceTokenHandler?(lastDeviceToken) }
         }
     }
+    var deviceRegistrationFailureHandler: ((String) -> Void)?
 
     var notificationURLHandler: ((URL) -> Void)? {
         didSet {
@@ -36,6 +37,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
         lastDeviceToken = token
         deviceTokenHandler?(token)
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: any Error
+    ) {
+        deviceRegistrationFailureHandler?(error.localizedDescription)
     }
 
     nonisolated func userNotificationCenter(
