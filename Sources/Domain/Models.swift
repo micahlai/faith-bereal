@@ -88,6 +88,7 @@ struct Member: Identifiable, Codable, Hashable, Sendable {
     var tintSeed: Int
     var bibleVersionID: String = "web"
     var joinedAt: Date = .distantPast
+    var avatarURL: URL? = nil
 }
 
 struct CircleGroup: Identifiable, Codable, Hashable, Sendable {

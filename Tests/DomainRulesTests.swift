@@ -862,6 +862,23 @@ final class DomainRulesTests: XCTestCase {
             XCTAssertEqual(error, .circleNotFound)
         }
     }
+
+    func testProfileUpdatePropagatesAcrossLocalCircles() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let before = try await repository.bootstrap()
+        let updated = try await repository.updateProfile(
+            memberID: before.currentUser.id,
+            displayName: "Manna Friend",
+            avatarURL: URL(string: "file:///tmp/avatar.jpg")
+        )
+        let after = try await repository.bootstrap()
+
+        XCTAssertEqual(updated.displayName, "Manna Friend")
+        XCTAssertEqual(updated.initials, "MF")
+        XCTAssertTrue(after.circles.allSatisfy { circle in
+            circle.members.first(where: { $0.id == updated.id })?.displayName == "Manna Friend"
+        })
+    }
 }
 
 private extension BlessingWidgetBlessing {

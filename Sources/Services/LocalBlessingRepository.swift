@@ -451,6 +451,29 @@ actor LocalBlessingRepository: BlessingRepository {
         return currentUser
     }
 
+    func updateProfile(memberID: UUID, displayName: String, avatarURL: URL?) async throws -> Member {
+        let cleaned = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard currentUser.id == memberID, !cleaned.isEmpty, cleaned.count <= 60 else {
+            throw BlessingError.invalidInviteCode
+        }
+        currentUser.displayName = cleaned
+        currentUser.initials = Self.initials(for: cleaned)
+        currentUser.avatarURL = avatarURL
+        for circleIndex in circles.indices {
+            if let memberIndex = circles[circleIndex].members.firstIndex(where: { $0.id == memberID }) {
+                circles[circleIndex].members[memberIndex].displayName = cleaned
+                circles[circleIndex].members[memberIndex].initials = currentUser.initials
+                circles[circleIndex].members[memberIndex].avatarURL = avatarURL
+            }
+        }
+        return currentUser
+    }
+
+    private static func initials(for name: String) -> String {
+        let value = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
+        return value.isEmpty ? "MC" : value
+    }
+
     func transferCircleOwnership(
         circleID: UUID,
         ownerID: UUID,

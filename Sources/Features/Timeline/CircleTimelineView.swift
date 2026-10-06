@@ -749,12 +749,28 @@ struct AvatarBadge: View {
     let size: CGFloat
 
     var body: some View {
+        Group {
+            if let avatarURL = member.avatarURL {
+                AsyncImage(url: avatarURL) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    initials
+                }
+            } else {
+                initials
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .accessibilityLabel(member.displayName)
+    }
+
+    private var initials: some View {
         Text(member.initials)
             .font(.system(size: size * 0.31, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(avatarColor, in: Circle())
-            .accessibilityLabel(member.displayName)
+            .background(avatarColor)
     }
 
     private var avatarColor: Color {

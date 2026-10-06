@@ -439,6 +439,42 @@ final class AppModel {
         }
     }
 
+    func updateProfile(displayName: String, avatarURL: URL?) async -> Bool {
+        guard let currentUser else { return false }
+        do {
+            let updated = try await repository.updateProfile(
+                memberID: currentUser.id,
+                displayName: displayName,
+                avatarURL: avatarURL
+            )
+            self.currentUser = updated
+            for index in circles.indices {
+                if let memberIndex = circles[index].members.firstIndex(where: { $0.id == updated.id }) {
+                    circles[index].members[memberIndex] = updatedWithJoinDate(updated, circles[index].members[memberIndex].joinedAt)
+                }
+            }
+            if let circleID = circle?.id, let refreshed = circles.first(where: { $0.id == circleID }) {
+                circle = refreshed
+            }
+            lanes = lanes.map { lane in
+                guard lane.member.id == updated.id else { return lane }
+                return TimelineLane(member: updatedWithJoinDate(updated, lane.member.joinedAt), events: lane.events)
+            }
+            scheduleWidgetSnapshotRefresh()
+            message = "Profile saved."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    private func updatedWithJoinDate(_ member: Member, _ joinedAt: Date) -> Member {
+        var updated = member
+        updated.joinedAt = joinedAt
+        return updated
+    }
+
     func transferCurrentCircleOwnership(to newOwnerID: UUID) async -> Bool {
         guard let circle, let currentUser else { return false }
         do {

@@ -4,6 +4,7 @@ import Supabase
 actor SupabaseBlessingRepository: BlessingRepository {
     private let client: SupabaseClient
     private let mediaBucket = "blessing-media"
+    private let avatarBucket = "avatars"
 
     init(client: SupabaseClient) {
         self.client = client
@@ -12,7 +13,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
     func bootstrap() async throws -> AppBootstrap {
         let userID = try await client.auth.session.user.id
         let profile = try await fetchProfile(userID: userID)
-        let currentUser = member(from: profile, joinedAt: .distantPast)
+        let currentUser = try await member(from: profile, joinedAt: .distantPast)
 
         let memberships: [MembershipRow] = try await client
             .from("circle_members")
@@ -286,7 +287,32 @@ actor SupabaseBlessingRepository: BlessingRepository {
         .single()
         .execute()
         .value
-        return member(from: row, joinedAt: .distantPast)
+        return try await member(from: row, joinedAt: .distantPast)
+    }
+
+    func updateProfile(memberID: UUID, displayName: String, avatarURL: URL?) async throws -> Member {
+        let cleaned = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty, cleaned.count <= 60 else { throw BlessingError.invalidInviteCode }
+        var avatarPath: String?
+        if let avatarURL {
+            avatarPath = "\(memberID.uuidString.lowercased())/avatar.jpg"
+            _ = try await client.storage.from(avatarBucket).upload(
+                avatarPath!,
+                fileURL: avatarURL,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+        }
+        let row: ProfileRow
+        if let avatarPath {
+            row = try await client.from("profiles")
+                .update(ProfileUpdate(displayName: cleaned, avatarPath: avatarPath))
+                .eq("id", value: memberID).select().single().execute().value
+        } else {
+            row = try await client.from("profiles")
+                .update(ProfileNameUpdate(displayName: cleaned))
+                .eq("id", value: memberID).select().single().execute().value
+        }
+        return try await member(from: row, joinedAt: .distantPast)
     }
 
     func transferCircleOwnership(
@@ -509,9 +535,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .in("id", values: ids)
             .execute()
             .value
-        let members = membershipRows.compactMap { membership -> Member? in
-            guard let profile = profiles.first(where: { $0.id == membership.userID }) else { return nil }
-            return member(from: profile, joinedAt: membership.joinedAt)
+        var members: [Member] = []
+        for membership in membershipRows {
+            guard let profile = profiles.first(where: { $0.id == membership.userID }) else { continue }
+            members.append(try await member(from: profile, joinedAt: membership.joinedAt))
         }
         return CircleGroup(
             id: row.id,
@@ -592,7 +619,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         )
     }
 
-    private func member(from row: ProfileRow, joinedAt: Date) -> Member {
+    private func member(from row: ProfileRow, joinedAt: Date) async throws -> Member {
         let parts = row.displayName.split(separator: " ")
         let initials = parts.prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
         return Member(
@@ -601,8 +628,14 @@ actor SupabaseBlessingRepository: BlessingRepository {
             initials: initials.isEmpty ? "BC" : initials,
             tintSeed: row.id.uuidString.utf8.reduce(0) { $0 + Int($1) },
             bibleVersionID: row.bibleVersionID,
-            joinedAt: joinedAt
+            joinedAt: joinedAt,
+            avatarURL: try await avatarSignedURL(path: row.avatarPath)
         )
+    }
+
+    private func avatarSignedURL(path: String?) async throws -> URL? {
+        guard let path else { return nil }
+        return try await client.storage.from(avatarBucket).createSignedURL(path: path, expiresIn: 86_400)
     }
 
     private func circleCalendar(_ circle: CircleGroup) -> Calendar {
@@ -637,12 +670,29 @@ private struct ProfileRow: Codable, Sendable {
     let id: UUID
     let displayName: String
     let bibleVersionID: String
+    let avatarPath: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case displayName = "display_name"
         case bibleVersionID = "bible_version_id"
+        case avatarPath = "avatar_path"
     }
+}
+
+private struct ProfileUpdate: Encodable, Sendable {
+    let displayName: String
+    let avatarPath: String?
+
+    enum CodingKeys: String, CodingKey {
+        case displayName = "display_name"
+        case avatarPath = "avatar_path"
+    }
+}
+
+private struct ProfileNameUpdate: Encodable, Sendable {
+    let displayName: String
+    enum CodingKeys: String, CodingKey { case displayName = "display_name" }
 }
 
 private struct MembershipRow: Codable, Sendable {

@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
@@ -192,6 +193,7 @@ private struct GlobalAppToolbar: ToolbarContent {
 private struct UserSettingsView: View {
     @Environment(AppModel.self) private var model
     @Binding var isPresented: Bool
+    @State private var showingProfileEditor = false
 
     var body: some View {
         @Bindable var model = model
@@ -199,7 +201,23 @@ private struct UserSettingsView: View {
             Form {
                 if let user = model.currentUser {
                     Section("Account") {
-                        LabeledContent("Name", value: user.displayName)
+                        Button { showingProfileEditor = true } label: {
+                            HStack(spacing: 12) {
+                                AvatarBadge(member: user, size: 44)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(user.displayName).foregroundStyle(AppTheme.ink)
+                                    Text("Edit name and photo")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.secondaryInk)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .frame(minHeight: 44)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
 
@@ -290,5 +308,89 @@ private struct UserSettingsView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showingProfileEditor) {
+            if let user = model.currentUser {
+                ProfileEditorView(user: user, isPresented: $showingProfileEditor)
+            }
+        }
+    }
+}
+
+private struct ProfileEditorView: View {
+    @Environment(AppModel.self) private var model
+    let user: Member
+    @Binding var isPresented: Bool
+    @State private var displayName: String
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var photoURL: URL?
+    @State private var isSaving = false
+
+    init(user: Member, isPresented: Binding<Bool>) {
+        self.user = user
+        _isPresented = isPresented
+        _displayName = State(initialValue: user.displayName)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 12) {
+                            avatarPreview
+                            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                                Label("Choose photo", systemImage: "photo")
+                                    .frame(minHeight: 44)
+                            }
+                        }
+                        Spacer()
+                    }
+                }
+                Section("Name") {
+                    TextField("Your name", text: $displayName)
+                        .textContentType(.name)
+                        .autocorrectionDisabled()
+                }
+            }
+            .navigationTitle("Edit profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresented = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving…" : "Save") {
+                        Task {
+                            isSaving = true
+                            if await model.updateProfile(displayName: displayName, avatarURL: photoURL) {
+                                isPresented = false
+                            }
+                            isSaving = false
+                        }
+                    }
+                    .disabled(displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
+                }
+            }
+            .task(id: selectedPhoto) {
+                guard let selectedPhoto else { return }
+                do {
+                    guard let data = try await selectedPhoto.loadTransferable(type: Data.self) else { return }
+                    photoURL = try CaptureMediaStore.persistPhoto(data: data)
+                } catch {
+                    model.message = "Couldn’t prepare that photo: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var avatarPreview: some View {
+        if let photoURL {
+            AsyncImage(url: photoURL) { image in image.resizable().scaledToFill() } placeholder: { ProgressView() }
+                .frame(width: 96, height: 96)
+                .clipShape(Circle())
+        } else {
+            AvatarBadge(member: user, size: 96)
+        }
     }
 }
