@@ -349,6 +349,20 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertTrue(persistedURL.path.contains("BlessingCaptures"))
     }
 
+    func testProfilePhotoIsDownsampledBeforeUpload() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2_400, height: 1_600)).image { context in
+            UIColor.systemOrange.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 2_400, height: 1_600))
+        }
+        let sourceData = try XCTUnwrap(image.pngData())
+        let persistedURL = try CaptureMediaStore.persistProfilePhoto(data: sourceData)
+        defer { try? FileManager.default.removeItem(at: persistedURL) }
+
+        let persistedImage = try XCTUnwrap(UIImage(contentsOfFile: persistedURL.path))
+        XCTAssertLessThanOrEqual(max(persistedImage.size.width, persistedImage.size.height), 1_024)
+        XCTAssertLessThan(try Data(contentsOf: persistedURL).count, sourceData.count)
+    }
+
     func testTypedBlessingCanIncludeOptionalPhoto() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)

@@ -306,6 +306,7 @@ enum BlessingError: LocalizedError, Equatable {
     case notCircleOwner
     case invalidOwnerTransfer
     case invalidMemberRemoval
+    case profileSaveTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -318,6 +319,7 @@ enum BlessingError: LocalizedError, Equatable {
         case .notCircleOwner: "Only the current circle owner can make that change."
         case .invalidOwnerTransfer: "Choose another current member to become the circle owner."
         case .invalidMemberRemoval: "Choose another current member to remove from the circle."
+        case .profileSaveTimedOut: "The profile photo upload timed out. Check your connection and try again."
         }
     }
 }

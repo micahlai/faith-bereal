@@ -3,6 +3,7 @@
 ## 2026-10-06 profiles, onboarding, and join-day access
 
 - User settings now support changing the profile name and choosing a private profile photo; Apple’s first-authorization name remains the initial name, while initials are used until a photo is chosen because Sign in with Apple does not provide profile photos.
+- Profile photos are downsampled to a 1024-pixel JPEG before upload, and hosted avatar uploads fail with a clear timeout instead of leaving Profile Save spinning indefinitely.
 - First launch now introduces manna circle, asks for appearance and Home Screen icon preferences, and then enters a focused join/create experience. Accounts with no circle remain in that experience, and About remains available from the app menu.
 - A member may share against the current circle-day prompt at any time on the local calendar day they join. This exception is enforced by the local repository, hosted submission RPC gate, and private media-upload policy dependency—not only by the UI.
 - Simulator UI tests can bypass the one-time onboarding with `BLESSING_CIRCLE_SKIP_ONBOARDING=1` while ordinary local-demo launches continue to exercise onboarding.

@@ -482,6 +482,7 @@ private struct ProfileEditorView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var photoURL: URL?
     @State private var isSaving = false
+    @State private var isPreparingPhoto = false
 
     init(user: Member, isPresented: Binding<Bool>) {
         self.user = user
@@ -500,6 +501,14 @@ private struct ProfileEditorView: View {
                             PhotosPicker(selection: $selectedPhoto, matching: .images) {
                                 Label("Choose photo", systemImage: "photo")
                                     .frame(minHeight: 44)
+                            }
+                            if isPreparingPhoto {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                    Text("Preparing photo…")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.secondaryInk)
+                                }
                             }
                         }
                         Spacer()
@@ -527,14 +536,16 @@ private struct ProfileEditorView: View {
                             isSaving = false
                         }
                     }
-                    .disabled(displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
+                    .disabled(displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving || isPreparingPhoto)
                 }
             }
             .task(id: selectedPhoto) {
                 guard let selectedPhoto else { return }
+                isPreparingPhoto = true
+                defer { isPreparingPhoto = false }
                 do {
                     guard let data = try await selectedPhoto.loadTransferable(type: Data.self) else { return }
-                    photoURL = try CaptureMediaStore.persistPhoto(data: data)
+                    photoURL = try CaptureMediaStore.persistProfilePhoto(data: data)
                 } catch {
                     model.message = "Couldn’t prepare that photo: \(error.localizedDescription)"
                 }

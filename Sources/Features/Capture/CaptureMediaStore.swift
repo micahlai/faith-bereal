@@ -28,6 +28,32 @@ enum CaptureMediaStore {
         return destinationURL
     }
 
+    static func persistProfilePhoto(data: Data, maximumPixelSize: CGFloat = 1_024) throws -> URL {
+        guard let sourceImage = UIImage(data: data), maximumPixelSize > 0 else {
+            throw BlessingError.cameraUnavailable
+        }
+        let pixelWidth = CGFloat(sourceImage.cgImage?.width ?? Int(sourceImage.size.width * sourceImage.scale))
+        let pixelHeight = CGFloat(sourceImage.cgImage?.height ?? Int(sourceImage.size.height * sourceImage.scale))
+        let longestSide = max(pixelWidth, pixelHeight)
+        let scale = min(1, maximumPixelSize / max(longestSide, 1))
+        let targetSize = CGSize(
+            width: max(1, (pixelWidth * scale).rounded()),
+            height: max(1, (pixelHeight * scale).rounded())
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let resized = UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+            sourceImage.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        guard let jpegData = resized.jpegData(compressionQuality: 0.78) else {
+            throw BlessingError.cameraUnavailable
+        }
+        let destinationURL = try newRecordingURL(pathExtension: "jpg")
+        try jpegData.write(to: destinationURL, options: .atomic)
+        return destinationURL
+    }
+
     private static func captureDirectory() throws -> URL {
         let baseURL = try FileManager.default.url(
             for: .cachesDirectory,

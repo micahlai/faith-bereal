@@ -299,11 +299,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         var avatarPath: String?
         if let avatarURL {
             avatarPath = "\(memberID.uuidString.lowercased())/avatar.jpg"
-            _ = try await client.storage.from(avatarBucket).upload(
-                avatarPath!,
-                fileURL: avatarURL,
-                options: FileOptions(contentType: "image/jpeg", upsert: true)
-            )
+            try await uploadAvatar(fileURL: avatarURL, path: avatarPath!)
         }
         let row: ProfileRow
         if let avatarPath {
@@ -316,6 +312,26 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 .eq("id", value: memberID).select().single().execute().value
         }
         return try await member(from: row, joinedAt: .distantPast)
+    }
+
+    private func uploadAvatar(fileURL: URL, path: String) async throws {
+        let client = client
+        let avatarBucket = avatarBucket
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                _ = try await client.storage.from(avatarBucket).upload(
+                    path,
+                    fileURL: fileURL,
+                    options: FileOptions(contentType: "image/jpeg", upsert: true)
+                )
+            }
+            group.addTask {
+                try await Task.sleep(for: .seconds(30))
+                throw BlessingError.profileSaveTimedOut
+            }
+            _ = try await group.next()
+            group.cancelAll()
+        }
     }
 
     func transferCircleOwnership(
