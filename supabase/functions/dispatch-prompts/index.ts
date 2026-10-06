@@ -86,15 +86,25 @@ let cachedToken: { value: string; createdAt: number } | undefined;
 
 async function providerToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  if (cachedToken && now - cachedToken.createdAt < 50 * 60) return cachedToken.value;
+  if (cachedToken && now - cachedToken.createdAt < 45 * 60) return cachedToken.value;
   const key = await importPKCS8(privateKeyPEM, "ES256");
-  const value = await new SignJWT({})
+  const candidate = await new SignJWT({})
     .setProtectedHeader({ alg: "ES256", kid: keyID })
     .setIssuer(teamID)
     .setIssuedAt(now)
     .sign(key);
-  cachedToken = { value, createdAt: now };
-  return value;
+  const { data, error } = await admin
+    .rpc("claim_apns_provider_token", { p_token: candidate })
+    .single();
+  if (error) throw error;
+
+  const stored = data as { token: string; created_at: string };
+  const createdAt = Math.floor(new Date(stored.created_at).getTime() / 1000);
+  if (!stored.token || !Number.isFinite(createdAt)) {
+    throw new Error("Invalid APNs provider token cache response");
+  }
+  cachedToken = { value: stored.token, createdAt };
+  return stored.token;
 }
 
 async function sendAPNs(
