@@ -62,6 +62,7 @@ final class MediaPlaybackController {
         let item = AVPlayerItem(asset: asset)
         player.replaceCurrentItem(with: item)
         do {
+            try configureAudioSessionForPlayback()
             let playable = try await asset.load(.isPlayable)
             guard playable else {
                 throw MediaPlaybackError.unplayable
