@@ -24,7 +24,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>app.blessingcircle.ios</string>
+			<string>app.manna-circle.ios</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>blessingcircle</string>

@@ -107,7 +107,7 @@
 		6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptActivityAttributes.swift; sourceTree = "<group>"; };
 		6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppComposition.swift; sourceTree = "<group>"; };
 		766D059B090295A07973C5B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCaptureView.swift; sourceTree = "<group>"; };
 		8041666727C8764C007E33AB /* BlessingCircleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleUITests.swift; sourceTree = "<group>"; };
 		86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalBlessingRepository.swift; sourceTree = "<group>"; };
@@ -116,13 +116,13 @@
 		94735A84240AC2C5107135A1 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		94EA65921D482A449590AD64 /* BibleTextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleTextService.swift; sourceTree = "<group>"; };
 		98F6955EDCB72669D8C4B54E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugPromptProviding.swift; sourceTree = "<group>"; };
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
 		A64B2CD999847E450C198DDA /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
-		AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleLiveActivity.swift; sourceTree = "<group>"; };
 		AF96D83DCB140C9B96F965AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseBlessingRepository.swift; sourceTree = "<group>"; };
@@ -592,7 +592,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "app.blessingcircle.ios.live-activity";
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ios.live-activity";
 				PRODUCT_NAME = BlessingCircleLiveActivity;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -610,7 +610,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.blessingcircle.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.tests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BlessingCircle.app/BlessingCircle";
@@ -627,7 +627,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "app.blessingcircle.ui-tests";
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ui-tests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = BlessingCircle;
@@ -706,13 +706,16 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A64B2CD999847E450C198DDA /* Development.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "MannaLight MannaDark";
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					MannaLight,
+					MannaDark,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Configuration/BlessingCircle.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = "Configuration/App-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "manna circle - daily blessings";
+				INFOPLIST_KEY_CFBundleDisplayName = "manna circle";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "manna circle uses the camera when you choose to take a photo or record a video blessing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "manna circle uses the microphone while you record a voice or video blessing.";
@@ -744,7 +747,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "app.blessingcircle.ios.live-activity";
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ios.live-activity";
 				PRODUCT_NAME = BlessingCircleLiveActivity;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -762,7 +765,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "app.blessingcircle.ui-tests";
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ui-tests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = BlessingCircle;
@@ -779,7 +782,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.blessingcircle.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.tests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BlessingCircle.app/BlessingCircle";
@@ -790,13 +793,16 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A64B2CD999847E450C198DDA /* Development.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "MannaLight MannaDark";
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					MannaLight,
+					MannaDark,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Configuration/BlessingCircle.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = "Configuration/App-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "manna circle - daily blessings";
+				INFOPLIST_KEY_CFBundleDisplayName = "manna circle";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "manna circle uses the camera when you choose to take a photo or record a video blessing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "manna circle uses the microphone while you record a voice or video blessing.";

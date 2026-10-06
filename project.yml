@@ -1,6 +1,6 @@
 name: BlessingCircle
 options:
-  bundleIdPrefix: app.blessingcircle
+  bundleIdPrefix: app.manna-circle
   deploymentTarget:
     iOS: "18.0"
   groupSortPosition: top
@@ -27,14 +27,14 @@ targets:
           - LiveActivityWidget
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios
+        PRODUCT_BUNDLE_IDENTIFIER: app.manna-circle.ios
         PRODUCT_MODULE_NAME: BlessingCircle
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES:
           - MannaLight
           - MannaDark
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
-        INFOPLIST_KEY_CFBundleDisplayName: manna circle - daily blessings
+        INFOPLIST_KEY_CFBundleDisplayName: manna circle
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
         INFOPLIST_KEY_NSMicrophoneUsageDescription: manna circle uses the microphone while you record a voice or video blessing.
@@ -61,7 +61,7 @@ targets:
         CFBundleName: manna circle
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: app.blessingcircle.ios
+            CFBundleURLName: app.manna-circle.ios
             CFBundleURLSchemes:
               - blessingcircle
         NSMicrophoneUsageDescription: manna circle uses the microphone while you record a voice or video blessing.
@@ -97,7 +97,7 @@ targets:
       - path: Sources/Shared/BlessingWidgetSnapshot.swift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ios.live-activity
+        PRODUCT_BUNDLE_IDENTIFIER: app.manna-circle.ios.live-activity
         PRODUCT_NAME: BlessingCircleLiveActivity
         SKIP_INSTALL: YES
         APPLICATION_EXTENSION_API_ONLY: YES
@@ -123,7 +123,7 @@ targets:
       - target: BlessingCircle
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.tests
+        PRODUCT_BUNDLE_IDENTIFIER: app.manna-circle.tests
         GENERATE_INFOPLIST_FILE: YES
   BlessingCircleUITests:
     type: bundle.ui-testing
@@ -134,6 +134,6 @@ targets:
       - target: BlessingCircle
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.blessingcircle.ui-tests
+        PRODUCT_BUNDLE_IDENTIFIER: app.manna-circle.ui-tests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: BlessingCircle
