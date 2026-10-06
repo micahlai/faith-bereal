@@ -58,29 +58,22 @@ final class BlessingCircleUITests: XCTestCase {
     }
 
     @MainActor
-    func testDebugDailyBlessingControlsAreAvailableWithLocalData() {
+    func testCircleOwnerCanForceLocalBlessingFromCircleSettings() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launch()
 
-        let menuButton = app.buttons["App menu"]
-        XCTAssertTrue(menuButton.waitForExistence(timeout: 5))
-        menuButton.tap()
-        let settingsButton = app.buttons["User settings"]
-        if !settingsButton.waitForExistence(timeout: 1) {
-            menuButton.tap()
-        }
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 2))
+        app.tabBars.buttons["Circle"].tap()
+        let settingsButton = app.buttons["circle-settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
         settingsButton.tap()
 
-        let startButton = app.buttons["Start daily blessing test"]
-        for _ in 0..<3 where !startButton.exists {
-            app.swipeUp()
-        }
-        XCTAssertTrue(app.buttons["Send test notification"].exists)
-        XCTAssertTrue(startButton.exists)
-        startButton.tap()
+        let forceButton = app.buttons["Force blessing notification"]
+        XCTAssertTrue(forceButton.waitForExistence(timeout: 3))
+        forceButton.tap()
+        XCTAssertTrue(app.buttons["Force blessing now"].waitForExistence(timeout: 2))
+        app.buttons["Force blessing now"].tap()
 
         let confirmation = app.alerts["manna circle"]
         XCTAssertTrue(confirmation.waitForExistence(timeout: 3))

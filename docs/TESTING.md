@@ -17,15 +17,15 @@ xcodebuild -project BlessingCircle.xcodeproj \
 
 Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
 
-## Debug notification and daily prompt controls
+## Owner force-notification control
 
-Debug builds add a **Developer testing** section at the bottom of User settings:
+The current circle owner has an **Owner testing** section in Circle settings:
 
-- **Send test notification** schedules a local, time-sensitive notification after five seconds. Background the app before it fires. Tapping it follows the same `blessingcircle://today/capture` route as the production APNs alert.
-- **Start daily blessing test** restarts today's prompt when the app is using `LocalBlessingRepository`, clears only the current local user's submission for that prompt, opens the full capture flow, and starts a local Live Activity.
-- With a hosted Supabase session, the daily control is preview-only: it exercises the Today timer and Live Activity but disables sharing. This preserves server-authoritative prompt timing and never writes test state to the hosted database.
+- **Force blessing notification** immediately opens or restarts today's server-authored response window after confirmation.
+- In hosted mode, the authenticated request is owner-authorized by the database and the Edge Function sends real APNs alerts and Live Activity start requests to every active registered device in that circle.
+- In local demo mode, the same control restarts today's in-memory prompt, clears only the current local user's submission for that prompt, and starts a local Live Activity without contacting APNs.
 
-Launch with `BLESSING_CIRCLE_FORCE_LOCAL=1` when a complete debug submission flow is needed. These controls are compiled out of Release builds.
+Launch with `BLESSING_CIRCLE_FORCE_LOCAL=1` for the complete simulator flow. Real multi-account delivery requires a deployed `dispatch-prompts` function with APNs secrets and physical devices registered in the same hosted circle.
 
 Use an available simulator name from `xcrun simctl list devices available` if the example device is unavailable.
 
@@ -46,6 +46,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - selected photos are normalized into stable local JPEG files instead of depending on temporary picker URLs;
 - text and voice blessings accept an optional photo, while video blessings reject a separate photo attachment.
 - restarting a local debug prompt resets the current user's submission and reopens a server-shaped response window without changing peer history.
+- forcing a prompt requires the current circle owner and uses that circle's configured response length.
 
 ## Integration tests
 

@@ -38,6 +38,7 @@ final class AppModel {
     var message: String?
     var submittedBlessing: Blessing?
     var deepLinkedBlessing: BlessingFeedItem?
+    var isForcingCirclePrompt = false
 #if DEBUG
     var isRunningDebugAction = false
     var isDebugPromptPreview = false
@@ -366,6 +367,52 @@ final class AppModel {
         }
     }
 
+    func forceCurrentCirclePrompt(now: Date = .now) async -> Bool {
+        guard let circle, let currentUser else { return false }
+        guard circle.ownerID == currentUser.id else {
+            message = BlessingError.notCircleOwner.localizedDescription
+            return false
+        }
+        guard !isForcingCirclePrompt else { return false }
+
+        isForcingCirclePrompt = true
+        defer { isForcingCirclePrompt = false }
+
+        do {
+            let outcome = try await repository.forceCirclePrompt(
+                circleID: circle.id,
+                ownerID: currentUser.id,
+                now: now
+            )
+            await activityController.end()
+            prompt = outcome.prompt
+            submittedBlessing = nil
+            isCapturePresented = false
+            selectedTab = 0
+#if DEBUG
+            isDebugPromptPreview = false
+#endif
+            try await refreshTimeline(now: now)
+
+            if !usesAuthentication {
+                let activityResult = await activityController.startIfNeeded(
+                    prompt: outcome.prompt,
+                    circle: circle,
+                    requestsPushUpdates: false
+                )
+                message = "Local blessing test started for \(outcome.memberCount) members. \(activityResult.debugMessage)"
+            } else if outcome.registeredDevices == 0 {
+                message = "The blessing window is open, but no member devices are registered for notifications yet."
+            } else {
+                message = "The blessing window is open for \(outcome.memberCount) members. Apple accepted \(outcome.deliveredNotifications) of \(outcome.attemptedNotifications) notification and Live Activity requests across \(outcome.registeredDevices) devices."
+            }
+            return true
+        } catch {
+            message = "Couldn’t force the blessing notification: \(error.localizedDescription)"
+            return false
+        }
+    }
+
     var bibleTranslations: [BibleTranslation] { BibleTranslation.publicDomain }
     var bibleTranslationGroups: [BibleTranslationGroup] { BibleTranslation.groups }
     var bibleBooks: [BibleBook] { BibleBook.all }
@@ -589,55 +636,6 @@ final class AppModel {
 #if DEBUG
     var supportsInteractiveDebugPrompt: Bool {
         repository is any DebugPromptProviding
-    }
-
-    func scheduleDebugNotification(delay: TimeInterval = 5) async {
-        guard let circle else {
-            message = "Choose a circle before sending a test notification."
-            return
-        }
-        isRunningDebugAction = true
-        defer { isRunningDebugAction = false }
-
-        let center = UNUserNotificationCenter.current()
-        do {
-            let settings = await center.notificationSettings()
-            if settings.authorizationStatus == .notDetermined {
-                _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-            }
-            let updatedSettings = await center.notificationSettings()
-            guard updatedSettings.authorizationStatus == .authorized ||
-                    updatedSettings.authorizationStatus == .provisional else {
-                message = "Notifications are disabled. Enable them in Settings, then try again."
-                return
-            }
-
-            let content = UNMutableNotificationContent()
-            content.title = "\(circle.name) is ready"
-            content.body = "You have \(circle.responseWindowMinutes) minutes to share today’s blessing."
-            content.sound = .default
-            content.interruptionLevel = .timeSensitive
-            content.threadIdentifier = circle.id.uuidString
-            content.userInfo = [
-                "route": "blessingcircle://today/capture?circle=\(circle.id.uuidString)",
-                "debug": true,
-            ]
-            let request = UNNotificationRequest(
-                identifier: "debug-daily-blessing-\(circle.id.uuidString)",
-                content: content,
-                trigger: UNTimeIntervalNotificationTrigger(
-                    timeInterval: max(1, delay),
-                    repeats: false
-                )
-            )
-            center.removePendingNotificationRequests(
-                withIdentifiers: ["debug-daily-blessing-\(circle.id.uuidString)"]
-            )
-            try await center.add(request)
-            message = "Test notification scheduled. Background the app to see it in about \(Int(max(1, delay))) seconds."
-        } catch {
-            message = "Couldn’t schedule the test notification: \(error.localizedDescription)"
-        }
     }
 
     func startDebugDailyBlessing(now: Date = .now) async {

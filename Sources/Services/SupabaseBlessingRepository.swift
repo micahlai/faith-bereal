@@ -250,6 +250,30 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await fetchCircle(id: row.id, inviteCode: "")
     }
 
+    func forceCirclePrompt(
+        circleID: UUID,
+        ownerID: UUID,
+        now: Date
+    ) async throws -> CirclePromptDispatch {
+        let response: ForcePromptResponse = try await client.functions.invoke(
+            "dispatch-prompts",
+            options: FunctionInvokeOptions(
+                body: ForcePromptRequest(action: "force", circleID: circleID)
+            )
+        )
+        let context = try await circleContext(circleID: circleID)
+        guard let prompt = context.prompt, prompt.id == response.promptID else {
+            throw BlessingError.circleNotFound
+        }
+        return CirclePromptDispatch(
+            prompt: prompt,
+            deliveredNotifications: response.delivered,
+            attemptedNotifications: response.attempted,
+            registeredDevices: response.registeredDevices,
+            memberCount: response.memberCount
+        )
+    }
+
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member {
         let row: ProfileRow = try await client.rpc(
             "update_bible_version",
@@ -667,6 +691,31 @@ private struct PromptRow: Codable, Sendable {
         case localDate = "local_date"
         case startsAt = "starts_at"
         case endsAt = "ends_at"
+    }
+}
+
+private struct ForcePromptRequest: Encodable, Sendable {
+    let action: String
+    let circleID: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case action
+        case circleID = "circle_id"
+    }
+}
+
+private struct ForcePromptResponse: Decodable, Sendable {
+    let promptID: UUID
+    let delivered: Int
+    let attempted: Int
+    let registeredDevices: Int
+    let memberCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case delivered, attempted
+        case promptID = "promptID"
+        case registeredDevices
+        case memberCount
     }
 }
 

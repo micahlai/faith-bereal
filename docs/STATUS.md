@@ -36,7 +36,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Thirty-three domain tests and four UI tests pass on the simulator; the prior 32-domain/3-UI suite also passed on a signed iPhone 14 Pro running iOS 26.6.2. The UI coverage includes Today, Timeline scrolling, dark appearance, accessibility-size text, text/voice-versus-video photo attachment availability, and the local daily-blessing debug control.
+- Thirty-six domain tests and four UI tests pass on the simulator; the prior 32-domain/3-UI suite also passed on a signed iPhone 14 Pro running iOS 26.6.2. The UI coverage includes Today, Timeline scrolling, dark appearance, accessibility-size text, text/voice-versus-video photo attachment availability, and the local owner force-notification flow.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols; blank configuration safely falls back to the local demo.
@@ -56,16 +56,17 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - The local failure matrix covers deterministic prompt, visibility, repeat, media, widget, and UI edges; signed-device load/battery/network/media/push evidence remains open.
 - Circle owners can remove another active member through a confirmed settings action; the server-authorized RPC is deployed but awaits two-account validation. Abuse reporting remains open.
 - Typed and voice blessings can include one optional captured or uploaded photo, persisted locally and represented by a private `photo_path` in the production adapter; video blessings cannot add a separate photo.
-- The hosted Supabase project is linked and migrations through `202609300004` are applied. Ownership transfer, repeat blessings, member removal, and blessing-photo persistence remain subject to two-account/physical-media acceptance. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
+- The hosted Supabase project is linked and migrations through `202610050001` are applied. The database reports `ACTIVE_HEALTHY`, and the new owner-only `force_circle_prompt` RPC is deployed. Ownership transfer, repeat blessings, member removal, blessing-photo persistence, and forced prompt delivery remain subject to two-account/physical-media acceptance. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 - The Supabase Apple provider is enabled for native bundle ID `app.blessingcircle.ios`. A signed physical-device flow completed Apple token exchange, profile bootstrap, membership loading, device registration, and circle creation against the hosted project on 2026-10-05.
 - After the `202609300002` circle backfill deployed, the physical-device client loaded circles, profiles, memberships, and prompts without the prior missing-field decoding failure.
-- Debug builds expose native User Settings controls for a local push-style notification and a daily-blessing test. Local demo mode supports the full reset/timer/capture/Live Activity flow; hosted mode is a non-submittable timer/Live Activity preview so server-authored prompt timing and hosted data remain protected. Release builds contain neither control.
+- Circle settings expose a confirmed owner-only force-notification action. Local demo mode restarts the timer/capture/Live Activity flow; hosted mode calls an owner-authorized server RPC and is designed to dispatch real APNs alerts and Live Activity start requests to every registered member device.
 
 ## In progress — not yet validated
 
 - Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
 - Validating migrations `202609300001` through `202609300004` with two accounts and real text/voice photo uploads.
 - Configuring APNs provider secrets, deploying and scheduling `dispatch-prompts`, and validating remote notification and Live Activity delivery. No Edge Function is currently deployed.
+- The owner force-notification client and server code are implemented, but cross-account delivery remains unavailable until that Edge Function and its APNs secrets are deployed.
 - Running the physical-device Apple signing, APNs, and two-account acceptance matrix.
 - Completing Milestone 4 work that depends on hosted Supabase, Apple Developer capabilities, physical devices, and final distribution assets.
 

@@ -2,6 +2,8 @@
 
 Invoke this function once per minute from Supabase Cron/`pg_net`. Send the Vault-held `DISPATCH_SECRET` in `x-dispatch-secret`; do not schedule it with an end-user JWT.
 
+The app may also invoke the function with its normal user bearer token and `{ "action": "force", "circle_id": "…" }`. That path calls the owner-only `force_circle_prompt` RPC before dispatching. Never use `DISPATCH_SECRET` in the app.
+
 It idempotently creates tomorrow’s prompt for every circle, atomically claims due prompts, sends a privacy-safe standard alert and push-to-start Live Activity request to active devices, updates active Live Activities with response counts and per-user completion, and ends expired activities before closing their prompts.
 
 Before production:

@@ -37,6 +37,8 @@ npx supabase functions deploy dispatch-prompts --no-verify-jwt
 
 Schedule an authenticated request to `dispatch-prompts` at least once per minute with `x-dispatch-secret`. Keep the service-role key and APNs `.p8` key out of the app and repository.
 
+After deployment, sign into two physical devices as members of the same circle. From the owner's Circle settings, confirm **Force blessing notification** and verify that both accounts receive the alert and Live Activity, while a non-owner does not see the owner control.
+
 ## 5. Two-device acceptance
 
 1. Sign in with two Apple accounts on two physical devices.

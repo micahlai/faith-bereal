@@ -189,6 +189,47 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertTrue(visibleNames.contains("Ava"), "A visible peer blessing should be in the Today feed")
     }
 
+    func testForcedCirclePromptRequiresOwnerAndRestartsWindow() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let ownerCircle = try XCTUnwrap(bootstrap.circles.first)
+        let forcedAt = now.addingTimeInterval(30)
+
+        let dispatch = try await repository.forceCirclePrompt(
+            circleID: ownerCircle.id,
+            ownerID: bootstrap.currentUser.id,
+            now: forcedAt
+        )
+
+        XCTAssertEqual(dispatch.prompt.startsAt, forcedAt)
+        XCTAssertEqual(
+            dispatch.prompt.endsAt,
+            forcedAt.addingTimeInterval(ownerCircle.responseWindowDuration)
+        )
+        XCTAssertEqual(dispatch.memberCount, ownerCircle.members.count)
+        XCTAssertEqual(dispatch.registeredDevices, 0)
+    }
+
+    func testForcedCirclePromptRejectsNonOwner() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let memberOnlyCircle = try XCTUnwrap(
+            bootstrap.circles.first(where: { $0.ownerID != bootstrap.currentUser.id })
+        )
+
+        do {
+            _ = try await repository.forceCirclePrompt(
+                circleID: memberOnlyCircle.id,
+                ownerID: bootstrap.currentUser.id,
+                now: .now
+            )
+            XCTFail("Expected a non-owner force attempt to fail")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .notCircleOwner)
+        }
+    }
+
 #if DEBUG
     @MainActor
     func testDebugPromptRestartsLocalWindowAndAllowsFreshSubmission() async throws {

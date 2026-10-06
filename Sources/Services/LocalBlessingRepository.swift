@@ -415,6 +415,28 @@ actor LocalBlessingRepository: BlessingRepository {
         return circles[index]
     }
 
+    func forceCirclePrompt(
+        circleID: UUID,
+        ownerID: UUID,
+        now: Date
+    ) async throws -> CirclePromptDispatch {
+        guard let circle = circles.first(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circle.ownerID == ownerID else {
+            throw BlessingError.notCircleOwner
+        }
+
+        let forcedPrompt = try beginLocalPrompt(circle: circle, now: now)
+        return CirclePromptDispatch(
+            prompt: forcedPrompt,
+            deliveredNotifications: 0,
+            attemptedNotifications: 0,
+            registeredDevices: 0,
+            memberCount: circle.members.count
+        )
+    }
+
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member {
         guard currentUser.id == memberID,
               BibleTranslation.publicDomain.contains(where: { $0.id == versionID }) else {
@@ -577,16 +599,23 @@ extension LocalBlessingRepository: DebugPromptProviding {
             throw BlessingError.circleNotFound
         }
 
+        return try beginLocalPrompt(circle: circle, now: now)
+    }
+}
+#endif
+
+private extension LocalBlessingRepository {
+    func beginLocalPrompt(circle: CircleGroup, now: Date) throws -> DailyPrompt {
         var circleCalendar = Calendar(identifier: .gregorian)
         circleCalendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
         let localDate = circleCalendar.startOfDay(for: now)
         let existingIndex = prompts.firstIndex {
-            $0.circleID == circleID && circleCalendar.isDate($0.localDate, inSameDayAs: now)
+            $0.circleID == circle.id && circleCalendar.isDate($0.localDate, inSameDayAs: now)
         }
         let promptID = existingIndex.map { prompts[$0].id } ?? UUID()
         let debugPrompt = DailyPrompt(
             id: promptID,
-            circleID: circleID,
+            circleID: circle.id,
             localDate: localDate,
             startsAt: now,
             endsAt: now.addingTimeInterval(circle.responseWindowDuration)
@@ -608,4 +637,3 @@ extension LocalBlessingRepository: DebugPromptProviding {
         return debugPrompt
     }
 }
-#endif

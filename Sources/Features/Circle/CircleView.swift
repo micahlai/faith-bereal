@@ -27,11 +27,6 @@ struct CircleView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingJoin) { joinSheet }
         .sheet(isPresented: $showingCreate) { createSheet }
-        .sheet(isPresented: $showingSettings) {
-            if let circle = model.circle {
-                CircleSettingsView(circle: circle, isPresented: $showingSettings)
-            }
-        }
     }
 
     private var circleHeader: some View {
@@ -77,8 +72,15 @@ struct CircleView: View {
                         .foregroundStyle(AppTheme.secondaryInk)
                 }
                 .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("circle-settings-button")
+            .sheet(isPresented: $showingSettings) {
+                if let circle = model.circle {
+                    CircleSettingsView(circle: circle, isPresented: $showingSettings)
+                }
+            }
         }
         .blessingCard()
     }
@@ -202,6 +204,7 @@ private struct CircleSettingsView: View {
     @State private var isSaving = false
     @State private var isLeaving = false
     @State private var showingLeaveConfirmation = false
+    @State private var showingForcePromptConfirmation = false
     @State private var showingOwnershipTransfer = false
     @State private var memberToRemove: Member?
     @State private var isRemovingMember = false
@@ -243,6 +246,29 @@ private struct CircleSettingsView: View {
                             CircleTimeZonePicker(selection: $timeZoneIdentifier)
                         } label: {
                             LabeledContent("Time zone", value: timeZoneDisplayName)
+                        }
+                    }
+
+                    Section {
+                        Button {
+                            showingForcePromptConfirmation = true
+                        } label: {
+                            HStack {
+                                Label("Force blessing notification", systemImage: "bell.badge.fill")
+                                Spacer()
+                                if model.isForcingCirclePrompt { ProgressView() }
+                            }
+                            .frame(minHeight: 44)
+                        }
+                        .accessibilityIdentifier("force-blessing-notification")
+                        .disabled(isSaving || model.isForcingCirclePrompt)
+                    } header: {
+                        Text("Owner testing")
+                    } footer: {
+                        if model.usesAuthentication {
+                            Text("Immediately opens today’s response window and sends a real notification and Live Activity request to every registered member device. Use sparingly.")
+                        } else {
+                            Text("Immediately restarts today’s local demo window and Live Activity. No remote notifications are sent in local mode.")
                         }
                     }
 
@@ -405,13 +431,29 @@ private struct CircleSettingsView: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .sheet(isPresented: $showingOwnershipTransfer) {
             OwnershipTransferView(
                 members: circle.members.filter { $0.id != model.currentUser?.id },
                 isPresented: $showingOwnershipTransfer,
                 closeSettings: { isPresented = false }
             )
+        }
+        .confirmationDialog(
+            "Notify everyone in \(circle.name)?",
+            isPresented: $showingForcePromptConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Force blessing now", role: .destructive) {
+                Task {
+                    if await model.forceCurrentCirclePrompt() { isPresented = false }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(model.usesAuthentication
+                 ? "This restarts today’s response window and contacts every registered device in this circle."
+                 : "This restarts today’s local demo response window.")
         }
         .confirmationDialog(
             "Leave \(circle.name)?",

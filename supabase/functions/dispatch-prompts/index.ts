@@ -33,6 +33,7 @@ const required = (name: string): string => {
 
 const supabaseURL = required("SUPABASE_URL");
 const serviceRoleKey = required("SUPABASE_SERVICE_ROLE_KEY");
+const anonKey = required("SUPABASE_ANON_KEY");
 const dispatchSecret = required("DISPATCH_SECRET");
 const teamID = required("APNS_TEAM_ID");
 const keyID = required("APNS_KEY_ID");
@@ -81,7 +82,14 @@ async function sendAPNs(
   }
 }
 
-async function dispatchPrompt(prompt: Prompt): Promise<number> {
+type DispatchOutcome = {
+  delivered: number;
+  attempted: number;
+  registeredDevices: number;
+  memberCount: number;
+};
+
+async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   const { data: circle, error: circleError } = await admin
     .from("circles")
     .select("name")
@@ -95,8 +103,10 @@ async function dispatchPrompt(prompt: Prompt): Promise<number> {
     .eq("circle_id", prompt.circle_id)
     .is("removed_at", null);
   if (membershipError) throw membershipError;
-  const userIDs = memberships.map((row) => row.user_id);
-  if (userIDs.length === 0) return 0;
+  const userIDs = (memberships ?? []).map((row) => row.user_id);
+  if (userIDs.length === 0) {
+    return { delivered: 0, attempted: 0, registeredDevices: 0, memberCount: 0 };
+  }
 
   const { data: devices, error: deviceError } = await admin
     .from("device_registrations")
@@ -104,13 +114,14 @@ async function dispatchPrompt(prompt: Prompt): Promise<number> {
     .in("user_id", userIDs)
     .is("revoked_at", null);
   if (deviceError) throw deviceError;
+  const activeDevices = (devices ?? []) as Device[];
 
   const timestamp = Math.floor(Date.now() / 1000);
   const endsAt = Math.floor(new Date(prompt.ends_at).getTime() / 1000);
   const windowLabel = prompt.response_window_minutes === 1
     ? "one minute"
     : `${prompt.response_window_minutes} minutes`;
-  const results = await Promise.allSettled((devices as Device[]).flatMap((device) => {
+  const results = await Promise.allSettled(activeDevices.flatMap((device) => {
     const sends: Promise<void>[] = [];
     if (device.apns_token) {
       sends.push(sendAPNs(device.apns_token, device.environment, bundleID, "alert", {
@@ -120,7 +131,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<number> {
           "thread-id": prompt.circle_id,
           "interruption-level": "time-sensitive",
         },
-        route: "blessingcircle://today/capture",
+        route: `blessingcircle://today/capture?circle=${prompt.circle_id}`,
         prompt_id: prompt.id,
       }));
     }
@@ -154,7 +165,12 @@ async function dispatchPrompt(prompt: Prompt): Promise<number> {
   if (failures.length === results.length && results.length > 0) {
     throw new Error(`All ${failures.length} APNs requests failed`);
   }
-  return results.length - failures.length;
+  return {
+    delivered: results.length - failures.length,
+    attempted: results.length,
+    registeredDevices: activeDevices.length,
+    memberCount: userIDs.length,
+  };
 }
 
 async function updateOpenActivities(): Promise<void> {
@@ -269,8 +285,50 @@ async function closeExpiredPrompts(): Promise<void> {
 }
 
 Deno.serve(async (request) => {
-  if (request.headers.get("x-dispatch-secret") !== dispatchSecret) {
-    return new Response("Unauthorized", { status: 401 });
+  const isScheduledDispatch = request.headers.get("x-dispatch-secret") === dispatchSecret;
+  if (!isScheduledDispatch) {
+    const authorization = request.headers.get("authorization");
+    if (!authorization?.toLowerCase().startsWith("bearer ")) {
+      return Response.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    let body: { action?: string; circle_id?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    if (body.action !== "force" || !body.circle_id) {
+      return Response.json({ error: "Unsupported action" }, { status: 400 });
+    }
+
+    const userClient = createClient(supabaseURL, anonKey, {
+      global: { headers: { Authorization: authorization } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: prompt, error: promptError } = await userClient
+      .rpc("force_circle_prompt", { p_circle_id: body.circle_id })
+      .single();
+    if (promptError) {
+      const status = promptError.message.includes("owner") ? 403 : 400;
+      return Response.json({ error: promptError.message }, { status });
+    }
+
+    try {
+      const outcome = await dispatchPrompt(prompt as Prompt);
+      await admin
+        .from("daily_prompts")
+        .update({ state: "open", failure_reason: null })
+        .eq("id", prompt.id);
+      return Response.json({ promptID: prompt.id, ...outcome });
+    } catch (dispatchError) {
+      const message = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
+      await admin
+        .from("daily_prompts")
+        .update({ state: "failed", failure_reason: message.slice(0, 500) })
+        .eq("id", prompt.id);
+      return Response.json({ error: "Notification dispatch failed" }, { status: 502 });
+    }
   }
 
   await admin.rpc("ensure_tomorrow_prompts");
@@ -280,9 +338,9 @@ Deno.serve(async (request) => {
   const outcomes = [];
   for (const prompt of (data ?? []) as Prompt[]) {
     try {
-      const delivered = await dispatchPrompt(prompt);
+      const outcome = await dispatchPrompt(prompt);
       await admin.from("daily_prompts").update({ state: "open", failure_reason: null }).eq("id", prompt.id);
-      outcomes.push({ promptID: prompt.id, delivered });
+      outcomes.push({ promptID: prompt.id, ...outcome });
     } catch (dispatchError) {
       const message = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
       await admin.from("daily_prompts").update({ state: "failed", failure_reason: message.slice(0, 500) }).eq("id", prompt.id);

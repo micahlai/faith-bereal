@@ -136,6 +136,14 @@ struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
+struct CirclePromptDispatch: Equatable, Sendable {
+    let prompt: DailyPrompt
+    let deliveredNotifications: Int
+    let attemptedNotifications: Int
+    let registeredDevices: Int
+    let memberCount: Int
+}
+
 enum PromptPhase: String, Codable, Sendable {
     case scheduled
     case open
