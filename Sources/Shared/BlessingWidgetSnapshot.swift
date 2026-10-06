@@ -105,14 +105,20 @@ enum BlessingWidgetSnapshotStore {
     static let appGroupIdentifier = "group.app.blessingcircle.shared"
     private static let snapshotKey = "widget.snapshot.v1"
     private static let recentlyShownKey = "widget.recentlyShown.v1"
+    private static let snapshotFileName = "widget-snapshot-v1.json"
 
     static func save(_ snapshot: BlessingWidgetSnapshot) {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        if let snapshotURL {
+            try? data.write(to: snapshotURL, options: .atomic)
+        }
         defaults.set(data, forKey: snapshotKey)
     }
 
     static func load() -> BlessingWidgetSnapshot {
-        guard let data = defaults.data(forKey: snapshotKey),
+        let data = snapshotURL.flatMap { try? Data(contentsOf: $0) }
+            ?? defaults.data(forKey: snapshotKey)
+        guard let data,
               let snapshot = try? JSONDecoder().decode(BlessingWidgetSnapshot.self, from: data) else {
             return .empty
         }
@@ -132,5 +138,11 @@ enum BlessingWidgetSnapshotStore {
 
     private static var defaults: UserDefaults {
         UserDefaults(suiteName: appGroupIdentifier) ?? .standard
+    }
+
+    private static var snapshotURL: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
+            .appendingPathComponent(snapshotFileName, isDirectory: false)
     }
 }
