@@ -40,6 +40,14 @@ Unique active membership per circle/user pair.
 
 Unique `(circle_id, local_date)`. `ends_at` is constrained to the response duration snapshotted from its circle when the prompt is created.
 
+The random timestamp is a dispatch target. `claim_due_prompts` replaces `starts_at` and `ends_at` with the actual server claim time and the snapshotted duration before APNs delivery, so minute-level scheduler latency never consumes the member's entry window. Scheduled prompts missed by more than five minutes are closed without sending a stale alert.
+
+### `blessing_entry_grants`
+
+`prompt_id`, `user_id`, `entered_at`
+
+Unique `(prompt_id, user_id)`. The `begin_blessing_entry` RPC inserts this server-timestamped grant only while entry is allowed. Submission RPCs accept either a currently open prompt or an existing grant, allowing a composer opened on time to finish after the deadline or midnight while retaining the original `prompt_id` and timeline date.
+
 ### `blessings`
 
 `id`, `prompt_id`, `author_id`, `capture_mode`, `body`, `audio_path`, `video_path`, `thumbnail_path`, `photo_path`, `submitted_at`, `is_late`, scripture book/chapter/start/end fields, `created_at`

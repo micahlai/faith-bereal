@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             }
         }
     }
+    var foregroundNotificationHandler: ((URL?) -> Void)?
 
     func application(
         _ application: UIApplication,
@@ -50,7 +51,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+        let route = notification.request.content.userInfo["route"] as? String
+        let url = route.flatMap(URL.init(string:))
+        await deliverForegroundNotification(url)
+        return [.banner, .list, .sound]
     }
 
     nonisolated func userNotificationCenter(
@@ -73,5 +77,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         } else {
             pendingNotificationURL = url
         }
+    }
+
+    private func deliverForegroundNotification(_ url: URL?) {
+        foregroundNotificationHandler?(url)
     }
 }

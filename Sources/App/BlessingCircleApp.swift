@@ -25,6 +25,9 @@ struct BlessingCircleApp: App {
                     appDelegate.notificationURLHandler = { url in
                         Task { await model.handleDeepLink(url) }
                     }
+                    appDelegate.foregroundNotificationHandler = { url in
+                        Task { await model.handleForegroundNotification(url) }
+                    }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }

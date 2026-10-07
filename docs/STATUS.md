@@ -127,6 +127,14 @@ Last updated: 2026-10-07
 - The APNs Live Activity payload now has a standalone, executable contract test that verifies Unix-second deadlines and exact content-state fields for start, update, and end events.
 - TestFlight preparation runs the APNs payload contract plus the domain suite in both Debug and Release, including expired-deadline and cold-notification-launch regressions.
 
+## 2026-10-07 entry-deadline semantics
+
+- The configured deadline now controls when a member may enter capture. Opening capture first requests a server-timestamped entry grant; once granted, text, voice, video, photo, and scripture submission may finish after the deadline even when late entry is disabled.
+- Capture freezes the granted prompt, so a composition completed after midnight remains attached to the original circle day and appears in that day's Timeline row with the normal late indicator.
+- Natural prompt claims now author the shared start and deadline from actual server dispatch time, preserving the complete owner-configured entry duration despite minute-level scheduler latency. Prompts missed by more than five minutes close without sending stale alerts.
+- Foreground notification delivery refreshes the selected circle without requiring a banner tap, and opening Today performs a fresh circle load before rendering its entry action.
+- Migration `202610070001` is applied to the linked hosted project, and the hosted `public` schema passes Supabase's error-level lint. A new TestFlight client build is still required to call the entry-grant RPC before presenting capture.
+
 ## Current phase
 
 Milestone 3.5 is complete against the local repository. Milestone 4 release-readiness work is in progress; Apple-account, physical-device, and hosted-backend acceptance remains pending.
@@ -141,7 +149,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Fifty-four Debug domain tests, 52 Release domain tests, and six UI tests pass. The six UI tests also pass through an authorized automation session on a signed iPhone 14 Pro running iOS 26.6.2. Current UI coverage includes the all-settings creation form, owner invite-code rotation and force-notification flow, Today and Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
+- Fifty-seven Debug domain tests, 54 Release domain tests, and six UI tests pass. The six UI tests also pass through an authorized automation session on a signed iPhone 14 Pro running iOS 26.6.2. Current UI coverage includes the all-settings creation form, owner invite-code rotation and force-notification flow, Today and Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols. Blank configuration safely falls back to the local demo in Debug, while Release now fails before compilation without valid hosted Supabase values and production APNs settings.

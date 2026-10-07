@@ -415,6 +415,24 @@ final class DomainRulesTests: XCTestCase {
     }
 
     @MainActor
+    func testForegroundNotificationRefreshesTodayWithoutOpeningCapture() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let model = AppModel(repository: repository)
+        await model.bootstrap()
+        let circleID = try XCTUnwrap(model.circle?.id)
+        let refreshedStart = Date().addingTimeInterval(-1)
+        let refreshedPrompt = try await repository.beginDebugPrompt(circleID: circleID, now: refreshedStart)
+        let route = try XCTUnwrap(
+            URL(string: "blessingcircle://today/capture?circle=\(circleID.uuidString)")
+        )
+
+        await model.handleForegroundNotification(route)
+
+        XCTAssertEqual(model.prompt, refreshedPrompt)
+        XCTAssertFalse(model.isCapturePresented)
+    }
+
+    @MainActor
     func testDebugPromptRestartsLocalWindowAndAllowsFreshSubmission() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
@@ -966,6 +984,98 @@ final class DomainRulesTests: XCTestCase {
         )
 
         XCTAssertTrue(blessing.isLate)
+    }
+
+    func testEntryGrantAllowsSubmissionAfterDeadlineAndMidnightOnOriginalPrompt() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+        _ = try await repository.updateCircleSettings(
+            circleID: circle.id,
+            ownerID: user.id,
+            name: circle.name,
+            timeZoneIdentifier: circle.timeZoneIdentifier,
+            randomWindowStartMinutes: circle.randomWindowStartMinutes,
+            randomWindowEndMinutes: circle.randomWindowEndMinutes,
+            responseWindowMinutes: circle.responseWindowMinutes,
+            allowsLateBlessings: false,
+            repeatWindowMinutes: circle.repeatWindowMinutes
+        )
+
+        try await repository.beginBlessingEntry(
+            promptID: prompt.id,
+            memberID: user.id,
+            now: now
+        )
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+        let nextMidnight = try XCTUnwrap(
+            calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))
+        )
+        let submittedAt = nextMidnight.addingTimeInterval(5 * 60)
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: user.id,
+            mode: .typed,
+            body: "Finished after midnight",
+            audioURL: nil,
+            videoURL: nil,
+            scriptureReference: nil,
+            now: submittedAt
+        )
+
+        XCTAssertEqual(blessing.promptID, prompt.id)
+        XCTAssertEqual(blessing.submittedAt, submittedAt)
+        XCTAssertTrue(blessing.isLate)
+
+        let lanes = try await repository.timeline(
+            circleID: circle.id,
+            viewerID: user.id,
+            now: submittedAt
+        )
+        let storedBlessing = lanes
+            .flatMap(\.events)
+            .compactMap { event -> Blessing? in
+                guard case let .blessing(value) = event.status else { return nil }
+                return value
+            }
+            .first(where: { $0.id == blessing.id })
+        XCTAssertEqual(storedBlessing?.promptID, prompt.id)
+    }
+
+    func testClosedPromptCannotBeEnteredWithoutLatePermission() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+        _ = try await repository.updateCircleSettings(
+            circleID: circle.id,
+            ownerID: user.id,
+            name: circle.name,
+            timeZoneIdentifier: circle.timeZoneIdentifier,
+            randomWindowStartMinutes: circle.randomWindowStartMinutes,
+            randomWindowEndMinutes: circle.randomWindowEndMinutes,
+            responseWindowMinutes: circle.responseWindowMinutes,
+            allowsLateBlessings: false,
+            repeatWindowMinutes: circle.repeatWindowMinutes
+        )
+
+        do {
+            try await repository.beginBlessingEntry(
+                promptID: prompt.id,
+                memberID: user.id,
+                now: prompt.endsAt
+            )
+            XCTFail("Expected the deadline to prevent opening a new composer")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .outsideResponseWindow)
+        }
     }
 
     func testSubmissionStoresReferenceWithoutVerseText() async throws {

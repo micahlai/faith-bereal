@@ -31,9 +31,17 @@ final class AppModel {
     var circles: [CircleGroup] = []
     var circle: CircleGroup?
     var prompt: DailyPrompt?
+    private(set) var capturePrompt: DailyPrompt?
     var lanes: [TimelineLane] = []
     var selectedTab = 0
-    var isCapturePresented = false
+    var isCapturePresented = false {
+        didSet {
+            if !isCapturePresented && !isSubmitting {
+                capturePrompt = nil
+            }
+        }
+    }
+    var isPreparingCapture = false
     var isSubmitting = false
     var isSwitchingCircle = false
     var message: String?
@@ -158,14 +166,41 @@ final class AppModel {
         }
     }
 
-    var canSubmitCurrentPrompt: Bool {
+    func canEnterCurrentPrompt(at date: Date = .now) -> Bool {
 #if DEBUG
         guard !isDebugPromptPreview else { return false }
 #endif
-        guard let prompt, let circle, isCurrentPromptToday(at: .now), !hasSubmittedToday else { return false }
-        if isFirstCircleDay(at: .now) { return true }
-        let phase = prompt.phase(at: .now)
+        guard let prompt, let circle, isCurrentPromptToday(at: date), !hasSubmittedToday else { return false }
+        if isFirstCircleDay(at: date) { return true }
+        let phase = prompt.phase(at: date)
         return phase == .open || (phase == .closed && circle.allowsLateBlessings)
+    }
+
+    var canSubmitCurrentPrompt: Bool {
+        canEnterCurrentPrompt()
+    }
+
+    func openCapture(now: Date = .now) async -> Bool {
+        guard !isPreparingCapture, let prompt, let currentUser,
+              canEnterCurrentPrompt(at: now) else {
+            message = BlessingError.outsideResponseWindow.localizedDescription
+            return false
+        }
+        isPreparingCapture = true
+        defer { isPreparingCapture = false }
+        do {
+            try await repository.beginBlessingEntry(
+                promptID: prompt.id,
+                memberID: currentUser.id,
+                now: now
+            )
+            capturePrompt = prompt
+            isCapturePresented = true
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
     }
 
     func isFirstCircleDay(at date: Date) -> Bool {
@@ -243,6 +278,7 @@ final class AppModel {
             circles = []
             circle = nil
             prompt = nil
+            capturePrompt = nil
             lanes = []
             realtimeTask?.cancel()
             realtimeTask = nil
@@ -289,6 +325,7 @@ final class AppModel {
             let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
             circle = resolvedCircle
             prompt = context.prompt
+            capturePrompt = nil
 #if DEBUG
             isDebugPromptPreview = false
 #endif
@@ -366,7 +403,7 @@ final class AppModel {
         photoURL: URL? = nil,
         scriptureReference: ScriptureReference?
     ) async -> Bool {
-        guard let prompt, let currentUser, isCurrentPromptToday(at: .now) else {
+        guard let targetPrompt = capturePrompt ?? prompt, let currentUser else {
             message = BlessingError.outsideResponseWindow.localizedDescription
             return false
         }
@@ -374,7 +411,7 @@ final class AppModel {
         defer { isSubmitting = false }
         do {
             submittedBlessing = try await repository.submit(
-                promptID: prompt.id,
+                promptID: targetPrompt.id,
                 authorID: currentUser.id,
                 mode: mode,
                 body: body,
@@ -385,13 +422,13 @@ final class AppModel {
                 now: .now
             )
             try await refreshTimeline()
-            await activityController.markSubmitted(promptID: prompt.id, responseCount: lanes.compactMap { lane in
+            await activityController.markSubmitted(promptID: targetPrompt.id, responseCount: lanes.compactMap { lane in
                 lane.events.first.flatMap { event -> Blessing? in
                     if case let .blessing(blessing) = event.status { return blessing }
                     return nil
                 }
             }.count)
-            message = "Your blessing is part of today's circle."
+            message = "Your blessing was shared with the circle."
             return true
         } catch {
             message = error.localizedDescription
@@ -504,6 +541,7 @@ final class AppModel {
             prompt = outcome.prompt
             submittedBlessing = nil
             isCapturePresented = false
+            capturePrompt = nil
             selectedTab = 0
 #if DEBUG
             isDebugPromptPreview = false
@@ -654,13 +692,13 @@ final class AppModel {
     }
 
     func repeatBlessing(_ source: Blessing, now: Date = .now) async -> Bool {
-        guard let prompt, let currentUser else { return false }
+        guard let targetPrompt = capturePrompt ?? prompt, let currentUser else { return false }
         isSubmitting = true
         defer { isSubmitting = false }
         do {
             submittedBlessing = try await repository.repeatBlessing(
                 sourceBlessingID: source.id,
-                targetPromptID: prompt.id,
+                targetPromptID: targetPrompt.id,
                 authorID: currentUser.id,
                 now: now
             )
@@ -683,6 +721,7 @@ final class AppModel {
             realtimeTask = nil
             self.circle = nil
             prompt = nil
+            capturePrompt = nil
             lanes = []
             submittedBlessing = nil
             if let nextCircle = circles.first {
@@ -779,7 +818,7 @@ final class AppModel {
         switch url.host {
         case "today":
             selectedTab = 0
-            if url.path == "/capture" { isCapturePresented = true }
+            if url.path == "/capture" { _ = await openCapture() }
         case "blessing":
             guard let blessingID = url.pathComponents.dropFirst().first.flatMap(UUID.init(uuidString:)),
                   let item = blessingFeedItem(id: blessingID) else { return }
@@ -787,6 +826,22 @@ final class AppModel {
             deepLinkedBlessing = item
         default:
             return
+        }
+    }
+
+    func handleForegroundNotification(_ url: URL?) async {
+        guard loadState == .ready else { return }
+        guard let url else {
+            await refreshCurrentCircle()
+            return
+        }
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let circleValue = components?.queryItems?
+            .first(where: { $0.name == "circle" })?
+            .value
+        let circleID = circleValue.flatMap { UUID(uuidString: $0) }
+        if circleID == nil || circleID == circle?.id {
+            await refreshCurrentCircle()
         }
     }
 
@@ -840,6 +895,7 @@ final class AppModel {
             prompt = testPrompt
             submittedBlessing = nil
             isCapturePresented = false
+            capturePrompt = nil
             selectedTab = 0
             if !isDebugPromptPreview {
                 try await refreshTimeline(now: now)

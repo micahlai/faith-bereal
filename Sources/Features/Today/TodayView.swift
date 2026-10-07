@@ -23,6 +23,7 @@ struct TodayView: View {
         }
         .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await model.refreshCurrentCircle() }
     }
 
     @ViewBuilder
@@ -30,16 +31,15 @@ struct TodayView: View {
         if model.currentUserBlessing(at: date) != nil {
             TodayBlessingsFeed(items: model.currentPromptBlessings(at: date))
         } else if let prompt = model.prompt,
-                  model.isCurrentPromptToday(at: date),
-                  model.isFirstCircleDay(at: date) || prompt.phase(at: date) == .open ||
-                    (prompt.phase(at: date) == .closed && model.circle?.allowsLateBlessings == true) {
+                  model.canEnterCurrentPrompt(at: date) {
             PromptWindowView(
                 prompt: prompt,
                 date: date,
                 allowsLateBlessings: model.circle?.allowsLateBlessings == true,
                 isFirstCircleDay: model.isFirstCircleDay(at: date),
                 allowsSharing: allowsSharing,
-                shareAction: { model.isCapturePresented = true }
+                isPreparingCapture: model.isPreparingCapture,
+                shareAction: { Task { await model.openCapture() } }
             )
         } else {
             WaitingForPromptView(circleName: model.circle?.name)
@@ -166,6 +166,7 @@ private struct PromptWindowView: View {
     let allowsLateBlessings: Bool
     let isFirstCircleDay: Bool
     let allowsSharing: Bool
+    let isPreparingCapture: Bool
     let shareAction: () -> Void
 
     var body: some View {
@@ -233,12 +234,21 @@ private struct PromptWindowView: View {
             .accessibilityLabel(accessibilityLabel(phase: phase, remaining: remaining))
 
             Button(action: shareAction) {
-                Label(allowsSharing ? "Share a blessing" : "Hosted preview only", systemImage: allowsSharing ? "plus" : "eye")
-                    .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+                Group {
+                    if isPreparingCapture {
+                        ProgressView()
+                    } else {
+                        Label(allowsSharing ? "Share a blessing" : "Hosted preview only", systemImage: allowsSharing ? "plus" : "eye")
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(!allowsSharing || (!isFirstCircleDay && phase != .open && !(phase == .closed && allowsLateBlessings)))
+            .disabled(
+                isPreparingCapture || !allowsSharing ||
+                    (!isFirstCircleDay && phase != .open && !(phase == .closed && allowsLateBlessings))
+            )
         }
         .blessingCard()
     }

@@ -17,7 +17,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 3. At that moment, APNs alerts every member and starts a Live Activity for the owner-configured response duration.
 4. A member opens the capture flow and shares one circle-specific blessing as typed text, speech-transcribed text with audio, or a short video with transcript. They may optionally tag a Bible passage.
 5. After submitting, today's blessings from peers unlock. Prior days remain visible at all times.
-6. When the window closes, members without a post receive a missed marker in history. If the owner allows late posts, they remain accepted and visibly labeled until the next prompt.
+6. When the window closes, members can no longer enter a new capture flow unless the owner allows late posts. A member who entered before the deadline may finish and submit afterward; the post remains attached to that prompt's original circle day and is visibly labeled late.
 7. Members can respond to a blessing with text or transcribed voice audio.
 
 ## Functional requirements
@@ -51,8 +51,8 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - One prompt per circle per local calendar day.
 - Random start time is selected server-side within a circle-configured window, default 08:00–20:00.
 - Circle creation transactionally schedules the current local-day prompt from the owner's initial settings so the selected time range and response duration apply on day one. The join-day exception still lets the creator share at any time that local day.
-- Start time is immutable after publication and identical for all circle members.
-- Response deadline is `starts_at + response_window_minutes`; edits made after circle creation apply to future prompts.
+- The preselected random time is the dispatch target. When the server claims that prompt, it authors the shared `starts_at` from the actual dispatch and sets `ends_at = starts_at + response_window_minutes`, giving every member the complete configured entry window.
+- The response deadline controls entry into capture, not completion of a capture already opened. The server records an entry grant before presenting capture; that grant remains valid if composition or upload finishes after the deadline or after midnight.
 - A notification and Live Activity deep-link to today's capture screen.
 
 ### Capture
@@ -62,7 +62,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Video: camera capture with editable transcript and private playback.
 - Optional scripture tag: book and chapter dropdowns, then a drag-select square verse grid. Preview in the user's chosen public-domain Bible translation before sending.
 - Submission shows an explicit progress state and cannot be duplicated by repeated taps.
-- The server is authoritative for membership, prompt state, deadline, and uniqueness.
+- The server is authoritative for membership, prompt state, entry deadline, entry grants, and uniqueness. A client cannot create a post-deadline grant by changing its clock.
 - When eligible, capture offers a quiet “Reuse a recent blessing” action. It copies the original message or transcript and optional scripture reference into the target circle as a new typed blessing; it never exposes unavailable or expired reuse choices.
 - Voice capture records playable audio while producing an editable transcript. Capture previews and submitted voice content include play/pause, elapsed and total time, and a seekable playhead. Camera capture owns its recording lifecycle and handles authorization, interruption, denial, and unavailable hardware on physical devices.
 

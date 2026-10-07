@@ -1,5 +1,10 @@
 import Foundation
 
+private struct BlessingEntryGrantKey: Hashable, Sendable {
+    let promptID: UUID
+    let memberID: UUID
+}
+
 actor LocalBlessingRepository: BlessingRepository {
     private let calendar: Calendar
     private var currentUser: Member
@@ -7,6 +12,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var prompts: [DailyPrompt]
     private var blessings: [Blessing]
     private var blessingResponses: [BlessingResponse]
+    private var entryGrants: Set<BlessingEntryGrantKey> = []
 
     init(now: Date = .now) {
         var calendar = Calendar(identifier: .gregorian)
@@ -289,6 +295,20 @@ actor LocalBlessingRepository: BlessingRepository {
         }
     }
 
+    func beginBlessingEntry(promptID: UUID, memberID: UUID, now: Date) async throws {
+        guard let prompt = prompts.first(where: { $0.id == promptID }),
+              let circle = circles.first(where: { $0.id == prompt.circleID }) else {
+            throw BlessingError.outsideResponseWindow
+        }
+        guard !blessings.contains(where: { $0.promptID == promptID && $0.authorID == memberID }) else {
+            throw BlessingError.alreadySubmitted
+        }
+        guard acceptsEntry(prompt: prompt, circle: circle, memberID: memberID, now: now) else {
+            throw BlessingError.outsideResponseWindow
+        }
+        entryGrants.insert(BlessingEntryGrantKey(promptID: promptID, memberID: memberID))
+    }
+
     func submit(
         promptID: UUID,
         authorID: UUID,
@@ -310,15 +330,16 @@ actor LocalBlessingRepository: BlessingRepository {
         guard let circle = circles.first(where: { $0.id == prompt.circleID }) else {
             throw BlessingError.circleNotFound
         }
-        let isWithinWindow = prompt.phase(at: now) == .open
-        let joinedAt = circle.members.first(where: { $0.id == authorID })?.joinedAt
-        let isFirstDay = joinedAt.map {
-            FirstDaySubmissionPolicy.isEligible(memberJoinedAt: $0, prompt: prompt, circle: circle, now: now)
-        } ?? false
-        let isAcceptedLate = circle.allowsLateBlessings
-            && now >= prompt.endsAt
-            && nextPromptStart.map { now < $0 } ?? true
-        guard isWithinWindow || isAcceptedLate || isFirstDay else { throw BlessingError.outsideResponseWindow }
+        let hasEntryGrant = entryGrants.contains(
+            BlessingEntryGrantKey(promptID: promptID, memberID: authorID)
+        )
+        guard hasEntryGrant || acceptsEntry(
+            prompt: prompt,
+            circle: circle,
+            memberID: authorID,
+            now: now,
+            nextPromptStart: nextPromptStart
+        ) else { throw BlessingError.outsideResponseWindow }
         guard !blessings.contains(where: { $0.promptID == promptID && $0.authorID == authorID }) else {
             throw BlessingError.alreadySubmitted
         }
@@ -349,6 +370,33 @@ actor LocalBlessingRepository: BlessingRepository {
         )
         blessings.append(blessing)
         return blessing
+    }
+
+    private func acceptsEntry(
+        prompt: DailyPrompt,
+        circle: CircleGroup,
+        memberID: UUID,
+        now: Date,
+        nextPromptStart: Date? = nil
+    ) -> Bool {
+        let resolvedNextPromptStart = nextPromptStart ?? prompts
+            .filter { $0.circleID == prompt.circleID && $0.startsAt > prompt.startsAt }
+            .map(\.startsAt)
+            .min()
+        let joinedAt = circle.members.first(where: { $0.id == memberID })?.joinedAt
+        guard joinedAt != nil else { return false }
+        let isFirstDay = joinedAt.map {
+            FirstDaySubmissionPolicy.isEligible(
+                memberJoinedAt: $0,
+                prompt: prompt,
+                circle: circle,
+                now: now
+            )
+        } ?? false
+        let isAcceptedLate = circle.allowsLateBlessings
+            && now >= prompt.endsAt
+            && resolvedNextPromptStart.map { now < $0 } ?? true
+        return prompt.phase(at: now) == .open || isAcceptedLate || isFirstDay
     }
 
     func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup {

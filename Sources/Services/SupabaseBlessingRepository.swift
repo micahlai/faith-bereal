@@ -127,6 +127,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
         }
     }
 
+    func beginBlessingEntry(promptID: UUID, memberID _: UUID, now _: Date) async throws {
+        _ = try await client.rpc(
+            "begin_blessing_entry",
+            params: BeginBlessingEntryParams(promptID: promptID)
+        ).execute()
+    }
+
     func submit(
         promptID: UUID,
         authorID: UUID,
@@ -957,6 +964,14 @@ private struct UpdateCircleSettingsParams: Encodable, Sendable {
         case responseWindowMinutes = "p_response_window_minutes"
         case allowLateBlessings = "p_allow_late_blessings"
         case repeatWindowMinutes = "p_repeat_window_minutes"
+    }
+}
+
+private struct BeginBlessingEntryParams: Encodable, Sendable {
+    let promptID: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case promptID = "p_prompt_id"
     }
 }
 

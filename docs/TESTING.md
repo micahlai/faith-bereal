@@ -47,6 +47,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 ## Unit tests
 
 - deadline boundary: just before, exactly at, and after `ends_at`;
+- an on-time entry grant permits completion after `ends_at` and after midnight while preserving the original prompt/day; without a grant, a no-late prompt rejects entry at the deadline;
 - current-day gating versus historical visibility;
 - duplicate submission rejection;
 - deterministic timeline grouping and missed-state generation;
