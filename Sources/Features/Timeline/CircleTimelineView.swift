@@ -410,9 +410,17 @@ private struct TimelineResponderAvatars: View {
 
 struct BlessingDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var model
     let member: Member
-    let blessing: Blessing
     let allowsResponses: Bool
+    @State private var blessing: Blessing
+    @State private var isEditing = false
+
+    init(member: Member, blessing: Blessing, allowsResponses: Bool) {
+        self.member = member
+        self.allowsResponses = allowsResponses
+        _blessing = State(initialValue: blessing)
+    }
 
     var body: some View {
         NavigationStack {
@@ -437,12 +445,24 @@ struct BlessingDetailView: View {
             .navigationTitle("Blessing")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
+                        if model.canEdit(blessing, at: context.date) {
+                            Button("Edit") { isEditing = true }
+                        }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }
         }
         .presentationDetents([.large])
+        .sheet(isPresented: $isEditing) {
+            BlessingEditView(blessing: blessing) { updated in
+                blessing = updated
+            }
+        }
     }
 
     private var header: some View {
@@ -454,6 +474,11 @@ struct BlessingDetailView: View {
                 Text(blessing.submittedAt.formatted(date: .long, time: .shortened))
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryInk)
+                if blessing.editedAt != nil {
+                    Text("Edited")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
             }
             Spacer()
             if blessing.isLate {
@@ -464,6 +489,106 @@ struct BlessingDetailView: View {
         }
     }
 
+}
+
+struct BlessingEditView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var model
+    let blessing: Blessing
+    let onSaved: (Blessing) -> Void
+
+    @State private var bodyText: String
+    @State private var scriptureReference: ScriptureReference?
+    @State private var showingBiblePicker = false
+    @State private var isSaving = false
+
+    init(blessing: Blessing, onSaved: @escaping (Blessing) -> Void) {
+        self.blessing = blessing
+        self.onSaved = onSaved
+        _bodyText = State(initialValue: blessing.body ?? "")
+        _scriptureReference = State(initialValue: blessing.scriptureReference)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(blessing.captureMode == .typed ? "Blessing" : "Transcript") {
+                    TextEditor(text: $bodyText)
+                        .frame(minHeight: 180)
+                        .accessibilityLabel(blessing.captureMode == .typed ? "Blessing text" : "Blessing transcript")
+                    Text("\(bodyText.count)/600")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(bodyText.count > 600 ? Color.red : AppTheme.secondaryInk)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+
+                Section("Bible verse") {
+                    Button {
+                        showingBiblePicker = true
+                    } label: {
+                        HStack {
+                            Label(
+                                scriptureReference?.displayName ?? "Tag a Bible verse",
+                                systemImage: "book.closed"
+                            )
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.secondaryInk)
+                        }
+                    }
+                    if scriptureReference != nil {
+                        Button("Remove Bible verse", role: .destructive) {
+                            scriptureReference = nil
+                        }
+                    }
+                }
+
+                if blessing.captureMode != .typed || blessing.photoURL != nil {
+                    Section {
+                        Text("Your original media stays attached to this blessing.")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                }
+            }
+            .navigationTitle("Edit blessing")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving…" : "Save") {
+                        Task { await save() }
+                    }
+                    .disabled(!canSave || isSaving)
+                }
+            }
+            .sheet(isPresented: $showingBiblePicker) {
+                BibleReferencePicker(selection: $scriptureReference)
+            }
+        }
+        .interactiveDismissDisabled(isSaving)
+    }
+
+    private var canSave: Bool {
+        let trimmed = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (1...600).contains(trimmed.count)
+    }
+
+    private func save() async {
+        isSaving = true
+        defer { isSaving = false }
+        guard let updated = await model.updateBlessing(
+            blessing,
+            body: bodyText,
+            scriptureReference: scriptureReference
+        ) else { return }
+        onSaved(updated)
+        dismiss()
+    }
 }
 
 struct BlessingContentView: View {

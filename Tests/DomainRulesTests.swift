@@ -877,6 +877,67 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertTrue(defaults.allowsLateBlessings)
     }
 
+    func testBlessingCanOnlyBeEditedByItsAuthorForTenMinutes() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+        let blessing = try await repository.submit(
+            promptID: prompt.id,
+            authorID: bootstrap.currentUser.id,
+            mode: .typed,
+            body: "Original blessing",
+            audioURL: nil,
+            videoURL: nil,
+            scriptureReference: nil,
+            now: now
+        )
+
+        do {
+            _ = try await repository.updateBlessing(
+                blessingID: blessing.id,
+                authorID: UUID(),
+                body: "Not mine",
+                scriptureReference: nil,
+                now: now.addingTimeInterval(30)
+            )
+            XCTFail("Expected a non-author edit to fail")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .notBlessingAuthor)
+        }
+
+        let reference = ScriptureReference(
+            bookSlug: "psalms",
+            bookName: "Psalms",
+            chapter: 23,
+            verseStart: 1,
+            verseEnd: 2
+        )
+        let updated = try await repository.updateBlessing(
+            blessingID: blessing.id,
+            authorID: bootstrap.currentUser.id,
+            body: "  Edited blessing  ",
+            scriptureReference: reference,
+            now: now.addingTimeInterval(599)
+        )
+        XCTAssertEqual(updated.body, "Edited blessing")
+        XCTAssertEqual(updated.scriptureReference, reference)
+        XCTAssertEqual(updated.editedAt, now.addingTimeInterval(599))
+
+        do {
+            _ = try await repository.updateBlessing(
+                blessingID: blessing.id,
+                authorID: bootstrap.currentUser.id,
+                body: "Too late",
+                scriptureReference: nil,
+                now: now.addingTimeInterval(600)
+            )
+            XCTFail("Expected the exact ten-minute boundary to be closed")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .blessingEditWindowClosed)
+        }
+    }
+
     func testCircleOwnerCanRegenerateInviteCodeAndInvalidatePreviousCode() async throws {
         let repository = LocalBlessingRepository(now: .now)
         let bootstrap = try await repository.bootstrap()

@@ -66,6 +66,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - The server is authoritative for membership, prompt state, entry deadline, entry grants, and uniqueness. A client cannot create a post-deadline grant by changing its clock.
 - When eligible, capture offers a quiet “Reuse a recent blessing” action. It copies the original message or transcript and optional scripture reference into the target circle as a new typed blessing; it never exposes unavailable or expired reuse choices.
 - Voice capture records playable audio while producing an editable transcript. Capture previews and submitted voice content include play/pause, elapsed and total time, and a seekable playhead. Camera capture owns its recording lifecycle and handles authorization, interruption, denial, and unavailable hardware on physical devices.
+- An author may edit the text or transcript and optional scripture tag for exactly ten minutes after `submitted_at`. The global limit is independent of circle settings, is enforced by the server, and never replaces the original audio, video, or photo.
 
 ### Today
 
@@ -108,7 +109,6 @@ This resolves the example in the brief as “history is always readable; only th
 
 - public discovery, follower counts, reactions, direct messages, rankings, and visible streak leaderboards;
 - Android or web clients;
-- content editing after submission;
 - multiple posts per person per daily prompt;
 - background speech recording.
 

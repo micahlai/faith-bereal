@@ -123,7 +123,9 @@ private struct TodayBlessingsFeed: View {
 }
 
 private struct TodayBlessingCard: View {
+    @Environment(AppModel.self) private var model
     let item: BlessingFeedItem
+    @State private var isEditing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -138,6 +140,13 @@ private struct TodayBlessingCard: View {
                         .foregroundStyle(AppTheme.secondaryInk)
                 }
                 Spacer(minLength: 8)
+                SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
+                    if model.canEdit(item.blessing, at: context.date) {
+                        Button("Edit") { isEditing = true }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
                 if item.blessing.isLate {
                     Label("Late", systemImage: "clock.badge.exclamationmark")
                         .font(.caption.weight(.semibold))
@@ -156,6 +165,9 @@ private struct TodayBlessingCard: View {
             BlessingResponsesView(blessing: item.blessing, allowsResponding: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .sheet(isPresented: $isEditing) {
+            BlessingEditView(blessing: item.blessing) { _ in }
+        }
     }
 }
 

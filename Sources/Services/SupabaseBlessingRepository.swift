@@ -220,6 +220,28 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await blessing(from: row, circleID: promptRow.circleID)
     }
 
+    func updateBlessing(
+        blessingID: UUID,
+        authorID _: UUID,
+        body: String,
+        scriptureReference: ScriptureReference?,
+        now _: Date
+    ) async throws -> Blessing {
+        let row: BlessingRow = try await client.rpc(
+            "update_blessing",
+            params: UpdateBlessingParams(
+                blessingID: blessingID,
+                body: body,
+                reference: scriptureReference
+            )
+        )
+        .single()
+        .execute()
+        .value
+        let relationship = try await fetchBlessing(id: blessingID)
+        return try await blessing(from: row, circleID: relationship.circleID)
+    }
+
     func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup {
         let row: CircleRow = try await client.rpc(
             "join_circle",
@@ -653,7 +675,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             isLate: row.isLate,
             scriptureReference: row.scriptureReference,
             repeatedFromBlessingID: row.repeatedFromBlessingID,
-            photoURL: try await signedURL(path: row.photoPath)
+            photoURL: try await signedURL(path: row.photoPath),
+            editedAt: row.editedAt
         )
     }
 
@@ -877,6 +900,7 @@ private struct BlessingRow: Codable, Sendable {
     let scriptureVerseStart: Int?
     let scriptureVerseEnd: Int?
     let repeatedFromBlessingID: UUID?
+    let editedAt: Date?
     let dailyPrompts: PromptCircleRow?
 
     var scriptureReference: ScriptureReference? {
@@ -907,6 +931,7 @@ private struct BlessingRow: Codable, Sendable {
         case scriptureVerseStart = "scripture_verse_start"
         case scriptureVerseEnd = "scripture_verse_end"
         case repeatedFromBlessingID = "repeated_from_blessing_id"
+        case editedAt = "edited_at"
         case dailyPrompts = "daily_prompts"
     }
 }
@@ -1002,6 +1027,36 @@ private struct BeginBlessingEntryParams: Encodable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case promptID = "p_prompt_id"
+    }
+}
+
+private struct UpdateBlessingParams: Encodable, Sendable {
+    let blessingID: UUID
+    let body: String
+    let scriptureBookSlug: String?
+    let scriptureBookName: String?
+    let scriptureChapter: Int?
+    let scriptureVerseStart: Int?
+    let scriptureVerseEnd: Int?
+
+    init(blessingID: UUID, body: String, reference: ScriptureReference?) {
+        self.blessingID = blessingID
+        self.body = body
+        scriptureBookSlug = reference?.bookSlug
+        scriptureBookName = reference?.bookName
+        scriptureChapter = reference?.chapter
+        scriptureVerseStart = reference?.verseStart
+        scriptureVerseEnd = reference?.verseEnd
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case blessingID = "p_blessing_id"
+        case body = "p_body"
+        case scriptureBookSlug = "p_scripture_book_slug"
+        case scriptureBookName = "p_scripture_book_name"
+        case scriptureChapter = "p_scripture_chapter"
+        case scriptureVerseStart = "p_scripture_verse_start"
+        case scriptureVerseEnd = "p_scripture_verse_end"
     }
 }
 

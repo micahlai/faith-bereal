@@ -70,6 +70,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - restarting a local debug prompt resets the current user's submission and reopens a server-shaped response window without changing peer history.
 - forcing a prompt requires the current circle owner and uses that circle's configured response length.
 - a member may submit before or after the response window on the local calendar day they join, but not on a later day unless ordinary late-sharing rules apply.
+- blessing edits accept the author before ten minutes, reject other users, and close at the exact ten-minute boundary.
 
 ## Integration tests
 

@@ -389,6 +389,44 @@ actor LocalBlessingRepository: BlessingRepository {
         return blessing
     }
 
+    func updateBlessing(
+        blessingID: UUID,
+        authorID: UUID,
+        body: String,
+        scriptureReference: ScriptureReference?,
+        now: Date
+    ) async throws -> Blessing {
+        guard let index = blessings.firstIndex(where: { $0.id == blessingID }) else {
+            throw BlessingError.circleNotFound
+        }
+        let existing = blessings[index]
+        guard existing.authorID == authorID else { throw BlessingError.notBlessingAuthor }
+        guard BlessingEditPolicy.canEdit(existing, authorID: authorID, at: now) else {
+            throw BlessingError.blessingEditWindowClosed
+        }
+        let cleanBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (1...600).contains(cleanBody.count) else { throw BlessingError.emptyBlessing }
+
+        let updated = Blessing(
+            id: existing.id,
+            circleID: existing.circleID,
+            promptID: existing.promptID,
+            authorID: existing.authorID,
+            captureMode: existing.captureMode,
+            body: cleanBody,
+            audioURL: existing.audioURL,
+            videoURL: existing.videoURL,
+            submittedAt: existing.submittedAt,
+            isLate: existing.isLate,
+            scriptureReference: scriptureReference,
+            repeatedFromBlessingID: existing.repeatedFromBlessingID,
+            photoURL: existing.photoURL,
+            editedAt: now
+        )
+        blessings[index] = updated
+        return updated
+    }
+
     private func acceptsEntry(
         prompt: DailyPrompt,
         circle: CircleGroup,

@@ -13,6 +13,17 @@ struct BibleReferencePicker: View {
     @State private var isLoading = false
     @State private var loadError: String?
 
+    init(selection: Binding<ScriptureReference?>) {
+        _selection = selection
+        if let existing = selection.wrappedValue,
+           let book = BibleBook.all.first(where: { $0.slug == existing.bookSlug }) {
+            _selectedBookID = State(initialValue: book.id)
+            _chapter = State(initialValue: existing.chapter)
+            _verseStart = State(initialValue: existing.verseStart)
+            _verseEnd = State(initialValue: existing.verseEnd)
+        }
+    }
+
     private var selectedBook: BibleBook {
         model.bibleBooks.first(where: { $0.id == selectedBookID }) ?? BibleBook.all[42]
     }
@@ -128,6 +139,14 @@ struct BibleReferencePicker: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                }
+                if selection != nil {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Remove", role: .destructive) {
+                            selection = nil
+                            dismiss()
+                        }
+                    }
                 }
             }
             .task(id: "\(selectedBook.slug)-\(chapter)-\(model.selectedBibleTranslation.id)") {

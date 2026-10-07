@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-07 ten-minute blessing edits
+
+- Authors can edit a blessing's text or transcript and optional scripture tag for ten minutes after the server-authored submission time; attached audio, video, and photos remain unchanged.
+- The local demo and hosted RPC enforce the same author-only, global deadline, including a closed exact ten-minute boundary. Timeline, Today, deep-linked detail, and widget state update after a successful edit.
+- Migration `202610070003_blessing_edits.sql` is ready for hosted deployment; signed two-account acceptance remains pending.
+
 ## 2026-10-07 circle creation defaults
 
 - New circle forms now default the daily random blessing range to noon–10:00 p.m. in the selected circle time zone and enable late blessings by default.

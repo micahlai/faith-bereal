@@ -241,6 +241,17 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     let scriptureReference: ScriptureReference?
     var repeatedFromBlessingID: UUID? = nil
     var photoURL: URL? = nil
+    var editedAt: Date? = nil
+}
+
+enum BlessingEditPolicy {
+    static let window: TimeInterval = 10 * 60
+
+    static func canEdit(_ blessing: Blessing, authorID: UUID, at date: Date) -> Bool {
+        blessing.authorID == authorID
+            && date >= blessing.submittedAt
+            && date < blessing.submittedAt.addingTimeInterval(window)
+    }
 }
 
 struct BlessingFeedItem: Identifiable, Hashable, Sendable {
@@ -341,6 +352,8 @@ enum BlessingError: LocalizedError, Equatable {
     case invalidOwnerTransfer
     case invalidMemberRemoval
     case profileSaveTimedOut
+    case blessingEditWindowClosed
+    case notBlessingAuthor
 
     var errorDescription: String? {
         switch self {
@@ -354,6 +367,8 @@ enum BlessingError: LocalizedError, Equatable {
         case .invalidOwnerTransfer: "Choose another current member to become the circle owner."
         case .invalidMemberRemoval: "Choose another current member to remove from the circle."
         case .profileSaveTimedOut: "The profile photo upload timed out. Check your connection and try again."
+        case .blessingEditWindowClosed: "Blessings can only be edited for 10 minutes after sharing."
+        case .notBlessingAuthor: "You can only edit your own blessing."
         }
     }
 }

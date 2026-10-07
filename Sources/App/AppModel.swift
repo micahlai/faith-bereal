@@ -504,6 +504,51 @@ final class AppModel {
         }
     }
 
+    func canEdit(_ blessing: Blessing, at date: Date = .now) -> Bool {
+        guard let currentUser else { return false }
+        return BlessingEditPolicy.canEdit(blessing, authorID: currentUser.id, at: date)
+    }
+
+    func updateBlessing(
+        _ blessing: Blessing,
+        body: String,
+        scriptureReference: ScriptureReference?
+    ) async -> Blessing? {
+        guard let currentUser else { return nil }
+        do {
+            let updated = try await repository.updateBlessing(
+                blessingID: blessing.id,
+                authorID: currentUser.id,
+                body: body,
+                scriptureReference: scriptureReference,
+                now: .now
+            )
+            replaceBlessing(updated)
+            message = "Your blessing was updated."
+            return updated
+        } catch {
+            message = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func replaceBlessing(_ updated: Blessing) {
+        if submittedBlessing?.id == updated.id { submittedBlessing = updated }
+        if deepLinkedBlessing?.blessing.id == updated.id,
+           let member = deepLinkedBlessing?.member {
+            deepLinkedBlessing = BlessingFeedItem(member: member, blessing: updated)
+        }
+        lanes = lanes.map { lane in
+            let events = lane.events.map { event in
+                guard case let .blessing(blessing) = event.status,
+                      blessing.id == updated.id else { return event }
+                return TimelineEvent(memberID: lane.member.id, date: event.date, status: .blessing(updated))
+            }
+            return TimelineLane(member: lane.member, events: events)
+        }
+        scheduleWidgetSnapshotRefresh()
+    }
+
     func joinCircle(code: String) async -> Bool {
         guard let currentUser else { return false }
         guard let code = CircleInviteLink.normalize(code: code) else {
