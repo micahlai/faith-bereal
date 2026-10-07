@@ -60,6 +60,10 @@ if [ ! -d "$extension" ]; then
   echo "error: Exported app is missing the Live Activity/widget extension." >&2
   exit 1
 fi
+if ! codesign --verify --strict "$extension" 2>/dev/null; then
+  echo "error: Exported Live Activity/widget extension has an invalid signature." >&2
+  exit 1
+fi
 
 extension_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$extension/Info.plist")
 if [ "$extension_id" != "app.manna-circle.ios.live-activity" ]; then
@@ -77,6 +81,10 @@ fi
 notification_extension="$app/PlugIns/BlessingCircleNotificationService.appex"
 if [ ! -d "$notification_extension" ]; then
   echo "error: Exported app is missing the notification service extension." >&2
+  exit 1
+fi
+if ! codesign --verify --strict "$notification_extension" 2>/dev/null; then
+  echo "error: Exported notification service extension has an invalid signature." >&2
   exit 1
 fi
 

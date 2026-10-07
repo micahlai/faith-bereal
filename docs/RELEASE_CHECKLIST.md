@@ -38,7 +38,7 @@ This checklist separates work that can be proven locally from work that needs pr
 ## Distribution
 
 - [x] Create a generic iOS Release archive and inspect its code signature and entitlements.
-- [ ] Export an App Store distribution archive and confirm production APNs, distribution provisioning, and `get-task-allow = false`.
+- [x] Export an App Store distribution archive and confirm production APNs, distribution provisioning, `get-task-allow = false`, both signed extensions, and the bundled notification logo.
 - [ ] Upload to App Store Connect and resolve validation warnings.
 - [ ] Run internal TestFlight, then the planned external cohort.
 - [ ] Re-run the acceptance matrix on the candidate build.

@@ -6,7 +6,7 @@
 - The lock-screen and Dynamic Island Live Activity surfaces use the same light/dark wordmark instead of the generic circle-grid symbol.
 - Remote alerts opt into a notification service extension that attaches the full square manna logo. The small notification icon remains the iOS-controlled app icon.
 - The generated project builds with the app, Live Activity/widget extension, and notification service extension embedded. All 46 domain/unit tests and all 6 UI tests pass on an iPhone 17e simulator; an earlier iPhone 17 Pro run hit an Xcode test-worker startup stall before tests materialized.
-- Production delivery still requires deploying the updated `dispatch-prompts` function and validating the new `app.manna-circle.ios.notification-service` extension identifier/profile on a physical TestFlight device.
+- A Release archive and App Store Connect export succeeded with production APNs, the Live Activity/widget extension, and the signed `app.manna-circle.ios.notification-service` extension; the export validator also confirmed the bundled notification logo. Production delivery still requires deploying the updated `dispatch-prompts` function and validating the branded alert on a physical TestFlight device.
 
 ## 2026-10-06 circle creation settings and invite rotation
 
