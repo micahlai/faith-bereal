@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-07 photo crop and circle-photo upload policy
+
+- Profile and circle photo selection now opens the same square resize editor before save. Pinch/drag gestures, a zoom slider, and directional buttons produce a bounded 1024-pixel JPEG with accessible non-drag controls.
+- Circle-photo Storage writes use a server-authorized ownership predicate and require the canonical `<circle-id>/circle.jpg` path, resolving owner uploads that were rejected while preserving private member reads. Migration `202610070006_circle_photo_storage_policy.sql` is deployed and the hosted schema passes error-level lint.
+- Circle creation accepts an optional cropped photo alongside its initial settings. Circle Settings uses one top-right Save action for schedule and photo changes, and Cancel confirms before discarding edits.
+- Blessing details use a compact close icon beside the time-limited Edit action instead of rendering an oversized Done control after editing expires.
+
 ## 2026-10-07 circle photo placement
 
 - Circle photos now replace the seven-dot identity mark on the Circle page. The global circle dropdown consistently uses the generic group icon and no longer places circle photos in its label or options.

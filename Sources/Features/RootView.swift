@@ -601,6 +601,7 @@ private struct ProfileEditorView: View {
     @Binding var isPresented: Bool
     @State private var displayName: String
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var pendingPhotoCrop: PendingSquarePhoto?
     @State private var photoURL: URL?
     @State private var isSaving = false
     @State private var isPreparingPhoto = false
@@ -666,11 +667,22 @@ private struct ProfileEditorView: View {
                 defer { isPreparingPhoto = false }
                 do {
                     guard let data = try await selectedPhoto.loadTransferable(type: Data.self) else { return }
-                    photoURL = try CaptureMediaStore.persistProfilePhoto(data: data)
+                    pendingPhotoCrop = try PendingSquarePhoto(data: data)
                 } catch {
                     model.message = "Couldn’t prepare that photo: \(error.localizedDescription)"
                 }
             }
+        }
+        .sheet(item: $pendingPhotoCrop, onDismiss: { selectedPhoto = nil }) { photo in
+            SquarePhotoEditor(
+                title: "Resize profile photo",
+                photo: photo,
+                onCancel: { pendingPhotoCrop = nil },
+                onUsePhoto: { url in
+                    photoURL = url
+                    pendingPhotoCrop = nil
+                }
+            )
         }
     }
 

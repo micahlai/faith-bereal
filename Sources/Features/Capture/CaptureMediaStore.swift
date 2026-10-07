@@ -54,6 +54,56 @@ enum CaptureMediaStore {
         return destinationURL
     }
 
+    static func persistCroppedProfilePhoto(
+        image: UIImage,
+        viewportSize: CGFloat,
+        zoom: CGFloat,
+        offset: CGSize,
+        outputPixelSize: CGFloat = 1_024
+    ) throws -> URL {
+        guard viewportSize > 0,
+              zoom >= 1,
+              outputPixelSize > 0,
+              image.size.width > 0,
+              image.size.height > 0 else {
+            throw BlessingError.cameraUnavailable
+        }
+
+        let fillScale = max(viewportSize / image.size.width, viewportSize / image.size.height)
+        let drawSize = CGSize(
+            width: image.size.width * fillScale * zoom,
+            height: image.size.height * fillScale * zoom
+        )
+        let maxX = max(0, (drawSize.width - viewportSize) / 2)
+        let maxY = max(0, (drawSize.height - viewportSize) / 2)
+        let clampedOffset = CGSize(
+            width: min(max(offset.width, -maxX), maxX),
+            height: min(max(offset.height, -maxY), maxY)
+        )
+        let outputScale = outputPixelSize / viewportSize
+        let drawRect = CGRect(
+            x: ((viewportSize - drawSize.width) / 2 + clampedOffset.width) * outputScale,
+            y: ((viewportSize - drawSize.height) / 2 + clampedOffset.height) * outputScale,
+            width: drawSize.width * outputScale,
+            height: drawSize.height * outputScale
+        )
+        let outputSize = CGSize(width: outputPixelSize, height: outputPixelSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let cropped = UIGraphicsImageRenderer(size: outputSize, format: format).image { context in
+            UIColor.black.setFill()
+            context.fill(CGRect(origin: .zero, size: outputSize))
+            image.draw(in: drawRect)
+        }
+        guard let jpegData = cropped.jpegData(compressionQuality: 0.82) else {
+            throw BlessingError.cameraUnavailable
+        }
+        let destinationURL = try newRecordingURL(pathExtension: "jpg")
+        try jpegData.write(to: destinationURL, options: .atomic)
+        return destinationURL
+    }
+
     private static func captureDirectory() throws -> URL {
         let baseURL = try FileManager.default.url(
             for: .cachesDirectory,

@@ -68,6 +68,7 @@ final class BlessingCircleUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
 
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Circle"].tap()
         let settingsButton = app.buttons["circle-settings-button"]
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
@@ -102,14 +103,19 @@ final class BlessingCircleUITests: XCTestCase {
         app.buttons["Create a circle"].tap()
 
         XCTAssertTrue(app.navigationBars["New circle"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Circle photo"].exists)
+        XCTAssertTrue(app.buttons["Choose circle photo"].exists)
         XCTAssertTrue(app.textFields["Circle name"].exists)
         XCTAssertTrue(app.staticTexts["Random blessing time"].exists)
         XCTAssertTrue(app.staticTexts["Response window"].exists)
-        app.swipeUp()
-        XCTAssertTrue(app.switches["Allow late blessings"].waitForExistence(timeout: 2))
+        let allowLate = app.switches["Allow late blessings"]
+        for _ in 0..<3 where !allowLate.isHittable { app.swipeUp() }
+        XCTAssertTrue(allowLate.waitForExistence(timeout: 2))
+        XCTAssertEqual(allowLate.value as? String, "1")
         XCTAssertTrue(app.staticTexts["Reuse window"].exists)
-        app.swipeUp()
-        XCTAssertTrue(app.buttons["Create circle"].waitForExistence(timeout: 2))
+        let create = app.buttons["Create circle"]
+        for _ in 0..<3 where !create.isHittable { app.swipeUp() }
+        XCTAssertTrue(create.waitForExistence(timeout: 2))
     }
 
     @MainActor
@@ -138,6 +144,33 @@ final class BlessingCircleUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(successMessage.exists)
         confirmation.buttons["OK"].tap()
+    }
+
+    @MainActor
+    func testCircleSettingsConfirmsBeforeDiscardingChanges() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Circle"].tap()
+        let settingsButton = app.buttons["circle-settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
+        settingsButton.tap()
+
+        XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 3))
+        let nameField = app.textFields["Circle name"]
+        XCTAssertTrue(nameField.exists)
+        nameField.tap()
+        nameField.typeText(" updated")
+        app.buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.buttons["Discard Changes"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["Keep Editing"].exists)
+        app.buttons["Discard Changes"].tap()
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
     }
 
 }

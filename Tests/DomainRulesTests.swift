@@ -613,6 +613,41 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertLessThan(try Data(contentsOf: persistedURL).count, sourceData.count)
     }
 
+    func testProfilePhotoCropProducesSquareUploadImage() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 1_600, height: 900)).image { context in
+            UIColor.systemOrange.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 800, height: 900))
+            UIColor.systemPurple.setFill()
+            context.fill(CGRect(x: 800, y: 0, width: 800, height: 900))
+        }
+
+        let persistedURL = try CaptureMediaStore.persistCroppedProfilePhoto(
+            image: image,
+            viewportSize: 320,
+            zoom: 1.5,
+            offset: CGSize(width: 40, height: -20)
+        )
+        defer { try? FileManager.default.removeItem(at: persistedURL) }
+
+        let persistedImage = try XCTUnwrap(UIImage(contentsOfFile: persistedURL.path))
+        XCTAssertEqual(persistedImage.size.width, 1_024)
+        XCTAssertEqual(persistedImage.size.height, 1_024)
+        XCTAssertEqual(persistedURL.pathExtension, "jpg")
+    }
+
+    func testProfilePhotoCropRejectsInvalidViewport() {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 20)).image { _ in }
+
+        XCTAssertThrowsError(
+            try CaptureMediaStore.persistCroppedProfilePhoto(
+                image: image,
+                viewportSize: 0,
+                zoom: 1,
+                offset: .zero
+            )
+        )
+    }
+
     func testTypedBlessingCanIncludeOptionalPhoto() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
