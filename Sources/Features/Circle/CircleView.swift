@@ -30,6 +30,11 @@ struct CircleView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingJoin) { joinSheet }
         .sheet(isPresented: $showingCreate) { createSheet }
+        .onAppear { presentPendingInviteIfNeeded() }
+        .onChange(of: model.pendingInviteCode) { _, _ in presentPendingInviteIfNeeded() }
+        .onChange(of: showingJoin) { wasShowing, isShowing in
+            if wasShowing && !isShowing { model.clearPendingInvite() }
+        }
     }
 
     private var emptyHeader: some View {
@@ -71,8 +76,8 @@ struct CircleView: View {
                         .textSelection(.enabled)
                 }
                 Spacer()
-                ShareLink(item: model.circle?.inviteCode ?? "") {
-                    Label("Share", systemImage: "square.and.arrow.up")
+                ShareLink(item: inviteURL(for: model.circle?.inviteCode ?? "")) {
+                    Label("Share join link", systemImage: "square.and.arrow.up")
                         .frame(minHeight: 44)
                 }
                 .disabled(model.circle?.inviteCode.isEmpty != false)
@@ -182,6 +187,16 @@ struct CircleView: View {
 
     private var createSheet: some View {
         CircleCreationView(isPresented: $showingCreate)
+    }
+
+    private func presentPendingInviteIfNeeded() {
+        guard let code = model.pendingInviteCode else { return }
+        joinCode = code
+        showingJoin = true
+    }
+
+    private func inviteURL(for code: String) -> URL {
+        CircleInviteLink.webURL(for: code) ?? CircleInviteLink.websiteURL
     }
 }
 
@@ -446,8 +461,8 @@ private struct CircleSettingsView: View {
                                 .textSelection(.enabled)
                                 .accessibilityIdentifier("circle-settings-invite-code")
                         }
-                        ShareLink(item: currentInviteCode) {
-                            Label("Share invite code", systemImage: "square.and.arrow.up")
+                        ShareLink(item: inviteURL) {
+                            Label("Share join link", systemImage: "square.and.arrow.up")
                                 .frame(minHeight: 44)
                         }
                         .disabled(currentInviteCode.isEmpty || isRegeneratingCode)
@@ -740,6 +755,10 @@ private struct CircleSettingsView: View {
 
     private var currentInviteCode: String {
         model.circle?.id == circle.id ? (model.circle?.inviteCode ?? "") : circle.inviteCode
+    }
+
+    private var inviteURL: URL {
+        CircleInviteLink.webURL(for: currentInviteCode) ?? CircleInviteLink.websiteURL
     }
 
     private static func wallClockDate(minutes: Int) -> Date {

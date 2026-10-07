@@ -50,6 +50,11 @@ if ! /usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' "$ent
   exit 1
 fi
 
+if ! /usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains' "$entitlements" 2>/dev/null | grep -q 'applinks:manna-circle.micahlai.com'; then
+  echo "error: Exported app is missing the manna circle Universal Link domain." >&2
+  exit 1
+fi
+
 if ! /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups' "$entitlements" 2>/dev/null | grep -q 'group.app.blessingcircle.shared'; then
   echo "error: Exported app is missing the shared App Group." >&2
   exit 1

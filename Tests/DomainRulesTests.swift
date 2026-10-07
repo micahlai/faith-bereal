@@ -4,6 +4,66 @@ import AVFoundation
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testCircleInviteLinkBuildsAndParsesTheProductionUniversalLink() throws {
+        let url = try XCTUnwrap(CircleInviteLink.webURL(for: " light7 "))
+
+        XCTAssertEqual(url.absoluteString, "https://manna-circle.micahlai.com/join/LIGHT7")
+        XCTAssertEqual(CircleInviteLink.code(from: url), "LIGHT7")
+        XCTAssertEqual(
+            CircleInviteLink.code(from: try XCTUnwrap(URL(string: "blessingcircle://join?code=grace8"))),
+            "GRACE8"
+        )
+    }
+
+    func testCircleInviteLinkRejectsUntrustedOrMalformedURLs() throws {
+        let rejected = [
+            "http://manna-circle.micahlai.com/join/LIGHT7",
+            "https://example.com/join/LIGHT7",
+            "https://manna-circle.micahlai.com/join/LIGHT7/extra",
+            "https://manna-circle.micahlai.com/join/LIGHT7?redirect=evil",
+            "https://manna-circle.micahlai.com/join/bad%2Fcode",
+            "blessingcircle://join?code=LIGHT7&redirect=evil",
+        ]
+
+        for value in rejected {
+            XCTAssertNil(CircleInviteLink.code(from: try XCTUnwrap(URL(string: value))), value)
+        }
+    }
+
+    func testStoredCircleLocalDateDoesNotShiftToThePreviousDay() throws {
+        let timeZoneIdentifier = "America/New_York"
+        let date = try XCTUnwrap(
+            CircleLocalDay.date(from: "2026-10-07", timeZoneIdentifier: timeZoneIdentifier)
+        )
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: timeZoneIdentifier)
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 10)
+        XCTAssertEqual(components.day, 7)
+    }
+
+    @MainActor
+    func testUniversalInviteWaitsForBootstrapAndSelectsTheCircleTab() async throws {
+        let model = AppModel(repository: LocalBlessingRepository(now: .now))
+        model.clearPendingInvite()
+        defer { model.clearPendingInvite() }
+        let url = try XCTUnwrap(
+            URL(string: "https://manna-circle.micahlai.com/join/LIGHT7")
+        )
+
+        await model.handleDeepLink(url)
+
+        XCTAssertEqual(model.pendingInviteCode, "LIGHT7")
+        XCTAssertEqual(model.loadState, .idle)
+
+        await model.bootstrap()
+
+        XCTAssertEqual(model.loadState, .ready)
+        XCTAssertEqual(model.selectedTab, 2)
+        XCTAssertEqual(model.pendingInviteCode, "LIGHT7")
+    }
+
     func testExpiredLiveActivityCountdownClampsToZeroLengthInterval() {
         let now = Date(timeIntervalSince1970: 1_800_000_600)
         let interval = PromptActivityCountdown.interval(

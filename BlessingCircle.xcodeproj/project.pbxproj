@@ -36,6 +36,7 @@
 		8704FD748616E0FDC60A6B02 /* VideoCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */; };
 		879481067520378A11890A2B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B69BDB637FBD5E1800B58241 /* Supabase */; };
 		8C46C5252F22D454030670E7 /* MediaAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D21C002BA640BCA51357A90 /* MediaAuthorization.swift */; };
+		9476284B95C8E5DBFFBDFCAD /* CircleInviteLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */; };
 		97A4EB7FB4579E73FD2A7E4D /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
 		989B338792772AC73A036EEC /* BibleReferencePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF821C48CC75D537252691D /* BibleReferencePicker.swift */; };
 		9D5FCA300508C441D2DCC72D /* BackendConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */; };
@@ -50,6 +51,7 @@
 		CACCB05EEFF73ED373306CBD /* MediaPlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */; };
 		CED8F4825F464AFB5F2C7264 /* BlessingCircleHomeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */; };
 		D39F594EE10456032E8678DE /* AppComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */; };
+		D3A39B6B7BB6AA5F14D2DED3 /* CircleLocalDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */; };
 		E8BF3EB4CB41784548937894 /* PromptActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */; };
 		EFE5536CCC884FDACDAAB6D4 /* BlessingCircleLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F58EC1B9E3233BD4F529E454 /* SupabaseBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */; };
@@ -117,6 +119,7 @@
 		2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptActivityController.swift; sourceTree = "<group>"; };
 		33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleApp.swift; sourceTree = "<group>"; };
 		5AA633448ED63CFD632146E3 /* NotificationLogo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogo.png; sourceTree = "<group>"; };
+		5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleLocalDay.swift; sourceTree = "<group>"; };
 		5D21C002BA640BCA51357A90 /* MediaAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAuthorization.swift; sourceTree = "<group>"; };
 		5EF821C48CC75D537252691D /* BibleReferencePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReferencePicker.swift; sourceTree = "<group>"; };
 		660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthenticationService.swift; sourceTree = "<group>"; };
@@ -136,6 +139,7 @@
 		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugPromptProviding.swift; sourceTree = "<group>"; };
+		A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleInviteLink.swift; sourceTree = "<group>"; };
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
 		A64B2CD999847E450C198DDA /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
@@ -280,6 +284,8 @@
 			isa = PBXGroup;
 			children = (
 				089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */,
+				A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */,
+				5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */,
 				766D059B090295A07973C5B3 /* Models.swift */,
 			);
 			path = Domain;
@@ -602,6 +608,8 @@
 				A84C21D6ED0FE43EA1F4E975 /* BlessingWidgetSnapshot.swift in Sources */,
 				6545467C2B8B3C77A6BF2989 /* CaptureMediaStore.swift in Sources */,
 				6BF92E4D99CABF90A577F055 /* CaptureView.swift in Sources */,
+				9476284B95C8E5DBFFBDFCAD /* CircleInviteLink.swift in Sources */,
+				D3A39B6B7BB6AA5F14D2DED3 /* CircleLocalDay.swift in Sources */,
 				7D1922CBB7AFE9B86E780EA9 /* CircleTimelineView.swift in Sources */,
 				68E89B000052B2EA87B3E842 /* CircleView.swift in Sources */,
 				081FDE84368F337DA538DBDB /* DebugPromptProviding.swift in Sources */,

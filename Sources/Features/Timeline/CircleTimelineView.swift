@@ -19,10 +19,11 @@ struct CircleTimelineView: View {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         Section {
                             Grid(alignment: .topLeading, horizontalSpacing: 20, verticalSpacing: 0) {
-                                ForEach(TimelineRow.rows(for: model.lanes)) { row in
+                                ForEach(TimelineRow.rows(for: model.lanes, calendar: circleCalendar)) { row in
                                     TimelineDayRow(
                                         row: row,
                                         lanes: model.lanes,
+                                        calendar: circleCalendar,
                                         currentUserID: model.currentUser?.id,
                                         onSelect: { member, blessing in
                                             selection = BlessingSelection(member: member, blessing: blessing)
@@ -55,6 +56,10 @@ struct CircleTimelineView: View {
                 allowsResponses: model.canRespond(to: selection.blessing)
             )
         }
+    }
+
+    private var circleCalendar: Calendar {
+        CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
     }
 }
 
@@ -137,13 +142,14 @@ private struct TimelineRow: Identifiable {
 private struct TimelineDayRow: View {
     let row: TimelineRow
     let lanes: [TimelineLane]
+    let calendar: Calendar
     let currentUserID: UUID?
     let onSelect: (Member, Blessing) -> Void
 
     var body: some View {
         GridRow(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.day.formatted(.dateTime.month(.abbreviated).day()))
+                Text(dayLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(AppTheme.secondaryInk)
                 if row.kind == .joined {
@@ -167,13 +173,19 @@ private struct TimelineDayRow: View {
                     .frame(maxHeight: .infinity, alignment: .top)
                 } else {
                     TimelineConnectorView(
-                        isVisible: row.day >= Calendar.current.startOfDay(for: lane.member.joinedAt)
+                        isVisible: row.day >= calendar.startOfDay(for: lane.member.joinedAt)
                     )
                     .frame(width: 238)
                     .frame(minHeight: 42, maxHeight: .infinity, alignment: .top)
                 }
             }
         }
+    }
+
+    private var dayLabel: String {
+        var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        style.timeZone = calendar.timeZone
+        return row.day.formatted(style)
     }
 }
 

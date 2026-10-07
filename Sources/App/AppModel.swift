@@ -48,6 +48,15 @@ final class AppModel {
     var submittedBlessing: Blessing?
     var deepLinkedBlessing: BlessingFeedItem?
     var isForcingCirclePrompt = false
+    private(set) var pendingInviteCode: String? {
+        didSet {
+            if let pendingInviteCode {
+                UserDefaults.standard.set(pendingInviteCode, forKey: Self.pendingInviteCodeKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.pendingInviteCodeKey)
+            }
+        }
+    }
     var hasSeenAbout: Bool {
         didSet { UserDefaults.standard.set(hasSeenAbout, forKey: Self.hasSeenAboutKey) }
     }
@@ -78,6 +87,8 @@ final class AppModel {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
+        self.pendingInviteCode = UserDefaults.standard.string(forKey: Self.pendingInviteCodeKey)
+            .flatMap(CircleInviteLink.normalize(code:))
         let skipsOnboarding = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
         self.hasSeenAbout = skipsOnboarding || UserDefaults.standard.bool(forKey: Self.hasSeenAboutKey)
         self.hasChosenInitialAppearance = skipsOnboarding || UserDefaults.standard.bool(forKey: Self.hasChosenAppearanceKey)
@@ -239,6 +250,7 @@ final class AppModel {
             if self.circle == nil { selectedTab = 2 }
             try await refreshTimeline()
             loadState = .ready
+            if pendingInviteCode != nil { selectedTab = 2 }
             startRealtimeUpdates()
             await configureRemoteServices()
             if let prompt = self.prompt,
@@ -489,10 +501,15 @@ final class AppModel {
 
     func joinCircle(code: String) async -> Bool {
         guard let currentUser else { return false }
+        guard let code = CircleInviteLink.normalize(code: code) else {
+            message = "That circle invitation is not valid."
+            return false
+        }
         do {
             let joinedCircle = try await repository.joinCircle(code: code, memberID: currentUser.id)
             upsertCircle(joinedCircle)
             await switchCircle(to: joinedCircle.id)
+            if pendingInviteCode == code { clearPendingInvite() }
             message = "You joined \(joinedCircle.name)."
             return true
         } catch {
@@ -848,6 +865,11 @@ final class AppModel {
     }
 
     func handleDeepLink(_ url: URL) async {
+        if let inviteCode = CircleInviteLink.code(from: url) {
+            pendingInviteCode = inviteCode
+            if loadState == .ready { selectedTab = 2 }
+            return
+        }
         guard url.scheme == "blessingcircle" else { return }
         guard loadState == .ready else {
             pendingDeepLink = url
@@ -914,6 +936,10 @@ final class AppModel {
         guard let pendingDeepLink else { return }
         self.pendingDeepLink = nil
         await handleDeepLink(pendingDeepLink)
+    }
+
+    func clearPendingInvite() {
+        pendingInviteCode = nil
     }
 
     func receiveAPNSToken(_ token: String) {
@@ -1020,6 +1046,7 @@ final class AppModel {
     private static let hasSeenAboutKey = "onboarding.hasSeenAbout"
     private static let hasChosenAppearanceKey = "onboarding.hasChosenAppearance"
     private static let widgetRefreshKey = "user.widgetRefreshMinutes"
+    private static let pendingInviteCodeKey = "circle.pendingInviteCode"
     static let widgetRefreshOptions = [15, 30, 60, 120, 240]
 
     private func blessingFeedItem(id: UUID) -> BlessingFeedItem? {

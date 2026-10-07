@@ -66,7 +66,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .value
         guard let row = rows.first else { throw BlessingError.circleNotFound }
         let circle = try await fetchCircle(id: row.circleID, inviteCode: "")
-        return CircleContext(circle: circle, prompt: prompt(from: row))
+        return CircleContext(
+            circle: circle,
+            prompt: prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
+        )
     }
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
@@ -115,7 +118,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                         || calendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
                 }
                 .map { row -> TimelineEvent in
-                    let prompt = prompt(from: row)
+                    let prompt = prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
                     let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
                     let isToday = row.localDate == currentLocalDate
                     let status: TimelineStatus
@@ -620,7 +623,9 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .limit(1)
             .execute()
             .value
-        return rows.first.map(prompt(from:))
+        return rows.first.map {
+            prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier)
+        }
     }
 
     private func fetchBlessing(id: UUID) async throws -> BlessingWithCircleRow {
@@ -679,11 +684,11 @@ actor SupabaseBlessingRepository: BlessingRepository {
         }
     }
 
-    private func prompt(from row: PromptRow) -> DailyPrompt {
+    private func prompt(from row: PromptRow, timeZoneIdentifier: String) -> DailyPrompt {
         DailyPrompt(
             id: row.id,
             circleID: row.circleID,
-            localDate: row.localDateValue,
+            localDate: row.localDateValue(timeZoneIdentifier: timeZoneIdentifier),
             startsAt: row.startsAt,
             endsAt: row.endsAt
         )
@@ -816,18 +821,9 @@ private struct PromptRow: Codable, Sendable {
     let startsAt: Date
     let endsAt: Date
 
-    var localDateValue: Date {
-        Self.dateFormatter.date(from: localDate) ?? startsAt
+    func localDateValue(timeZoneIdentifier: String) -> Date {
+        CircleLocalDay.date(from: localDate, timeZoneIdentifier: timeZoneIdentifier) ?? startsAt
     }
-
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .iso8601)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
 
     enum CodingKeys: String, CodingKey {
         case id

@@ -50,6 +50,8 @@ targets:
         aps-environment: $(APNS_ENVIRONMENT)
         com.apple.developer.applesignin:
           - Default
+        com.apple.developer.associated-domains:
+          - applinks:manna-circle.micahlai.com
         com.apple.security.application-groups:
           - group.app.blessingcircle.shared
     configFiles:
