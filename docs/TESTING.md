@@ -28,6 +28,10 @@ TESTFLIGHT_BUILD_NUMBER=2 Scripts/prepare-testflight.sh
 
 The workflow regenerates the project, runs the complete local-demo unit and UI suites as separate Xcode test phases on the reliable small-phone default, archives the hosted Release configuration, exports an App Store Connect IPA, and validates production APNs, `get-task-allow = false`, Sign in with Apple, the shared App Group, both embedded extension signatures, and the notification-logo resource. Separate phases avoid an Xcode worker handoff stall after ActivityKit unit coverage. Override the test device with `TESTFLIGHT_SIMULATOR_NAME='another installed simulator'` when needed. Release builds fail immediately when the hosted Supabase URL/key or production APNs setting is missing; Debug and simulator development retain the local-demo fallback.
 
+### Xcode Cloud
+
+Add `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` to the workflow Environment section and mark both values as secret. For Xcode Cloud archive actions, `ci_scripts/ci_post_clone.sh` validates those variables and writes the ignored `Configuration/Secrets.xcconfig` into the temporary checkout using xcconfig-safe URL syntax. Non-archive actions do not create the file, preserving the local-demo behavior for Debug builds and tests. Xcode Cloud manages distribution signing and may send a successful archive to TestFlight through the workflow's distribution post-action.
+
 ## Owner force-notification control
 
 The current circle owner has an **Owner testing** section in Circle settings:

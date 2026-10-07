@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-06 Xcode Cloud release configuration
+
+- Xcode Cloud archive actions now validate the workflow's secret `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` variables and materialize the ignored `Configuration/Secrets.xcconfig` inside the temporary checkout.
+- The generated URL uses xcconfig-safe syntax, secret values are never printed, and non-archive actions retain Debug/local-demo behavior.
+- The script is locally verified with an isolated mock Xcode Cloud checkout; the first real cloud archive and TestFlight distribution remain to be run.
+
 ## 2026-10-06 widget, Live Activity, and notification branding
 
 - The Home Screen widget now keeps the adaptive transparent manna wordmark in its top-right corner without adding duplicate accessibility speech.
