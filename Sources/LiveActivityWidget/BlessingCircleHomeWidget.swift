@@ -95,19 +95,8 @@ private struct BlessingWidgetView: View {
 
     private func blessingView(_ blessing: BlessingWidgetBlessing) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: icon(for: blessing.captureMode))
-                    .foregroundStyle(MannaWidgetTheme.primary)
-                    .accessibilityHidden(true)
-                Text(blessing.authorName)
-                    .font(.caption.weight(.semibold))
-                Text("·")
-                    .foregroundStyle(.secondary)
-                Text(blessing.circleName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            blessingHeader(blessing)
+                .padding(.trailing, family == .systemSmall ? 54 : 68)
 
             Text(blessing.transcript)
                 .font(.system(family == .systemSmall ? .subheadline : .body, design: .serif))
@@ -139,6 +128,31 @@ private struct BlessingWidgetView: View {
         .accessibilityHint("Opens this blessing")
     }
 
+    @ViewBuilder
+    private func blessingHeader(_ blessing: BlessingWidgetBlessing) -> some View {
+        if family == .systemSmall {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(blessing.authorName)
+                    .font(.caption.weight(.semibold))
+                Text(blessing.circleName)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .lineLimit(1)
+        } else {
+            HStack(spacing: 6) {
+                Text(blessing.authorName)
+                    .font(.caption.weight(.semibold))
+                Text("·")
+                    .foregroundStyle(.secondary)
+                Text(blessing.circleName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
     private var emptyView: some View {
         VStack(alignment: .leading, spacing: 10) {
             Image(systemName: "circle.hexagongrid.fill")
@@ -153,14 +167,6 @@ private struct BlessingWidgetView: View {
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private func icon(for mode: BlessingWidgetCaptureMode) -> String {
-        switch mode {
-        case .typed: "text.quote"
-        case .voice: "waveform"
-        case .video: "video.fill"
-        }
     }
 
     private func accessibilityLabel(for blessing: BlessingWidgetBlessing) -> String {
