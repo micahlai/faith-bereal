@@ -10,19 +10,19 @@
 - User settings now expose one activity-notification toggle per joined circle. It controls peer blessing alerts and response-thread alerts, defaults on, and is stored on the membership.
 - Blessing inserts and response inserts transactionally create server-only outbox events. The dispatcher applies today's visibility gate per recipient, notifies the blessing author and prior responders without echoing to the sender, and uses idempotent APNs collapse identifiers.
 - The notification service uses Apple's communication-notification presentation with a sender profile image and circle group image when available. iOS remains responsible for the exact compact-banner arrangement.
-- Migration `202610070005_circle_activity_notifications.sql` and the updated dispatcher are ready for hosted deployment. Two-account production APNs and communication-capability provisioning remain pending.
+- Migration `202610070005_circle_activity_notifications.sql` is deployed and `dispatch-prompts` version 12 is active. A signed Release device build accepts the communication-notification entitlement; two-account production APNs presentation remains pending.
 
 ## 2026-10-07 circle photos
 
 - Circle owners can choose, replace, or remove a downsampled private circle photo from Circle settings. Members see it beside the current circle and inside the global circle switcher.
-- Hosted photos use a dedicated private `circle-photos` bucket with owner-only writes and member-only reads; migration `202610070004_circle_photos.sql` is ready for deployment.
+- Hosted photos use a dedicated private `circle-photos` bucket with owner-only writes and member-only reads; migration `202610070004_circle_photos.sql` is deployed.
 - The photo data is also available to the notification delivery path as the circle/group image. Hosted upload, signed-URL refresh, and notification appearance still need physical-device acceptance.
 
 ## 2026-10-07 ten-minute blessing edits
 
 - Authors can edit a blessing's text or transcript and optional scripture tag for ten minutes after the server-authored submission time; attached audio, video, and photos remain unchanged.
 - The local demo and hosted RPC enforce the same author-only, global deadline, including a closed exact ten-minute boundary. Timeline, Today, deep-linked detail, and widget state update after a successful edit.
-- Migration `202610070003_blessing_edits.sql` is ready for hosted deployment; signed two-account acceptance remains pending.
+- Migration `202610070003_blessing_edits.sql` is deployed; signed two-account acceptance remains pending.
 
 ## 2026-10-07 circle creation defaults
 
