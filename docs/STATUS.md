@@ -120,6 +120,13 @@ Last updated: 2026-10-07
 - The decoder remains compatible with already-created local activities that used the prior reference-date representation, and expired countdown ranges clamp to zero.
 - Regression tests cover APNs decoding, Unix encoding, and legacy local-state decoding.
 
+## 2026-10-07 notification launch and release safeguards
+
+- Notification-response routing now uses the completion-handler delegate API, acknowledges the system callback immediately, and transfers only the parsed route onto the main actor. This avoids the async Objective-C bridge that appeared in the physical-device notification crash reports.
+- A notification or Live Activity route received during cold launch is retained until bootstrap completes, then refreshes the selected circle and opens Today capture instead of being lost against uninitialized state.
+- The APNs Live Activity payload now has a standalone, executable contract test that verifies Unix-second deadlines and exact content-state fields for start, update, and end events.
+- TestFlight preparation runs the APNs payload contract plus the domain suite in both Debug and Release, including expired-deadline and cold-notification-launch regressions.
+
 ## Current phase
 
 Milestone 3.5 is complete against the local repository. Milestone 4 release-readiness work is in progress; Apple-account, physical-device, and hosted-backend acceptance remains pending.
@@ -134,7 +141,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Forty-six domain tests and six UI tests pass on the simulator. The earlier 43-domain/4-UI plan also passed on a signed iPhone 14 Pro running iOS 26.6.2. Current UI coverage adds the all-settings creation form and owner invite-code rotation to Today, Timeline scrolling, dark appearance, accessibility-size text, text/voice-versus-video photo attachment availability, and the local owner force-notification flow.
+- Fifty-four Debug domain tests, 52 Release domain tests, and six UI tests pass. The six UI tests also pass through an authorized automation session on a signed iPhone 14 Pro running iOS 26.6.2. Current UI coverage includes the all-settings creation form, owner invite-code rotation and force-notification flow, Today and Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols. Blank configuration safely falls back to the local demo in Debug, while Release now fails before compilation without valid hosted Supabase values and production APNs settings.

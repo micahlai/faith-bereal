@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "npm:jose@5";
+import { liveActivityContentState, unixSeconds } from "./live-activity-payload.ts";
 
 type Prompt = {
   id: string;
@@ -206,8 +207,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   if (deviceError) throw deviceError;
   const activeDevices = (devices ?? []) as Device[];
 
-  const timestamp = Math.floor(Date.now() / 1000);
-  const endsAt = Math.floor(new Date(prompt.ends_at).getTime() / 1000);
+  const timestamp = unixSeconds(new Date());
   const windowLabel = prompt.response_window_minutes === 1
     ? "one minute"
     : `${prompt.response_window_minutes} minutes`;
@@ -250,7 +250,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
               "input-push-token": 1,
               "attributes-type": "PromptActivityAttributes",
               attributes: { promptID: prompt.id, circleName: circle.name },
-              "content-state": { endsAt, responseCount: 0, hasSubmitted: false },
+              "content-state": liveActivityContentState(prompt.ends_at, 0, false),
               alert: {
                 title: `${circle.name} is ready`,
                 body: `You have ${windowLabel} to share today’s blessing.`,
@@ -342,8 +342,7 @@ async function updateOpenActivities(): Promise<void> {
       .eq("prompt_id", prompt.id);
     if (blessingError) throw blessingError;
     const authors = new Set((blessings ?? []).map((row) => row.author_id));
-    const timestamp = Math.floor(Date.now() / 1000);
-    const endsAt = Math.floor(new Date(prompt.ends_at).getTime() / 1000);
+    const timestamp = unixSeconds(new Date());
 
     await Promise.allSettled((registrations as ActivityRegistration[]).map((registration) =>
       sendAPNs(
@@ -355,11 +354,11 @@ async function updateOpenActivities(): Promise<void> {
           aps: {
             timestamp,
             event: "update",
-            "content-state": {
-              endsAt,
-              responseCount: authors.size,
-              hasSubmitted: authors.has(registration.user_id),
-            },
+            "content-state": liveActivityContentState(
+              prompt.ends_at,
+              authors.size,
+              authors.has(registration.user_id),
+            ),
           },
         },
       )
@@ -390,8 +389,7 @@ async function closeExpiredPrompts(): Promise<void> {
       .eq("prompt_id", prompt.id);
     if (blessingError) throw blessingError;
     const authors = new Set((blessings ?? []).map((row) => row.author_id));
-    const timestamp = Math.floor(now.getTime() / 1000);
-    const endsAt = Math.floor(new Date(prompt.ends_at).getTime() / 1000);
+    const timestamp = unixSeconds(now);
 
     await Promise.allSettled(((registrations ?? []) as ActivityRegistration[]).map((registration) =>
       sendAPNs(
@@ -404,11 +402,11 @@ async function closeExpiredPrompts(): Promise<void> {
             timestamp,
             event: "end",
             "dismissal-date": timestamp + 60,
-            "content-state": {
-              endsAt,
-              responseCount: authors.size,
-              hasSubmitted: authors.has(registration.user_id),
-            },
+            "content-state": liveActivityContentState(
+              prompt.ends_at,
+              authors.size,
+              authors.has(registration.user_id),
+            ),
           },
         },
       )

@@ -55,11 +55,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        guard let route = response.notification.request.content.userInfo["route"] as? String,
-              let url = URL(string: route) else { return }
-        await deliverNotificationURL(url)
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
+        let route = response.notification.request.content.userInfo["route"] as? String
+        let url = route.flatMap(URL.init(string:))
+        completionHandler()
+        guard let url else { return }
+        Task { @MainActor [weak self] in
+            self?.deliverNotificationURL(url)
+        }
     }
 
     private func deliverNotificationURL(_ url: URL) {

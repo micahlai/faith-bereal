@@ -24,6 +24,7 @@ final class AppModel {
     private var remoteServicesConfigured = false
     private var apnsToken: String?
     private var pushToStartToken: String?
+    private var pendingDeepLink: URL?
 
     var loadState: LoadState = .idle
     var currentUser: Member?
@@ -211,6 +212,7 @@ final class AppModel {
                prompt.phase(at: .now) == .open {
                 await startLiveActivity(for: prompt, circle: circle)
             }
+            await handlePendingDeepLinkIfNeeded()
         } catch {
             loadState = .failed(error.localizedDescription)
         }
@@ -757,6 +759,10 @@ final class AppModel {
 
     func handleDeepLink(_ url: URL) async {
         guard url.scheme == "blessingcircle" else { return }
+        guard loadState == .ready else {
+            pendingDeepLink = url
+            return
+        }
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         if let circleValue = components?.queryItems?.first(where: { $0.name == "circle" })?.value,
            let circleID = UUID(uuidString: circleValue),
@@ -782,6 +788,12 @@ final class AppModel {
         default:
             return
         }
+    }
+
+    private func handlePendingDeepLinkIfNeeded() async {
+        guard let pendingDeepLink else { return }
+        self.pendingDeepLink = nil
+        await handleDeepLink(pendingDeepLink)
     }
 
     func receiveAPNSToken(_ token: String) {

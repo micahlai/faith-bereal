@@ -1,6 +1,12 @@
 import ActivityKit
 import Foundation
 
+enum PromptActivityCountdown {
+    static func interval(now: Date, endsAt: Date) -> ClosedRange<Date> {
+        now...max(now, endsAt)
+    }
+}
+
 struct PromptActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         let endsAt: Date

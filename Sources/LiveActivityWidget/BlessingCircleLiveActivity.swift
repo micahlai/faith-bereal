@@ -70,6 +70,9 @@ private struct LiveActivityCountdownText: View {
 
     var body: some View {
         let now = Date.now
-        Text(timerInterval: now...max(now, endsAt), countsDown: true)
+        Text(
+            timerInterval: PromptActivityCountdown.interval(now: now, endsAt: endsAt),
+            countsDown: true
+        )
     }
 }

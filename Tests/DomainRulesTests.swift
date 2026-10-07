@@ -4,6 +4,17 @@ import AVFoundation
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testExpiredLiveActivityCountdownClampsToZeroLengthInterval() {
+        let now = Date(timeIntervalSince1970: 1_800_000_600)
+        let interval = PromptActivityCountdown.interval(
+            now: now,
+            endsAt: now.addingTimeInterval(-30)
+        )
+
+        XCTAssertEqual(interval.lowerBound, now)
+        XCTAssertEqual(interval.upperBound, now)
+    }
+
     func testLiveActivityDecodesAPNsUnixDeadlineWithoutEpochShift() throws {
         let expected = Date(timeIntervalSince1970: 1_800_000_600)
         let data = Data(
@@ -359,6 +370,27 @@ final class DomainRulesTests: XCTestCase {
         } catch let error as BlessingError {
             XCTAssertEqual(error, .notCircleOwner)
         }
+    }
+
+    @MainActor
+    func testColdNotificationDeepLinkWaitsForBootstrapBeforeOpeningCapture() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let model = AppModel(repository: repository)
+        let bootstrap = try await repository.bootstrap()
+        let circleID = try XCTUnwrap(bootstrap.selectedCircleID)
+        let route = try XCTUnwrap(
+            URL(string: "blessingcircle://today/capture?circle=\(circleID.uuidString)")
+        )
+
+        await model.handleDeepLink(route)
+        XCTAssertFalse(model.isCapturePresented)
+
+        await model.bootstrap()
+
+        XCTAssertEqual(model.loadState, .ready)
+        XCTAssertEqual(model.circle?.id, circleID)
+        XCTAssertEqual(model.selectedTab, 0)
+        XCTAssertTrue(model.isCapturePresented)
     }
 
 #if DEBUG

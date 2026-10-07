@@ -23,12 +23,22 @@ esac
 cd "$project_root"
 
 xcodegen generate
+node Scripts/test-live-activity-payload.mjs
 
 SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY='' xcodebuild \
   -project BlessingCircle.xcodeproj \
   -scheme BlessingCircle \
   -configuration Debug \
   -destination "platform=iOS Simulator,name=$simulator_name" \
+  -only-testing:BlessingCircleTests \
+  test
+
+xcodebuild \
+  -project BlessingCircle.xcodeproj \
+  -scheme BlessingCircle \
+  -configuration Release \
+  -destination "platform=iOS Simulator,name=$simulator_name" \
+  ENABLE_TESTABILITY=YES \
   -only-testing:BlessingCircleTests \
   test
 
