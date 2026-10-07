@@ -31,7 +31,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 ### Circles
 
 - Creating a circle first collects its name, IANA time zone, random-time range, response duration, late-post policy, and repeat window; the circle is committed only after the owner reviews those settings.
-- Create a circle and receive a human-readable, case-insensitive invite code. The owner can regenerate it later; rotation immediately invalidates the previous code without changing current memberships.
+- Create a circle and receive a human-readable, case-insensitive invite code. Sharing sends an HTTPS invitation at `manna-circle.micahlai.com/join/<code>` that opens the installed app through Universal Links and otherwise presents the website fallback. The owner can regenerate the code later; rotation immediately invalidates the previous link/code without changing current memberships.
 - Join by code, leave, and view members. If an owner leaves, ownership passes to the longest-standing remaining member; leaving an owner-only circle deletes it.
 - The circle owner can rotate the invite code and remove members.
 - The circle owner can explicitly transfer ownership to another current member. The server performs the transfer atomically and the former owner remains a member.
@@ -54,6 +54,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - The preselected random time is the dispatch target. When the server claims that prompt, it authors the shared `starts_at` from the actual dispatch and sets `ends_at = starts_at + response_window_minutes`, giving every member the complete configured entry window.
 - The response deadline controls entry into capture, not completion of a capture already opened. The server records an entry grant before presenting capture; that grant remains valid if composition or upload finishes after the deadline or after midnight.
 - A notification and Live Activity deep-link to today's capture screen.
+- After a member submits, the Live Activity remains visible for three minutes. Without late sharing it remains for three minutes after the entry deadline; with late sharing it stays available until that member submits or a newer circle prompt replaces it.
 
 ### Capture
 
@@ -89,6 +90,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - A widget shows “Time to share blessings for [circle name]” while any joined circle has an active prompt and deep-links to Today.
 - Outside share time, it rotates blessings across all joined circles at a user-configured interval, defaulting to 30 minutes.
 - Widget content includes scripture when present and uses transcripts for voice/video blessings. It prioritizes current-day, recent, and not-yet-shown blessings; before any prompt has fired today, it falls back to the most recent prior-day blessing.
+- Blessing widgets identify the member without a decorative capture/quotation glyph. In the compact 2×2 family, the circle name sits below the member name so both remain clear of the top-right manna logo.
 - Tapping displayed content deep-links to the corresponding blessing detail.
 
 ## Visibility policy

@@ -78,7 +78,7 @@ final class DomainRulesTests: XCTestCase {
     func testLiveActivityDecodesAPNsUnixDeadlineWithoutEpochShift() throws {
         let expected = Date(timeIntervalSince1970: 1_800_000_600)
         let data = Data(
-            #"{"endsAt":1800000600,"responseCount":2,"hasSubmitted":false}"#.utf8
+            #"{"endsAt":1800000600,"responseCount":2,"hasSubmitted":false,"allowsLateBlessings":true,"dismissesAt":null}"#.utf8
         )
 
         let state = try JSONDecoder().decode(PromptActivityAttributes.ContentState.self, from: data)
@@ -86,6 +86,8 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(state.endsAt, expected)
         XCTAssertEqual(state.responseCount, 2)
         XCTAssertFalse(state.hasSubmitted)
+        XCTAssertTrue(state.allowsLateBlessings)
+        XCTAssertNil(state.dismissesAt)
     }
 
     func testLiveActivityEncodesDeadlineAsUnixSecondsForAPNs() throws {
@@ -93,13 +95,17 @@ final class DomainRulesTests: XCTestCase {
         let state = PromptActivityAttributes.ContentState(
             endsAt: Date(timeIntervalSince1970: expectedTimestamp),
             responseCount: 1,
-            hasSubmitted: true
+            hasSubmitted: true,
+            allowsLateBlessings: false,
+            dismissesAt: Date(timeIntervalSince1970: expectedTimestamp + 180)
         )
 
         let data = try JSONEncoder().encode(state)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         XCTAssertEqual(object["endsAt"] as? Double, expectedTimestamp)
+        XCTAssertEqual(object["dismissesAt"] as? Double, expectedTimestamp + 180)
+        XCTAssertEqual(object["allowsLateBlessings"] as? Bool, false)
     }
 
     func testLiveActivityDecodesLegacyLocalDeadline() throws {
@@ -114,6 +120,17 @@ final class DomainRulesTests: XCTestCase {
         let state = try JSONDecoder().decode(PromptActivityAttributes.ContentState.self, from: data)
 
         XCTAssertEqual(state.endsAt, expected)
+        XCTAssertFalse(state.allowsLateBlessings)
+        XCTAssertNil(state.dismissesAt)
+    }
+
+    func testLiveActivityDismissesThreeMinutesAfterTerminalEvent() {
+        let eventDate = Date(timeIntervalSince1970: 1_800_000_600)
+
+        XCTAssertEqual(
+            PromptActivityDismissal.date(after: eventDate),
+            eventDate.addingTimeInterval(3 * 60)
+        )
     }
 
     @MainActor

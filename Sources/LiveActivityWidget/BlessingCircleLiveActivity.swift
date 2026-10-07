@@ -18,13 +18,8 @@ struct BlessingCircleLiveActivity: Widget {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(context.attributes.circleName)
                         .font(.headline)
-                    if context.state.hasSubmitted {
-                        Text("Your blessing is shared")
-                            .font(.subheadline)
-                    } else {
-                        LiveActivityCountdownText(endsAt: context.state.endsAt)
-                            .font(.title3.monospacedDigit().weight(.semibold))
-                    }
+                    LiveActivityStatusText(state: context.state)
+                        .font(context.state.hasSubmitted ? .subheadline : .title3.monospacedDigit().weight(.semibold))
                 }
                 Spacer()
             }
@@ -38,10 +33,8 @@ struct BlessingCircleLiveActivity: Widget {
                     MannaWordmark(width: 58)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if !context.state.hasSubmitted {
-                        LiveActivityCountdownText(endsAt: context.state.endsAt)
-                            .font(.headline.monospacedDigit())
-                    }
+                    LiveActivityCompactStatus(state: context.state)
+                        .font(.headline.monospacedDigit())
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     Text(context.state.hasSubmitted ? "Shared with \(context.attributes.circleName)" : "What feels like a blessing today?")
@@ -51,11 +44,7 @@ struct BlessingCircleLiveActivity: Widget {
             } compactLeading: {
                 MannaWordmark(width: 28)
             } compactTrailing: {
-                if !context.state.hasSubmitted {
-                    LiveActivityCountdownText(endsAt: context.state.endsAt)
-                        .monospacedDigit()
-                        .frame(width: 44)
-                }
+                LiveActivityCompactStatus(state: context.state)
             } minimal: {
                 MannaWordmark(width: 24)
             }
@@ -66,6 +55,44 @@ struct BlessingCircleLiveActivity: Widget {
 
     private func captureURL(promptID: UUID) -> URL? {
         URL(string: "blessingcircle://today/capture?prompt=\(promptID.uuidString)")
+    }
+}
+
+private struct LiveActivityCompactStatus: View {
+    let state: PromptActivityAttributes.ContentState
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            if !state.hasSubmitted, context.date < state.endsAt {
+                LiveActivityCountdownText(endsAt: state.endsAt)
+                    .monospacedDigit()
+                    .frame(width: 44)
+            } else if !state.hasSubmitted, state.allowsLateBlessings {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .accessibilityLabel("Late sharing is open")
+            } else {
+                Image(systemName: "checkmark")
+                    .accessibilityLabel(state.hasSubmitted ? "Blessing shared" : "Window closed")
+            }
+        }
+    }
+}
+
+private struct LiveActivityStatusText: View {
+    let state: PromptActivityAttributes.ContentState
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            if state.hasSubmitted {
+                Text("Your blessing is shared")
+            } else if context.date < state.endsAt {
+                LiveActivityCountdownText(endsAt: state.endsAt)
+            } else if state.allowsLateBlessings {
+                Text("Late sharing is open")
+            } else {
+                Text("Window closed")
+            }
+        }
     }
 }
 

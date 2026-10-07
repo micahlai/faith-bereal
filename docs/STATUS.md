@@ -1,5 +1,15 @@
 # Project status
 
+## 2026-10-07 universal invitations, widget header, and Live Activity lifetime
+
+- Circle sharing now sends `https://manna-circle.micahlai.com/join/<code>` instead of a bare code. The production website serves the matching Apple App Site Association file and a custom-scheme fallback; the app persists an incoming invitation through sign-in/onboarding and presents the prefilled join flow.
+- The hosted `join_circle` RPC now validates invitation codes without resetting an existing member's role or join date. Migration `202610070002_universal_circle_invites.sql` is deployed and the hosted schema passes error-level lint.
+- Prompt local dates are now materialized in each circle's configured time zone, preventing a newly created circle's blessing from appearing under the prior day in western time zones.
+- Home Screen blessing widgets no longer show a capture/quotation glyph. The compact 2×2 family stacks the circle name below the member name and reserves the top-right logo area.
+- Live Activities now carry an explicit terminal dismissal timestamp. A submitted blessing remains for three minutes after submission; a no-late prompt remains for three minutes after its entry deadline; a late-enabled prompt remains active until that member submits or a newer prompt replaces it. The hosted dispatcher is deployed with the same start/update/end contract.
+- Circle switching retries three transient transport cancellations and replaces Swift's internal cancellation text with a stable app message while leaving the current circle visible until the destination context is complete.
+- The signed generic-device build, all 63 Debug domain tests, all 59 Release domain tests, and all 6 UI tests pass. Universal Link handoff from Messages, the exact three-minute ActivityKit presentation, late-activity replacement, and cross-account switching still require signed physical-device validation.
+
 ## 2026-10-07 loading-screen branding
 
 - The in-app startup/loading screen now uses the transparent adaptive manna wordmark instead of the generic circle-grid symbol.

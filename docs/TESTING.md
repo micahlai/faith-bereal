@@ -53,6 +53,9 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - deterministic timeline grouping and missed-state generation;
 - invite-code normalization;
 - countdown formatting and prompt-state transitions.
+- Universal invitation construction/parsing, unsafe-host rejection, and invitation persistence through bootstrap;
+- circle-local prompt dates remain on their stored calendar day in western time zones;
+- Live Activity APNs state remains backward compatible and encodes its exact three-minute terminal dismissal timestamp;
 - circle creation preserves every selected setting and creates the current local-day prompt from the selected time zone, range, and response duration;
 - invite-code regeneration requires the owner and immediately invalidates the previous code;
 - repeat eligibility uses the target circle's window and the original submission time;
@@ -94,6 +97,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 ## Device-only checks
 
 - push-to-start, update, and explicit end Live Activity;
+- no-late deadline and submission dismissals occur at terminal event + three minutes, while late-enabled activities stay visible until submission or replacement;
+- an HTTPS invitation opened from Messages launches the installed app, preserves the code through sign-in/onboarding, and joins only after user confirmation;
 - Dynamic Island compact/minimal/expanded layouts;
 - lock-screen privacy settings;
 - background video upload interruption;

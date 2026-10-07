@@ -7,22 +7,42 @@ enum PromptActivityCountdown {
     }
 }
 
+enum PromptActivityDismissal {
+    static let gracePeriod: TimeInterval = 3 * 60
+
+    static func date(after eventDate: Date) -> Date {
+        eventDate.addingTimeInterval(gracePeriod)
+    }
+}
+
 struct PromptActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         let endsAt: Date
         let responseCount: Int
         let hasSubmitted: Bool
+        let allowsLateBlessings: Bool
+        let dismissesAt: Date?
 
         private enum CodingKeys: String, CodingKey {
             case endsAt
             case responseCount
             case hasSubmitted
+            case allowsLateBlessings
+            case dismissesAt
         }
 
-        init(endsAt: Date, responseCount: Int, hasSubmitted: Bool) {
+        init(
+            endsAt: Date,
+            responseCount: Int,
+            hasSubmitted: Bool,
+            allowsLateBlessings: Bool = false,
+            dismissesAt: Date? = nil
+        ) {
             self.endsAt = endsAt
             self.responseCount = responseCount
             self.hasSubmitted = hasSubmitted
+            self.allowsLateBlessings = allowsLateBlessings
+            self.dismissesAt = dismissesAt
         }
 
         init(from decoder: Decoder) throws {
@@ -31,6 +51,9 @@ struct PromptActivityAttributes: ActivityAttributes {
             endsAt = Self.date(fromWireTimestamp: rawEndsAt)
             responseCount = try container.decode(Int.self, forKey: .responseCount)
             hasSubmitted = try container.decode(Bool.self, forKey: .hasSubmitted)
+            allowsLateBlessings = try container.decodeIfPresent(Bool.self, forKey: .allowsLateBlessings) ?? false
+            dismissesAt = try container.decodeIfPresent(Double.self, forKey: .dismissesAt)
+                .map(Self.date(fromWireTimestamp:))
         }
 
         func encode(to encoder: Encoder) throws {
@@ -38,6 +61,8 @@ struct PromptActivityAttributes: ActivityAttributes {
             try container.encode(endsAt.timeIntervalSince1970, forKey: .endsAt)
             try container.encode(responseCount, forKey: .responseCount)
             try container.encode(hasSubmitted, forKey: .hasSubmitted)
+            try container.encode(allowsLateBlessings, forKey: .allowsLateBlessings)
+            try container.encodeIfPresent(dismissesAt?.timeIntervalSince1970, forKey: .dismissesAt)
         }
 
         private static func date(fromWireTimestamp timestamp: TimeInterval) -> Date {

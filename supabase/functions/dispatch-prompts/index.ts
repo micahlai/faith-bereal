@@ -1,6 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "npm:jose@5";
-import { captureRoute, liveActivityContentState, unixSeconds } from "./live-activity-payload.ts";
+import {
+  captureRoute,
+  graceDate,
+  liveActivityContentState,
+  unixSeconds,
+} from "./live-activity-payload.ts";
 
 type Prompt = {
   id: string;
@@ -37,6 +42,11 @@ type ActivityRegistration = {
   user_id: string;
   push_token: string;
   environment: "sandbox" | "production";
+};
+
+type BlessingAuthor = {
+  author_id: string;
+  submitted_at: string;
 };
 
 const required = (name: string): string => {
@@ -183,7 +193,7 @@ type DispatchOutcome = {
 async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   const { data: circle, error: circleError } = await admin
     .from("circles")
-    .select("name")
+    .select("name, allow_late_blessings")
     .eq("id", prompt.circle_id)
     .single();
   if (circleError) throw circleError;
@@ -250,7 +260,13 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
               "input-push-token": 1,
               "attributes-type": "PromptActivityAttributes",
               attributes: { promptID: prompt.id, circleName: circle.name },
-              "content-state": liveActivityContentState(prompt.ends_at, 0, false),
+              "content-state": liveActivityContentState(
+                prompt.ends_at,
+                0,
+                false,
+                circle.allow_late_blessings,
+                circle.allow_late_blessings ? null : graceDate(prompt.ends_at),
+              ),
               alert: {
                 title: `${circle.name} is ready`,
                 body: `You have ${windowLabel} to share today’s blessing.`,
@@ -322,12 +338,18 @@ async function markPromptFailed(promptID: string, message: string): Promise<void
 async function updateOpenActivities(): Promise<void> {
   const { data: prompts, error: promptError } = await admin
     .from("daily_prompts")
-    .select("id, ends_at")
+    .select("id, circle_id, ends_at")
     .eq("state", "open")
     .gt("ends_at", new Date().toISOString());
   if (promptError) throw promptError;
 
   for (const prompt of prompts ?? []) {
+    const { data: circle, error: circleError } = await admin
+      .from("circles")
+      .select("allow_late_blessings")
+      .eq("id", prompt.circle_id)
+      .single();
+    if (circleError) throw circleError;
     const { data: registrations, error: registrationError } = await admin
       .from("activity_registrations")
       .select("id, prompt_id, user_id, push_token, environment")
@@ -338,31 +360,53 @@ async function updateOpenActivities(): Promise<void> {
 
     const { data: blessings, error: blessingError } = await admin
       .from("blessings")
-      .select("author_id")
+      .select("author_id, submitted_at")
       .eq("prompt_id", prompt.id);
     if (blessingError) throw blessingError;
-    const authors = new Set((blessings ?? []).map((row) => row.author_id));
+    const blessingByAuthor = new Map(
+      ((blessings ?? []) as BlessingAuthor[]).map((row) => [row.author_id, row]),
+    );
     const timestamp = unixSeconds(new Date());
-
-    await Promise.allSettled((registrations as ActivityRegistration[]).map((registration) =>
-      sendAPNs(
-        registration.push_token,
-        registration.environment,
-        `${bundleID}.push-type.liveactivity`,
-        "liveactivity",
-        {
-          aps: {
-            timestamp,
-            event: "update",
-            "content-state": liveActivityContentState(
-              prompt.ends_at,
-              authors.size,
-              authors.has(registration.user_id),
-            ),
-          },
-        },
-      )
-    ));
+    const activityUpdates = (registrations as ActivityRegistration[]).map((registration) => {
+        const blessing = blessingByAuthor.get(registration.user_id);
+        const dismissesAt = blessing
+          ? graceDate(blessing.submitted_at)
+          : circle.allow_late_blessings ? null : graceDate(prompt.ends_at);
+        return {
+          registrationID: registration.id,
+          shouldEnd: blessing !== undefined,
+          promise: sendAPNs(
+            registration.push_token,
+            registration.environment,
+            `${bundleID}.push-type.liveactivity`,
+            "liveactivity",
+            {
+              aps: {
+                timestamp,
+                event: blessing ? "end" : "update",
+                ...(dismissesAt ? { "dismissal-date": unixSeconds(dismissesAt) } : {}),
+                "content-state": liveActivityContentState(
+                  prompt.ends_at,
+                  blessingByAuthor.size,
+                  blessing !== undefined,
+                  circle.allow_late_blessings,
+                  dismissesAt,
+                ),
+              },
+            },
+          ),
+        };
+      });
+    const activityResults = await Promise.allSettled(activityUpdates.map((update) => update.promise));
+    const endedRegistrationIDs = activityUpdates
+      .filter((update, index) => update.shouldEnd && activityResults[index].status === "fulfilled")
+      .map((update) => update.registrationID);
+    if (endedRegistrationIDs.length > 0) {
+      await admin
+        .from("activity_registrations")
+        .update({ ended_at: new Date().toISOString() })
+        .in("id", endedRegistrationIDs);
+    }
   }
 }
 
@@ -370,12 +414,18 @@ async function closeExpiredPrompts(): Promise<void> {
   const now = new Date();
   const { data: prompts, error: promptError } = await admin
     .from("daily_prompts")
-    .select("id, ends_at")
+    .select("id, circle_id, ends_at")
     .in("state", ["open", "dispatching"])
     .lte("ends_at", now.toISOString());
   if (promptError) throw promptError;
 
   for (const prompt of prompts ?? []) {
+    const { data: circle, error: circleError } = await admin
+      .from("circles")
+      .select("allow_late_blessings")
+      .eq("id", prompt.circle_id)
+      .single();
+    if (circleError) throw circleError;
     const { data: registrations, error: registrationError } = await admin
       .from("activity_registrations")
       .select("id, prompt_id, user_id, push_token, environment")
@@ -385,38 +435,54 @@ async function closeExpiredPrompts(): Promise<void> {
 
     const { data: blessings, error: blessingError } = await admin
       .from("blessings")
-      .select("author_id")
+      .select("author_id, submitted_at")
       .eq("prompt_id", prompt.id);
     if (blessingError) throw blessingError;
-    const authors = new Set((blessings ?? []).map((row) => row.author_id));
+    const blessingByAuthor = new Map(
+      ((blessings ?? []) as BlessingAuthor[]).map((row) => [row.author_id, row]),
+    );
     const timestamp = unixSeconds(now);
+    const activityUpdates = ((registrations ?? []) as ActivityRegistration[]).map((registration) => {
+        const blessing = blessingByAuthor.get(registration.user_id);
+        const remainsOpen = circle.allow_late_blessings && blessing === undefined;
+        const dismissesAt = blessing
+          ? graceDate(blessing.submitted_at)
+          : remainsOpen ? null : graceDate(prompt.ends_at);
+        return {
+          registrationID: registration.id,
+          shouldEnd: !remainsOpen,
+          promise: sendAPNs(
+            registration.push_token,
+            registration.environment,
+            `${bundleID}.push-type.liveactivity`,
+            "liveactivity",
+            {
+              aps: {
+                timestamp,
+                event: remainsOpen ? "update" : "end",
+                ...(dismissesAt ? { "dismissal-date": unixSeconds(dismissesAt) } : {}),
+                "content-state": liveActivityContentState(
+                  prompt.ends_at,
+                  blessingByAuthor.size,
+                  blessing !== undefined,
+                  circle.allow_late_blessings,
+                  dismissesAt,
+                ),
+              },
+            },
+          ),
+        };
+      });
+    const activityResults = await Promise.allSettled(activityUpdates.map((update) => update.promise));
+    const endedRegistrationIDs = activityUpdates
+      .filter((update, index) => update.shouldEnd && activityResults[index].status === "fulfilled")
+      .map((update) => update.registrationID);
 
-    await Promise.allSettled(((registrations ?? []) as ActivityRegistration[]).map((registration) =>
-      sendAPNs(
-        registration.push_token,
-        registration.environment,
-        `${bundleID}.push-type.liveactivity`,
-        "liveactivity",
-        {
-          aps: {
-            timestamp,
-            event: "end",
-            "dismissal-date": timestamp + 60,
-            "content-state": liveActivityContentState(
-              prompt.ends_at,
-              authors.size,
-              authors.has(registration.user_id),
-            ),
-          },
-        },
-      )
-    ));
-
-    if (registrations?.length) {
+    if (endedRegistrationIDs.length > 0) {
       await admin
         .from("activity_registrations")
         .update({ ended_at: now.toISOString() })
-        .in("id", registrations.map((registration) => registration.id));
+        .in("id", endedRegistrationIDs);
     }
   }
 
@@ -425,6 +491,120 @@ async function closeExpiredPrompts(): Promise<void> {
       .from("daily_prompts")
       .update({ state: "closed", closed_at: now.toISOString() })
       .in("id", prompts.map((prompt) => prompt.id));
+  }
+}
+
+async function reconcileLateActivities(): Promise<void> {
+  const now = new Date();
+  const { data: registrations, error: registrationError } = await admin
+    .from("activity_registrations")
+    .select("id, prompt_id, user_id, push_token, environment")
+    .is("ended_at", null);
+  if (registrationError) throw registrationError;
+  if (!registrations?.length) return;
+
+  const promptIDs = [...new Set(registrations.map((registration) => registration.prompt_id))];
+  const { data: prompts, error: promptError } = await admin
+    .from("daily_prompts")
+    .select("id, circle_id, starts_at, ends_at")
+    .in("id", promptIDs)
+    .lte("ends_at", now.toISOString());
+  if (promptError) throw promptError;
+  if (!prompts?.length) return;
+
+  const circleIDs = [...new Set(prompts.map((prompt) => prompt.circle_id))];
+  const { data: circles, error: circleError } = await admin
+    .from("circles")
+    .select("id, allow_late_blessings")
+    .in("id", circleIDs);
+  if (circleError) throw circleError;
+  const allowsLateByCircle = new Map(
+    (circles ?? []).map((circle) => [circle.id, circle.allow_late_blessings]),
+  );
+  const latePrompts = prompts.filter((prompt) => allowsLateByCircle.get(prompt.circle_id) === true);
+  if (latePrompts.length === 0) return;
+
+  const latePromptIDs = latePrompts.map((prompt) => prompt.id);
+  const { data: blessings, error: blessingError } = await admin
+    .from("blessings")
+    .select("prompt_id, author_id, submitted_at")
+    .in("prompt_id", latePromptIDs);
+  if (blessingError) throw blessingError;
+  const blessingByPromptAndAuthor = new Map(
+    ((blessings ?? []) as Array<BlessingAuthor & { prompt_id: string }>).map((blessing) => [
+      `${blessing.prompt_id}:${blessing.author_id}`,
+      blessing,
+    ]),
+  );
+
+  const { data: startedPrompts, error: startedPromptError } = await admin
+    .from("daily_prompts")
+    .select("circle_id, starts_at")
+    .in("circle_id", circleIDs)
+    .lte("starts_at", now.toISOString());
+  if (startedPromptError) throw startedPromptError;
+
+  const registrationsByPrompt = new Map<string, ActivityRegistration[]>();
+  for (const registration of registrations as ActivityRegistration[]) {
+    const values = registrationsByPrompt.get(registration.prompt_id) ?? [];
+    values.push(registration);
+    registrationsByPrompt.set(registration.prompt_id, values);
+  }
+  const timestamp = unixSeconds(now);
+
+  for (const prompt of latePrompts) {
+    const promptRegistrations = registrationsByPrompt.get(prompt.id) ?? [];
+    if (promptRegistrations.length === 0) continue;
+    const authorCount = (blessings ?? []).filter((blessing) => blessing.prompt_id === prompt.id).length;
+    const replacementStart = (startedPrompts ?? [])
+      .filter((candidate) =>
+        candidate.circle_id === prompt.circle_id &&
+        new Date(candidate.starts_at).getTime() > new Date(prompt.starts_at).getTime()
+      )
+      .map((candidate) => candidate.starts_at)
+      .sort()[0];
+    const activityUpdates = promptRegistrations.map((registration) => {
+      const blessing = blessingByPromptAndAuthor.get(`${prompt.id}:${registration.user_id}`);
+      const dismissesAt = blessing
+        ? graceDate(blessing.submitted_at)
+        : replacementStart ? graceDate(replacementStart) : null;
+      const shouldEnd = dismissesAt !== null;
+      return {
+        registrationID: registration.id,
+        shouldEnd,
+        promise: sendAPNs(
+          registration.push_token,
+          registration.environment,
+          `${bundleID}.push-type.liveactivity`,
+          "liveactivity",
+          {
+            aps: {
+              timestamp,
+              event: shouldEnd ? "end" : "update",
+              ...(dismissesAt ? { "dismissal-date": unixSeconds(dismissesAt) } : {}),
+              "content-state": liveActivityContentState(
+                prompt.ends_at,
+                authorCount,
+                blessing !== undefined,
+                true,
+                dismissesAt,
+              ),
+            },
+          },
+        ),
+      };
+    });
+    const activityResults = await Promise.allSettled(activityUpdates.map((update) => update.promise));
+    const endedRegistrationIDs = activityUpdates
+      .filter((update, index) => update.shouldEnd && activityResults[index].status === "fulfilled")
+      .map((update) => update.registrationID);
+
+    if (endedRegistrationIDs.length > 0) {
+      await admin
+        .from("activity_registrations")
+        .update({ ended_at: now.toISOString() })
+        .in("id", endedRegistrationIDs);
+    }
   }
 }
 
@@ -489,6 +669,7 @@ Deno.serve(async (request) => {
   }
   await updateOpenActivities();
   await closeExpiredPrompts();
+  await reconcileLateActivities();
 
   return Response.json({ claimed: outcomes.length, outcomes });
 });

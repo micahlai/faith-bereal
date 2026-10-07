@@ -356,7 +356,7 @@ final class AppModel {
             guard !Task.isCancelled else { return }
             message = Self.isCancellation(error)
                 ? "The circle switch was interrupted. Please try again."
-                : error.localizedDescription
+                : "Couldn’t switch circles: \(error.localizedDescription)"
         }
     }
 
@@ -364,17 +364,20 @@ final class AppModel {
         circleID: UUID,
         viewerID: UUID
     ) async throws -> (CircleContext, [TimelineLane]) {
-        do {
-            let context = try await repository.circleContext(circleID: circleID)
-            let lanes = try await repository.timeline(circleID: circleID, viewerID: viewerID, now: .now)
-            return (context, lanes)
-        } catch {
-            guard Self.isCancellation(error), !Task.isCancelled else { throw error }
-            await Task.yield()
-            let context = try await repository.circleContext(circleID: circleID)
-            let lanes = try await repository.timeline(circleID: circleID, viewerID: viewerID, now: .now)
-            return (context, lanes)
+        var lastCancellation: Error?
+        for attempt in 0..<3 {
+            do {
+                let context = try await repository.circleContext(circleID: circleID)
+                let lanes = try await repository.timeline(circleID: circleID, viewerID: viewerID, now: .now)
+                return (context, lanes)
+            } catch {
+                guard Self.isCancellation(error), !Task.isCancelled else { throw error }
+                lastCancellation = error
+                guard attempt < 2 else { break }
+                try await Task.sleep(for: .milliseconds(150 * (attempt + 1)))
+            }
         }
+        throw lastCancellation ?? CancellationError()
     }
 
     private func reloadCurrentCircle(now: Date) async throws {
@@ -455,7 +458,9 @@ final class AppModel {
     private static func isCancellation(_ error: Error) -> Bool {
         if error is CancellationError { return true }
         let error = error as NSError
-        return error.domain == "Swift.CancellationError" || error.code == NSURLErrorCancelled
+        return error.domain == "Swift.CancellationError"
+            || (error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled)
+            || error.localizedDescription.localizedCaseInsensitiveContains("cancellation error")
     }
 
     func submit(
@@ -771,6 +776,10 @@ final class AppModel {
                 now: now
             )
             try await refreshTimeline(now: now)
+            await activityController.markSubmitted(
+                promptID: targetPrompt.id,
+                responseCount: currentPromptBlessings(at: now).count
+            )
             message = "Your blessing was reused in this circle."
             return true
         } catch {

@@ -28,6 +28,7 @@ final class PromptActivityController {
     private var activitiesByPromptID: [UUID: Activity<PromptActivityAttributes>] = [:]
     private var observationTasks: [Task<Void, Never>] = []
     private var activityTokenTasks: [String: Task<Void, Never>] = [:]
+    private var dismissalTasks: [UUID: Task<Void, Never>] = [:]
 
     typealias PushToStartHandler = @Sendable (String) async -> Void
     typealias ActivityTokenHandler = @Sendable (UUID, String, String) async -> Void
@@ -41,6 +42,7 @@ final class PromptActivityController {
         for existingActivity in Activity<PromptActivityAttributes>.activities {
             activitiesByPromptID[existingActivity.attributes.promptID] = existingActivity
             monitorPushTokens(for: existingActivity, handler: onActivityToken)
+            scheduleDismissalIfNeeded(for: existingActivity)
         }
 
         observationTasks.append(Task {
@@ -54,6 +56,7 @@ final class PromptActivityController {
                 guard !Task.isCancelled else { break }
                 self.activitiesByPromptID[newActivity.attributes.promptID] = newActivity
                 self.monitorPushTokens(for: newActivity, handler: onActivityToken)
+                self.scheduleDismissalIfNeeded(for: newActivity)
             }
         })
     }
@@ -76,15 +79,23 @@ final class PromptActivityController {
         let state = PromptActivityAttributes.ContentState(
             endsAt: prompt.endsAt,
             responseCount: 0,
-            hasSubmitted: false
+            hasSubmitted: false,
+            allowsLateBlessings: circle.allowsLateBlessings,
+            dismissesAt: circle.allowsLateBlessings
+                ? nil
+                : PromptActivityDismissal.date(after: prompt.endsAt)
         )
         do {
             let newActivity = try Activity.request(
                 attributes: attributes,
-                content: ActivityContent(state: state, staleDate: prompt.endsAt),
+                content: ActivityContent(
+                    state: state,
+                    staleDate: circle.allowsLateBlessings ? nil : prompt.endsAt
+                ),
                 pushType: requestsPushUpdates ? .token : nil
             )
             activitiesByPromptID[prompt.id] = newActivity
+            scheduleDismissalIfNeeded(for: newActivity)
             logger.notice("Started Live Activity for prompt \(prompt.id.uuidString, privacy: .public)")
             return .started
         } catch {
@@ -99,9 +110,18 @@ final class PromptActivityController {
         let state = PromptActivityAttributes.ContentState(
             endsAt: activity.content.state.endsAt,
             responseCount: responseCount,
-            hasSubmitted: true
+            hasSubmitted: true,
+            allowsLateBlessings: activity.content.state.allowsLateBlessings,
+            dismissesAt: PromptActivityDismissal.date(after: .now)
         )
-        await activity.update(ActivityContent(state: state, staleDate: state.endsAt))
+        guard let dismissesAt = state.dismissesAt else { return }
+        dismissalTasks[promptID]?.cancel()
+        dismissalTasks[promptID] = nil
+        await activity.end(
+            ActivityContent(state: state, staleDate: nil),
+            dismissalPolicy: .after(dismissesAt)
+        )
+        activitiesByPromptID[promptID] = nil
     }
 
     func end() async {
@@ -109,6 +129,8 @@ final class PromptActivityController {
         for activity in activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
+        dismissalTasks.values.forEach { $0.cancel() }
+        dismissalTasks.removeAll()
         activitiesByPromptID.removeAll()
     }
 
@@ -116,8 +138,10 @@ final class PromptActivityController {
     func stopMonitoringTokens() {
         observationTasks.forEach { $0.cancel() }
         activityTokenTasks.values.forEach { $0.cancel() }
+        dismissalTasks.values.forEach { $0.cancel() }
         observationTasks.removeAll()
         activityTokenTasks.removeAll()
+        dismissalTasks.removeAll()
     }
 
     private func monitorPushTokens(
@@ -142,6 +166,23 @@ final class PromptActivityController {
         return Activity<PromptActivityAttributes>.activities.first { activity in
             activity.attributes.promptID == promptID
                 && (activity.activityState == .active || activity.activityState == .stale)
+        }
+    }
+
+    private func scheduleDismissalIfNeeded(for activity: Activity<PromptActivityAttributes>) {
+        let promptID = activity.attributes.promptID
+        dismissalTasks[promptID]?.cancel()
+        guard let dismissesAt = activity.content.state.dismissesAt else {
+            dismissalTasks[promptID] = nil
+            return
+        }
+        dismissalTasks[promptID] = Task { [weak self] in
+            let delay = max(0, dismissesAt.timeIntervalSinceNow)
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            await activity.end(nil, dismissalPolicy: .immediate)
+            self?.activitiesByPromptID[promptID] = nil
+            self?.dismissalTasks[promptID] = nil
         }
     }
 }
