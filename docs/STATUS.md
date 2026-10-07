@@ -1,5 +1,9 @@
 # Project status
 
+## 2026-10-07 circle photo placement
+
+- Circle photos now replace the seven-dot identity mark on the Circle page. The global circle dropdown consistently uses the generic group icon and no longer places circle photos in its label or options.
+
 ## 2026-10-07 warning-free notification extension
 
 - The notification service now crosses Apple's legacy Intents and UserNotifications callbacks through a locked, single-delivery bridge. Swift 6 no longer reports non-Sendable captures, and timeout/donation completion races cannot invoke the content handler twice.
@@ -19,7 +23,7 @@
 
 ## 2026-10-07 circle photos
 
-- Circle owners can choose, replace, or remove a downsampled private circle photo from Circle settings. Members see it beside the current circle and inside the global circle switcher.
+- Circle owners can choose, replace, or remove a downsampled private circle photo from Circle settings. Members see it in the Circle-page identity position, while the global circle switcher retains its generic group icon.
 - Hosted photos use a dedicated private `circle-photos` bucket with owner-only writes and member-only reads; migration `202610070004_circle_photos.sql` is deployed.
 - The photo data is also available to the notification delivery path as the circle/group image. Hosted upload, signed-URL refresh, and notification appearance still need physical-device acceptance.
 

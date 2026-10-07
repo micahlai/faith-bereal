@@ -391,7 +391,7 @@ private struct GlobalAppToolbar: ToolbarContent {
                             Task { await model.switchCircle(to: circle.id) }
                         } label: {
                             HStack(spacing: 10) {
-                                CircleAvatarBadge(circle: circle, size: 30)
+                                circleSwitcherIcon(size: 30)
                                 Text(circle.name)
                                 if model.circle?.id == circle.id {
                                     Image(systemName: "checkmark")
@@ -412,8 +412,8 @@ private struct GlobalAppToolbar: ToolbarContent {
                     if model.isSwitchingCircle {
                         ProgressView()
                             .controlSize(.small)
-                    } else if let circle = model.circle {
-                        CircleAvatarBadge(circle: circle, size: 26)
+                    } else if model.circle != nil {
+                        circleSwitcherIcon(size: 26)
                     }
                     Text(model.circle?.name ?? "Choose circle")
                         .font(.headline)
@@ -426,6 +426,16 @@ private struct GlobalAppToolbar: ToolbarContent {
             .accessibilityLabel("Current circle, \(model.circle?.name ?? "none")")
             .accessibilityHint("Opens the circle switcher")
         }
+    }
+
+    private func circleSwitcherIcon(size: CGFloat) -> some View {
+        Image(systemName: "person.3.fill")
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(AppTheme.primary.gradient)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 

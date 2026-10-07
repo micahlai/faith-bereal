@@ -1,6 +1,41 @@
 import PhotosUI
 import SwiftUI
 
+private struct CircleHeaderIdentity: View {
+    let circle: CircleGroup
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let photoURL = circle.photoURL {
+                if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    AsyncImage(url: photoURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        fallback
+                    }
+                }
+            } else {
+                fallback
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))
+        .accessibilityHidden(true)
+    }
+
+    private var fallback: some View {
+        Image(systemName: "circle.hexagongrid.fill")
+            .font(.system(size: size * 0.65, weight: .light))
+            .foregroundStyle(AppTheme.primary)
+            .frame(width: size, height: size)
+    }
+}
+
 struct CircleView: View {
     @Environment(AppModel.self) private var model
     @State private var joinCode = ""
@@ -54,10 +89,9 @@ struct CircleView: View {
     private var circleHeader: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 14) {
-                Image(systemName: "circle.hexagongrid.fill")
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(AppTheme.primary)
-                    .accessibilityHidden(true)
+                if let circle = model.circle {
+                    CircleHeaderIdentity(circle: circle, size: 68)
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.circle?.name ?? "Your circle")
                         .font(.system(.title2, design: .serif, weight: .semibold))
@@ -494,7 +528,7 @@ private struct CircleSettingsView: View {
                     } header: {
                         Text("Circle photo")
                     } footer: {
-                        Text("Shown in the circle switcher and notifications for this circle.")
+                        Text("Shown on the Circle page and in notifications for this circle.")
                     }
 
                     Section("Circle") {
