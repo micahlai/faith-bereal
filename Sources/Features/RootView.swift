@@ -390,10 +390,12 @@ private struct GlobalAppToolbar: ToolbarContent {
                         Button {
                             Task { await model.switchCircle(to: circle.id) }
                         } label: {
-                            if model.circle?.id == circle.id {
-                                Label(circle.name, systemImage: "checkmark")
-                            } else {
+                            HStack(spacing: 10) {
+                                CircleAvatarBadge(circle: circle, size: 30)
                                 Text(circle.name)
+                                if model.circle?.id == circle.id {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
@@ -410,6 +412,8 @@ private struct GlobalAppToolbar: ToolbarContent {
                     if model.isSwitchingCircle {
                         ProgressView()
                             .controlSize(.small)
+                    } else if let circle = model.circle {
+                        CircleAvatarBadge(circle: circle, size: 26)
                     }
                     Text(model.circle?.name ?? "Choose circle")
                         .font(.headline)

@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-07 circle photos
+
+- Circle owners can choose, replace, or remove a downsampled private circle photo from Circle settings. Members see it beside the current circle and inside the global circle switcher.
+- Hosted photos use a dedicated private `circle-photos` bucket with owner-only writes and member-only reads; migration `202610070004_circle_photos.sql` is ready for deployment.
+- The photo data is also available to the notification delivery path as the circle/group image. Hosted upload, signed-URL refresh, and notification appearance still need physical-device acceptance.
+
 ## 2026-10-07 ten-minute blessing edits
 
 - Authors can edit a blessing's text or transcript and optional scripture tag for ten minutes after the server-authored submission time; attached audio, video, and photos remain unchanged.

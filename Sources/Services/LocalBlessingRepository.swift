@@ -628,6 +628,15 @@ actor LocalBlessingRepository: BlessingRepository {
         return currentUser
     }
 
+    func updateCirclePhoto(circleID: UUID, ownerID: UUID, photoURL: URL?) async throws -> CircleGroup {
+        guard let index = circles.firstIndex(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circles[index].ownerID == ownerID else { throw BlessingError.notCircleOwner }
+        circles[index].photoURL = photoURL
+        return circles[index]
+    }
+
     private static func initials(for name: String) -> String {
         let value = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
         return value.isEmpty ? "MC" : value

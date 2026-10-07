@@ -38,6 +38,7 @@ protocol BlessingRepository: Sendable {
         allowsLateBlessings: Bool,
         repeatWindowMinutes: Int
     ) async throws -> CircleGroup
+    func updateCirclePhoto(circleID: UUID, ownerID: UUID, photoURL: URL?) async throws -> CircleGroup
     func forceCirclePrompt(circleID: UUID, ownerID: UUID, now: Date) async throws -> CirclePromptDispatch
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member
     func updateProfile(memberID: UUID, displayName: String, avatarURL: URL?) async throws -> Member

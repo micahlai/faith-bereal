@@ -638,6 +638,26 @@ final class AppModel {
         }
     }
 
+    func updateCirclePhoto(_ photoURL: URL?) async -> Bool {
+        guard let circle, let currentUser else { return false }
+        do {
+            let updatedCircle = try await repository.updateCirclePhoto(
+                circleID: circle.id,
+                ownerID: currentUser.id,
+                photoURL: photoURL
+            )
+            let resolvedCircle = updatedCircle.preservingInviteCode(circle.inviteCode)
+            self.circle = resolvedCircle
+            upsertCircle(resolvedCircle)
+            scheduleWidgetSnapshotRefresh()
+            message = photoURL == nil ? "Circle photo removed." : "Circle photo saved."
+            return true
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
+
     func forceCurrentCirclePrompt(now: Date = .now) async -> Bool {
         guard let circle, let currentUser else { return false }
         guard circle.ownerID == currentUser.id else {

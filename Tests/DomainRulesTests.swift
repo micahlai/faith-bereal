@@ -938,6 +938,33 @@ final class DomainRulesTests: XCTestCase {
         }
     }
 
+    func testOnlyCircleOwnerCanChangeCirclePhoto() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let ownedCircle = try XCTUnwrap(
+            bootstrap.circles.first(where: { $0.ownerID == bootstrap.currentUser.id })
+        )
+        let photoURL = URL(fileURLWithPath: "/tmp/manna-circle-photo.jpg")
+
+        let updated = try await repository.updateCirclePhoto(
+            circleID: ownedCircle.id,
+            ownerID: bootstrap.currentUser.id,
+            photoURL: photoURL
+        )
+        XCTAssertEqual(updated.photoURL, photoURL)
+
+        do {
+            _ = try await repository.updateCirclePhoto(
+                circleID: ownedCircle.id,
+                ownerID: UUID(),
+                photoURL: nil
+            )
+            XCTFail("Expected a non-owner circle photo update to fail")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .notCircleOwner)
+        }
+    }
+
     func testCircleOwnerCanRegenerateInviteCodeAndInvalidatePreviousCode() async throws {
         let repository = LocalBlessingRepository(now: .now)
         let bootstrap = try await repository.bootstrap()

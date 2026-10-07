@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 struct CircleView: View {
@@ -413,6 +414,11 @@ private struct CircleSettingsView: View {
     @State private var memberToRemove: Member?
     @State private var isRemovingMember = false
     @State private var isRegeneratingCode = false
+    @State private var selectedCirclePhoto: PhotosPickerItem?
+    @State private var pendingCirclePhotoURL: URL?
+    @State private var circlePhotoChanged = false
+    @State private var isPreparingCirclePhoto = false
+    @State private var isSavingCirclePhoto = false
 
     init(circle: CircleGroup, isPresented: Binding<Bool>) {
         self.circle = circle
@@ -425,6 +431,7 @@ private struct CircleSettingsView: View {
         _timeZoneIdentifier = State(initialValue: circle.timeZoneIdentifier)
         _randomWindowStart = State(initialValue: Self.wallClockDate(minutes: circle.randomWindowStartMinutes))
         _randomWindowEnd = State(initialValue: Self.wallClockDate(minutes: circle.randomWindowEndMinutes))
+        _pendingCirclePhotoURL = State(initialValue: circle.photoURL)
     }
 
     private var selectedMinutes: Int {
@@ -444,6 +451,52 @@ private struct CircleSettingsView: View {
         NavigationStack {
             Form {
                 if isOwner {
+                    Section {
+                        HStack(spacing: 16) {
+                            CircleAvatarBadge(circle: photoPreviewCircle, size: 72)
+                            VStack(alignment: .leading, spacing: 6) {
+                                PhotosPicker(selection: $selectedCirclePhoto, matching: .images) {
+                                    Label("Choose circle photo", systemImage: "photo")
+                                        .frame(minHeight: 44)
+                                }
+                                if pendingCirclePhotoURL != nil {
+                                    Button("Remove photo", role: .destructive) {
+                                        pendingCirclePhotoURL = nil
+                                        selectedCirclePhoto = nil
+                                        circlePhotoChanged = true
+                                    }
+                                    .frame(minHeight: 44)
+                                }
+                            }
+                        }
+
+                        if isPreparingCirclePhoto {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Preparing photo…")
+                                    .foregroundStyle(AppTheme.secondaryInk)
+                            }
+                        }
+
+                        if circlePhotoChanged {
+                            Button {
+                                Task { await saveCirclePhoto() }
+                            } label: {
+                                HStack {
+                                    Text("Save circle photo")
+                                    Spacer()
+                                    if isSavingCirclePhoto { ProgressView() }
+                                }
+                                .frame(minHeight: 44)
+                            }
+                            .disabled(isSavingCirclePhoto || isPreparingCirclePhoto)
+                        }
+                    } header: {
+                        Text("Circle photo")
+                    } footer: {
+                        Text("Shown in the circle switcher and notifications for this circle.")
+                    }
+
                     Section("Circle") {
                         TextField("Circle name", text: $name)
                             .textContentType(.organizationName)
@@ -667,6 +720,18 @@ private struct CircleSettingsView: View {
             }
         }
         .presentationDetents([.large])
+        .task(id: selectedCirclePhoto) {
+            guard let selectedCirclePhoto else { return }
+            isPreparingCirclePhoto = true
+            defer { isPreparingCirclePhoto = false }
+            do {
+                guard let data = try await selectedCirclePhoto.loadTransferable(type: Data.self) else { return }
+                pendingCirclePhotoURL = try CaptureMediaStore.persistProfilePhoto(data: data)
+                circlePhotoChanged = true
+            } catch {
+                model.message = "Couldn’t prepare that circle photo: \(error.localizedDescription)"
+            }
+        }
         .sheet(isPresented: $showingOwnershipTransfer) {
             OwnershipTransferView(
                 members: circle.members.filter { $0.id != model.currentUser?.id },
@@ -745,6 +810,22 @@ private struct CircleSettingsView: View {
             Button("Cancel", role: .cancel) { memberToRemove = nil }
         } message: {
             Text("They will lose access immediately. Their existing blessing history remains visible to current circle members.")
+        }
+    }
+
+    private var photoPreviewCircle: CircleGroup {
+        var preview = model.circle ?? circle
+        preview.photoURL = pendingCirclePhotoURL
+        return preview
+    }
+
+    private func saveCirclePhoto() async {
+        isSavingCirclePhoto = true
+        defer { isSavingCirclePhoto = false }
+        if await model.updateCirclePhoto(pendingCirclePhotoURL) {
+            pendingCirclePhotoURL = model.circle?.photoURL
+            circlePhotoChanged = false
+            selectedCirclePhoto = nil
         }
     }
 

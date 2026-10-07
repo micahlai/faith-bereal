@@ -71,6 +71,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - forcing a prompt requires the current circle owner and uses that circle's configured response length.
 - a member may submit before or after the response window on the local calendar day they join, but not on a later day unless ordinary late-sharing rules apply.
 - blessing edits accept the author before ten minutes, reject other users, and close at the exact ten-minute boundary.
+- circle photo changes require the current owner and remain isolated to the selected circle.
 
 ## Integration tests
 

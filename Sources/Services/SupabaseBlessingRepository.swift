@@ -5,6 +5,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
     private let client: SupabaseClient
     private let mediaBucket = "blessing-media"
     private let avatarBucket = "avatars"
+    private let circlePhotoBucket = "circle-photos"
 
     init(client: SupabaseClient) {
         self.client = client
@@ -316,6 +317,30 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await fetchCircle(id: row.id, inviteCode: "")
     }
 
+    func updateCirclePhoto(circleID: UUID, ownerID _: UUID, photoURL: URL?) async throws -> CircleGroup {
+        let photoPath: String?
+        if let photoURL {
+            guard photoURL.isFileURL else { throw BlessingError.cameraUnavailable }
+            photoPath = "\(circleID.uuidString.lowercased())/circle.jpg"
+            try await uploadCirclePhoto(fileURL: photoURL, path: photoPath!)
+        } else {
+            photoPath = nil
+        }
+        let row: CircleRow = try await client.rpc(
+            "update_circle_photo",
+            params: UpdateCirclePhotoParams(circleID: circleID, photoPath: photoPath)
+        )
+        .single()
+        .execute()
+        .value
+        if photoPath == nil {
+            _ = try? await client.storage.from(circlePhotoBucket).remove(
+                paths: ["\(circleID.uuidString.lowercased())/circle.jpg"]
+            )
+        }
+        return try await fetchCircle(id: row.id, inviteCode: "")
+    }
+
     func forceCirclePrompt(
         circleID: UUID,
         ownerID: UUID,
@@ -391,6 +416,15 @@ actor SupabaseBlessingRepository: BlessingRepository {
             _ = try await group.next()
             group.cancelAll()
         }
+    }
+
+    private func uploadCirclePhoto(fileURL: URL, path: String) async throws {
+        let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+        _ = try await client.storage.from(circlePhotoBucket).upload(
+            path,
+            data: data,
+            options: FileOptions(contentType: "image/jpeg", upsert: true)
+        )
     }
 
     func transferCircleOwnership(
@@ -629,8 +663,14 @@ actor SupabaseBlessingRepository: BlessingRepository {
             randomWindowEndMinutes: Self.minutes(postgresTime: row.windowEnd),
             responseWindowMinutes: row.responseWindowMinutes,
             allowsLateBlessings: row.allowLateBlessings,
-            repeatWindowMinutes: row.repeatWindowMinutes
+            repeatWindowMinutes: row.repeatWindowMinutes,
+            photoURL: try await circlePhotoSignedURL(path: row.photoPath)
         )
+    }
+
+    private func circlePhotoSignedURL(path: String?) async throws -> URL? {
+        guard let path else { return nil }
+        return try await client.storage.from(circlePhotoBucket).createSignedURL(path: path, expiresIn: 86_400)
     }
 
     private func fetchCurrentPrompt(circle: CircleGroup, now: Date = .now) async throws -> DailyPrompt? {
@@ -825,6 +865,7 @@ private struct CircleRow: Codable, Sendable {
     let responseWindowMinutes: Int
     let allowLateBlessings: Bool
     let repeatWindowMinutes: Int
+    let photoPath: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name
@@ -835,6 +876,7 @@ private struct CircleRow: Codable, Sendable {
         case responseWindowMinutes = "response_window_minutes"
         case allowLateBlessings = "allow_late_blessings"
         case repeatWindowMinutes = "repeat_window_minutes"
+        case photoPath = "photo_path"
     }
 }
 
@@ -1019,6 +1061,16 @@ private struct UpdateCircleSettingsParams: Encodable, Sendable {
         case responseWindowMinutes = "p_response_window_minutes"
         case allowLateBlessings = "p_allow_late_blessings"
         case repeatWindowMinutes = "p_repeat_window_minutes"
+    }
+}
+
+private struct UpdateCirclePhotoParams: Encodable, Sendable {
+    let circleID: UUID
+    let photoPath: String?
+
+    enum CodingKeys: String, CodingKey {
+        case circleID = "p_circle_id"
+        case photoPath = "p_photo_path"
     }
 }
 

@@ -1040,3 +1040,39 @@ struct AvatarBadge: View {
         [AppTheme.iris, AppTheme.dawn, AppTheme.candle][abs(member.tintSeed) % 3]
     }
 }
+
+struct CircleAvatarBadge: View {
+    let circle: CircleGroup
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let photoURL = circle.photoURL {
+                if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    AsyncImage(url: photoURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        fallback
+                    }
+                }
+            } else {
+                fallback
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+        .accessibilityLabel("\(circle.name) circle photo")
+    }
+
+    private var fallback: some View {
+        Image(systemName: "person.3.fill")
+            .font(.system(size: size * 0.36, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(AppTheme.primary.gradient)
+    }
+}
