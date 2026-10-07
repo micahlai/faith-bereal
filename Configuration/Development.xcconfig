@@ -4,4 +4,5 @@
 // SUPABASE_PUBLISHABLE_KEY = sb_publishable_...
 SUPABASE_URL =
 SUPABASE_PUBLISHABLE_KEY =
+APNS_ENVIRONMENT = development
 #include? "Secrets.xcconfig"

@@ -1,0 +1,7 @@
+// Release and TestFlight builds must use the hosted backend and production APNs.
+// Copy Secrets.xcconfig.example to the ignored Secrets.xcconfig and provide the
+// project's public URL and publishable key before archiving.
+SUPABASE_URL =
+SUPABASE_PUBLISHABLE_KEY =
+APNS_ENVIRONMENT = production
+#include? "Secrets.xcconfig"

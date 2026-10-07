@@ -46,19 +46,26 @@ targets:
     entitlements:
       path: Configuration/BlessingCircle.entitlements
       properties:
-        aps-environment: development
+        aps-environment: $(APNS_ENVIRONMENT)
         com.apple.developer.applesignin:
           - Default
         com.apple.security.application-groups:
           - group.app.blessingcircle.shared
     configFiles:
       Debug: Configuration/Development.xcconfig
-      Release: Configuration/Development.xcconfig
+      Release: Configuration/Production.xcconfig
+    preBuildScripts:
+      - name: Validate hosted Release configuration
+        script: |
+          "$SRCROOT/Scripts/validate-release-configuration.sh"
+        basedOnDependencyAnalysis: false
     info:
       path: Configuration/App-Info.plist
       properties:
         CFBundleDisplayName: manna circle
         CFBundleName: manna circle
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
             CFBundleURLName: app.manna-circle.ios
@@ -112,6 +119,8 @@ targets:
       properties:
         CFBundleDisplayName: manna circle
         CFBundleName: manna circle
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
   BlessingCircleTests:

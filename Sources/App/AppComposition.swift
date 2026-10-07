@@ -8,7 +8,15 @@ enum AppComposition {
             return AppModel(repository: LocalBlessingRepository())
         }
         guard let configuration else {
+#if DEBUG
             return AppModel(repository: LocalBlessingRepository())
+#else
+            let model = AppModel(repository: LocalBlessingRepository())
+            model.loadState = .failed(
+                "This release build is missing its hosted service configuration. Install a corrected build."
+            )
+            return model
+#endif
         }
         let client = SupabaseClient(
             supabaseURL: configuration.supabaseURL,
