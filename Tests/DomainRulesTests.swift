@@ -1,13 +1,40 @@
 import XCTest
 import UIKit
+import AVFoundation
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    @MainActor
+    func testVoicePlayerPreparesAPlayableLocalRecording() async throws {
+        let recordingURL = try CaptureMediaStore.newRecordingURL(pathExtension: "caf")
+        defer { try? FileManager.default.removeItem(at: recordingURL) }
+        try makeSilentRecording(at: recordingURL)
+        let playback = MediaPlaybackController(url: recordingURL, kind: .voice)
+
+        await playback.prepare()
+
+        XCTAssertFalse(playback.isPreparing)
+        XCTAssertNil(playback.errorMessage)
+        XCTAssertGreaterThan(playback.duration, 0)
+    }
+
     func testMediaTimeFormatterUsesStableMinuteAndSecondLabels() {
         XCTAssertEqual(MediaTimeFormatter.string(for: 0), "0:00")
         XCTAssertEqual(MediaTimeFormatter.string(for: 9.9), "0:09")
         XCTAssertEqual(MediaTimeFormatter.string(for: 65), "1:05")
         XCTAssertEqual(MediaTimeFormatter.string(for: .infinity), "0:00")
+    }
+
+    private func makeSilentRecording(at url: URL) throws {
+        let format = try XCTUnwrap(
+            AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)
+        )
+        let file = try AVAudioFile(forWriting: url, settings: format.settings)
+        let buffer = try XCTUnwrap(
+            AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4_410)
+        )
+        buffer.frameLength = 4_410
+        try file.write(from: buffer)
     }
 
     func testHostedMediaPathUsesPostgresUUIDCasing() {

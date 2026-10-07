@@ -99,7 +99,7 @@
 - The developer control now reports whether the activity started, was already active, is disabled in Settings, or failed with an ActivityKit error.
 - Starting the app now uses the actually selected circle's prompt when deciding which Live Activity to show.
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 
 ## 2026-10-07 prompt synchronization and timeline privacy
 
@@ -107,6 +107,12 @@ Last updated: 2026-10-06
 - Same-circle Live Activity routes no longer skip prompt refresh, preventing Today from remaining in the waiting state after a notification has opened the sharing window.
 - Local and hosted timeline adapters now consistently lock every current-day peer lane until the viewer shares; contextual labels distinguish the viewer's available window from a peer's available window.
 - Regression tests cover same-circle capture deep links and current-prompt peer locking.
+
+## 2026-10-07 timeline voice playback
+
+- Timeline voice recordings from private hosted storage are downloaded to a local CAF cache before AVPlayer prepares them, avoiding unreliable direct streaming of signed audio URLs.
+- Passive timeline loading no longer activates the device audio session, and unavailable duration metadata no longer makes an otherwise playable recording fail.
+- Playback state remains active while AVPlayer is buffering, retry replaces the cached download, and a generated CAF regression test verifies preparation and duration discovery.
 
 ## Current phase
 

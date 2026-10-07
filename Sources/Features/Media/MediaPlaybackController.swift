@@ -38,6 +38,7 @@ final class MediaPlaybackController {
     private let kind: MediaPlaybackKind
     private var timeObserver: Any?
     private var hasPrepared = false
+    private var cachedVoiceURL: URL?
 
     init(url: URL, kind: MediaPlaybackKind) {
         self.url = url
@@ -58,18 +59,22 @@ final class MediaPlaybackController {
         isPreparing = true
         errorMessage = nil
 
-        let asset = AVURLAsset(url: url)
-        let item = AVPlayerItem(asset: asset)
-        player.replaceCurrentItem(with: item)
         do {
-            try configureAudioSessionForPlayback()
+            let resolvedURL = try await playbackURL()
+            try Task.checkCancellation()
+            let asset = AVURLAsset(url: resolvedURL)
             let playable = try await asset.load(.isPlayable)
             guard playable else {
                 throw MediaPlaybackError.unplayable
             }
-            let loadedDuration = try await asset.load(.duration)
-            let seconds = loadedDuration.seconds
-            duration = seconds.isFinite && seconds > 0 ? seconds : 0
+            player.replaceCurrentItem(with: AVPlayerItem(asset: asset))
+            if let loadedDuration = try? await asset.load(.duration) {
+                let seconds = loadedDuration.seconds
+                duration = seconds.isFinite && seconds > 0 ? seconds : 0
+            }
+            isPreparing = false
+        } catch is CancellationError {
+            hasPrepared = false
             isPreparing = false
         } catch {
             isPreparing = false
@@ -122,6 +127,7 @@ final class MediaPlaybackController {
     func retry() async {
         hasPrepared = false
         player.replaceCurrentItem(with: nil)
+        removeCachedVoiceFile()
         await prepare()
     }
 
@@ -133,7 +139,7 @@ final class MediaPlaybackController {
            itemDuration > 0 {
             duration = itemDuration
         }
-        isPlaying = player.timeControlStatus == .playing
+        isPlaying = player.timeControlStatus != .paused
         if player.currentItem?.status == .failed {
             errorMessage = "This recording couldn’t be played. Try opening it again."
             isPreparing = false
@@ -146,8 +152,36 @@ final class MediaPlaybackController {
         try session.setCategory(.playback, mode: mode)
         try session.setActive(true)
     }
+
+    private func playbackURL() async throws -> URL {
+        guard kind == .voice, !url.isFileURL else { return url }
+        if let cachedVoiceURL { return cachedVoiceURL }
+
+        let (downloadURL, response) = try await URLSession.shared.download(from: url)
+        guard let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode) else {
+            throw MediaPlaybackError.downloadFailed
+        }
+        try Task.checkCancellation()
+
+        let localURL = try CaptureMediaStore.newRecordingURL(pathExtension: "caf")
+        do {
+            try FileManager.default.moveItem(at: downloadURL, to: localURL)
+        } catch {
+            try FileManager.default.copyItem(at: downloadURL, to: localURL)
+        }
+        cachedVoiceURL = localURL
+        return localURL
+    }
+
+    private func removeCachedVoiceFile() {
+        guard let cachedVoiceURL else { return }
+        try? FileManager.default.removeItem(at: cachedVoiceURL)
+        self.cachedVoiceURL = nil
+    }
 }
 
 private enum MediaPlaybackError: Error {
     case unplayable
+    case downloadFailed
 }
