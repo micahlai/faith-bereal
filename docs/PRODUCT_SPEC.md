@@ -81,6 +81,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 - Before a prompt starts, Today shows the waiting state. During an open prompt, it shows the response timer and capture action until the viewer submits.
 - After submission, Today becomes a vertically scrolling, full-width feed of every visible blessing for that circle's current prompt, including text/transcript, media preview or playback, optional full scripture passage, and responses.
+- Each Today blessing uses one continuous panel for its content, scripture, response history, and composer. The blessing body and transcript are presented directly without redundant “Reflection,” “Transcript,” or “Responses” headings.
 - Responses can be authored directly from Today. A current-day blessing opened from Timeline may also accept a response; historical Timeline details are read-only.
 
 ### Timeline

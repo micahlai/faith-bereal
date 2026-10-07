@@ -155,16 +155,22 @@ private struct TodayBlessingCard: View {
             }
             .accessibilityElement(children: .combine)
 
-            BlessingContentView(blessing: item.blessing)
+            BlessingContentView(blessing: item.blessing, usesCard: false)
                 .id(item.blessing.id)
 
             if let reference = item.blessing.scriptureReference {
                 ScripturePassageView(reference: reference)
             }
 
-            BlessingResponsesView(blessing: item.blessing, allowsResponding: true)
+            BlessingResponsesView(
+                blessing: item.blessing,
+                allowsResponding: true,
+                showsHeading: false,
+                usesCard: false
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .blessingCard()
         .sheet(isPresented: $isEditing) {
             BlessingEditView(blessing: item.blessing) { _ in }
         }

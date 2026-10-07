@@ -593,8 +593,17 @@ struct BlessingEditView: View {
 
 struct BlessingContentView: View {
     let blessing: Blessing
+    var usesCard = true
 
     var body: some View {
+        if usesCard {
+            content.blessingCard()
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder private var content: some View {
         Group {
             switch blessing.captureMode {
             case .typed:
@@ -602,13 +611,10 @@ struct BlessingContentView: View {
                     if let photoURL = blessing.photoURL {
                         BlessingPhotoView(url: photoURL)
                     }
-                    Text("Reflection")
-                        .font(.headline)
                     Text(blessing.body ?? "")
                         .font(.system(.title3, design: .serif))
                         .textSelection(.enabled)
                 }
-                .blessingCard()
             case .voice:
                 VStack(alignment: .leading, spacing: 16) {
                     if let audioURL = blessing.audioURL {
@@ -621,14 +627,10 @@ struct BlessingContentView: View {
                     if let photoURL = blessing.photoURL {
                         BlessingPhotoView(url: photoURL)
                     }
-                    Divider()
-                    Text("Transcript")
-                        .font(.headline)
                     Text(blessing.body ?? "")
                         .font(.system(.body, design: .serif))
                         .textSelection(.enabled)
                 }
-                .blessingCard()
             case .video:
                 VStack(alignment: .leading, spacing: 16) {
                     if let videoURL = blessing.videoURL {
@@ -636,14 +638,10 @@ struct BlessingContentView: View {
                     } else {
                         ContentUnavailableView("Video unavailable", systemImage: "video.slash")
                     }
-                    Divider()
-                    Text("Transcript")
-                        .font(.headline)
                     Text(blessing.body ?? "")
                         .font(.system(.body, design: .serif))
                         .textSelection(.enabled)
                 }
-                .blessingCard()
             }
         }
     }

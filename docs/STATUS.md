@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 streamlined blessing cards
+
+- Today cards no longer label the main content “Reflection” or “Transcript”; content, scripture, existing responses, and the response composer now share one panel without a “Responses” heading.
+- Timeline previews remain heading-free, while blessing details retain their surrounding media and scripture context.
+
 ## 2026-10-07 circle activity notifications
 
 - User settings now expose one activity-notification toggle per joined circle. It controls peer blessing alerts and response-thread alerts, defaults on, and is stored on the membership.

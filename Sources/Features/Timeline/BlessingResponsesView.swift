@@ -4,6 +4,8 @@ struct BlessingResponsesView: View {
     @Environment(AppModel.self) private var model
     let blessing: Blessing
     let allowsResponding: Bool
+    var showsHeading = true
+    var usesCard = true
 
     @State private var responses: [BlessingResponse] = []
     @State private var mode: ResponseMode = .typed
@@ -16,8 +18,11 @@ struct BlessingResponsesView: View {
     var body: some View {
         Group {
             if allowsResponding || isLoading || !responses.isEmpty {
-                responseContent
-                    .blessingCard()
+                if usesCard {
+                    responseContent.blessingCard()
+                } else {
+                    responseContent
+                }
             }
         }
         .task(id: blessing.id) {
@@ -37,7 +42,7 @@ struct BlessingResponsesView: View {
 
     private var responseContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if isLoading || !responses.isEmpty {
+            if showsHeading && (isLoading || !responses.isEmpty) {
                 HStack {
                     Text("Responses")
                         .font(.headline)
