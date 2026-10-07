@@ -8,6 +8,7 @@ This checklist separates work that can be proven locally from work that needs pr
 - [x] Deterministic local repository remains available to previews, tests, and simulator UI tests.
 - [x] Unit and UI coverage exercises the primary Today and Timeline paths.
 - [x] Privacy manifests are included in both app and widget targets and pass `plutil` validation.
+- [x] Adaptive wordmark assets compile into the widget/Live Activity extension, and the full notification logo compiles into the notification service extension.
 - [x] Draft App Store review notes identify permissions, review flow, and blockers.
 - [ ] Supply the final app icon and capture release-candidate screenshots.
 - [ ] Finalize customer-facing privacy policy, support page, store description, age rating, and localization.
@@ -16,6 +17,7 @@ This checklist separates work that can be proven locally from work that needs pr
 
 - [ ] Enable and validate Sign in with Apple, Push Notifications, Live Activities, and App Groups for release identifiers and profiles.
 - [ ] Verify push-to-start/update/end, Dynamic Island, lock screen, notification privacy, and background behavior.
+- [ ] Register and sign `app.manna-circle.ios.notification-service`, deploy the mutable-content alert payload, and verify the expanded notification logo on a TestFlight device.
 - [ ] Verify camera, microphone, speech recognition, audio playback, video playback, denial/recovery, and interruption handling.
 - [ ] Complete VoiceOver, Increased Contrast, Reduce Motion, Dynamic Type, orientation, iPad, and small-phone checks.
 - [ ] Verify widget snapshot sharing, refresh cadence, and every deep-link destination.

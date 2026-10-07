@@ -67,6 +67,9 @@ private struct BlessingWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .topTrailing) {
+            MannaWordmark(width: family == .systemSmall ? 54 : 68)
+        }
         .containerBackground(for: .widget) { Color(.systemBackground) }
         .widgetURL(entry.content.deepLink)
     }

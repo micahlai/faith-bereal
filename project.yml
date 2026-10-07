@@ -25,6 +25,7 @@ targets:
       - path: Sources
         excludes:
           - LiveActivityWidget
+          - NotificationService
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.manna-circle.ios
@@ -90,6 +91,8 @@ targets:
     dependencies:
       - target: BlessingCircleLiveActivity
         embed: true
+      - target: BlessingCircleNotificationService
+        embed: true
       - package: Supabase
     scheme:
       testTargets:
@@ -123,6 +126,28 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  BlessingCircleNotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/NotificationService
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.manna-circle.ios.notification-service
+        PRODUCT_NAME: BlessingCircleNotificationService
+        PRODUCT_MODULE_NAME: BlessingCircleNotificationService
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: Configuration/NotificationService-Info.plist
+      properties:
+        CFBundleDisplayName: manna circle notifications
+        CFBundleName: $(PRODUCT_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
   BlessingCircleTests:
     type: bundle.unit-test
     platform: iOS

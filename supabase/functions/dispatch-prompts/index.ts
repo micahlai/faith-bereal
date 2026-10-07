@@ -225,6 +225,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
           aps: {
             alert: { title: `${circle.name} is ready`, body: `You have ${windowLabel} to share today’s blessing.` },
             sound: "default",
+            "mutable-content": 1,
             "thread-id": prompt.circle_id,
             "interruption-level": "time-sensitive",
           },

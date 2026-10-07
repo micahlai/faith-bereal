@@ -13,6 +13,7 @@
 		13622CFB23BD69B5E99BEC74 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04A5ED107CC59C2FCAD788AC /* TodayView.swift */; };
 		2B3C310DE0DED51EBA4A5E4B /* BlessingResponsesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8971D0A1BC0819428DBA2CBB /* BlessingResponsesView.swift */; };
 		2BECB4628763C37DF3D9CE45 /* MannaWidgetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6815B2285D5C5EFFA35D896 /* MannaWidgetTheme.swift */; };
+		2C562A4E4BA20C8861508E3E /* NotificationLogo.png in Resources */ = {isa = PBXBuildFile; fileRef = 5AA633448ED63CFD632146E3 /* NotificationLogo.png */; };
 		3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
 		4CFB5E6D1A6F3B7C3560DC32 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */; };
 		4FBFFAFAD04AB8B07EFE16FA /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */; };
@@ -30,6 +31,7 @@
 		75E13967995B0BFF55A18ED9 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E10C692366BEAE2B09BBC9 /* SignInView.swift */; };
 		76D913FC848A66CB5A1A94BB /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94735A84240AC2C5107135A1 /* RootView.swift */; };
 		7D1922CBB7AFE9B86E780EA9 /* CircleTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF399AB3F16CF08C2399F2DF /* CircleTimelineView.swift */; };
+		7E1765298C6CA709BA9137B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F427655A14AD33666A73755E /* Assets.xcassets */; };
 		821381643ABA5544F55B82B0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C99F6499C089B93C6E1D931 /* AppModel.swift */; };
 		8704FD748616E0FDC60A6B02 /* VideoCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */; };
 		879481067520378A11890A2B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B69BDB637FBD5E1800B58241 /* Supabase */; };
@@ -41,7 +43,9 @@
 		A3A80BC1BB9ED561C129800B /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766D059B090295A07973C5B3 /* Models.swift */; };
 		A84C21D6ED0FE43EA1F4E975 /* BlessingWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46B4D2ACEF8C03D2F117DE3 /* BlessingWidgetSnapshot.swift */; };
 		B2D27388B9EAD4325B01637D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */; };
+		B33A2D1FC21C2B810722E7EF /* MannaWordmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 218B05F8EA26894C0DB33863 /* MannaWordmark.swift */; };
 		B693844FB4B9B287A6CF7CCC /* LocalBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */; };
+		C4D0BAE369D612DBA4BBDA6A /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78394E2536925B55E8D27A81 /* NotificationService.swift */; };
 		C5E886DC0C3FF80F1DF8B517 /* BlessingCircleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */; };
 		CACCB05EEFF73ED373306CBD /* MediaPlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */; };
 		CED8F4825F464AFB5F2C7264 /* BlessingCircleHomeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */; };
@@ -49,6 +53,7 @@
 		E8BF3EB4CB41784548937894 /* PromptActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */; };
 		EFE5536CCC884FDACDAAB6D4 /* BlessingCircleLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F58EC1B9E3233BD4F529E454 /* SupabaseBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */; };
+		FE33A4AF6BA736FDEA701CAD /* BlessingCircleNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,6 +78,13 @@
 			remoteGlobalIDString = E41EE15459D998174CB7B649;
 			remoteInfo = BlessingCircleLiveActivity;
 		};
+		E785BCF83A8734BA959CCF5E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 41A9FBA0C18941FE87AC911D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 558966D0D90D800807BA6380;
+			remoteInfo = BlessingCircleNotificationService;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -83,6 +95,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				EFE5536CCC884FDACDAAB6D4 /* BlessingCircleLiveActivity.appex in Embed Foundation Extensions */,
+				FE33A4AF6BA736FDEA701CAD /* BlessingCircleNotificationService.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -96,11 +109,14 @@
 		0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleHomeWidget.swift; sourceTree = "<group>"; };
 		1264492C64A180326D793D6F /* BlessingCircleTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		16B2B67B866D8C3A3B56F2CC /* CaptureMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureMediaStore.swift; sourceTree = "<group>"; };
+		218B05F8EA26894C0DB33863 /* MannaWordmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MannaWordmark.swift; sourceTree = "<group>"; };
 		234411076A53B6836F09CC17 /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
+		28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BlessingCircleNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		28E10C692366BEAE2B09BBC9 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfiguration.swift; sourceTree = "<group>"; };
 		2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptActivityController.swift; sourceTree = "<group>"; };
 		33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleApp.swift; sourceTree = "<group>"; };
+		5AA633448ED63CFD632146E3 /* NotificationLogo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogo.png; sourceTree = "<group>"; };
 		5D21C002BA640BCA51357A90 /* MediaAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAuthorization.swift; sourceTree = "<group>"; };
 		5EF821C48CC75D537252691D /* BibleReferencePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReferencePicker.swift; sourceTree = "<group>"; };
 		660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthenticationService.swift; sourceTree = "<group>"; };
@@ -108,6 +124,7 @@
 		6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppComposition.swift; sourceTree = "<group>"; };
 		766D059B090295A07973C5B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		78394E2536925B55E8D27A81 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCaptureView.swift; sourceTree = "<group>"; };
 		8041666727C8764C007E33AB /* BlessingCircleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleUITests.swift; sourceTree = "<group>"; };
 		86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalBlessingRepository.swift; sourceTree = "<group>"; };
@@ -133,6 +150,7 @@
 		E46B4D2ACEF8C03D2F117DE3 /* BlessingWidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingWidgetSnapshot.swift; sourceTree = "<group>"; };
 		E9598DE0EDAB20B48B60056D /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		EF399AB3F16CF08C2399F2DF /* CircleTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleTimelineView.swift; sourceTree = "<group>"; };
+		F427655A14AD33666A73755E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F6815B2285D5C5EFFA35D896 /* MannaWidgetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MannaWidgetTheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -185,6 +203,7 @@
 			children = (
 				98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */,
 				D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */,
+				28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */,
 				1264492C64A180326D793D6F /* BlessingCircleTests.xctest */,
 				9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */,
 			);
@@ -228,9 +247,11 @@
 		91900FBAE9DF169DD82465C2 /* LiveActivityWidget */ = {
 			isa = PBXGroup;
 			children = (
+				F427655A14AD33666A73755E /* Assets.xcassets */,
 				0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */,
 				ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */,
 				F6815B2285D5C5EFFA35D896 /* MannaWidgetTheme.swift */,
+				218B05F8EA26894C0DB33863 /* MannaWordmark.swift */,
 				77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */,
 			);
 			name = LiveActivityWidget;
@@ -243,6 +264,16 @@
 				D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */,
 			);
 			path = Media;
+			sourceTree = "<group>";
+		};
+		B0FE8507F9FEBA8A0530AA40 /* NotificationService */ = {
+			isa = PBXGroup;
+			children = (
+				5AA633448ED63CFD632146E3 /* NotificationLogo.png */,
+				78394E2536925B55E8D27A81 /* NotificationService.swift */,
+			);
+			name = NotificationService;
+			path = Sources/NotificationService;
 			sourceTree = "<group>";
 		};
 		B912FA04B8A5490E657E0814 /* Domain */ = {
@@ -277,6 +308,7 @@
 			children = (
 				EBED7E13C13451BC5A7831F4 /* Configuration */,
 				91900FBAE9DF169DD82465C2 /* LiveActivityWidget */,
+				B0FE8507F9FEBA8A0530AA40 /* NotificationService */,
 				EF119E7ACC84229F89E6CD9A /* Sources */,
 				D118C97A2FE90BC8EB8F90AD /* Tests */,
 				1E30EB700DEA0514C8DA4947 /* UITests */,
@@ -364,6 +396,24 @@
 			productReference = 9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		558966D0D90D800807BA6380 /* BlessingCircleNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 87C4D0C5DC648188D7C32190 /* Build configuration list for PBXNativeTarget "BlessingCircleNotificationService" */;
+			buildPhases = (
+				F55B27B82BF2C2C8EFA6608D /* Sources */,
+				19C09D71C4B6D331A08EFCCD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BlessingCircleNotificationService;
+			packageProductDependencies = (
+			);
+			productName = BlessingCircleNotificationService;
+			productReference = 28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		70E6D6604A824D653CA34ABD /* BlessingCircle */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B6077964679B6958FC99AE02 /* Build configuration list for PBXNativeTarget "BlessingCircle" */;
@@ -378,6 +428,7 @@
 			);
 			dependencies = (
 				7910F96E9F6A25F16454EEDD /* PBXTargetDependency */,
+				709C7A724B8425F4AB7CC70F /* PBXTargetDependency */,
 			);
 			name = BlessingCircle;
 			packageProductDependencies = (
@@ -437,6 +488,10 @@
 						ProvisioningStyle = Automatic;
 						TestTargetID = 70E6D6604A824D653CA34ABD;
 					};
+					558966D0D90D800807BA6380 = {
+						DevelopmentTeam = 98RU8TVC42;
+						ProvisioningStyle = Automatic;
+					};
 					70E6D6604A824D653CA34ABD = {
 						DevelopmentTeam = 98RU8TVC42;
 						ProvisioningStyle = Automatic;
@@ -470,6 +525,7 @@
 			targets = (
 				70E6D6604A824D653CA34ABD /* BlessingCircle */,
 				E41EE15459D998174CB7B649 /* BlessingCircleLiveActivity */,
+				558966D0D90D800807BA6380 /* BlessingCircleNotificationService */,
 				A488CAFE343697749AB4E9D8 /* BlessingCircleTests */,
 				140D70A2C8671E3C8BBD26F4 /* BlessingCircleUITests */,
 			);
@@ -477,10 +533,19 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		19C09D71C4B6D331A08EFCCD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2C562A4E4BA20C8861508E3E /* NotificationLogo.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		48AE9740CCA95A01EF0A8B8E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7E1765298C6CA709BA9137B8 /* Assets.xcassets in Resources */,
 				4CFB5E6D1A6F3B7C3560DC32 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -572,6 +637,7 @@
 				548797F524C7B56B5041CA56 /* BlessingCircleLiveActivity.swift in Sources */,
 				7111D9D4FF317807638938E9 /* BlessingWidgetSnapshot.swift in Sources */,
 				2BECB4628763C37DF3D9CE45 /* MannaWidgetTheme.swift in Sources */,
+				B33A2D1FC21C2B810722E7EF /* MannaWordmark.swift in Sources */,
 				97A4EB7FB4579E73FD2A7E4D /* PromptActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -584,6 +650,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F55B27B82BF2C2C8EFA6608D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C4D0BAE369D612DBA4BBDA6A /* NotificationService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -591,6 +665,11 @@
 			isa = PBXTargetDependency;
 			target = 70E6D6604A824D653CA34ABD /* BlessingCircle */;
 			targetProxy = 9AE264E85C4AFE29B63A2BF7 /* PBXContainerItemProxy */;
+		};
+		709C7A724B8425F4AB7CC70F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 558966D0D90D800807BA6380 /* BlessingCircleNotificationService */;
+			targetProxy = E785BCF83A8734BA959CCF5E /* PBXContainerItemProxy */;
 		};
 		7910F96E9F6A25F16454EEDD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -908,6 +987,44 @@
 			};
 			name = Release;
 		};
+		ED73501F05651B49C9782542 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				INFOPLIST_FILE = "Configuration/NotificationService-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ios.notification-service";
+				PRODUCT_MODULE_NAME = BlessingCircleNotificationService;
+				PRODUCT_NAME = BlessingCircleNotificationService;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		F0C4521A88A29885469029D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				INFOPLIST_FILE = "Configuration/NotificationService-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ios.notification-service";
+				PRODUCT_MODULE_NAME = BlessingCircleNotificationService;
+				PRODUCT_NAME = BlessingCircleNotificationService;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -943,6 +1060,15 @@
 			buildConfigurations = (
 				1B8D6220CD3FF6B2FA70B7C6 /* Debug */,
 				887B2B2B006A95AB594FC151 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		87C4D0C5DC648188D7C32190 /* Build configuration list for PBXNativeTarget "BlessingCircleNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F0C4521A88A29885469029D0 /* Debug */,
+				ED73501F05651B49C9782542 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

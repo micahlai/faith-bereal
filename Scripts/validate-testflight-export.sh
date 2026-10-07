@@ -55,8 +55,8 @@ if ! /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups' "
   exit 1
 fi
 
-extension=$(find "$app/PlugIns" -maxdepth 1 -type d -name '*.appex' -print -quit)
-if [ -z "$extension" ]; then
+extension="$app/PlugIns/BlessingCircleLiveActivity.appex"
+if [ ! -d "$extension" ]; then
   echo "error: Exported app is missing the Live Activity/widget extension." >&2
   exit 1
 fi
@@ -71,6 +71,29 @@ extension_entitlements="$work_dir/extension-entitlements.plist"
 codesign -d --entitlements :- "$extension" > "$extension_entitlements" 2>/dev/null
 if ! /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups' "$extension_entitlements" 2>/dev/null | grep -q 'group.app.blessingcircle.shared'; then
   echo "error: Exported extension is missing the shared App Group." >&2
+  exit 1
+fi
+
+notification_extension="$app/PlugIns/BlessingCircleNotificationService.appex"
+if [ ! -d "$notification_extension" ]; then
+  echo "error: Exported app is missing the notification service extension." >&2
+  exit 1
+fi
+
+notification_extension_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$notification_extension/Info.plist")
+if [ "$notification_extension_id" != "app.manna-circle.ios.notification-service" ]; then
+  echo "error: Exported notification extension identifier is $notification_extension_id." >&2
+  exit 1
+fi
+
+notification_extension_point=$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$notification_extension/Info.plist")
+if [ "$notification_extension_point" != "com.apple.usernotifications.service" ]; then
+  echo "error: Exported notification extension has the wrong extension point." >&2
+  exit 1
+fi
+
+if [ ! -f "$notification_extension/NotificationLogo.png" ]; then
+  echo "error: Exported notification extension is missing NotificationLogo.png." >&2
   exit 1
 fi
 

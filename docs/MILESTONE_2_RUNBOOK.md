@@ -16,7 +16,7 @@ Confirm all migrations in `supabase/migrations` applied in order. The final migr
 
 ## 2. Configure Sign in with Apple
 
-In the Apple Developer portal, enable Sign in with Apple, Push Notifications, and Live Activities for `app.blessingcircle.ios`. Configure Apple's provider in Supabase Auth with the matching Services ID/team/key details. Build with the intended Apple Developer team and verify the app and widget extension are signed.
+In the Apple Developer portal, enable Sign in with Apple, Push Notifications, Live Activities, and the shared App Group for `app.manna-circle.ios`. Register and sign `app.manna-circle.ios.live-activity` and `app.manna-circle.ios.notification-service` as embedded extensions. Configure Apple's provider in Supabase Auth with the matching native client ID/team/key details, then verify the app and both extensions are signed.
 
 ## 3. Configure the iOS app
 
@@ -24,7 +24,7 @@ In the Apple Developer portal, enable Sign in with Apple, Push Notifications, an
 cp Configuration/Secrets.xcconfig.example Configuration/Secrets.xcconfig
 ```
 
-Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the untracked file, regenerate the Xcode project, and install on physical devices. The app uses the local repository if either value is absent.
+Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in the untracked file, regenerate the Xcode project, and install on physical devices. Debug builds use the local repository if either value is absent; Release builds fail early unless both hosted values are valid.
 
 ## 4. Configure and deploy APNs dispatch
 
