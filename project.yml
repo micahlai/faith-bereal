@@ -92,7 +92,10 @@ targets:
           - UIInterfaceOrientationLandscapeRight
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
     dependencies:
       - target: BlessingCircleLiveActivity
         embed: true

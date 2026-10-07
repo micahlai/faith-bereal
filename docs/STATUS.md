@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 warning-free notification extension
+
+- The notification service now crosses Apple's legacy Intents and UserNotifications callbacks through a locked, single-delivery bridge. Swift 6 no longer reports non-Sendable captures, and timeout/donation completion races cannot invoke the content handler twice.
+- iPad declares all four orientations, retaining multitasking support and removing Xcode's full-screen orientation diagnostic. Clean simulator and signed generic-device builds pass; all 68 domain tests and six UI tests pass in separate phases.
+
 ## 2026-10-07 streamlined blessing cards
 
 - Today cards no longer label the main content “Reflection” or “Transcript”; content, scripture, existing responses, and the response composer now share one panel without a “Responses” heading.
@@ -78,7 +83,7 @@
 - All 47 tests passed on-device: 43 domain/unit tests and 4 UI tests, including owner force-local-prompt, photo availability by capture mode, Today/Timeline scrolling with the pinned member header, and largest-text dark mode.
 - The ordinary hosted-configuration app was installed and launched after the suite, and its process remained running on the phone.
 - The pass does not exercise real microphone/camera capture, hosted media upload, remote APNs presentation, or Live Activity presentation. Those remain part of the manual two-account physical-device acceptance matrix.
-- Non-failing diagnostics remain to review: the orientation declaration warning, App Group preferences access from the unit-test host, two sub-second launch-hang reports during extended UI-test launch, and Xcode's missing-debugger-version log from the UI test runner.
+- Non-failing diagnostics remain to review: App Group preferences access from the unit-test host, two sub-second launch-hang reports during extended UI-test launch, and Xcode's missing-debugger-version log from the UI test runner.
 
 ## 2026-10-06 hosted scheduler and release archive validation
 
