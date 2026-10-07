@@ -658,6 +658,26 @@ final class AppModel {
         }
     }
 
+    func setCircleActivityNotifications(_ enabled: Bool, for circleID: UUID) async {
+        guard let currentUser,
+              let index = circles.firstIndex(where: { $0.id == circleID }) else { return }
+        let previous = circles[index].circleActivityNotificationsEnabled
+        circles[index].circleActivityNotificationsEnabled = enabled
+        if circle?.id == circleID { circle?.circleActivityNotificationsEnabled = enabled }
+
+        do {
+            try await repository.updateCircleActivityNotifications(
+                circleID: circleID,
+                memberID: currentUser.id,
+                enabled: enabled
+            )
+        } catch {
+            circles[index].circleActivityNotificationsEnabled = previous
+            if circle?.id == circleID { circle?.circleActivityNotificationsEnabled = previous }
+            message = error.localizedDescription
+        }
+    }
+
     func forceCurrentCirclePrompt(now: Date = .now) async -> Bool {
         guard let circle, let currentUser else { return false }
         guard circle.ownerID == currentUser.id else {

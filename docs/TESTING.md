@@ -72,6 +72,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - a member may submit before or after the response window on the local calendar day they join, but not on a later day unless ordinary late-sharing rules apply.
 - blessing edits accept the author before ten minutes, reject other users, and close at the exact ten-minute boundary.
 - circle photo changes require the current owner and remain isolated to the selected circle.
+- circle activity notification preferences default on and change only the selected membership.
 
 ## Integration tests
 
@@ -82,6 +83,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - RLS attempts across circles and before/after posting;
 - realtime insert arrives only after visibility becomes legal;
 - APNs dispatch retries remain idempotent.
+- a peer blessing sends locked copy before the recipient posts and blessing content afterward; response alerts reach the blessing author and prior responders but never the new responder.
 - one client receives realtime inserts after the other submits;
 - scripture text is rendered in the viewer's translation while only the reference is stored;
 - response RLS follows the parent blessing's visibility.
@@ -104,6 +106,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - an HTTPS invitation opened from Messages launches the installed app, preserves the code through sign-in/onboarding, and joins only after user confirmation;
 - Dynamic Island compact/minimal/expanded layouts;
 - lock-screen privacy settings;
+- sender/circle images and locked/unlocked activity-notification copy on a two-account physical-device circle;
 - background video upload interruption;
 - speech transcription latency and audio-session interruption.
 - voice capture produces a playable audio file after permission grant, interruption, stop, and relaunch;

@@ -113,6 +113,7 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     var allowsLateBlessings: Bool
     var repeatWindowMinutes: Int
     var photoURL: URL? = nil
+    var circleActivityNotificationsEnabled: Bool = true
 
     var responseWindowDuration: TimeInterval {
         TimeInterval(responseWindowMinutes * 60)

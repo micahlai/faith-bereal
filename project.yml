@@ -52,6 +52,7 @@ targets:
           - Default
         com.apple.developer.associated-domains:
           - applinks:manna-circle.micahlai.com
+        com.apple.developer.usernotifications.communication: true
         com.apple.security.application-groups:
           - group.app.blessingcircle.shared
     configFiles:
@@ -79,6 +80,8 @@ targets:
         NSCameraUsageDescription: manna circle uses the camera when you choose to take a photo or record a video blessing.
         NSPhotoLibraryUsageDescription: manna circle can import a photo or video you choose for your blessing.
         NSSupportsLiveActivities: true
+        NSUserActivityTypes:
+          - INSendMessageIntent
         SupabaseURL: $(SUPABASE_URL)
         SupabasePublishableKey: $(SUPABASE_PUBLISHABLE_KEY)
         UILaunchScreen: {}

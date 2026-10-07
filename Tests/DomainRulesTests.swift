@@ -965,6 +965,25 @@ final class DomainRulesTests: XCTestCase {
         }
     }
 
+    func testCircleActivityNotificationPreferenceIsScopedPerMembership() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repository.bootstrap()
+        let firstCircle = try XCTUnwrap(bootstrap.circles.first)
+        let otherCircle = try XCTUnwrap(bootstrap.circles.first(where: { $0.id != firstCircle.id }))
+
+        try await repository.updateCircleActivityNotifications(
+            circleID: firstCircle.id,
+            memberID: bootstrap.currentUser.id,
+            enabled: false
+        )
+        let refreshed = try await repository.bootstrap()
+
+        XCTAssertFalse(try XCTUnwrap(refreshed.circles.first(where: { $0.id == firstCircle.id }))
+            .circleActivityNotificationsEnabled)
+        XCTAssertTrue(try XCTUnwrap(refreshed.circles.first(where: { $0.id == otherCircle.id }))
+            .circleActivityNotificationsEnabled)
+    }
+
     func testCircleOwnerCanRegenerateInviteCodeAndInvalidatePreviousCode() async throws {
         let repository = LocalBlessingRepository(now: .now)
         let bootstrap = try await repository.bootstrap()

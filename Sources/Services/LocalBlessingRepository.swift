@@ -637,6 +637,14 @@ actor LocalBlessingRepository: BlessingRepository {
         return circles[index]
     }
 
+    func updateCircleActivityNotifications(circleID: UUID, memberID: UUID, enabled: Bool) async throws {
+        guard let index = circles.firstIndex(where: { $0.id == circleID }),
+              circles[index].members.contains(where: { $0.id == memberID }) else {
+            throw BlessingError.circleNotFound
+        }
+        circles[index].circleActivityNotificationsEnabled = enabled
+    }
+
     private static func initials(for name: String) -> String {
         let value = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
         return value.isEmpty ? "MC" : value

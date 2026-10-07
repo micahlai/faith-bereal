@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-07 circle activity notifications
+
+- User settings now expose one activity-notification toggle per joined circle. It controls peer blessing alerts and response-thread alerts, defaults on, and is stored on the membership.
+- Blessing inserts and response inserts transactionally create server-only outbox events. The dispatcher applies today's visibility gate per recipient, notifies the blessing author and prior responders without echoing to the sender, and uses idempotent APNs collapse identifiers.
+- The notification service uses Apple's communication-notification presentation with a sender profile image and circle group image when available. iOS remains responsible for the exact compact-banner arrangement.
+- Migration `202610070005_circle_activity_notifications.sql` and the updated dispatcher are ready for hosted deployment. Two-account production APNs and communication-capability provisioning remain pending.
+
 ## 2026-10-07 circle photos
 
 - Circle owners can choose, replace, or remove a downsampled private circle photo from Circle settings. Members see it beside the current circle and inside the global circle switcher.

@@ -341,6 +341,17 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await fetchCircle(id: row.id, inviteCode: "")
     }
 
+    func updateCircleActivityNotifications(
+        circleID: UUID,
+        memberID _: UUID,
+        enabled: Bool
+    ) async throws {
+        _ = try await client.rpc(
+            "update_circle_activity_notifications",
+            params: UpdateCircleActivityNotificationsParams(circleID: circleID, enabled: enabled)
+        ).execute()
+    }
+
     func forceCirclePrompt(
         circleID: UUID,
         ownerID: UUID,
@@ -631,6 +642,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
     }
 
     private func fetchCircle(id: UUID, inviteCode: String) async throws -> CircleGroup {
+        let viewerID = try await client.auth.session.user.id
         let row: CircleRow = try await client.from("circles").select().eq("id", value: id).single().execute().value
         let membershipRows: [MembershipRow] = try await client
             .from("circle_members")
@@ -664,7 +676,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
             responseWindowMinutes: row.responseWindowMinutes,
             allowsLateBlessings: row.allowLateBlessings,
             repeatWindowMinutes: row.repeatWindowMinutes,
-            photoURL: try await circlePhotoSignedURL(path: row.photoPath)
+            photoURL: try await circlePhotoSignedURL(path: row.photoPath),
+            circleActivityNotificationsEnabled: membershipRows
+                .first(where: { $0.userID == viewerID })?
+                .notifyOnCircleActivity ?? true
         )
     }
 
@@ -847,11 +862,13 @@ private struct MembershipRow: Codable, Sendable {
     let circleID: UUID
     let userID: UUID
     let joinedAt: Date
+    let notifyOnCircleActivity: Bool?
 
     enum CodingKeys: String, CodingKey {
         case circleID = "circle_id"
         case userID = "user_id"
         case joinedAt = "joined_at"
+        case notifyOnCircleActivity = "notify_on_circle_activity"
     }
 }
 
@@ -1071,6 +1088,16 @@ private struct UpdateCirclePhotoParams: Encodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case circleID = "p_circle_id"
         case photoPath = "p_photo_path"
+    }
+}
+
+private struct UpdateCircleActivityNotificationsParams: Encodable, Sendable {
+    let circleID: UUID
+    let enabled: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case circleID = "p_circle_id"
+        case enabled = "p_enabled"
     }
 }
 

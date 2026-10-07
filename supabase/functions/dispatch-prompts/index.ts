@@ -49,6 +49,27 @@ type BlessingAuthor = {
   submitted_at: string;
 };
 
+type CircleNotification = {
+  id: string;
+  event_type: "blessing_shared" | "response_shared";
+  blessing_id: string;
+  response_id: string | null;
+};
+
+type NotificationBlessing = {
+  id: string;
+  prompt_id: string;
+  author_id: string;
+  body: string;
+};
+
+type NotificationResponse = {
+  id: string;
+  author_id: string;
+  body: string;
+  submitted_at: string;
+};
+
 const required = (name: string): string => {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`Missing ${name}`);
@@ -124,6 +145,7 @@ async function sendAPNs(
   topic: string,
   pushType: "alert" | "liveactivity",
   payload: unknown,
+  collapseID?: string,
 ): Promise<void> {
   const host = environment === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
   const response = await fetch(`https://${host}/3/device/${token}`, {
@@ -134,6 +156,7 @@ async function sendAPNs(
       "apns-push-type": pushType,
       "apns-priority": "10",
       "content-type": "application/json",
+      ...(collapseID ? { "apns-collapse-id": collapseID } : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -178,6 +201,207 @@ async function clearInvalidDeviceTokens(
         deviceID,
         message: error.message,
       }));
+    }
+  }
+}
+
+async function signedStorageURL(bucket: string, path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const { data, error } = await admin.storage.from(bucket).createSignedUrl(path, 15 * 60);
+  if (error) {
+    console.error(JSON.stringify({ event: "notification_image_signing_failed", bucket, message: error.message }));
+    return null;
+  }
+  return data.signedUrl;
+}
+
+function blessingRoute(circleID: string, blessingID: string): string {
+  return `blessingcircle://blessing/${blessingID}?circle=${circleID}`;
+}
+
+function todayRoute(circleID: string, promptID: string): string {
+  return `blessingcircle://today?circle=${circleID}&prompt=${promptID}`;
+}
+
+async function dispatchCircleNotification(notification: CircleNotification): Promise<void> {
+  const { data: blessingData, error: blessingError } = await admin
+    .from("blessings")
+    .select("id, prompt_id, author_id, body")
+    .eq("id", notification.blessing_id)
+    .single();
+  if (blessingError) throw blessingError;
+  const blessing = blessingData as NotificationBlessing;
+
+  const { data: prompt, error: promptError } = await admin
+    .from("daily_prompts")
+    .select("circle_id")
+    .eq("id", blessing.prompt_id)
+    .single();
+  if (promptError) throw promptError;
+
+  const { data: circle, error: circleError } = await admin
+    .from("circles")
+    .select("name, photo_path")
+    .eq("id", prompt.circle_id)
+    .single();
+  if (circleError) throw circleError;
+
+  let senderID = blessing.author_id;
+  let response: NotificationResponse | null = null;
+  if (notification.event_type === "response_shared") {
+    const { data, error } = await admin
+      .from("blessing_responses")
+      .select("id, author_id, body, submitted_at")
+      .eq("id", notification.response_id!)
+      .single();
+    if (error) throw error;
+    response = data as NotificationResponse;
+    senderID = response.author_id;
+  }
+
+  const { data: sender, error: senderError } = await admin
+    .from("profiles")
+    .select("display_name, avatar_path")
+    .eq("id", senderID)
+    .single();
+  if (senderError) throw senderError;
+
+  const { data: memberships, error: membershipError } = await admin
+    .from("circle_members")
+    .select("user_id")
+    .eq("circle_id", prompt.circle_id)
+    .eq("notify_on_circle_activity", true)
+    .is("removed_at", null)
+    .neq("user_id", senderID);
+  if (membershipError) throw membershipError;
+  const enabledMemberIDs = new Set((memberships ?? []).map((row) => row.user_id));
+
+  let recipientIDs: string[];
+  const submittedByRecipient = new Set<string>();
+  if (notification.event_type === "blessing_shared") {
+    recipientIDs = [...enabledMemberIDs];
+    if (recipientIDs.length > 0) {
+      const { data: submissions, error: submissionError } = await admin
+        .from("blessings")
+        .select("author_id")
+        .eq("prompt_id", blessing.prompt_id)
+        .in("author_id", recipientIDs);
+      if (submissionError) throw submissionError;
+      for (const submission of submissions ?? []) submittedByRecipient.add(submission.author_id);
+    }
+  } else {
+    const { data: priorResponses, error: responseError } = await admin
+      .from("blessing_responses")
+      .select("author_id")
+      .eq("blessing_id", blessing.id)
+      .lt("submitted_at", response!.submitted_at)
+      .neq("author_id", senderID);
+    if (responseError) throw responseError;
+    const followers = new Set<string>([blessing.author_id]);
+    for (const priorResponse of priorResponses ?? []) followers.add(priorResponse.author_id);
+    followers.delete(senderID);
+    recipientIDs = [...followers].filter((id) => enabledMemberIDs.has(id));
+  }
+
+  if (recipientIDs.length === 0) return;
+  const { data: devices, error: deviceError } = await admin
+    .from("device_registrations")
+    .select("id, user_id, apns_token, push_to_start_token, environment")
+    .in("user_id", recipientIDs)
+    .is("revoked_at", null);
+  if (deviceError) throw deviceError;
+  const activeDevices = ((devices ?? []) as Device[]).filter((device) => device.apns_token !== null);
+  if (activeDevices.length === 0) return;
+
+  const [senderAvatarURL, circlePhotoURL] = await Promise.all([
+    signedStorageURL("avatars", sender.avatar_path),
+    signedStorageURL("circle-photos", circle.photo_path),
+  ]);
+  const invalidByDevice = new Map<string, Set<DeviceTokenField>>();
+  const results = await Promise.allSettled(activeDevices.map((device) => {
+    const unlocked = notification.event_type === "response_shared" || submittedByRecipient.has(device.user_id);
+    const body = notification.event_type === "blessing_shared"
+      ? unlocked
+        ? `${sender.display_name} - ${blessing.body}`
+        : `${sender.display_name} has shared a blessing. share yours to see`
+      : device.user_id === blessing.author_id
+        ? `${sender.display_name} responded to your blessing: ${response!.body}`
+        : `${sender.display_name} also responded: ${response!.body}`;
+    const route = notification.event_type === "blessing_shared" && !unlocked
+      ? todayRoute(prompt.circle_id, blessing.prompt_id)
+      : blessingRoute(prompt.circle_id, blessing.id);
+    return sendAPNs(
+      device.apns_token!,
+      device.environment,
+      bundleID,
+      "alert",
+      {
+        aps: {
+          alert: { title: circle.name, body },
+          sound: "default",
+          "mutable-content": 1,
+          category: "CIRCLE_ACTIVITY",
+          "thread-id": prompt.circle_id,
+        },
+        route,
+        notification_kind: notification.event_type,
+        sender_id: senderID,
+        sender_name: sender.display_name,
+        ...(senderAvatarURL ? { sender_avatar_url: senderAvatarURL } : {}),
+        circle_id: prompt.circle_id,
+        circle_name: circle.name,
+        ...(circlePhotoURL ? { circle_photo_url: circlePhotoURL } : {}),
+        blessing_id: blessing.id,
+      },
+      notification.id,
+    );
+  }));
+
+  results.forEach((result, index) => {
+    if (result.status !== "rejected" || !permanentlyInvalidToken(result.reason)) return;
+    invalidByDevice.set(activeDevices[index].id, new Set<DeviceTokenField>(["apns_token"]));
+  });
+  if (invalidByDevice.size > 0) await clearInvalidDeviceTokens(activeDevices, invalidByDevice);
+
+  const failures = results.filter((result) => result.status === "rejected");
+  if (failures.length > 0) {
+    console.error(JSON.stringify({
+      event: "circle_notification_delivery_failures",
+      notificationID: notification.id,
+      failures: failures.map((result) =>
+        result.status === "rejected"
+          ? (result.reason instanceof Error ? result.reason.message : String(result.reason))
+          : ""
+      ),
+    }));
+  }
+}
+
+async function processCircleNotifications(): Promise<void> {
+  const { data, error } = await admin.rpc("claim_circle_notifications", { p_limit: 100 });
+  if (error) throw error;
+
+  for (const notification of (data ?? []) as CircleNotification[]) {
+    try {
+      await dispatchCircleNotification(notification);
+      const { error: completeError } = await admin.rpc("complete_circle_notification", {
+        p_id: notification.id,
+        p_error: null,
+      });
+      if (completeError) throw completeError;
+    } catch (notificationError) {
+      const message = notificationError instanceof Error
+        ? notificationError.message
+        : String(notificationError);
+      console.error(JSON.stringify({
+        event: "circle_notification_failed",
+        notificationID: notification.id,
+        message,
+      }));
+      await admin.rpc("complete_circle_notification", {
+        p_id: notification.id,
+        p_error: message,
+      });
     }
   }
 }
@@ -670,6 +894,7 @@ Deno.serve(async (request) => {
   await updateOpenActivities();
   await closeExpiredPrompts();
   await reconcileLateActivities();
+  await processCircleNotifications();
 
   return Response.json({ claimed: outcomes.length, outcomes });
 });

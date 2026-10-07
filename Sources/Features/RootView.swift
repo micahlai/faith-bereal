@@ -460,6 +460,36 @@ private struct UserSettingsView: View {
                     }
                 }
 
+                if !model.circles.isEmpty {
+                    Section {
+                        ForEach(model.circles) { circle in
+                            Toggle(
+                                isOn: Binding(
+                                    get: {
+                                        model.circles
+                                            .first(where: { $0.id == circle.id })?
+                                            .circleActivityNotificationsEnabled ?? true
+                                    },
+                                    set: { enabled in
+                                        Task { await model.setCircleActivityNotifications(enabled, for: circle.id) }
+                                    }
+                                )
+                            ) {
+                                HStack(spacing: 12) {
+                                    CircleAvatarBadge(circle: circle, size: 38)
+                                    Text(circle.name)
+                                        .foregroundStyle(AppTheme.ink)
+                                }
+                            }
+                            .frame(minHeight: 44)
+                        }
+                    } header: {
+                        Text("Circle notifications")
+                    } footer: {
+                        Text("Choose which circles can notify you when someone shares a blessing or adds a response to a blessing you follow.")
+                    }
+                }
+
                 Section {
                     Picker(
                         "Bible version",
