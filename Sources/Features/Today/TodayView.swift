@@ -18,7 +18,7 @@ struct TodayView: View {
                     .padding(.bottom, 100)
                     .frame(maxWidth: .infinity)
                 }
-                .refreshable { try? await model.refreshTimeline() }
+                .refreshable { await model.refreshCurrentCircle() }
             }
         }
         .navigationTitle("Today")

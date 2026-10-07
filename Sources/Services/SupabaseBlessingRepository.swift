@@ -111,10 +111,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
                     let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
                     let isToday = calendar.isDate(prompt.localDate, inSameDayAs: now)
                     let status: TimelineStatus
-                    if let match {
-                        status = .blessing(match)
-                    } else if isToday && member.id != viewerID && !viewerHasSubmitted {
+                    if isToday && member.id != viewerID && !viewerHasSubmitted {
                         status = .locked
+                    } else if let match {
+                        status = .blessing(match)
                     } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings || FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)) {
                         status = .waiting
                     } else {

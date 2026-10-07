@@ -23,6 +23,7 @@ struct CircleTimelineView: View {
                                     TimelineDayRow(
                                         row: row,
                                         lanes: model.lanes,
+                                        currentUserID: model.currentUser?.id,
                                         onSelect: { member, blessing in
                                             selection = BlessingSelection(member: member, blessing: blessing)
                                         }
@@ -46,7 +47,7 @@ struct CircleTimelineView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(AppTheme.canvas, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .refreshable { try? await model.refreshTimeline() }
+        .refreshable { await model.refreshCurrentCircle() }
         .sheet(item: $selection) { selection in
             BlessingDetailView(
                 member: selection.member,
@@ -136,6 +137,7 @@ private struct TimelineRow: Identifiable {
 private struct TimelineDayRow: View {
     let row: TimelineRow
     let lanes: [TimelineLane]
+    let currentUserID: UUID?
     let onSelect: (Member, Blessing) -> Void
 
     var body: some View {
@@ -157,6 +159,8 @@ private struct TimelineDayRow: View {
                 if let event = row.eventsByMemberID[lane.member.id] {
                     TimelineEventView(
                         event: event,
+                        member: lane.member,
+                        currentUserID: currentUserID,
                         onSelect: { blessing in onSelect(lane.member, blessing) }
                     )
                     .frame(width: 238)
@@ -191,6 +195,8 @@ private struct TimelineConnectorView: View {
 
 private struct TimelineEventView: View {
     let event: TimelineEvent
+    let member: Member
+    let currentUserID: UUID?
     let onSelect: (Blessing) -> Void
     @State private var isBodyTruncated = false
 
@@ -315,16 +321,21 @@ private struct TimelineEventView: View {
                 .padding(.vertical, 10)
         case .locked:
             VStack(alignment: .leading, spacing: 5) {
-                Label("Today is hidden", systemImage: "lock.fill")
+                Label("Locked until you share", systemImage: "lock.fill")
                     .font(.subheadline.weight(.semibold))
-                Text("Share yours to open it.")
+                Text("Share yours to reveal today’s peer updates.")
                     .font(.caption)
                     .foregroundStyle(AppTheme.secondaryInk)
             }
             .padding(14)
             .background(AppTheme.candle.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .waiting:
-            Label("Still time to share", systemImage: "hourglass")
+            Label(
+                member.id == currentUserID
+                    ? "You can still share"
+                    : "\(member.displayName) can still share",
+                systemImage: "hourglass"
+            )
                 .font(.subheadline)
                 .foregroundStyle(AppTheme.dawn)
                 .padding(.vertical, 10)

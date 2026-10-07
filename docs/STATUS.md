@@ -101,6 +101,13 @@
 
 Last updated: 2026-10-06
 
+## 2026-10-07 prompt synchronization and timeline privacy
+
+- The selected circle now reloads its server-authored prompt and timeline whenever the app becomes active, receives a realtime update, handles a Live Activity deep link, or is pulled to refresh.
+- Same-circle Live Activity routes no longer skip prompt refresh, preventing Today from remaining in the waiting state after a notification has opened the sharing window.
+- Local and hosted timeline adapters now consistently lock every current-day peer lane until the viewer shares; contextual labels distinguish the viewer's available window from a peer's available window.
+- Regression tests cover same-circle capture deep links and current-prompt peer locking.
+
 ## Current phase
 
 Milestone 3.5 is complete against the local repository. Milestone 4 release-readiness work is in progress; Apple-account, physical-device, and hosted-backend acceptance remains pending.

@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct BlessingCircleApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model: AppModel
 
     init() {
@@ -24,6 +25,10 @@ struct BlessingCircleApp: App {
                     appDelegate.notificationURLHandler = { url in
                         Task { await model.handleDeepLink(url) }
                     }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task { await model.refreshCurrentCircle() }
                 }
         }
     }

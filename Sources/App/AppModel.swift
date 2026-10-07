@@ -260,6 +260,15 @@ final class AppModel {
         scheduleWidgetSnapshotRefresh(now: now)
     }
 
+    func refreshCurrentCircle(now: Date = .now) async {
+        do {
+            try await reloadCurrentCircle(now: now)
+        } catch {
+            guard !Task.isCancelled, !Self.isCancellation(error) else { return }
+            message = "Couldn’t refresh your circle: \(error.localizedDescription)"
+        }
+    }
+
     func switchCircle(to circleID: UUID) async {
         guard !isSwitchingCircle,
               circle?.id != circleID,
@@ -315,6 +324,29 @@ final class AppModel {
             let context = try await repository.circleContext(circleID: circleID)
             let lanes = try await repository.timeline(circleID: circleID, viewerID: viewerID, now: .now)
             return (context, lanes)
+        }
+    }
+
+    private func reloadCurrentCircle(now: Date) async throws {
+        guard let selectedCircleID = circle?.id, let currentUser else { return }
+        let context = try await repository.circleContext(circleID: selectedCircleID)
+        let refreshedLanes = try await repository.timeline(
+            circleID: selectedCircleID,
+            viewerID: currentUser.id,
+            now: now
+        )
+        guard circle?.id == selectedCircleID else { return }
+
+        let knownInviteCode = circles.first(where: { $0.id == selectedCircleID })?.inviteCode
+        let refreshedCircle = context.circle.preservingInviteCode(knownInviteCode)
+        circle = refreshedCircle
+        prompt = context.prompt
+        lanes = refreshedLanes
+        upsertCircle(refreshedCircle)
+        scheduleWidgetSnapshotRefresh(now: now)
+
+        if let prompt = context.prompt, prompt.phase(at: now) == .open {
+            await startLiveActivity(for: prompt, circle: refreshedCircle)
         }
     }
 
@@ -729,7 +761,13 @@ final class AppModel {
         if let circleValue = components?.queryItems?.first(where: { $0.name == "circle" })?.value,
            let circleID = UUID(uuidString: circleValue),
            circles.contains(where: { $0.id == circleID }) {
-            await switchCircle(to: circleID)
+            if circle?.id == circleID {
+                await refreshCurrentCircle()
+            } else {
+                await switchCircle(to: circleID)
+            }
+        } else {
+            await refreshCurrentCircle()
         }
 
         switch url.host {
@@ -828,7 +866,7 @@ final class AppModel {
                 let updates = try await repository.timelineUpdates(circleID: circle.id)
                 for await _ in updates {
                     guard !Task.isCancelled else { break }
-                    try await self?.refreshTimeline()
+                    try await self?.reloadCurrentCircle(now: .now)
                 }
             } catch {
                 guard !Task.isCancelled else { return }

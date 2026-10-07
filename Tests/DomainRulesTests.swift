@@ -295,6 +295,26 @@ final class DomainRulesTests: XCTestCase {
 
 #if DEBUG
     @MainActor
+    func testSameCircleCaptureDeepLinkRefreshesTheServerPrompt() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let model = AppModel(repository: repository)
+        await model.bootstrap()
+        let circleID = try XCTUnwrap(model.circle?.id)
+        let refreshedStart = Date().addingTimeInterval(-1)
+        let refreshedPrompt = try await repository.beginDebugPrompt(circleID: circleID, now: refreshedStart)
+        let route = try XCTUnwrap(
+            URL(string: "blessingcircle://today/capture?circle=\(circleID.uuidString)")
+        )
+
+        await model.handleDeepLink(route)
+
+        XCTAssertEqual(model.prompt, refreshedPrompt)
+        XCTAssertEqual(model.selectedTab, 0)
+        XCTAssertTrue(model.isCapturePresented)
+        XCTAssertTrue(model.canSubmitCurrentPrompt)
+    }
+
+    @MainActor
     func testDebugPromptRestartsLocalWindowAndAllowsFreshSubmission() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
@@ -902,6 +922,37 @@ final class DomainRulesTests: XCTestCase {
             return XCTFail("Expected the lane to end with the membership marker")
         }
         XCTAssertEqual(newestMemberLane.events.count, 3)
+    }
+
+    func testCurrentPromptLocksEveryPeerLaneUntilViewerShares() async throws {
+        let now = Date()
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+        let lanes = try await repository.timeline(circleID: circle.id, viewerID: user.id, now: now)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+
+        func promptStatus(in lane: TimelineLane) -> TimelineStatus? {
+            lane.events.first(where: { event in
+                guard calendar.isDate(event.date, inSameDayAs: prompt.localDate) else { return false }
+                if case .joinedCircle = event.status { return false }
+                return true
+            })?.status
+        }
+
+        let viewerLane = try XCTUnwrap(lanes.first(where: { $0.member.id == user.id }))
+        guard case .waiting = try XCTUnwrap(promptStatus(in: viewerLane)) else {
+            return XCTFail("The viewer should see their own open sharing state")
+        }
+
+        for peerLane in lanes where peerLane.member.id != user.id {
+            guard case .locked = try XCTUnwrap(promptStatus(in: peerLane)) else {
+                return XCTFail("Every peer lane should remain private until the viewer shares")
+            }
+        }
     }
 
     func testResponseStaysAttachedToBlessingCircle() async throws {

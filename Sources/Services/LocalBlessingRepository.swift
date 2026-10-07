@@ -262,7 +262,9 @@ actor LocalBlessingRepository: BlessingRepository {
                 let isToday = calendar.isDate(prompt.localDate, inSameDayAs: now)
                 let status: TimelineStatus
 
-                if let match {
+                if isToday && member.id != viewerID && !viewerHasSubmitted {
+                    status = .locked
+                } else if let match {
                     if member.id == viewerID || VisibilityPolicy.canReadPeerBlessing(
                         promptDate: prompt.localDate,
                         now: now,
