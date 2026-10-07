@@ -1,6 +1,7 @@
 @preconcurrency import Intents
 import Foundation
 @preconcurrency import UserNotifications
+import UIKit
 
 private final class NotificationDeliveryState: @unchecked Sendable {
     private let lock = NSLock()
@@ -82,11 +83,116 @@ private final class CommunicationNotificationUpdate: @unchecked Sendable {
     func finish() {
         do {
             let updated = try content.updating(from: intent)
-            deliveryState.updateBestAttempt(updated)
-            deliveryState.deliver(updated)
+            guard let resolved = updated.mutableCopy() as? UNMutableNotificationContent else {
+                deliveryState.deliver(updated)
+                return
+            }
+            resolved.title = content.title
+            resolved.subtitle = content.subtitle
+            resolved.body = content.body
+            resolved.attachments = content.attachments
+            deliveryState.updateBestAttempt(resolved)
+            deliveryState.deliver(resolved)
         } catch {
             deliveryState.deliver(content)
         }
+    }
+}
+
+private final class CommunicationNotificationRequest: @unchecked Sendable {
+    private let content: UNMutableNotificationContent
+    private let deliveryState: NotificationDeliveryState
+    private let senderID: String
+    private let senderName: String
+    private let circleID: String
+    private let circleName: String
+
+    init?(
+        content: UNMutableNotificationContent,
+        deliveryState: NotificationDeliveryState
+    ) {
+        guard let senderID = content.userInfo["sender_id"] as? String,
+              let senderName = content.userInfo["sender_name"] as? String,
+              let circleID = content.userInfo["circle_id"] as? String,
+              let circleName = content.userInfo["circle_name"] as? String else {
+            return nil
+        }
+        self.content = content
+        self.deliveryState = deliveryState
+        self.senderID = senderID
+        self.senderName = senderName
+        self.circleID = circleID
+        self.circleName = circleName
+    }
+
+    func start() {
+        guard let value = content.userInfo["rich_media_url"] as? String,
+              let remoteURL = URL(string: value) else {
+            finish(mediaURL: nil)
+            return
+        }
+        URLSession.shared.downloadTask(with: remoteURL) { [self] temporaryURL, _, _ in
+            finish(mediaURL: temporaryURL.flatMap { persistDownloadedMedia($0, sourceURL: remoteURL) })
+        }.resume()
+    }
+
+    private func persistDownloadedMedia(_ sourceURL: URL, sourceURL remoteURL: URL) -> URL? {
+        let pathExtension = remoteURL.pathExtension.isEmpty ? "jpg" : remoteURL.pathExtension
+        let destinationURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("notification-\(UUID().uuidString)")
+            .appendingPathExtension(pathExtension)
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            return destinationURL
+        } catch {
+            return nil
+        }
+    }
+
+    private func finish(mediaURL: URL?) {
+        if let mediaURL {
+            if let attachment = try? UNNotificationAttachment(
+                identifier: "circle-activity-media",
+                url: mediaURL
+            ) {
+                content.attachments.insert(attachment, at: 0)
+            }
+        }
+        deliveryState.updateBestAttempt(content)
+
+        let logoName = NotificationBrandPreference.logoResourceName(
+            prefersDarkAppearance: UITraitCollection.current.userInterfaceStyle == .dark
+        )
+        let logoURL = Bundle.main.url(forResource: logoName, withExtension: "png")
+            ?? Bundle.main.url(forResource: "NotificationLogo", withExtension: "png")
+        let sender = INPerson(
+            personHandle: INPersonHandle(value: senderID, type: .unknown),
+            nameComponents: nil,
+            displayName: senderName,
+            image: logoURL.flatMap(INImage.init(url:)),
+            contactIdentifier: nil,
+            customIdentifier: senderID,
+            isMe: false,
+            suggestionType: .instantMessageAddress
+        )
+        let intent = INSendMessageIntent(
+            recipients: nil,
+            outgoingMessageType: .outgoingMessageText,
+            content: content.body,
+            speakableGroupName: INSpeakableString(spokenPhrase: circleName),
+            conversationIdentifier: circleID,
+            serviceName: "manna circle",
+            sender: sender,
+            attachments: nil
+        )
+        let interaction = INInteraction(intent: intent, response: nil)
+        interaction.direction = INInteractionDirection.incoming
+        let update = CommunicationNotificationUpdate(
+            content: content,
+            intent: intent,
+            deliveryState: deliveryState
+        )
+        interaction.donate { _ in update.finish() }
     }
 }
 
@@ -122,53 +228,14 @@ final class NotificationService: UNNotificationServiceExtension {
     private func deliverCommunicationNotification(
         _ content: UNMutableNotificationContent
     ) {
-        guard let senderID = content.userInfo["sender_id"] as? String,
-              let senderName = content.userInfo["sender_name"] as? String,
-              let circleID = content.userInfo["circle_id"] as? String,
-              let circleName = content.userInfo["circle_name"] as? String else {
+        guard let request = CommunicationNotificationRequest(
+            content: content,
+            deliveryState: deliveryState
+        ) else {
             deliveryState.deliver(content)
             return
         }
-
-        let senderImage = (content.userInfo["sender_avatar_url"] as? String)
-            .flatMap(URL.init(string:))
-            .flatMap(INImage.init(url:))
-        let sender = INPerson(
-            personHandle: INPersonHandle(value: senderID, type: .unknown),
-            nameComponents: nil,
-            displayName: senderName,
-            image: senderImage,
-            contactIdentifier: nil,
-            customIdentifier: senderID,
-            isMe: false,
-            suggestionType: .instantMessageAddress
-        )
-        let intent = INSendMessageIntent(
-            recipients: nil,
-            outgoingMessageType: .outgoingMessageText,
-            content: content.body,
-            speakableGroupName: INSpeakableString(spokenPhrase: circleName),
-            conversationIdentifier: circleID,
-            serviceName: "manna circle",
-            sender: sender,
-            attachments: nil
-        )
-        if let circleImage = (content.userInfo["circle_photo_url"] as? String)
-            .flatMap(URL.init(string:))
-            .flatMap(INImage.init(url:)) {
-            intent.setImage(circleImage, forParameterNamed: \.speakableGroupName)
-        }
-
-        let interaction = INInteraction(intent: intent, response: nil)
-        interaction.direction = .incoming
-        let update = CommunicationNotificationUpdate(
-            content: content,
-            intent: intent,
-            deliveryState: deliveryState
-        )
-        interaction.donate { _ in
-            update.finish()
-        }
+        request.start()
     }
 
     override func serviceExtensionTimeWillExpire() {

@@ -168,6 +168,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .value
         var audioPath: String?
         var videoPath: String?
+        var thumbnailPath: String?
         var photoPath: String?
         let basePath = Self.mediaPath(
             circleID: promptRow.circleID,
@@ -181,6 +182,9 @@ actor SupabaseBlessingRepository: BlessingRepository {
         if let videoURL {
             videoPath = "\(basePath)/video-\(UUID().uuidString.lowercased()).mov"
             try await upload(fileURL: videoURL, path: videoPath!, contentType: "video/quicktime")
+            let thumbnailURL = try await CaptureMediaStore.persistVideoThumbnail(from: videoURL)
+            thumbnailPath = "\(basePath)/thumbnail-\(UUID().uuidString.lowercased()).jpg"
+            try await upload(fileURL: thumbnailURL, path: thumbnailPath!, contentType: "image/jpeg")
         }
         if let photoURL {
             photoPath = "\(basePath)/photo-\(UUID().uuidString.lowercased()).jpg"
@@ -195,7 +199,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                     promptID: promptID,
                     videoPath: videoPath,
                     transcript: body,
-                    thumbnailPath: nil,
+                    thumbnailPath: thumbnailPath,
                     reference: scriptureReference
                 )
             )

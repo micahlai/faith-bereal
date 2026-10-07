@@ -56,6 +56,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - The preselected random time is the dispatch target. When the server claims that prompt, it authors the shared `starts_at` from the actual dispatch and sets `ends_at = starts_at + response_window_minutes`, giving every member the complete configured entry window.
 - The response deadline controls entry into capture, not completion of a capture already opened. The server records an entry grant before presenting capture; that grant remains valid if composition or upload finishes after the deadline or after midnight.
 - A notification and Live Activity deep-link to today's capture screen.
+- The lock-screen Live Activity shows the circle name, “What has blessed you today”, and a smaller live “`m:ss to respond`” countdown. After the viewer submits, it changes immediately to “Blessing submitted”. Dynamic Island presentation remains distinct and unchanged.
 - After a member submits, the Live Activity remains visible for three minutes. Without late sharing it remains for three minutes after the entry deadline; with late sharing it stays available until that member submits or a newer circle prompt replaces it.
 
 ### Capture
@@ -72,9 +73,9 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Circle activity notifications
 
-- A new blessing notifies enabled members other than its author. Before the recipient shares for that prompt, the body is exactly “`[name] has shared a blessing. share yours to see`” and routes to Today; afterward it is “`[name] - [blessing text/transcript]`” and routes to the blessing.
-- A new response notifies the blessing author and members who responded earlier, excluding the new responder. The author sees “`[name] responded to your blessing: [response]`”; other participants see “`[name] also responded: [response]`”.
-- Activity alerts use Apple's communication-notification presentation with the sender profile image and circle group image when available. iOS controls the exact compact-banner placement and truncation.
+- A new blessing notifies enabled members other than its author. Before the recipient shares for that prompt, the body is exactly “`[name] has shared a blessing. share yours to see`” and routes to Today; afterward it is “`[name] - [blessing text/transcript]`” and routes to the blessing. A tagged scripture reference appears on the next line without scripture text.
+- A new response notifies the blessing author and members who responded earlier, excluding the new responder, using “`[name] - [response]`” and routing to the blessing.
+- Activity alerts use Apple's communication-notification presentation with the recipient's selected manna logo as the sender image. The rich thumbnail is the video's first frame, then an attached blessing photo, then the sender's profile photo in priority order; locked blessing alerts do not leak content or media. iOS controls the exact compact-banner placement and truncation.
 - Notification events are transactionally queued by the database and dispatched server-side. Clients cannot broadcast a fabricated blessing or response alert.
 
 ### Today

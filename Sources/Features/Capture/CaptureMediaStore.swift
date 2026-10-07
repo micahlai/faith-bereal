@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import UIKit
 
@@ -15,6 +16,26 @@ enum CaptureMediaStore {
         let pathExtension = sourceURL.pathExtension.isEmpty ? "mov" : sourceURL.pathExtension
         let destinationURL = try newRecordingURL(pathExtension: pathExtension)
         try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        return destinationURL
+    }
+
+    static func persistVideoThumbnail(
+        from videoURL: URL,
+        maximumPixelSize: CGFloat = 1_024
+    ) async throws -> URL {
+        guard maximumPixelSize > 0 else { throw BlessingError.cameraUnavailable }
+        let asset = AVURLAsset(url: videoURL)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: maximumPixelSize, height: maximumPixelSize)
+        let requestedTime = CMTime(seconds: 0.05, preferredTimescale: 600)
+        let result = try await generator.image(at: requestedTime)
+        let image = UIImage(cgImage: result.image)
+        guard let jpegData = image.jpegData(compressionQuality: 0.82) else {
+            throw BlessingError.cameraUnavailable
+        }
+        let destinationURL = try newRecordingURL(pathExtension: "jpg")
+        try jpegData.write(to: destinationURL, options: .atomic)
         return destinationURL
     }
 

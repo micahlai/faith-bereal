@@ -24,6 +24,7 @@ cd "$project_root"
 
 xcodegen generate
 node Scripts/test-live-activity-payload.mjs
+node Scripts/test-notification-payload.mjs
 
 SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY='' xcodebuild \
   -project BlessingCircle.xcodeproj \

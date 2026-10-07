@@ -139,6 +139,7 @@ targets:
     platform: iOS
     sources:
       - path: Sources/NotificationService
+      - path: Sources/Shared/NotificationBrandPreference.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.manna-circle.ios.notification-service
@@ -146,6 +147,11 @@ targets:
         PRODUCT_MODULE_NAME: BlessingCircleNotificationService
         SKIP_INSTALL: YES
         APPLICATION_EXTENSION_API_ONLY: YES
+    entitlements:
+      path: Configuration/NotificationService.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.blessingcircle.shared
     info:
       path: Configuration/NotificationService-Info.plist
       properties:

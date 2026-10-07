@@ -231,6 +231,35 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(AppIconPreference.midnight.alternateIconName, "MannaDark")
     }
 
+    func testNotificationLogoTracksChosenAppIcon() {
+        NotificationBrandPreference.save(AppIconPreference.cream.rawValue)
+        XCTAssertEqual(
+            NotificationBrandPreference.logoResourceName(prefersDarkAppearance: true),
+            "NotificationLogo"
+        )
+        NotificationBrandPreference.save(AppIconPreference.midnight.rawValue)
+        XCTAssertEqual(
+            NotificationBrandPreference.logoResourceName(prefersDarkAppearance: false),
+            "NotificationLogoDark"
+        )
+        NotificationBrandPreference.save(AppIconPreference.automatic.rawValue)
+        XCTAssertEqual(
+            NotificationBrandPreference.logoResourceName(prefersDarkAppearance: false),
+            "NotificationLogo"
+        )
+        XCTAssertEqual(
+            NotificationBrandPreference.logoResourceName(prefersDarkAppearance: true),
+            "NotificationLogoDark"
+        )
+    }
+
+    @MainActor
+    func testSwiftCancellationIsRecognizedWithoutUserFacingError() {
+        XCTAssertTrue(AppModel.isCancellation(CancellationError()))
+        XCTAssertTrue(AppModel.isCancellation(URLError(.cancelled)))
+        XCTAssertFalse(AppModel.isCancellation(URLError(.timedOut)))
+    }
+
     func testPublicDomainBibleVersionsAreGroupedInPopularityOrder() {
         let groups = BibleTranslation.groups
 

@@ -445,16 +445,25 @@ struct BlessingDetailView: View {
             .navigationTitle("Blessing")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
-                        if model.canEdit(blessing, at: context.date) {
-                            Button("Edit") { isEditing = true }
+                        HStack(spacing: 6) {
+                            if model.canEdit(blessing, at: context.date) {
+                                Button("Edit") { isEditing = true }
+                            }
+                            Button { dismiss() } label: {
+                                Image(systemName: "xmark")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(width: 32, height: 32)
+                                    .background(AppTheme.surface, in: Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                            .accessibilityLabel("Close blessing")
                         }
+                        .fixedSize()
                     }
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .accessibilityLabel("Close blessing")
                 }
             }
         }

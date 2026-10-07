@@ -6,6 +6,10 @@ import {
   liveActivityContentState,
   unixSeconds,
 } from "./live-activity-payload.ts";
+import {
+  circleActivityBody,
+  notificationMedia,
+} from "./notification-payload.ts";
 
 type Prompt = {
   id: string;
@@ -61,6 +65,13 @@ type NotificationBlessing = {
   prompt_id: string;
   author_id: string;
   body: string;
+  capture_mode: string;
+  thumbnail_path: string | null;
+  photo_path: string | null;
+  scripture_book_name: string | null;
+  scripture_chapter: number | null;
+  scripture_verse_start: number | null;
+  scripture_verse_end: number | null;
 };
 
 type NotificationResponse = {
@@ -226,7 +237,9 @@ function todayRoute(circleID: string, promptID: string): string {
 async function dispatchCircleNotification(notification: CircleNotification): Promise<void> {
   const { data: blessingData, error: blessingError } = await admin
     .from("blessings")
-    .select("id, prompt_id, author_id, body")
+    .select(
+      "id, prompt_id, author_id, body, capture_mode, thumbnail_path, photo_path, scripture_book_name, scripture_chapter, scripture_verse_start, scripture_verse_end",
+    )
     .eq("id", notification.blessing_id)
     .single();
   if (blessingError) throw blessingError;
@@ -241,7 +254,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
 
   const { data: circle, error: circleError } = await admin
     .from("circles")
-    .select("name, photo_path")
+    .select("name")
     .eq("id", prompt.circle_id)
     .single();
   if (circleError) throw circleError;
@@ -313,20 +326,34 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
   const activeDevices = ((devices ?? []) as Device[]).filter((device) => device.apns_token !== null);
   if (activeDevices.length === 0) return;
 
-  const [senderAvatarURL, circlePhotoURL] = await Promise.all([
-    signedStorageURL("avatars", sender.avatar_path),
-    signedStorageURL("circle-photos", circle.photo_path),
-  ]);
+  const senderAvatarURL = await signedStorageURL("avatars", sender.avatar_path);
+  const blessingMedia = notificationMedia({
+    eventType: notification.event_type,
+    unlocked: true,
+    captureMode: blessing.capture_mode,
+    thumbnailPath: blessing.thumbnail_path,
+    photoPath: blessing.photo_path,
+    senderAvatarPath: sender.avatar_path,
+  });
+  const blessingMediaURL = blessingMedia?.bucket === "blessing-media"
+    ? await signedStorageURL(blessingMedia.bucket, blessingMedia.path)
+    : senderAvatarURL;
   const invalidByDevice = new Map<string, Set<DeviceTokenField>>();
   const results = await Promise.allSettled(activeDevices.map((device) => {
     const unlocked = notification.event_type === "response_shared" || submittedByRecipient.has(device.user_id);
-    const body = notification.event_type === "blessing_shared"
-      ? unlocked
-        ? `${sender.display_name} - ${blessing.body}`
-        : `${sender.display_name} has shared a blessing. share yours to see`
-      : device.user_id === blessing.author_id
-        ? `${sender.display_name} responded to your blessing: ${response!.body}`
-        : `${sender.display_name} also responded: ${response!.body}`;
+    const body = circleActivityBody({
+      eventType: notification.event_type,
+      senderName: sender.display_name,
+      message: notification.event_type === "blessing_shared" ? blessing.body : response!.body,
+      unlocked,
+      scripture: {
+        bookName: blessing.scripture_book_name,
+        chapter: blessing.scripture_chapter,
+        verseStart: blessing.scripture_verse_start,
+        verseEnd: blessing.scripture_verse_end,
+      },
+    });
+    const richMediaURL = unlocked ? blessingMediaURL : null;
     const route = notification.event_type === "blessing_shared" && !unlocked
       ? todayRoute(prompt.circle_id, blessing.prompt_id)
       : blessingRoute(prompt.circle_id, blessing.id);
@@ -347,10 +374,9 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
         notification_kind: notification.event_type,
         sender_id: senderID,
         sender_name: sender.display_name,
-        ...(senderAvatarURL ? { sender_avatar_url: senderAvatarURL } : {}),
         circle_id: prompt.circle_id,
         circle_name: circle.name,
-        ...(circlePhotoURL ? { circle_photo_url: circlePhotoURL } : {}),
+        ...(richMediaURL ? { rich_media_url: richMediaURL } : {}),
         blessing_id: blessing.id,
       },
       notification.id,

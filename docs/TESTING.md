@@ -57,6 +57,9 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - Universal invitation construction/parsing, unsafe-host rejection, and invitation persistence through bootstrap;
 - circle-local prompt dates remain on their stored calendar day in western time zones;
 - Live Activity APNs state remains backward compatible and encodes its exact three-minute terminal dismissal timestamp;
+- notification copy preserves the locked-content gate, formats scripture references on a second line, and selects rich media in video-frame → attached-photo → sender-avatar order;
+- the communication-notification sender image follows the selected manna icon, including automatic light/dark resolution;
+- cancelled row-level response loads are classified as cancellation and do not surface a user-facing error;
 - circle creation preserves every selected setting and creates the current local-day prompt from the selected time zone, range, and response duration;
 - invite-code regeneration requires the owner and immediately invalidates the previous code;
 - repeat eligibility uses the target circle's window and the original submission time;
@@ -107,6 +110,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - no-late deadline and submission dismissals occur at terminal event + three minutes, while late-enabled activities stay visible until submission or replacement;
 - an HTTPS invitation opened from Messages launches the installed app, preserves the code through sign-in/onboarding, and joins only after user confirmation;
 - Dynamic Island compact/minimal/expanded layouts;
+- lock-screen Live Activity circle name, prompt copy, `m:ss to respond` countdown, and immediate submitted state without changes to Dynamic Island;
 - lock-screen privacy settings;
 - sender/circle images and locked/unlocked activity-notification copy on a two-account physical-device circle;
 - background video upload interruption;

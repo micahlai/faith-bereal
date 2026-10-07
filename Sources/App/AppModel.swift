@@ -102,6 +102,7 @@ final class AppModel {
         self.widgetRefreshMinutes = Self.widgetRefreshOptions.contains(savedWidgetInterval)
             ? savedWidgetInterval
             : 30
+        NotificationBrandPreference.save(self.appIconPreference.rawValue)
     }
 
     var hasSubmittedToday: Bool {
@@ -131,6 +132,7 @@ final class AppModel {
             message = "Couldn’t change the app icon: \(errorMessage)"
         } else {
             appIconPreference = preference
+            NotificationBrandPreference.save(preference.rawValue)
         }
     }
 
@@ -455,7 +457,7 @@ final class AppModel {
         }
     }
 
-    private static func isCancellation(_ error: Error) -> Bool {
+    static func isCancellation(_ error: Error) -> Bool {
         if error is CancellationError { return true }
         let error = error as NSError
         return error.domain == "Swift.CancellationError"
@@ -478,7 +480,7 @@ final class AppModel {
         isSubmitting = true
         defer { isSubmitting = false }
         do {
-            submittedBlessing = try await repository.submit(
+            let savedBlessing = try await repository.submit(
                 promptID: targetPrompt.id,
                 authorID: currentUser.id,
                 mode: mode,
@@ -489,13 +491,21 @@ final class AppModel {
                 scriptureReference: scriptureReference,
                 now: .now
             )
-            try await refreshTimeline()
-            await activityController.markSubmitted(promptID: targetPrompt.id, responseCount: lanes.compactMap { lane in
-                lane.events.first.flatMap { event -> Blessing? in
-                    if case let .blessing(blessing) = event.status { return blessing }
-                    return nil
-                }
-            }.count)
+            submittedBlessing = savedBlessing
+            let knownBlessingIDs = Set(
+                currentPromptBlessings(at: .now).map(\.id) + [savedBlessing.id]
+            )
+            await activityController.markSubmitted(
+                promptID: targetPrompt.id,
+                responseCount: knownBlessingIDs.count
+            )
+            do {
+                try await refreshTimeline()
+            } catch {
+                guard !Task.isCancelled, !Self.isCancellation(error) else { return true }
+                message = "Your blessing was shared. The timeline will refresh shortly."
+                return true
+            }
             message = "Your blessing was shared with the circle."
             return true
         } catch {
@@ -854,17 +864,27 @@ final class AppModel {
         isSubmitting = true
         defer { isSubmitting = false }
         do {
-            submittedBlessing = try await repository.repeatBlessing(
+            let savedBlessing = try await repository.repeatBlessing(
                 sourceBlessingID: source.id,
                 targetPromptID: targetPrompt.id,
                 authorID: currentUser.id,
                 now: now
             )
-            try await refreshTimeline(now: now)
+            submittedBlessing = savedBlessing
+            let knownBlessingIDs = Set(
+                currentPromptBlessings(at: now).map(\.id) + [savedBlessing.id]
+            )
             await activityController.markSubmitted(
                 promptID: targetPrompt.id,
-                responseCount: currentPromptBlessings(at: now).count
+                responseCount: knownBlessingIDs.count
             )
+            do {
+                try await refreshTimeline(now: now)
+            } catch {
+                guard !Task.isCancelled, !Self.isCancellation(error) else { return true }
+                message = "Your blessing was reused. The timeline will refresh shortly."
+                return true
+            }
             message = "Your blessing was reused in this circle."
             return true
         } catch {
@@ -922,6 +942,7 @@ final class AppModel {
         do {
             return try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
         } catch {
+            guard !Task.isCancelled, !Self.isCancellation(error) else { return [] }
             message = error.localizedDescription
             return []
         }

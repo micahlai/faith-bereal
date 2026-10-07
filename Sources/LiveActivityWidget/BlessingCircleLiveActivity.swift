@@ -15,11 +15,14 @@ struct BlessingCircleLiveActivity: Widget {
         ActivityConfiguration(for: PromptActivityAttributes.self) { context in
             HStack(spacing: 16) {
                 MannaWordmark(width: 76)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(context.attributes.circleName)
                         .font(.headline)
-                    LiveActivityStatusText(state: context.state)
-                        .font(context.state.hasSubmitted ? .subheadline : .title3.monospacedDigit().weight(.semibold))
+                    Text(context.state.hasSubmitted ? "Blessing submitted" : "What has blessed you today")
+                        .font(.subheadline.weight(.semibold))
+                    LiveActivityLockScreenStatus(state: context.state)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
@@ -78,15 +81,19 @@ private struct LiveActivityCompactStatus: View {
     }
 }
 
-private struct LiveActivityStatusText: View {
+private struct LiveActivityLockScreenStatus: View {
     let state: PromptActivityAttributes.ContentState
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             if state.hasSubmitted {
-                Text("Your blessing is shared")
+                Text("Shared with your circle")
             } else if context.date < state.endsAt {
-                LiveActivityCountdownText(endsAt: state.endsAt)
+                HStack(spacing: 3) {
+                    LiveActivityCountdownText(endsAt: state.endsAt)
+                        .monospacedDigit()
+                    Text("to respond")
+                }
             } else if state.allowsLateBlessings {
                 Text("Late sharing is open")
             } else {

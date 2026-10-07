@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-07 notification media and Live Activity state
+
+- Blessing and response alerts use the circle name as the title and compact “name - message” copy after the recipient is allowed to view it. Blessing scripture references occupy a second line without including verse text; the pre-submission privacy gate remains intact.
+- Communication alerts use the recipient's selected manna logo as the left sender image. Their rich thumbnail prioritizes a generated video first frame, an attached blessing photo, then the sender profile photo. Response alerts use the responder profile photo when available.
+- The lock-screen Live Activity now shows the circle name, “What has blessed you today”, and a smaller live countdown followed by “to respond”; submitted state changes immediately to “Blessing submitted”. Dynamic Island code is unchanged.
+- Submission marks the local Live Activity complete before a fallible timeline refresh, and the server's per-user update remains role-agnostic. Timeline response-preview cancellation is silent when rows scroll off-screen. Blessing detail uses a fixed compact close control whether or not Edit is still available.
+
 ## 2026-10-07 photo resize and circle-photo upload policy
 
 - Profile and circle photo selection now opens the same aspect-preserving resize editor before save. The complete image is visible by default; pinch/drag gestures, a zoom slider, and directional buttons produce a JPEG with a 1024-pixel maximum side and accessible non-drag controls. Photo previews use aspect fit so no portion is silently cropped.
@@ -10,7 +17,7 @@
 
 ## 2026-10-07 circle photo placement
 
-- Circle photos now replace the seven-dot identity mark on the Circle page. The global circle dropdown consistently uses the generic group icon and no longer places circle photos in its label or options.
+- Circle photos now replace the seven-dot identity mark on the Circle page. The global circle dropdown presents names without circle photos or people icons.
 
 ## 2026-10-07 warning-free notification extension
 

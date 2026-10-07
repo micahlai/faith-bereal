@@ -105,8 +105,19 @@ if [ "$notification_extension_point" != "com.apple.usernotifications.service" ];
   exit 1
 fi
 
+notification_entitlements="$work_dir/notification-entitlements.plist"
+codesign -d --entitlements :- "$notification_extension" > "$notification_entitlements" 2>/dev/null
+if ! /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups' "$notification_entitlements" 2>/dev/null | grep -q 'group.app.blessingcircle.shared'; then
+  echo "error: Exported notification extension is missing the shared App Group." >&2
+  exit 1
+fi
+
 if [ ! -f "$notification_extension/NotificationLogo.png" ]; then
   echo "error: Exported notification extension is missing NotificationLogo.png." >&2
+  exit 1
+fi
+if [ ! -f "$notification_extension/NotificationLogoDark.png" ]; then
+  echo "error: Exported notification extension is missing NotificationLogoDark.png." >&2
   exit 1
 fi
 
