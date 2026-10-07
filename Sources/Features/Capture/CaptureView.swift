@@ -284,9 +284,9 @@ struct CaptureView: View {
             if let photoURL, let image = UIImage(contentsOfFile: photoURL.path) {
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill()
+                    .scaledToFit()
                     .frame(maxWidth: .infinity)
-                    .frame(height: 220)
+                    .frame(maxHeight: 480)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .accessibilityLabel("Attached blessing photo")
             }

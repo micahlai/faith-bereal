@@ -613,7 +613,7 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertLessThan(try Data(contentsOf: persistedURL).count, sourceData.count)
     }
 
-    func testProfilePhotoCropProducesSquareUploadImage() throws {
+    func testProfilePhotoResizePreservesOriginalAspectRatio() throws {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 1_600, height: 900)).image { context in
             UIColor.systemOrange.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 800, height: 900))
@@ -621,9 +621,9 @@ final class DomainRulesTests: XCTestCase {
             context.fill(CGRect(x: 800, y: 0, width: 800, height: 900))
         }
 
-        let persistedURL = try CaptureMediaStore.persistCroppedProfilePhoto(
+        let persistedURL = try CaptureMediaStore.persistResizedProfilePhoto(
             image: image,
-            viewportSize: 320,
+            viewportSize: CGSize(width: 320, height: 180),
             zoom: 1.5,
             offset: CGSize(width: 40, height: -20)
         )
@@ -631,17 +631,17 @@ final class DomainRulesTests: XCTestCase {
 
         let persistedImage = try XCTUnwrap(UIImage(contentsOfFile: persistedURL.path))
         XCTAssertEqual(persistedImage.size.width, 1_024)
-        XCTAssertEqual(persistedImage.size.height, 1_024)
+        XCTAssertEqual(persistedImage.size.height, 576)
         XCTAssertEqual(persistedURL.pathExtension, "jpg")
     }
 
-    func testProfilePhotoCropRejectsInvalidViewport() {
+    func testProfilePhotoResizeRejectsInvalidViewport() {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 20)).image { _ in }
 
         XCTAssertThrowsError(
-            try CaptureMediaStore.persistCroppedProfilePhoto(
+            try CaptureMediaStore.persistResizedProfilePhoto(
                 image: image,
-                viewportSize: 0,
+                viewportSize: .zero,
                 zoom: 1,
                 offset: .zero
             )

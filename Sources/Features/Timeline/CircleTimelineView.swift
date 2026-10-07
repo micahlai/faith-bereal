@@ -656,10 +656,11 @@ private struct BlessingPhotoView: View {
             if url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: image)
                     .resizable()
+                    .scaledToFit()
             } else {
                 AsyncImage(url: url) { phase in
                     switch phase {
-                    case let .success(image): image.resizable()
+                    case let .success(image): image.resizable().scaledToFit()
                     case .failure:
                         ContentUnavailableView("Photo unavailable", systemImage: "photo.badge.exclamationmark")
                     case .empty:
@@ -667,15 +668,15 @@ private struct BlessingPhotoView: View {
                             AppTheme.canvas
                             ProgressView().accessibilityLabel("Loading photo")
                         }
+                        .frame(height: 220)
                     @unknown default:
                         EmptyView()
                     }
                 }
             }
         }
-        .scaledToFill()
         .frame(maxWidth: .infinity)
-        .frame(height: 260)
+        .frame(maxHeight: 520)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityLabel("Blessing photo")
     }
@@ -1014,7 +1015,7 @@ struct AvatarBadge: View {
         Group {
             if let avatarURL = member.avatarURL {
                 AsyncImage(url: avatarURL) { image in
-                    image.resizable().scaledToFill()
+                    image.resizable().scaledToFit()
                 } placeholder: {
                     initials
                 }
@@ -1023,6 +1024,7 @@ struct AvatarBadge: View {
             }
         }
         .frame(width: size, height: size)
+        .background(AppTheme.surface)
         .clipShape(Circle())
         .accessibilityLabel(member.displayName)
     }
@@ -1050,10 +1052,10 @@ struct CircleAvatarBadge: View {
                 if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFill()
+                        .scaledToFit()
                 } else {
                     AsyncImage(url: photoURL) { image in
-                        image.resizable().scaledToFill()
+                        image.resizable().scaledToFit()
                     } placeholder: {
                         fallback
                     }
@@ -1063,6 +1065,7 @@ struct CircleAvatarBadge: View {
             }
         }
         .frame(width: size, height: size)
+        .background(AppTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
         .accessibilityLabel("\(circle.name) circle photo")
     }

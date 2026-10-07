@@ -11,10 +11,10 @@ private struct CircleHeaderIdentity: View {
                 if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFill()
+                        .scaledToFit()
                 } else {
                     AsyncImage(url: photoURL) { image in
-                        image.resizable().scaledToFill()
+                        image.resizable().scaledToFit()
                     } placeholder: {
                         fallback
                     }
@@ -24,6 +24,7 @@ private struct CircleHeaderIdentity: View {
             }
         }
         .frame(width: size, height: size)
+        .background(AppTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))
         .accessibilityHidden(true)
     }
@@ -247,7 +248,7 @@ private struct CircleCreationView: View {
     @State private var repeatWindowMinutes = 120
     @State private var isCreating = false
     @State private var selectedCirclePhoto: PhotosPickerItem?
-    @State private var pendingCirclePhotoCrop: PendingSquarePhoto?
+    @State private var pendingCirclePhotoResize: PendingPhotoResize?
     @State private var circlePhotoURL: URL?
     @State private var isPreparingCirclePhoto = false
 
@@ -442,19 +443,19 @@ private struct CircleCreationView: View {
             defer { isPreparingCirclePhoto = false }
             do {
                 guard let data = try await selectedCirclePhoto.loadTransferable(type: Data.self) else { return }
-                pendingCirclePhotoCrop = try PendingSquarePhoto(data: data)
+                pendingCirclePhotoResize = try PendingPhotoResize(data: data)
             } catch {
                 model.message = "Couldn’t prepare that circle photo: \(error.localizedDescription)"
             }
         }
-        .sheet(item: $pendingCirclePhotoCrop, onDismiss: { selectedCirclePhoto = nil }) { photo in
-            SquarePhotoEditor(
+        .sheet(item: $pendingCirclePhotoResize, onDismiss: { selectedCirclePhoto = nil }) { photo in
+            PhotoResizeEditor(
                 title: "Resize circle photo",
                 photo: photo,
-                onCancel: { pendingCirclePhotoCrop = nil },
+                onCancel: { pendingCirclePhotoResize = nil },
                 onUsePhoto: { url in
                     circlePhotoURL = url
-                    pendingCirclePhotoCrop = nil
+                    pendingCirclePhotoResize = nil
                 }
             )
         }
@@ -466,8 +467,9 @@ private struct CircleCreationView: View {
            let image = UIImage(contentsOfFile: circlePhotoURL.path) {
             Image(uiImage: image)
                 .resizable()
-                .scaledToFill()
+                .scaledToFit()
                 .frame(width: 72, height: 72)
+                .background(AppTheme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .accessibilityHidden(true)
         } else {
@@ -540,7 +542,7 @@ private struct CircleSettingsView: View {
     @State private var isRemovingMember = false
     @State private var isRegeneratingCode = false
     @State private var selectedCirclePhoto: PhotosPickerItem?
-    @State private var pendingCirclePhotoCrop: PendingSquarePhoto?
+    @State private var pendingCirclePhotoResize: PendingPhotoResize?
     @State private var pendingCirclePhotoURL: URL?
     @State private var circlePhotoChanged = false
     @State private var isPreparingCirclePhoto = false
@@ -845,20 +847,20 @@ private struct CircleSettingsView: View {
             defer { isPreparingCirclePhoto = false }
             do {
                 guard let data = try await selectedCirclePhoto.loadTransferable(type: Data.self) else { return }
-                pendingCirclePhotoCrop = try PendingSquarePhoto(data: data)
+                pendingCirclePhotoResize = try PendingPhotoResize(data: data)
             } catch {
                 model.message = "Couldn’t prepare that circle photo: \(error.localizedDescription)"
             }
         }
-        .sheet(item: $pendingCirclePhotoCrop, onDismiss: { selectedCirclePhoto = nil }) { photo in
-            SquarePhotoEditor(
+        .sheet(item: $pendingCirclePhotoResize, onDismiss: { selectedCirclePhoto = nil }) { photo in
+            PhotoResizeEditor(
                 title: "Resize circle photo",
                 photo: photo,
-                onCancel: { pendingCirclePhotoCrop = nil },
+                onCancel: { pendingCirclePhotoResize = nil },
                 onUsePhoto: { url in
                     pendingCirclePhotoURL = url
                     circlePhotoChanged = true
-                    pendingCirclePhotoCrop = nil
+                    pendingCirclePhotoResize = nil
                 }
             )
         }

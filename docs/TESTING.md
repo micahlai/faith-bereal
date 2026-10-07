@@ -72,7 +72,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - a member may submit before or after the response window on the local calendar day they join, but not on a later day unless ordinary late-sharing rules apply.
 - blessing edits accept the author before ten minutes, reject other users, and close at the exact ten-minute boundary.
 - circle photo changes require the current owner and remain isolated to the selected circle.
-- profile and circle photo crop output is a bounded square JPEG, including zoom/offset rendering and invalid-viewport rejection.
+- profile and circle photo resize output preserves the source aspect ratio in a bounded JPEG, including zoom/offset rendering and invalid-viewport rejection.
 - circle activity notification preferences default on and change only the selected membership.
 
 ## Integration tests

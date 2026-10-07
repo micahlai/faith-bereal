@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-struct PendingSquarePhoto: Identifiable {
+struct PendingPhotoResize: Identifiable {
     let id = UUID()
     let image: UIImage
 
@@ -13,9 +13,9 @@ struct PendingSquarePhoto: Identifiable {
     }
 }
 
-struct SquarePhotoEditor: View {
+struct PhotoResizeEditor: View {
     let title: String
-    let photo: PendingSquarePhoto
+    let photo: PendingPhotoResize
     let onCancel: () -> Void
     let onUsePhoto: (URL) -> Void
 
@@ -24,18 +24,18 @@ struct SquarePhotoEditor: View {
     @State private var committedZoom: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var committedOffset: CGSize = .zero
-    @State private var cropSide: CGFloat = 1
+    @State private var viewportSize = CGSize(width: 1, height: 1)
     @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Text("Move and resize the photo inside the square.")
+                Text("Move and resize the photo while keeping its original proportions.")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryInk)
                     .multilineTextAlignment(.center)
 
-                cropViewport
+                photoViewport
 
                 VStack(spacing: 14) {
                     HStack(spacing: 12) {
@@ -57,7 +57,7 @@ struct SquarePhotoEditor: View {
                     HStack(spacing: 10) {
                         nudgeButton("Move left", systemImage: "arrow.left", x: -16, y: 0)
                         nudgeButton("Move up", systemImage: "arrow.up", x: 0, y: -16)
-                        Button("Reset") { resetCrop() }
+                        Button("Reset") { resetPhoto() }
                             .buttonStyle(.bordered)
                             .frame(minHeight: 44)
                         nudgeButton("Move down", systemImage: "arrow.down", x: 0, y: 16)
@@ -73,7 +73,7 @@ struct SquarePhotoEditor: View {
             .background(AppTheme.canvas.ignoresSafeArea())
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-            .accessibilityIdentifier("square-photo-editor")
+            .accessibilityIdentifier("photo-resize-editor")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
@@ -96,10 +96,10 @@ struct SquarePhotoEditor: View {
         }
     }
 
-    private var cropViewport: some View {
+    private var photoViewport: some View {
         GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height)
-            let baseSize = baseImageSize(viewportSide: side)
+            let size = proxy.size
+            let baseSize = baseImageSize(viewportSize: size)
 
             ZStack {
                 Color.black
@@ -109,7 +109,7 @@ struct SquarePhotoEditor: View {
                     .scaleEffect(zoom)
                     .offset(offset)
             }
-            .frame(width: side, height: side)
+            .frame(width: size.width, height: size.height)
             .clipped()
             .overlay {
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
@@ -117,20 +117,20 @@ struct SquarePhotoEditor: View {
                     .allowsHitTesting(false)
             }
             .contentShape(Rectangle())
-            .gesture(dragGesture(viewportSide: side))
-            .simultaneousGesture(magnifyGesture(viewportSide: side))
-            .onAppear { updateViewportSide(side) }
-            .onChange(of: side) { _, newSide in updateViewportSide(newSide) }
-            .accessibilityLabel("Photo crop preview")
-            .accessibilityHint("Use the photo size slider and move buttons to adjust the crop")
+            .gesture(dragGesture(viewportSize: size))
+            .simultaneousGesture(magnifyGesture(viewportSize: size))
+            .onAppear { updateViewportSize(size) }
+            .onChange(of: size) { _, newSize in updateViewportSize(newSize) }
+            .accessibilityLabel("Photo resize preview")
+            .accessibilityHint("Use the photo size slider and move buttons to adjust the framing")
         }
-        .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: 520)
+        .aspectRatio(photoAspectRatio, contentMode: .fit)
+        .frame(maxWidth: 520, maxHeight: 460)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .shadow(color: .black.opacity(0.14), radius: 14, y: 6)
     }
 
-    private func dragGesture(viewportSide: CGFloat) -> some Gesture {
+    private func dragGesture(viewportSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 2)
             .onChanged { value in
                 offset = constrainedOffset(
@@ -139,17 +139,17 @@ struct SquarePhotoEditor: View {
                         height: committedOffset.height + value.translation.height
                     ),
                     zoom: zoom,
-                    viewportSide: viewportSide
+                    viewportSize: viewportSize
                 )
             }
             .onEnded { _ in committedOffset = offset }
     }
 
-    private func magnifyGesture(viewportSide: CGFloat) -> some Gesture {
+    private func magnifyGesture(viewportSize: CGSize) -> some Gesture {
         MagnifyGesture()
             .onChanged { value in
                 zoom = min(max(committedZoom * value.magnification, 1), 4)
-                offset = constrainedOffset(offset, zoom: zoom, viewportSide: viewportSide)
+                offset = constrainedOffset(offset, zoom: zoom, viewportSize: viewportSize)
             }
             .onEnded { _ in
                 committedZoom = zoom
@@ -167,7 +167,7 @@ struct SquarePhotoEditor: View {
             offset = constrainedOffset(
                 CGSize(width: offset.width + x, height: offset.height + y),
                 zoom: zoom,
-                viewportSide: cropSide
+                viewportSize: viewportSize
             )
             committedOffset = offset
         } label: {
@@ -181,11 +181,11 @@ struct SquarePhotoEditor: View {
     private func setZoom(_ newZoom: CGFloat) {
         zoom = min(max(newZoom, 1), 4)
         committedZoom = zoom
-        offset = constrainedOffset(offset, zoom: zoom, viewportSide: cropSide)
+        offset = constrainedOffset(offset, zoom: zoom, viewportSize: viewportSize)
         committedOffset = offset
     }
 
-    private func resetCrop() {
+    private func resetPhoto() {
         let changes = {
             zoom = 1
             committedZoom = 1
@@ -201,9 +201,9 @@ struct SquarePhotoEditor: View {
 
     private func usePhoto() {
         do {
-            let url = try CaptureMediaStore.persistCroppedProfilePhoto(
+            let url = try CaptureMediaStore.persistResizedProfilePhoto(
                 image: photo.image,
-                viewportSize: cropSide,
+                viewportSize: viewportSize,
                 zoom: zoom,
                 offset: offset
             )
@@ -213,30 +213,36 @@ struct SquarePhotoEditor: View {
         }
     }
 
-    private func updateViewportSide(_ side: CGFloat) {
-        guard side > 0 else { return }
-        cropSide = side
-        offset = constrainedOffset(offset, zoom: zoom, viewportSide: side)
+    private func updateViewportSize(_ size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        viewportSize = size
+        offset = constrainedOffset(offset, zoom: zoom, viewportSize: size)
         committedOffset = offset
     }
 
-    private func baseImageSize(viewportSide: CGFloat) -> CGSize {
+    private var photoAspectRatio: CGFloat {
+        let imageSize = photo.image.size
+        guard imageSize.width > 0, imageSize.height > 0 else { return 1 }
+        return imageSize.width / imageSize.height
+    }
+
+    private func baseImageSize(viewportSize: CGSize) -> CGSize {
         let imageSize = photo.image.size
         guard imageSize.width > 0, imageSize.height > 0 else {
-            return CGSize(width: viewportSide, height: viewportSide)
+            return viewportSize
         }
-        let fillScale = max(viewportSide / imageSize.width, viewportSide / imageSize.height)
+        let fillScale = max(viewportSize.width / imageSize.width, viewportSize.height / imageSize.height)
         return CGSize(width: imageSize.width * fillScale, height: imageSize.height * fillScale)
     }
 
     private func constrainedOffset(
         _ proposed: CGSize,
         zoom: CGFloat,
-        viewportSide: CGFloat
+        viewportSize: CGSize
     ) -> CGSize {
-        let baseSize = baseImageSize(viewportSide: viewportSide)
-        let maxX = max(0, (baseSize.width * zoom - viewportSide) / 2)
-        let maxY = max(0, (baseSize.height * zoom - viewportSide) / 2)
+        let baseSize = baseImageSize(viewportSize: viewportSize)
+        let maxX = max(0, (baseSize.width * zoom - viewportSize.width) / 2)
+        let maxY = max(0, (baseSize.height * zoom - viewportSize.height) / 2)
         return CGSize(
             width: min(max(proposed.width, -maxX), maxX),
             height: min(max(proposed.height, -maxY), maxY)

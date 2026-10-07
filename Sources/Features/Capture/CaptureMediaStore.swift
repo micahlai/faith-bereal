@@ -54,40 +54,47 @@ enum CaptureMediaStore {
         return destinationURL
     }
 
-    static func persistCroppedProfilePhoto(
+    static func persistResizedProfilePhoto(
         image: UIImage,
-        viewportSize: CGFloat,
+        viewportSize: CGSize,
         zoom: CGFloat,
         offset: CGSize,
-        outputPixelSize: CGFloat = 1_024
+        maximumPixelSize: CGFloat = 1_024
     ) throws -> URL {
-        guard viewportSize > 0,
+        guard viewportSize.width > 0,
+              viewportSize.height > 0,
               zoom >= 1,
-              outputPixelSize > 0,
+              maximumPixelSize > 0,
               image.size.width > 0,
               image.size.height > 0 else {
             throw BlessingError.cameraUnavailable
         }
 
-        let fillScale = max(viewportSize / image.size.width, viewportSize / image.size.height)
+        let fillScale = max(viewportSize.width / image.size.width, viewportSize.height / image.size.height)
         let drawSize = CGSize(
             width: image.size.width * fillScale * zoom,
             height: image.size.height * fillScale * zoom
         )
-        let maxX = max(0, (drawSize.width - viewportSize) / 2)
-        let maxY = max(0, (drawSize.height - viewportSize) / 2)
+        let maxX = max(0, (drawSize.width - viewportSize.width) / 2)
+        let maxY = max(0, (drawSize.height - viewportSize.height) / 2)
         let clampedOffset = CGSize(
             width: min(max(offset.width, -maxX), maxX),
             height: min(max(offset.height, -maxY), maxY)
         )
-        let outputScale = outputPixelSize / viewportSize
-        let drawRect = CGRect(
-            x: ((viewportSize - drawSize.width) / 2 + clampedOffset.width) * outputScale,
-            y: ((viewportSize - drawSize.height) / 2 + clampedOffset.height) * outputScale,
-            width: drawSize.width * outputScale,
-            height: drawSize.height * outputScale
+        let longestSide = max(image.size.width, image.size.height)
+        let outputScale = min(1, maximumPixelSize / longestSide)
+        let outputSize = CGSize(
+            width: max(1, (image.size.width * outputScale).rounded()),
+            height: max(1, (image.size.height * outputScale).rounded())
         )
-        let outputSize = CGSize(width: outputPixelSize, height: outputPixelSize)
+        let horizontalScale = outputSize.width / viewportSize.width
+        let verticalScale = outputSize.height / viewportSize.height
+        let drawRect = CGRect(
+            x: ((viewportSize.width - drawSize.width) / 2 + clampedOffset.width) * horizontalScale,
+            y: ((viewportSize.height - drawSize.height) / 2 + clampedOffset.height) * verticalScale,
+            width: drawSize.width * horizontalScale,
+            height: drawSize.height * verticalScale
+        )
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true

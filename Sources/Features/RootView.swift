@@ -390,8 +390,7 @@ private struct GlobalAppToolbar: ToolbarContent {
                         Button {
                             Task { await model.switchCircle(to: circle.id) }
                         } label: {
-                            HStack(spacing: 10) {
-                                circleSwitcherIcon(size: 30)
+                            HStack {
                                 Text(circle.name)
                                 if model.circle?.id == circle.id {
                                     Image(systemName: "checkmark")
@@ -412,8 +411,6 @@ private struct GlobalAppToolbar: ToolbarContent {
                     if model.isSwitchingCircle {
                         ProgressView()
                             .controlSize(.small)
-                    } else if model.circle != nil {
-                        circleSwitcherIcon(size: 26)
                     }
                     Text(model.circle?.name ?? "Choose circle")
                         .font(.headline)
@@ -428,15 +425,6 @@ private struct GlobalAppToolbar: ToolbarContent {
         }
     }
 
-    private func circleSwitcherIcon(size: CGFloat) -> some View {
-        Image(systemName: "person.3.fill")
-            .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(AppTheme.primary.gradient)
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
-            .accessibilityHidden(true)
-    }
 }
 
 private struct UserSettingsView: View {
@@ -601,7 +589,7 @@ private struct ProfileEditorView: View {
     @Binding var isPresented: Bool
     @State private var displayName: String
     @State private var selectedPhoto: PhotosPickerItem?
-    @State private var pendingPhotoCrop: PendingSquarePhoto?
+    @State private var pendingPhotoResize: PendingPhotoResize?
     @State private var photoURL: URL?
     @State private var isSaving = false
     @State private var isPreparingPhoto = false
@@ -667,20 +655,20 @@ private struct ProfileEditorView: View {
                 defer { isPreparingPhoto = false }
                 do {
                     guard let data = try await selectedPhoto.loadTransferable(type: Data.self) else { return }
-                    pendingPhotoCrop = try PendingSquarePhoto(data: data)
+                    pendingPhotoResize = try PendingPhotoResize(data: data)
                 } catch {
                     model.message = "Couldn’t prepare that photo: \(error.localizedDescription)"
                 }
             }
         }
-        .sheet(item: $pendingPhotoCrop, onDismiss: { selectedPhoto = nil }) { photo in
-            SquarePhotoEditor(
+        .sheet(item: $pendingPhotoResize, onDismiss: { selectedPhoto = nil }) { photo in
+            PhotoResizeEditor(
                 title: "Resize profile photo",
                 photo: photo,
-                onCancel: { pendingPhotoCrop = nil },
+                onCancel: { pendingPhotoResize = nil },
                 onUsePhoto: { url in
                     photoURL = url
-                    pendingPhotoCrop = nil
+                    pendingPhotoResize = nil
                 }
             )
         }
@@ -688,8 +676,9 @@ private struct ProfileEditorView: View {
 
     @ViewBuilder private var avatarPreview: some View {
         if let photoURL {
-            AsyncImage(url: photoURL) { image in image.resizable().scaledToFill() } placeholder: { ProgressView() }
+            AsyncImage(url: photoURL) { image in image.resizable().scaledToFit() } placeholder: { ProgressView() }
                 .frame(width: 96, height: 96)
+                .background(AppTheme.surface)
                 .clipShape(Circle())
         } else {
             AvatarBadge(member: user, size: 96)
