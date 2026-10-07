@@ -114,6 +114,12 @@ Last updated: 2026-10-07
 - Passive timeline loading no longer activates the device audio session, and unavailable duration metadata no longer makes an otherwise playable recording fail.
 - Playback state remains active while AVPlayer is buffering, retry replaces the cached download, and a generated CAF regression test verifies preparation and duration discovery.
 
+## 2026-10-07 Live Activity countdown epoch fix
+
+- Live Activity deadlines now use an explicit Unix-seconds wire format matching APNs instead of synthesized `Date` decoding, which previously interpreted server timestamps from Apple's 2001 reference epoch and displayed a countdown roughly 31 years too large.
+- The decoder remains compatible with already-created local activities that used the prior reference-date representation, and expired countdown ranges clamp to zero.
+- Regression tests cover APNs decoding, Unix encoding, and legacy local-state decoding.
+
 ## Current phase
 
 Milestone 3.5 is complete against the local repository. Milestone 4 release-readiness work is in progress; Apple-account, physical-device, and hosted-backend acceptance remains pending.

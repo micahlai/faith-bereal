@@ -22,7 +22,7 @@ struct BlessingCircleLiveActivity: Widget {
                         Text("Your blessing is shared")
                             .font(.subheadline)
                     } else {
-                        Text(timerInterval: Date.now...context.state.endsAt, countsDown: true)
+                        LiveActivityCountdownText(endsAt: context.state.endsAt)
                             .font(.title3.monospacedDigit().weight(.semibold))
                     }
                 }
@@ -39,7 +39,7 @@ struct BlessingCircleLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     if !context.state.hasSubmitted {
-                        Text(timerInterval: Date.now...context.state.endsAt, countsDown: true)
+                        LiveActivityCountdownText(endsAt: context.state.endsAt)
                             .font(.headline.monospacedDigit())
                     }
                 }
@@ -52,7 +52,7 @@ struct BlessingCircleLiveActivity: Widget {
                 MannaWordmark(width: 28)
             } compactTrailing: {
                 if !context.state.hasSubmitted {
-                    Text(timerInterval: Date.now...context.state.endsAt, countsDown: true)
+                    LiveActivityCountdownText(endsAt: context.state.endsAt)
                         .monospacedDigit()
                         .frame(width: 44)
                 }
@@ -62,5 +62,14 @@ struct BlessingCircleLiveActivity: Widget {
             .widgetURL(URL(string: "blessingcircle://today/capture"))
             .keylineTint(MannaWidgetTheme.primary)
         }
+    }
+}
+
+private struct LiveActivityCountdownText: View {
+    let endsAt: Date
+
+    var body: some View {
+        let now = Date.now
+        Text(timerInterval: now...max(now, endsAt), countsDown: true)
     }
 }

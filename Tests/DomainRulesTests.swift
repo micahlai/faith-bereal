@@ -4,6 +4,47 @@ import AVFoundation
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testLiveActivityDecodesAPNsUnixDeadlineWithoutEpochShift() throws {
+        let expected = Date(timeIntervalSince1970: 1_800_000_600)
+        let data = Data(
+            #"{"endsAt":1800000600,"responseCount":2,"hasSubmitted":false}"#.utf8
+        )
+
+        let state = try JSONDecoder().decode(PromptActivityAttributes.ContentState.self, from: data)
+
+        XCTAssertEqual(state.endsAt, expected)
+        XCTAssertEqual(state.responseCount, 2)
+        XCTAssertFalse(state.hasSubmitted)
+    }
+
+    func testLiveActivityEncodesDeadlineAsUnixSecondsForAPNs() throws {
+        let expectedTimestamp = 1_800_000_600.0
+        let state = PromptActivityAttributes.ContentState(
+            endsAt: Date(timeIntervalSince1970: expectedTimestamp),
+            responseCount: 1,
+            hasSubmitted: true
+        )
+
+        let data = try JSONEncoder().encode(state)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(object["endsAt"] as? Double, expectedTimestamp)
+    }
+
+    func testLiveActivityDecodesLegacyLocalDeadline() throws {
+        let expected = Date(timeIntervalSince1970: 1_800_000_600)
+        let legacyTimestamp = expected.timeIntervalSinceReferenceDate
+        let data = try JSONSerialization.data(withJSONObject: [
+            "endsAt": legacyTimestamp,
+            "responseCount": 0,
+            "hasSubmitted": false,
+        ])
+
+        let state = try JSONDecoder().decode(PromptActivityAttributes.ContentState.self, from: data)
+
+        XCTAssertEqual(state.endsAt, expected)
+    }
+
     @MainActor
     func testVoicePlayerPreparesAPlayableLocalRecording() async throws {
         let recordingURL = try CaptureMediaStore.newRecordingURL(pathExtension: "caf")
