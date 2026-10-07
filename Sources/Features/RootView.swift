@@ -279,10 +279,11 @@ private struct LoadingView: View {
         ZStack {
             AppTheme.canvas.ignoresSafeArea()
             VStack(spacing: 18) {
-                Image(systemName: "circle.hexagongrid.fill")
-                    .font(.system(size: 54, weight: .light))
-                    .foregroundStyle(AppTheme.primary)
-                    .accessibilityHidden(true)
+                Image("MannaWordmark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 280)
+                    .accessibilityLabel("manna")
                 Text("Gathering your circle")
                     .font(.title3.weight(.semibold))
                 ProgressView()

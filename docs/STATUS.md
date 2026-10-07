@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 loading-screen branding
+
+- The in-app startup/loading screen now uses the transparent adaptive manna wordmark instead of the generic circle-grid symbol.
+- The wordmark automatically selects dark lettering on light surfaces and cream lettering on dark surfaces while retaining an explicit accessibility label.
+
 ## 2026-10-06 Xcode Cloud release configuration
 
 - Xcode Cloud archive actions now validate the workflow's secret `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` variables and materialize the ignored `Configuration/Secrets.xcconfig` inside the temporary checkout.
