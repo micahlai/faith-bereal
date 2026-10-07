@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import {
+  captureRoute,
   liveActivityContentState,
   unixSeconds,
 } from "../supabase/functions/dispatch-prompts/live-activity-payload.ts";
@@ -18,5 +19,9 @@ assert.deepEqual(state, {
 assert.equal(unixSeconds(new Date(deadline)), expectedDeadline);
 assert.throws(() => unixSeconds("not-a-date"), /Invalid Live Activity date/);
 assert.deepEqual(Object.keys(state).sort(), ["endsAt", "hasSubmitted", "responseCount"]);
+assert.equal(
+  captureRoute("circle-id", "prompt-id"),
+  "blessingcircle://today/capture?circle=circle-id&prompt=prompt-id",
+);
 
 console.log("APNs Live Activity payload contract passed.");

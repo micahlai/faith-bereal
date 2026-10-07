@@ -227,6 +227,17 @@ actor LocalBlessingRepository: BlessingRepository {
         return CircleContext(circle: circle, prompt: prompt)
     }
 
+    func circleContext(promptID: UUID) async throws -> CircleContext {
+        guard let prompt = prompts.first(where: { $0.id == promptID }),
+              let circle = circles.first(where: {
+                  $0.id == prompt.circleID
+                      && $0.members.contains(where: { $0.id == currentUser.id })
+              }) else {
+            throw BlessingError.circleNotFound
+        }
+        return CircleContext(circle: circle, prompt: prompt)
+    }
+
     func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void> {
         AsyncStream { $0.finish() }
     }

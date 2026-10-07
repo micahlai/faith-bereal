@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "npm:jose@5";
-import { liveActivityContentState, unixSeconds } from "./live-activity-payload.ts";
+import { captureRoute, liveActivityContentState, unixSeconds } from "./live-activity-payload.ts";
 
 type Prompt = {
   id: string;
@@ -229,7 +229,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
             "thread-id": prompt.circle_id,
             "interruption-level": "time-sensitive",
           },
-          route: `blessingcircle://today/capture?circle=${prompt.circle_id}`,
+          route: captureRoute(prompt.circle_id, prompt.id),
           prompt_id: prompt.id,
         }),
       });

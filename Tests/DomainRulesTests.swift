@@ -220,6 +220,13 @@ final class DomainRulesTests: XCTestCase {
             return XCTFail("Expected the active prompt to take precedence")
         }
         XCTAssertEqual(selected.circleName, "Morning Prayer")
+        let components = try XCTUnwrap(
+            URLComponents(url: try XCTUnwrap(selected.deepLink), resolvingAgainstBaseURL: false)
+        )
+        XCTAssertEqual(
+            components.queryItems?.first(where: { $0.name == "prompt" })?.value,
+            selected.promptID.uuidString
+        )
     }
 
     func testWidgetPrefersUnseenCurrentDayBlessingsAfterPromptStarts() throws {
@@ -412,6 +419,27 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(model.selectedTab, 0)
         XCTAssertTrue(model.isCapturePresented)
         XCTAssertTrue(model.canSubmitCurrentPrompt)
+    }
+
+    @MainActor
+    func testPromptCaptureDeepLinkSelectsThePromptCircle() async throws {
+        let repository = LocalBlessingRepository(now: .now)
+        let model = AppModel(repository: repository)
+        await model.bootstrap()
+        let targetCircle = try XCTUnwrap(model.circles.last)
+        let targetContext = try await repository.circleContext(circleID: targetCircle.id)
+        let targetPrompt = try XCTUnwrap(targetContext.prompt)
+        let route = try XCTUnwrap(
+            URL(string: "blessingcircle://today/capture?prompt=\(targetPrompt.id.uuidString)")
+        )
+
+        await model.handleDeepLink(route)
+
+        XCTAssertEqual(model.circle?.id, targetCircle.id)
+        XCTAssertEqual(model.prompt?.id, targetPrompt.id)
+        XCTAssertEqual(model.capturePrompt?.id, targetPrompt.id)
+        XCTAssertEqual(model.selectedTab, 0)
+        XCTAssertTrue(model.isCapturePresented)
     }
 
     @MainActor

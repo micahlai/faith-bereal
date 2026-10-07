@@ -21,3 +21,7 @@ export function liveActivityContentState(
     hasSubmitted,
   };
 }
+
+export function captureRoute(circleID: string, promptID: string): string {
+  return `blessingcircle://today/capture?circle=${circleID}&prompt=${promptID}`;
+}

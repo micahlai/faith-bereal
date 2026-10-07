@@ -3,6 +3,7 @@ import Foundation
 protocol BlessingRepository: Sendable {
     func bootstrap() async throws -> AppBootstrap
     func circleContext(circleID: UUID) async throws -> CircleContext
+    func circleContext(promptID: UUID) async throws -> CircleContext
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane]
     func beginBlessingEntry(promptID: UUID, memberID: UUID, now: Date) async throws
     func submit(

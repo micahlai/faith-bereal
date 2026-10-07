@@ -36,33 +36,37 @@ actor SupabaseBlessingRepository: BlessingRepository {
         for membership in memberships {
             circles.append(try await fetchCircle(id: membership.circleID, inviteCode: ""))
         }
-        let prompts: [PromptRow] = try await client
-            .from("daily_prompts")
-            .select()
-            .eq("circle_id", value: selectedMembership.circleID)
-            .order("local_date", ascending: false)
-            .limit(1)
-            .execute()
-            .value
+        let selectedCircle = circles.first(where: { $0.id == selectedMembership.circleID })
+        let currentPrompt: DailyPrompt?
+        if let selectedCircle {
+            currentPrompt = try await fetchCurrentPrompt(circle: selectedCircle)
+        } else {
+            currentPrompt = nil
+        }
         return AppBootstrap(
             currentUser: currentUser,
             circles: circles,
             selectedCircleID: selectedMembership.circleID,
-            prompt: prompts.first.map(prompt(from:))
+            prompt: currentPrompt
         )
     }
 
     func circleContext(circleID: UUID) async throws -> CircleContext {
         let circle = try await fetchCircle(id: circleID, inviteCode: "")
-        let prompts: [PromptRow] = try await client
+        return CircleContext(circle: circle, prompt: try await fetchCurrentPrompt(circle: circle))
+    }
+
+    func circleContext(promptID: UUID) async throws -> CircleContext {
+        let rows: [PromptRow] = try await client
             .from("daily_prompts")
             .select()
-            .eq("circle_id", value: circleID)
-            .order("local_date", ascending: false)
+            .eq("id", value: promptID)
             .limit(1)
             .execute()
             .value
-        return CircleContext(circle: circle, prompt: prompts.first.map(prompt(from:)))
+        guard let row = rows.first else { throw BlessingError.circleNotFound }
+        let circle = try await fetchCircle(id: row.circleID, inviteCode: "")
+        return CircleContext(circle: circle, prompt: prompt(from: row))
     }
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
@@ -94,8 +98,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
             blessings.append(try await blessing(from: row, circleID: circleID))
         }
 
+        let currentLocalDate = Self.localDateString(
+            at: now,
+            timeZoneIdentifier: circle.timeZoneIdentifier
+        )
         let calendar = circleCalendar(circle)
-        let currentPrompt = promptRows.first(where: { calendar.isDate($0.localDateValue, inSameDayAs: now) })
+        let currentPrompt = promptRows.first(where: { $0.localDate == currentLocalDate })
         let viewerHasSubmitted = currentPrompt.map { promptRow in
             blessings.contains { $0.promptID == promptRow.id && $0.authorID == viewerID }
         } ?? false
@@ -109,7 +117,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 .map { row -> TimelineEvent in
                     let prompt = prompt(from: row)
                     let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
-                    let isToday = calendar.isDate(prompt.localDate, inSameDayAs: now)
+                    let isToday = row.localDate == currentLocalDate
                     let status: TimelineStatus
                     if isToday && member.id != viewerID && !viewerHasSubmitted {
                         status = .locked
@@ -599,6 +607,22 @@ actor SupabaseBlessingRepository: BlessingRepository {
         )
     }
 
+    private func fetchCurrentPrompt(circle: CircleGroup, now: Date = .now) async throws -> DailyPrompt? {
+        let localDate = Self.localDateString(
+            at: now,
+            timeZoneIdentifier: circle.timeZoneIdentifier
+        )
+        let rows: [PromptRow] = try await client
+            .from("daily_prompts")
+            .select()
+            .eq("circle_id", value: circle.id)
+            .eq("local_date", value: localDate)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first.map(prompt(from:))
+    }
+
     private func fetchBlessing(id: UUID) async throws -> BlessingWithCircleRow {
         try await client
             .from("blessings")
@@ -709,6 +733,15 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     private static func postgresTime(minutes: Int) -> String {
         String(format: "%02d:%02d:00", minutes / 60, minutes % 60)
+    }
+
+    private static func localDateString(at date: Date, timeZoneIdentifier: String) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }
 

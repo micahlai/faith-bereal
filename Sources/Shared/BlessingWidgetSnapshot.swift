@@ -59,7 +59,9 @@ struct BlessingWidgetPrompt: Codable, Hashable, Sendable {
     let isOnCurrentCircleDay: Bool
 
     var deepLink: URL? {
-        URL(string: "blessingcircle://today?circle=\(circleID.uuidString)")
+        URL(
+            string: "blessingcircle://today?circle=\(circleID.uuidString)&prompt=\(promptID.uuidString)"
+        )
     }
 }
 

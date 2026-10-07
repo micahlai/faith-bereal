@@ -181,8 +181,7 @@ final class AppModel {
     }
 
     func openCapture(now: Date = .now) async -> Bool {
-        guard !isPreparingCapture, let prompt, let currentUser,
-              canEnterCurrentPrompt(at: now) else {
+        guard !isPreparingCapture, let prompt, let currentUser else {
             message = BlessingError.outsideResponseWindow.localizedDescription
             return false
         }
@@ -386,6 +385,58 @@ final class AppModel {
 
         if let prompt = context.prompt, prompt.phase(at: now) == .open {
             await startLiveActivity(for: prompt, circle: refreshedCircle)
+        }
+    }
+
+    private func activatePrompt(promptID: UUID, now: Date = .now) async -> Bool {
+        guard !isSwitchingCircle, let currentUser else { return false }
+        isSwitchingCircle = true
+        defer { isSwitchingCircle = false }
+
+        let previousCircleID = circle?.id
+        var needsRealtimeRestart = false
+        do {
+            let context = try await repository.circleContext(promptID: promptID)
+            guard circles.contains(where: { $0.id == context.circle.id }) else {
+                throw BlessingError.circleNotFound
+            }
+            if previousCircleID != context.circle.id {
+                realtimeTask?.cancel()
+                realtimeTask = nil
+                needsRealtimeRestart = true
+            }
+            let refreshedLanes = try await repository.timeline(
+                circleID: context.circle.id,
+                viewerID: currentUser.id,
+                now: now
+            )
+            let knownInviteCode = circles.first(where: { $0.id == context.circle.id })?.inviteCode
+            let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
+            circle = resolvedCircle
+            prompt = context.prompt
+            if capturePrompt?.id != context.prompt?.id {
+                capturePrompt = nil
+                submittedBlessing = nil
+            }
+            lanes = refreshedLanes
+            upsertCircle(resolvedCircle)
+            Self.persistedCircleID = resolvedCircle.id
+            scheduleWidgetSnapshotRefresh(now: now)
+            if previousCircleID != resolvedCircle.id {
+                startRealtimeUpdates()
+                needsRealtimeRestart = false
+            }
+            if let prompt = context.prompt, prompt.phase(at: now) == .open {
+                await startLiveActivity(for: prompt, circle: resolvedCircle)
+            }
+            return true
+        } catch {
+            if needsRealtimeRestart {
+                startRealtimeUpdates()
+            }
+            guard !Task.isCancelled, !Self.isCancellation(error) else { return false }
+            message = error.localizedDescription
+            return false
         }
     }
 
@@ -803,7 +854,13 @@ final class AppModel {
             return
         }
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        if let circleValue = components?.queryItems?.first(where: { $0.name == "circle" })?.value,
+        let promptID = components?.queryItems?
+            .first(where: { $0.name == "prompt" })?
+            .value
+            .flatMap(UUID.init(uuidString:))
+        if let promptID {
+            guard await activatePrompt(promptID: promptID) else { return }
+        } else if let circleValue = components?.queryItems?.first(where: { $0.name == "circle" })?.value,
            let circleID = UUID(uuidString: circleValue),
            circles.contains(where: { $0.id == circleID }) {
             if circle?.id == circleID {
@@ -841,7 +898,15 @@ final class AppModel {
             .value
         let circleID = circleValue.flatMap { UUID(uuidString: $0) }
         if circleID == nil || circleID == circle?.id {
-            await refreshCurrentCircle()
+            let promptID = components?.queryItems?
+                .first(where: { $0.name == "prompt" })?
+                .value
+                .flatMap(UUID.init(uuidString:))
+            if let promptID {
+                _ = await activatePrompt(promptID: promptID)
+            } else {
+                await refreshCurrentCircle()
+            }
         }
     }
 

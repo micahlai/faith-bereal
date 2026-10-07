@@ -31,7 +31,7 @@ struct BlessingCircleLiveActivity: Widget {
             .padding()
             .activityBackgroundTint(Color(.systemBackground))
             .activitySystemActionForegroundColor(MannaWidgetTheme.primary)
-            .widgetURL(URL(string: "blessingcircle://today/capture"))
+            .widgetURL(captureURL(promptID: context.attributes.promptID))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -59,9 +59,13 @@ struct BlessingCircleLiveActivity: Widget {
             } minimal: {
                 MannaWordmark(width: 24)
             }
-            .widgetURL(URL(string: "blessingcircle://today/capture"))
+            .widgetURL(captureURL(promptID: context.attributes.promptID))
             .keylineTint(MannaWidgetTheme.primary)
         }
+    }
+
+    private func captureURL(promptID: UUID) -> URL? {
+        URL(string: "blessingcircle://today/capture?prompt=\(promptID.uuidString)")
     }
 }
 

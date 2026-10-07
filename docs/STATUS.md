@@ -17,7 +17,7 @@
 - The lock-screen and Dynamic Island Live Activity surfaces use the same light/dark wordmark instead of the generic circle-grid symbol.
 - Remote alerts opt into a notification service extension that attaches the full square manna logo. The small notification icon remains the iOS-controlled app icon.
 - The generated project builds with the app, Live Activity/widget extension, and notification service extension embedded. All 46 domain/unit tests and all 6 UI tests pass on an iPhone 17e simulator; an earlier iPhone 17 Pro run hit an Xcode test-worker startup stall before tests materialized.
-- `dispatch-prompts` version 8 is active with the mutable-content alert payload. A Release archive and App Store Connect export succeeded with production APNs, the Live Activity/widget extension, and the signed `app.manna-circle.ios.notification-service` extension; the export validator also confirmed the bundled notification logo. The branded alert still needs presentation validation on a physical TestFlight device.
+- `dispatch-prompts` version 9 is active with the mutable-content alert payload and prompt-specific capture route. A Release archive and App Store Connect export succeeded with production APNs, the Live Activity/widget extension, and the signed `app.manna-circle.ios.notification-service` extension; the export validator also confirmed the bundled notification logo. The branded alert still needs presentation validation on a physical TestFlight device.
 
 ## 2026-10-06 circle creation settings and invite rotation
 
@@ -43,7 +43,7 @@
 - That recovered dispatch reached APNs: 2 of 8 Sandbox alert/Live Activity requests were accepted across four registered device rows, while 6 failed with `TooManyProviderTokenUpdates`. This proves the scheduler, Edge Function, and APNs provider connection are live and identified stateless-runtime JWT rotation as the partial-delivery cause.
 - Migration `202610060009` and `dispatch-prompts` version 6 now atomically reuse one server-only APNs provider JWT for 45 minutes across Edge Function runtimes. The cache table is unreadable to app users and directly unreadable even to `service_role`; only its service-role RPC can return the short-lived token. A post-cooldown APNs dispatch remains to be observed.
 - Invalid alert and push-to-start tokens are now cleared when APNs returns a permanent token error; registrations are revoked only when neither token remains. The latest partial-failure run did not classify any stored token as permanently invalid.
-- All migrations through `202610060010` match the linked hosted project, and `dispatch-prompts` version 8 is active.
+- All migrations through `202610060010` match the linked hosted project, and `dispatch-prompts` version 9 is active.
 - The TestFlight candidate workflow runs the local unit and UI suites in separate Xcode phases, archives a hosted Release build, exports an App Store Connect IPA, and rejects missing production APNs, debugging entitlement, Sign in with Apple, App Group, extension signatures, or notification-logo resources. The merged branded build 2 completed the full workflow and passed the expanded validator.
 
 ## 2026-10-06 media playback and notification registration
@@ -135,6 +135,13 @@ Last updated: 2026-10-07
 - Foreground notification delivery refreshes the selected circle without requiring a banner tap, and opening Today performs a fresh circle load before rendering its entry action.
 - Migration `202610070001` is applied to the linked hosted project, and the hosted `public` schema passes Supabase's error-level lint. A new TestFlight client build is still required to call the entry-grant RPC before presenting capture.
 
+## 2026-10-07 notification prompt routing
+
+- Hosted bootstrap and circle refresh now select the prompt for the circle's current local date instead of the latest stored date. This prevents tomorrow's pre-created prompt from replacing today's open prompt when an alert arrives.
+- Alert, widget, and Live Activity capture routes now include the exact prompt identifier. Notification taps can therefore select the originating circle and prompt before requesting a server-authored entry grant, including when another circle is selected in the app.
+- Capture entry no longer performs a second client-clock deadline veto. The server entry-grant RPC is authoritative, while old circle-only deep links remain compatible by refreshing the current local-date prompt.
+- Hosted logs for the reported failure contained no `begin_blessing_entry` request, confirming the rejection occurred in the stale client prompt path before the RPC. Regression coverage now includes exact widget routing and cross-circle prompt deep links.
+
 ## Current phase
 
 Milestone 3.5 is complete against the local repository. Milestone 4 release-readiness work is in progress; Apple-account, physical-device, and hosted-backend acceptance remains pending.
@@ -149,7 +156,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - XcodeGen project builds an iOS app, Live Activity extension, and unit-test target.
 - Local circle join/create, typed/voice/video capture, today countdown, gating, and timeline UI implemented.
 - ActivityKit local start/update UI, deep-link route, remote push-to-start/update/end, and token registration implemented.
-- Fifty-seven Debug domain tests, 54 Release domain tests, and six UI tests pass. The six UI tests also pass through an authorized automation session on a signed iPhone 14 Pro running iOS 26.6.2. Current UI coverage includes the all-settings creation form, owner invite-code rotation and force-notification flow, Today and Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
+- Fifty-eight Debug domain tests, 54 Release domain tests, and six UI tests pass. The latest Release domain and UI passes ran separately on an iPhone 17e simulator, avoiding Xcode's worker-handoff stall; the six UI tests also pass through an authorized automation session on a signed iPhone 14 Pro running iOS 26.6.2. Current UI coverage includes the all-settings creation form, owner invite-code rotation and force-notification flow, Today and Timeline scrolling, dark appearance, accessibility-size text, and text/voice-versus-video photo attachment availability.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
 - Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols. Blank configuration safely falls back to the local demo in Debug, while Release now fails before compilation without valid hosted Supabase values and production APNs settings.
