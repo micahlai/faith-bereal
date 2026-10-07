@@ -35,3 +35,4 @@ open BlessingCircle.xcodeproj
 ```
 
 Copy `Configuration/Secrets.xcconfig.example` to `Configuration/Secrets.xcconfig` and fill in the public Supabase values to use the production adapter. If that file is absent or blank, the app uses seeded local data. No secrets are committed.
+ 
