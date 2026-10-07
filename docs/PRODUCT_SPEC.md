@@ -49,7 +49,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 ### Daily prompt
 
 - One prompt per circle per local calendar day.
-- Random start time is selected server-side within a circle-configured window, default 08:00–20:00.
+- Random start time is selected server-side within a circle-configured window, default 12:00–22:00, with late blessings enabled by default.
 - Circle creation transactionally schedules the current local-day prompt from the owner's initial settings so the selected time range and response duration apply on day one. The join-day exception still lets the creator share at any time that local day.
 - The preselected random time is the dispatch target. When the server claims that prompt, it authors the shared `starts_at` from the actual dispatch and sets `ends_at = starts_at + response_window_minutes`, giving every member the complete configured entry window.
 - The response deadline controls entry into capture, not completion of a capture already opened. The server records an entry grant before presenting capture; that grant remains valid if composition or upload finishes after the deadline or after midnight.

@@ -148,10 +148,10 @@ struct CircleConfiguration: Equatable, Sendable {
         CircleConfiguration(
             name: "",
             timeZoneIdentifier: timeZoneIdentifier,
-            randomWindowStartMinutes: 8 * 60,
-            randomWindowEndMinutes: 20 * 60,
+            randomWindowStartMinutes: 12 * 60,
+            randomWindowEndMinutes: 22 * 60,
             responseWindowMinutes: 10,
-            allowsLateBlessings: false,
+            allowsLateBlessings: true,
             repeatWindowMinutes: 120
         )
     }

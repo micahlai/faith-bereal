@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 circle creation defaults
+
+- New circle forms now default the daily random blessing range to noon–10:00 p.m. in the selected circle time zone and enable late blessings by default.
+- Existing circles are unchanged; owners can continue to adjust both values in circle settings.
+
 ## 2026-10-07 future Timeline prompt filtering
 
 - Timeline repositories now exclude prompts whose circle-local date is after the viewed/current circle day. Tomorrow's server-precreated scheduling row can no longer fall through to a false “Missed this day” event.

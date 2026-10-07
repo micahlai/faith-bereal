@@ -869,6 +869,14 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(blessing.circleID, created.id)
     }
 
+    func testCircleCreationDefaultsUseNoonToTenAndAllowLateBlessings() {
+        let defaults = CircleConfiguration.defaults(timeZoneIdentifier: "America/New_York")
+
+        XCTAssertEqual(defaults.randomWindowStartMinutes, 12 * 60)
+        XCTAssertEqual(defaults.randomWindowEndMinutes, 22 * 60)
+        XCTAssertTrue(defaults.allowsLateBlessings)
+    }
+
     func testCircleOwnerCanRegenerateInviteCodeAndInvalidatePreviousCode() async throws {
         let repository = LocalBlessingRepository(now: .now)
         let bootstrap = try await repository.bootstrap()
