@@ -7,6 +7,7 @@ project_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
 archive_path=${TESTFLIGHT_ARCHIVE_PATH:-"$project_root/build/manna-circle.xcarchive"}
 export_path=${TESTFLIGHT_EXPORT_PATH:-"$project_root/build/TestFlight"}
 build_number=${TESTFLIGHT_BUILD_NUMBER:-}
+simulator_name=${TESTFLIGHT_SIMULATOR_NAME:-"iPhone 17e"}
 
 case "$build_number" in
   ""|*[!0-9]*)
@@ -27,7 +28,16 @@ SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY='' xcodebuild \
   -project BlessingCircle.xcodeproj \
   -scheme BlessingCircle \
   -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -destination "platform=iOS Simulator,name=$simulator_name" \
+  -only-testing:BlessingCircleTests \
+  test
+
+SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY='' xcodebuild \
+  -project BlessingCircle.xcodeproj \
+  -scheme BlessingCircle \
+  -configuration Debug \
+  -destination "platform=iOS Simulator,name=$simulator_name" \
+  -only-testing:BlessingCircleUITests \
   test
 
 xcodebuild \

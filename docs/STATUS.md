@@ -33,7 +33,7 @@
 - Migration `202610060009` and `dispatch-prompts` version 6 now atomically reuse one server-only APNs provider JWT for 45 minutes across Edge Function runtimes. The cache table is unreadable to app users and directly unreadable even to `service_role`; only its service-role RPC can return the short-lived token. A post-cooldown APNs dispatch remains to be observed.
 - Invalid alert and push-to-start tokens are now cleared when APNs returns a permanent token error; registrations are revoked only when neither token remains. The latest partial-failure run did not classify any stored token as permanently invalid.
 - All migrations through `202610060010` match the linked hosted project, and `dispatch-prompts` version 8 is active.
-- The TestFlight candidate workflow runs the local simulator suite, archives a hosted Release build, exports an App Store Connect IPA, and rejects missing production APNs, debugging entitlement, Sign in with Apple, App Group, extension signatures, or notification-logo resources. Build 1 completed that workflow before notification branding; the branded build 2 archive/export then passed the expanded validator.
+- The TestFlight candidate workflow runs the local unit and UI suites in separate Xcode phases, archives a hosted Release build, exports an App Store Connect IPA, and rejects missing production APNs, debugging entitlement, Sign in with Apple, App Group, extension signatures, or notification-logo resources. The merged branded build 2 completed the full workflow and passed the expanded validator.
 
 ## 2026-10-06 media playback and notification registration
 
