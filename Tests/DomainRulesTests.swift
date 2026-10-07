@@ -1239,6 +1239,33 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(newestMemberLane.events.count, 3)
     }
 
+    func testTimelineExcludesServerPrecreatedFuturePrompts() async throws {
+        let seededNow = Date(timeIntervalSince1970: 1_800_000_000)
+        let repository = LocalBlessingRepository(now: seededNow)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+        let viewedDay = try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: seededNow))
+        let viewedDayStart = calendar.startOfDay(for: viewedDay)
+
+        let lanes = try await repository.timeline(
+            circleID: circle.id,
+            viewerID: user.id,
+            now: viewedDay
+        )
+
+        for event in lanes.flatMap(\.events) {
+            if case .joinedCircle = event.status { continue }
+            XCTAssertLessThanOrEqual(
+                calendar.startOfDay(for: event.date),
+                viewedDayStart,
+                "A future server-precreated prompt must not appear as a missed Timeline day"
+            )
+        }
+    }
+
     func testCurrentPromptLocksEveryPeerLaneUntilViewerShares() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)

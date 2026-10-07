@@ -260,10 +260,16 @@ actor LocalBlessingRepository: BlessingRepository {
         guard let circle = circles.first(where: { $0.id == circleID }) else {
             throw BlessingError.circleNotFound
         }
+        var circleCalendar = Calendar(identifier: .gregorian)
+        circleCalendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? calendar.timeZone
+        let currentLocalDay = circleCalendar.startOfDay(for: now)
         let circlePrompts = prompts
-            .filter { $0.circleID == circleID }
+            .filter {
+                $0.circleID == circleID
+                    && circleCalendar.startOfDay(for: $0.localDate) <= currentLocalDay
+            }
             .sorted { $0.localDate > $1.localDate }
-        let currentPrompt = circlePrompts.first { calendar.isDate($0.localDate, inSameDayAs: now) }
+        let currentPrompt = circlePrompts.first { circleCalendar.isDate($0.localDate, inSameDayAs: now) }
         let viewerHasSubmitted = currentPrompt.map { prompt in
             blessings.contains { $0.promptID == prompt.id && $0.authorID == viewerID }
         } ?? false
@@ -272,11 +278,11 @@ actor LocalBlessingRepository: BlessingRepository {
             var events = circlePrompts
                 .filter {
                     $0.startsAt >= member.joinedAt
-                        || calendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
+                        || circleCalendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
                 }
                 .map { prompt -> TimelineEvent in
                 let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
-                let isToday = calendar.isDate(prompt.localDate, inSameDayAs: now)
+                let isToday = circleCalendar.isDate(prompt.localDate, inSameDayAs: now)
                 let status: TimelineStatus
 
                 if isToday && member.id != viewerID && !viewerHasSubmitted {
@@ -286,7 +292,7 @@ actor LocalBlessingRepository: BlessingRepository {
                         promptDate: prompt.localDate,
                         now: now,
                         viewerHasSubmitted: viewerHasSubmitted,
-                        calendar: calendar
+                        calendar: circleCalendar
                     ) {
                         status = .blessing(match)
                     } else {

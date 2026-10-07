@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 future Timeline prompt filtering
+
+- Timeline repositories now exclude prompts whose circle-local date is after the viewed/current circle day. Tomorrow's server-precreated scheduling row can no longer fall through to a false “Missed this day” event.
+- Regression coverage renders the local timeline from the preceding day and verifies that no future prompt event is emitted.
+
 ## 2026-10-07 universal invitations, widget header, and Live Activity lifetime
 
 - Circle sharing now sends `https://manna-circle.micahlai.com/join/<code>` instead of a bare code. The production website serves the matching Apple App Site Association file and a custom-scheme fallback; the app persists an incoming invitation through sign-in/onboarding and presents the prefilled join flow.

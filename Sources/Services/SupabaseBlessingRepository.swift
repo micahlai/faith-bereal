@@ -74,10 +74,15 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
         let circle = try await fetchCircle(id: circleID, inviteCode: "")
+        let currentLocalDate = Self.localDateString(
+            at: now,
+            timeZoneIdentifier: circle.timeZoneIdentifier
+        )
         let promptRows: [PromptRow] = try await client
             .from("daily_prompts")
             .select()
             .eq("circle_id", value: circleID)
+            .lte("local_date", value: currentLocalDate)
             .order("local_date", ascending: false)
             .execute()
             .value
@@ -101,10 +106,6 @@ actor SupabaseBlessingRepository: BlessingRepository {
             blessings.append(try await blessing(from: row, circleID: circleID))
         }
 
-        let currentLocalDate = Self.localDateString(
-            at: now,
-            timeZoneIdentifier: circle.timeZoneIdentifier
-        )
         let calendar = circleCalendar(circle)
         let currentPrompt = promptRows.first(where: { $0.localDate == currentLocalDate })
         let viewerHasSubmitted = currentPrompt.map { promptRow in

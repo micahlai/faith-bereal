@@ -51,6 +51,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - current-day gating versus historical visibility;
 - duplicate submission rejection;
 - deterministic timeline grouping and missed-state generation;
+- server-precreated future prompts never render as missed Timeline rows;
 - invite-code normalization;
 - countdown formatting and prompt-state transitions.
 - Universal invitation construction/parsing, unsafe-host rejection, and invitation persistence through bootstrap;
