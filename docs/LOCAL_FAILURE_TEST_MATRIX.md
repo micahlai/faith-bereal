@@ -4,7 +4,7 @@ This matrix records deterministic checks that do not require an Apple Developer 
 
 | Area | Local evidence | Remaining release evidence |
 | --- | --- | --- |
-| Blank backend configuration | App composition falls back to the local repository; every simulator test command explicitly blanks Supabase variables | Misconfigured production build must fail visibly without leaking credentials |
+| Blank backend configuration | Debug app composition falls back to the local repository; every simulator test command explicitly blanks Supabase variables. Release validation rejects missing or placeholder hosted values without printing secrets | Hosted credential validity and production availability |
 | Duplicate blessing | Repository test rejects a second post for the same user and prompt | Database uniqueness/RPC behavior under two concurrent clients |
 | Prompt boundaries | Tests cover start/end exclusivity, late policy, circle-local day rollover, and Today states | Server clock skew and scheduler/retry behavior |
 | Current-day privacy | Tests cover peer locking before submission and historical visibility | RLS checks with two hosted accounts and realtime inserts |

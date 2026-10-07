@@ -10,7 +10,8 @@ This checklist separates work that can be proven locally from work that needs pr
 - [x] Privacy manifests are included in both app and widget targets and pass `plutil` validation.
 - [x] Adaptive wordmark assets compile into the widget/Live Activity extension, and the full notification logo compiles into the notification service extension.
 - [x] Draft App Store review notes identify permissions, review flow, and blockers.
-- [ ] Supply the final app icon and capture release-candidate screenshots.
+- [x] Supply the final app icon and adaptive transparent manna wordmarks.
+- [ ] Capture release-candidate screenshots.
 - [ ] Finalize customer-facing privacy policy, support page, store description, age rating, and localization.
 
 ## Apple Developer and physical-device validation
@@ -25,10 +26,12 @@ This checklist separates work that can be proven locally from work that needs pr
 ## Hosted Supabase validation
 
 - [ ] Complete the two-account acceptance matrix for authentication, circles, RLS, realtime, Storage, RPCs, and gating.
+- [x] Deploy all database migrations through `202610060010` and confirm local/remote history matches.
 - [x] Run the hosted dispatcher once per minute and verify consecutive HTTP 200 responses.
 - [x] Recover a real interrupted dispatch and verify the prompt returns to `open`.
 - [x] Diagnose the partial APNs result as provider-token rotation throttling and deploy a 45-minute server-only JWT cache.
 - [ ] Verify a post-cooldown dispatch has no `TooManyProviderTokenUpdates`, observe alert/Live Activity presentation, and validate Production/TestFlight device tokens.
+- [x] Deploy `dispatch-prompts` version 8 with the mutable-content alert required by the notification-logo extension.
 - [ ] Exercise a permanent APNs token error and verify invalid-token cleanup plus delivery observability.
 - [ ] Implement and validate account export, account deletion, media cleanup, and retention controls.
 - [x] Implement owner-confirmed member removal in the client, local repository, and server RPC.

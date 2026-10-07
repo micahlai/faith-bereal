@@ -6,7 +6,7 @@
 - The lock-screen and Dynamic Island Live Activity surfaces use the same light/dark wordmark instead of the generic circle-grid symbol.
 - Remote alerts opt into a notification service extension that attaches the full square manna logo. The small notification icon remains the iOS-controlled app icon.
 - The generated project builds with the app, Live Activity/widget extension, and notification service extension embedded. All 46 domain/unit tests and all 6 UI tests pass on an iPhone 17e simulator; an earlier iPhone 17 Pro run hit an Xcode test-worker startup stall before tests materialized.
-- A Release archive and App Store Connect export succeeded with production APNs, the Live Activity/widget extension, and the signed `app.manna-circle.ios.notification-service` extension; the export validator also confirmed the bundled notification logo. Production delivery still requires deploying the updated `dispatch-prompts` function and validating the branded alert on a physical TestFlight device.
+- `dispatch-prompts` version 8 is active with the mutable-content alert payload. A Release archive and App Store Connect export succeeded with production APNs, the Live Activity/widget extension, and the signed `app.manna-circle.ios.notification-service` extension; the export validator also confirmed the bundled notification logo. The branded alert still needs presentation validation on a physical TestFlight device.
 
 ## 2026-10-06 circle creation settings and invite rotation
 
@@ -14,8 +14,8 @@
 - Local and hosted creation paths schedule the current local-day prompt from those initial settings. The server remains authoritative for hosted prompt timing, while the creator's first-day exception permits sharing at any time on that circle-local day.
 - Owners can regenerate a circle's invite code from settings after a destructive confirmation. Rotation leaves current members in place and invalidates the prior code immediately.
 - The simulator suite now passes 52 tests: 46 domain/unit tests and 6 UI tests, including initial-setting persistence, current-day prompt creation, owner authorization, old-code invalidation, the full creation form, and the rotation confirmation flow.
-- Migration `202610060010_circle_creation_settings_and_code_rotation.sql` is prepared but not deployed because the Supabase CLI is unavailable in the current environment. Hosted creation and rotation remain unvalidated until it is applied.
-- App and extension identifiers now share the required `app.manna-circle.ios` prefix. Apple Developer identifiers/profiles and the Supabase Apple provider still need to be updated and revalidated for the new identifier before the next hosted physical-device pass.
+- Migration `202610060010_circle_creation_settings_and_code_rotation.sql` is deployed. Hosted creation and rotation still require two-account acceptance.
+- App and extension identifiers now share the required `app.manna-circle.ios` prefix, and App Store Connect export signing succeeded for the app, Live Activity/widget extension, and notification service extension. The Supabase Apple provider still needs to accept `app.manna-circle.ios` before the next hosted sign-in pass.
 
 ## 2026-10-06 physical-device build and test pass
 
@@ -32,8 +32,8 @@
 - That recovered dispatch reached APNs: 2 of 8 Sandbox alert/Live Activity requests were accepted across four registered device rows, while 6 failed with `TooManyProviderTokenUpdates`. This proves the scheduler, Edge Function, and APNs provider connection are live and identified stateless-runtime JWT rotation as the partial-delivery cause.
 - Migration `202610060009` and `dispatch-prompts` version 6 now atomically reuse one server-only APNs provider JWT for 45 minutes across Edge Function runtimes. The cache table is unreadable to app users and directly unreadable even to `service_role`; only its service-role RPC can return the short-lived token. A post-cooldown APNs dispatch remains to be observed.
 - Invalid alert and push-to-start tokens are now cleared when APNs returns a permanent token error; registrations are revoked only when neither token remains. The latest partial-failure run did not classify any stored token as permanently invalid.
-- All migrations through `202610060009` match the linked hosted project, and `dispatch-prompts` version 6 is active.
-- A generic iOS Release archive completed and passed strict code-signature verification. Its app and Live Activity/widget extension contain the expected Sign in with Apple/App Group capabilities, but the archive used an Apple Development identity, development APNs entitlement, and `get-task-allow`; an App Store distribution export remains unvalidated.
+- All migrations through `202610060010` match the linked hosted project, and `dispatch-prompts` version 8 is active.
+- The TestFlight candidate workflow runs the local simulator suite, archives a hosted Release build, exports an App Store Connect IPA, and rejects missing production APNs, debugging entitlement, Sign in with Apple, App Group, extension signatures, or notification-logo resources. Build 1 completed that workflow before notification branding; the branded build 2 archive/export then passed the expanded validator.
 
 ## 2026-10-06 media playback and notification registration
 
@@ -107,7 +107,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - Forty-six domain tests and six UI tests pass on the simulator. The earlier 43-domain/4-UI plan also passed on a signed iPhone 14 Pro running iOS 26.6.2. Current UI coverage adds the all-settings creation form and owner invite-code rotation to Today, Timeline scrolling, dark appearance, accessibility-size text, text/voice-versus-video photo attachment availability, and the local owner force-notification flow.
 - Simulator UI reviewed in light mode and on a small iPhone in dark mode with accessibility-size text; scroll clearance and Reduce Motion behavior were corrected from that pass.
 - Supabase schema includes auth profiles, private circles, membership join dates, configurable schedules, gated blessings, responses, scripture references, device/activity tokens, private media policies, realtime publication, and transactional RPCs.
-- Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols; blank configuration safely falls back to the local demo.
+- Native Sign in with Apple and the production Supabase repository compile behind the existing service protocols. Blank configuration safely falls back to the local demo in Debug, while Release now fails before compilation without valid hosted Supabase values and production APNs settings.
 - APNs Edge Function covers daily scheduling, atomic prompt claims, dynamic alert copy, and Live Activity start/update/end payloads.
 - Circle owner settings, late indicators, Bible tagging/preview/version preference, drag verse selection, media detail, responses, and joined-circle timeline markers are implemented.
 - Multiple circles are loaded and switched globally; user settings live behind the hamburger menu, and circle settings include a confirmed leave flow with owner handoff.
@@ -124,7 +124,7 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 - The local failure matrix covers deterministic prompt, visibility, repeat, media, widget, and UI edges; signed-device load/battery/network/media/push evidence remains open.
 - Circle owners can remove another active member through a confirmed settings action; the server-authorized RPC is deployed but awaits two-account validation. Abuse reporting remains open.
 - Typed and voice blessings can include one optional captured or uploaded photo, persisted locally and represented by a private `photo_path` in the production adapter; video blessings cannot add a separate photo.
-- The hosted Supabase project is linked and migrations through `202610050001` are applied. The database reports `ACTIVE_HEALTHY`, and the new owner-only `force_circle_prompt` RPC is deployed. Ownership transfer, repeat blessings, member removal, blessing-photo persistence, and forced prompt delivery remain subject to two-account/physical-media acceptance. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
+- The hosted Supabase project is linked and migrations through `202610060010` are applied. The database reports `ACTIVE_HEALTHY`, and the owner-only prompt, settings, membership, and invite-code RPCs are deployed. Ownership transfer, repeat blessings, member removal, blessing-photo persistence, forced prompt delivery, circle creation settings, and code rotation remain subject to two-account/physical-media acceptance. Local client credentials are stored only in the ignored `Configuration/Secrets.xcconfig` file.
 - The Supabase Apple provider was validated for the former native bundle ID `app.blessingcircle.ios`. A signed physical-device flow completed Apple token exchange, profile bootstrap, membership loading, device registration, and circle creation against the hosted project on 2026-10-05. The provider and Apple Developer configuration must now be updated for `app.manna-circle.ios` before hosted sign-in is considered valid again.
 - After the `202609300002` circle backfill deployed, the physical-device client loaded circles, profiles, memberships, and prompts without the prior missing-field decoding failure.
 - Circle settings expose a confirmed owner-only force-notification action. Local demo mode restarts the timer/capture/Live Activity flow; hosted mode calls an owner-authorized server RPC and is designed to dispatch real APNs alerts and Live Activity start requests to every registered member device.
@@ -132,8 +132,8 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 
 ## In progress — not yet validated
 
-- Deploying and validating migration `202610060010`, including full-setting circle creation, same-day prompt generation, owner-only code rotation, and old-code rejection with two accounts.
-- Updating Apple Developer and Supabase Sign in with Apple registrations for the new `app.manna-circle.ios` app and extension identifiers.
+- Validating deployed migration `202610060010`, including full-setting circle creation, same-day prompt generation, owner-only code rotation, and old-code rejection with two accounts.
+- Updating the Supabase Sign in with Apple provider for `app.manna-circle.ios`, then revalidating native sign-in. Distribution signing for the app and both extensions now succeeds.
 - Validating the deployed schema, RLS policies, storage, realtime, RPCs, and Edge Function against two physical-device accounts.
 - Validating migrations `202609300001` through `202609300004` with two accounts and real text/voice photo uploads.
 - Validating one post-cooldown dispatch through the durable APNs provider-token cache, then confirming alert plus Live Activity presentation on physical devices.
@@ -144,10 +144,10 @@ Milestone 3.5 is complete against the local repository. Milestone 4 release-read
 ## Not yet production-ready
 
 - The Supabase deployment is a configuration checkpoint only and has not passed the acceptance matrix.
-- The signed development profile includes Sign in with Apple, development APNs, and the shared App Group; release/distribution provisioning remains unvalidated.
+- App Store distribution export now has production APNs, Sign in with Apple, the shared App Group, no debugging entitlement, and both signed extensions; App Store Connect upload and installation from TestFlight remain unvalidated.
 - Remote push-to-start Live Activities have a running scheduler and partial APNs acceptance, but still require physical-device presentation plus update/end verification.
 - Widget App Group signing and on-device refresh cadence still require Apple Developer capability and physical-device validation.
-- Customer-facing privacy copy, moderation flows, account deletion/export, final App Store assets, and TestFlight validation remain incomplete.
+- Customer-facing privacy copy, moderation flows, account deletion/export, App Store screenshots/metadata, and installed TestFlight validation remain incomplete.
 
 ## Next operational task
 

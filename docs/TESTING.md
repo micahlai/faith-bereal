@@ -18,6 +18,16 @@ xcodebuild -project BlessingCircle.xcodeproj \
 Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
 UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → Join/Create first-run flow.
 
+## TestFlight candidate
+
+Use an integer build number greater than the latest App Store Connect build:
+
+```sh
+TESTFLIGHT_BUILD_NUMBER=2 Scripts/prepare-testflight.sh
+```
+
+The workflow regenerates the project, runs the complete local-demo simulator suite, archives the hosted Release configuration, exports an App Store Connect IPA, and validates production APNs, `get-task-allow = false`, Sign in with Apple, the shared App Group, both embedded extension signatures, and the notification-logo resource. Release builds fail immediately when the hosted Supabase URL/key or production APNs setting is missing; Debug and simulator development retain the local-demo fallback.
+
 ## Owner force-notification control
 
 The current circle owner has an **Owner testing** section in Circle settings:
