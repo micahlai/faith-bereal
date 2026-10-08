@@ -54,6 +54,15 @@ final class BlessingCircleUITests: XCTestCase {
 
         let memberHeader = app.staticTexts["You"].firstMatch
         XCTAssertTrue(memberHeader.waitForExistence(timeout: 3))
+
+        let dayColumn = app.descendants(matching: .any)
+            .matching(identifier: "timeline.dayColumn")
+            .firstMatch
+        XCTAssertTrue(dayColumn.waitForExistence(timeout: 3))
+        let initialDayColumnX = dayColumn.frame.minX
+        app.swipeLeft()
+        XCTAssertEqual(dayColumn.frame.minX, initialDayColumnX, accuracy: 2)
+
         app.swipeUp()
         XCTAssertTrue(memberHeader.isHittable)
     }

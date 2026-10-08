@@ -4,6 +4,7 @@ import SwiftUI
 struct CircleTimelineView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: BlessingSelection?
+    @State private var horizontalOffset: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -18,13 +19,14 @@ struct CircleTimelineView: View {
                 ScrollView([.horizontal, .vertical]) {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         Section {
-                            Grid(alignment: .topLeading, horizontalSpacing: 20, verticalSpacing: 0) {
+                            Grid(alignment: .topLeading, horizontalSpacing: TimelineLayout.columnSpacing, verticalSpacing: 0) {
                                 ForEach(TimelineRow.rows(for: model.lanes, calendar: circleCalendar)) { row in
                                     TimelineDayRow(
                                         row: row,
                                         lanes: model.lanes,
                                         calendar: circleCalendar,
                                         currentUserID: model.currentUser?.id,
+                                        horizontalOffset: horizontalOffset,
                                         onSelect: { member, blessing in
                                             selection = BlessingSelection(member: member, blessing: blessing)
                                         }
@@ -34,12 +36,19 @@ struct CircleTimelineView: View {
                         } header: {
                             TimelineMemberHeader(
                                 lanes: model.lanes,
-                                currentUserID: model.currentUser?.id
+                                currentUserID: model.currentUser?.id,
+                                horizontalOffset: horizontalOffset
                             )
                         }
                     }
-                    .padding(.horizontal, AppTheme.pagePadding)
+                    .padding(.leading, TimelineLayout.leadingPadding)
+                    .padding(.trailing, AppTheme.pagePadding)
                     .padding(.bottom, 118)
+                }
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    max(0, geometry.contentOffset.x)
+                } action: { _, newOffset in
+                    horizontalOffset = newOffset
                 }
                 .scrollIndicators(.visible)
             }
@@ -63,6 +72,13 @@ struct CircleTimelineView: View {
     }
 }
 
+private enum TimelineLayout {
+    static let dayColumnWidth: CGFloat = 62
+    static let memberColumnWidth: CGFloat = 238
+    static let columnSpacing: CGFloat = 10
+    static let leadingPadding: CGFloat = 6
+}
+
 private struct BlessingSelection: Identifiable {
     let member: Member
     let blessing: Blessing
@@ -72,12 +88,15 @@ private struct BlessingSelection: Identifiable {
 private struct TimelineMemberHeader: View {
     let lanes: [TimelineLane]
     let currentUserID: UUID?
+    let horizontalOffset: CGFloat
 
     var body: some View {
-        Grid(alignment: .bottomLeading, horizontalSpacing: 20) {
+        Grid(alignment: .bottomLeading, horizontalSpacing: TimelineLayout.columnSpacing) {
             GridRow(alignment: .bottom) {
-                Color.clear
-                    .frame(width: 72, height: 1)
+                AppTheme.canvas
+                    .frame(width: TimelineLayout.dayColumnWidth, height: 68)
+                    .offset(x: horizontalOffset)
+                    .zIndex(3)
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
                     VStack(spacing: 8) {
@@ -87,15 +106,16 @@ private struct TimelineMemberHeader: View {
                             .foregroundStyle(AppTheme.ink)
                             .lineLimit(1)
                     }
-                    .frame(width: 238)
+                    .frame(width: TimelineLayout.memberColumnWidth)
                 }
             }
         }
-        .padding(.vertical, 12)
+        .padding(.top, 3)
+        .padding(.bottom, 7)
         .background(AppTheme.canvas)
         .overlay(alignment: .bottom) { Divider() }
         .accessibilityIdentifier("timeline.memberHeader")
-        .zIndex(2)
+        .zIndex(10)
     }
 }
 
@@ -144,6 +164,7 @@ private struct TimelineDayRow: View {
     let lanes: [TimelineLane]
     let calendar: Calendar
     let currentUserID: UUID?
+    let horizontalOffset: CGFloat
     let onSelect: (Member, Blessing) -> Void
 
     var body: some View {
@@ -158,8 +179,13 @@ private struct TimelineDayRow: View {
                         .foregroundStyle(AppTheme.primary)
                 }
             }
-            .frame(width: 72, alignment: .leading)
+            .frame(width: TimelineLayout.dayColumnWidth, alignment: .leading)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
             .padding(.top, 3)
+            .background(AppTheme.canvas)
+            .offset(x: horizontalOffset)
+            .zIndex(4)
+            .accessibilityIdentifier("timeline.dayColumn")
 
             ForEach(lanes) { lane in
                 if let event = row.eventsByMemberID[lane.member.id] {
@@ -169,13 +195,13 @@ private struct TimelineDayRow: View {
                         currentUserID: currentUserID,
                         onSelect: { blessing in onSelect(lane.member, blessing) }
                     )
-                    .frame(width: 238)
+                    .frame(width: TimelineLayout.memberColumnWidth)
                     .frame(maxHeight: .infinity, alignment: .top)
                 } else {
                     TimelineConnectorView(
                         isVisible: row.day >= calendar.startOfDay(for: lane.member.joinedAt)
                     )
-                    .frame(width: 238)
+                    .frame(width: TimelineLayout.memberColumnWidth)
                     .frame(minHeight: 42, maxHeight: .infinity, alignment: .top)
                 }
             }

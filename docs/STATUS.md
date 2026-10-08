@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-07 frozen timeline axes
+
+- The Timeline date column now counter-scrolls horizontally, keeping the day visible while member lanes move; the member header remains pinned vertically.
+- Leading and inter-column padding are tighter, and the pinned member row uses less top spacing plus an opaque high-priority surface so cards no longer peek above it.
+- The local-demo UI test verifies both the fixed day-column position and the pinned member header.
+
 ## 2026-10-07 native video presentation
 
 - Inline videos now size themselves from the asset's transformed presentation dimensions, preserving portrait, landscape, and rotated source aspect ratios.
