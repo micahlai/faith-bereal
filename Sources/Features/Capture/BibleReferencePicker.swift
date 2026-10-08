@@ -44,7 +44,10 @@ struct BibleReferencePicker: View {
         guard let verses = loadedChapter?.verses,
               verseStart > 0,
               verseEnd <= verses.count else { return nil }
-        return verses[(verseStart - 1)...(verseEnd - 1)].joined(separator: " ")
+        return BiblePassageFormatter.markedText(
+            verses: Array(verses[(verseStart - 1)...(verseEnd - 1)]),
+            startingAt: verseStart
+        )
     }
 
     var body: some View {

@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-07 scripture markers and multilingual versions
+
+- Verse previews and blessing-detail passages now prefix every verse with its superscript verse number instead of flattening a range into unmarked prose.
+- Migration `202610070007_expand_bible_versions.sql` expands the hosted profile constraint and update RPC to the same 20 free translations offered by the client, resolving rejected non-English selections.
+- The live Midvash catalog was checked for every configured translation slug; all currently resolve through the provider.
+
 ## 2026-10-07 frozen timeline axes
 
 - The Timeline date column now counter-scrolls horizontally, keeping the day visible while member lanes move; the member header remains pinned vertically.

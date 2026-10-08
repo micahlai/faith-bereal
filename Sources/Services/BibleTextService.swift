@@ -32,7 +32,10 @@ actor BibleAPIService: BibleTextProviding {
         let decoded: Envelope = try await request(
             path: "\(versionID)/\(reference.bookSlug)/\(reference.chapter)/\(range)"
         )
-        return decoded.data.text
+        return BiblePassageFormatter.markedText(
+            verses: decoded.data.verses,
+            startingAt: reference.verseStart
+        )
     }
 
     private func request<T: Decodable>(path: String) async throws -> T {

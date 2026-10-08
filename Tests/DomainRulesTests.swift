@@ -274,6 +274,16 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(Set(BibleTranslation.publicDomain.map(\.languageCode)).count, 12)
     }
 
+    func testBiblePassageFormatterAddsVerseMarkers() {
+        XCTAssertEqual(
+            BiblePassageFormatter.markedText(
+                verses: ["For God so loved the world.", "For God sent not his Son."],
+                startingAt: 16
+            ),
+            "¹⁶ For God so loved the world.\n¹⁷ For God sent not his Son."
+        )
+    }
+
     func testResponsesCanOnlyBeComposedForTheCurrentDayPrompt() {
         let now = Date(timeIntervalSince1970: 2_100_000_000)
         let prompt = DailyPrompt(

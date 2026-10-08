@@ -142,3 +142,20 @@ struct BibleBook: Identifiable, Hashable, Sendable {
 struct BibleChapter: Hashable, Sendable {
     let verses: [String]
 }
+
+enum BiblePassageFormatter {
+    static func markedText(verses: [String], startingAt firstVerse: Int) -> String {
+        verses.enumerated().map { index, verse in
+            "\(superscript(firstVerse + index)) \(verse)"
+        }
+        .joined(separator: "\n")
+    }
+
+    private static func superscript(_ number: Int) -> String {
+        let digits: [Character: Character] = [
+            "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
+            "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹",
+        ]
+        return String(String(number).compactMap { digits[$0] })
+    }
+}
