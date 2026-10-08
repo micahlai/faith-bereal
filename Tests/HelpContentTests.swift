@@ -40,4 +40,11 @@ final class HelpContentTests: XCTestCase {
         }
         XCTAssertTrue(HelpTopic.personalization.steps.map(\.body).joined().contains("Adjust photo"))
     }
+
+    func testNotificationGuideExplainsFullSenderPhotoAndFallback() {
+        let guide = HelpTopic.notifications.steps.map(\.body).joined(separator: " ")
+        for concept in ["full profile photo", "on the left", "fallback", "app-icon badge", "responses have no right image"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
 }

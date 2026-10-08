@@ -12,16 +12,18 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertTrue(NotificationIdentityImage.make(logo: logo, avatar: nil) === logo)
     }
 
-    func testNotificationIdentityAddsSmallAvatarWithoutReplacingLogo() throws {
+    func testNotificationIdentityUsesFullAvatarInsteadOfLogo() throws {
         let logo = UIGraphicsImageRenderer(size: NotificationIdentityImage.size).image { _ in
             UIColor.red.setFill()
             UIRectFill(CGRect(origin: .zero, size: NotificationIdentityImage.size))
         }
         let avatar = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 60)).image { _ in
-            UIColor.blue.setFill()
+            UIColor.red.setFill()
             UIRectFill(CGRect(x: 0, y: 0, width: 120, height: 60))
+            UIColor.blue.setFill()
+            UIRectFill(CGRect(x: 30, y: 0, width: 60, height: 60))
         }
-        let identity = NotificationIdentityImage.make(logo: logo, avatar: avatar)
+        let identity = try XCTUnwrap(NotificationIdentityImage.make(logo: logo, avatar: avatar))
         XCTAssertEqual(identity.size, NotificationIdentityImage.size)
         let cgImage = try XCTUnwrap(identity.cgImage)
         let context = try XCTUnwrap(CGContext(
@@ -36,10 +38,17 @@ final class DomainRulesTests: XCTestCase {
             if bytes[index] > 240 && bytes[index + 2] < 15 { redPixels += 1 }
             if bytes[index + 2] > 240 && bytes[index] < 15 { bluePixels += 1 }
         }
-        XCTAssertGreaterThan(redPixels, 50_000)
-        XCTAssertGreaterThan(bluePixels, 1_000)
-        XCTAssertLessThan(bluePixels, 10_000)
-        XCTAssertLessThan(NotificationIdentityImage.avatarFrame.midX, identity.size.width / 2)
+        XCTAssertEqual(redPixels, 0)
+        // Center-cropping the blue square excludes the red side bands. Image
+        // resampling can blend the two outer pixel columns at the crop edges.
+        XCTAssertGreaterThanOrEqual(bluePixels, 254 * 256)
+        XCTAssertNotNil(NotificationIdentityImage.make(logo: nil, avatar: avatar))
+    }
+
+    func testNotificationIdentityFallsBackForAnInvalidAvatar() {
+        let logo = UIImage()
+        XCTAssertTrue(NotificationIdentityImage.make(logo: logo, avatar: UIImage()) === logo)
+        XCTAssertNil(NotificationIdentityImage.make(logo: nil, avatar: nil))
     }
 
     func testCircleInviteLinkBuildsAndParsesTheProductionUniversalLink() throws {

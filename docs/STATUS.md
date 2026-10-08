@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-08 full sender photo in notifications
+
+- Peer blessing and response alerts now fill the main left identity image with the sender's profile photo rather than compositing a small avatar over the manna logo. A centered square crop preserves proportions, bounded to 256 pixels; missing/invalid photos retain the selected-logo fallback. A valid photo no longer depends on loading a logo resource.
+- Titles, message bodies, scripture references, privacy gates, right-side photo/video attachments, reminder images, and Live Activities are unchanged. iOS still owns its small app-icon badge.
+- Customer Help and notification image regressions cover full-image crop, logo fallback, and missing-image behavior. All 108 local app/domain tests and the signed hosted Release build pass. Actual remote-notification appearance requires a new phone/TestFlight build and remains pending; no hosted deployment, phone installation, or TestFlight upload was performed.
+
 ## 2026-10-08 accessibility baseline
 
 - Timeline adds a single-column List, selected automatically for VoiceOver and accessibility text sizes, with a toolbar choice to return to Threads. Dates scroll with their sections in List; the existing compact frozen Threads header is unchanged. Spoken cards include author, circle-local day, capture type, full text/transcript, scripture, and late status.

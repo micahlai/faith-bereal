@@ -95,6 +95,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         ]
         case .notifications: [
             .init("bell.badge", "Choose circle alerts", "In User settings, each circle has separate switches for other members' blessings/followed responses and the end-of-day reminder. Response alerts go to the blessing author and people who previously responded, not the new responder."),
+            .init("person.crop.circle", "Recognize the sender", "Blessing and response alerts show the sender's full profile photo on the left. If their photo is missing or cannot load, the manna logo is the fallback. iOS adds its own small app-icon badge. Unlocked blessing photos or video previews may appear on the right; responses have no right image."),
             .init("timer", "Live Activities", "The daily invitation can appear on your Lock Screen and Dynamic Island. It updates after you submit and disappears after a three-minute grace period. Late-enabled sharing stays available until you submit or a newer prompt replaces it."),
             .init("square.grid.2x2", "Add a Home Screen widget", "Touch and hold the Home Screen, choose Edit → Add Widget, search for manna circle, and choose a size. During sharing time, tap it to open Today. Otherwise it rotates visible blessings; tap one to open it."),
             .init("gearshape", "Control the experience", "Choose the widget refresh interval in User settings, default 30 minutes. iOS controls exact refresh and delivery timing. If alerts or Live Activities are missing, check their permissions in iPhone Settings."),

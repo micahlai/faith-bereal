@@ -184,15 +184,11 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
         )
         let logoURL = Bundle.main.url(forResource: logoName, withExtension: "png")
             ?? Bundle.main.url(forResource: "NotificationLogo", withExtension: "png")
-        let identityImage = logoURL
-            .flatMap { UIImage(contentsOfFile: $0.path) }
-            .flatMap { logo in
-                NotificationIdentityImage.make(
-                    logo: logo,
-                    avatar: avatarURL.flatMap(NotificationIdentityImage.loadAvatar)
-                ).pngData()
-            }
-            .map { INImage(imageData: $0) }
+        let identityData = NotificationIdentityImage.make(
+            logo: logoURL.flatMap { UIImage(contentsOfFile: $0.path) },
+            avatar: avatarURL.flatMap(NotificationIdentityImage.loadAvatar)
+        )?.pngData()
+        let identityImage = identityData.map { INImage(imageData: $0) }
         let sender = INPerson(
             personHandle: INPersonHandle(value: senderID, type: .unknown),
             nameComponents: nil,
