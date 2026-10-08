@@ -6,13 +6,14 @@
 - Today presents an untimed end-of-day share card and mixes unlocked daily/end-of-day blessings by recency. Timeline groups both in one day row with the end-of-day event above the random event, while each prompt keeps its own submission privacy gate.
 - The five-hour entry window closes earlier when the next daily prompt starts. Timely entry grants still permit a later upload, including after midnight.
 - User settings expose a separate end-of-day reminder switch per circle. The scheduler sends one normal APNs alert only to opted-in members and never starts a Live Activity for this prompt kind.
-- All 78 app/domain tests pass in local-demo mode. Notification/Live Activity payload checks and dispatcher type checking pass. Transactional hosted SQL regressions also pass and leave no test users or circles behind.
-- Migration `202610070008_end_of_day_blessings.sql` and the updated dispatcher are implemented but remain pending hosted deployment and two-account physical-device acceptance.
+- All 78 app/domain tests and eight UI tests pass in local-demo mode. The signed Release device build, notification/Live Activity payload checks, and dispatcher type checking pass. Transactional hosted SQL regressions also pass and leave no test users or circles behind.
+- Migration `202610070008_end_of_day_blessings.sql` is deployed and `dispatch-prompts` version 14 is active. Hosted schema lint has no errors; the once-per-minute scheduler is enabled and its latest five HTTP responses are 200, including runs after deployment. Two-account physical-device push/media acceptance remains pending.
 
 ## 2026-10-07 scripture markers and multilingual versions
 
 - Verse previews and blessing-detail passages now prefix every verse with its superscript verse number instead of flattening a range into unmarked prose.
 - Migration `202610070007_expand_bible_versions.sql` expands the hosted profile constraint and update RPC to the same 20 free translations offered by the client, resolving rejected non-English selections.
+- The migration is deployed and the hosted schema passes error-level lint.
 - Both the live Midvash catalog and an actual two-verse passage were checked for every configured translation slug; all 20 currently return verse text through the provider.
 
 ## 2026-10-07 frozen timeline axes
