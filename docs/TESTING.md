@@ -94,6 +94,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## UI and accessibility checks
 
+- first-run onboarding can move About → Appearance → App Icon → Widget, move backward without losing choices, and finish into the joined/no-circle app state;
+- app-icon onboarding cards use the actual cream/midnight artwork in one column, and the widget guide remains readable at accessibility text sizes;
 - circle creation exposes all owner settings before the final create action;
 - circle creation exposes the optional photo picker, while Circle Settings confirms before discarding unsaved changes and saves from the top-right toolbar;
 - an owner can regenerate an invite code only after acknowledging that the old code will stop working;

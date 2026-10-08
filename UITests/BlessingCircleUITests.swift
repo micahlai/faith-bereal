@@ -2,6 +2,43 @@ import XCTest
 
 final class BlessingCircleUITests: XCTestCase {
     @MainActor
+    func testStartupOnboardingSupportsBackNavigationAndWidgetGuide() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchArguments += [
+            "-onboarding.hasSeenAbout", "NO",
+            "-onboarding.hasChosenAppearance", "NO",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Step 1 of 4"].exists)
+        app.buttons["Continue"].tap()
+
+        XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Back"].exists)
+        app.buttons["Back"].tap()
+        XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 3))
+
+        app.buttons["Continue"].tap()
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["onboarding-icon-automatic"].exists)
+        XCTAssertTrue(app.buttons["onboarding-icon-cream"].exists)
+        XCTAssertTrue(app.buttons["onboarding-icon-midnight"].exists)
+
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.navigationBars["Widget"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Add manna to your Home Screen"].exists)
+        XCTAssertTrue(app.staticTexts["Search for “manna circle,” choose a size, and add it."].exists)
+        XCTAssertTrue(app.buttons["Back"].exists)
+
+        app.buttons["Continue"].tap()
+        XCTAssertFalse(app.navigationBars["Widget"].exists)
+    }
+
+    @MainActor
     func testTodayAndPinnedTimelineHeaderInLocalDemo() {
         continueAfterFailure = false
         let app = XCUIApplication()

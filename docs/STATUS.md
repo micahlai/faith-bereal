@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-07 startup onboarding navigation
+
+- First launch now moves through four explicit pages—About, Appearance, App Icon, and Widget—with progress, persistent bottom navigation, and a Back action on every page after Welcome.
+- App-icon selection has its own spacious one-column layout and renders the actual cream and midnight app-icon artwork instead of generated monograms. Automatic shows both real variants together.
+- The new widget page explains active-prompt and rotating-blessing behavior and gives the accurate iOS Home Screen steps; iOS does not offer an API for apps to install widgets automatically.
+
 ## 2026-10-07 notification media and Live Activity state
 
 - Blessing and response alerts use the circle name as the title and compact “name - message” copy after the recipient is allowed to view it. Blessing scripture references occupy a second line without including verse text; the pre-submission privacy gate remains intact.

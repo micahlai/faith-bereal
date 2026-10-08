@@ -10,10 +10,13 @@ struct RootView: View {
             case .idle, .loading:
                 LoadingView()
             case .ready:
-                if !model.hasSeenAbout {
-                    AboutView { model.hasSeenAbout = true }
-                } else if !model.hasChosenInitialAppearance {
-                    AppearanceOnboardingView { model.hasChosenInitialAppearance = true }
+                if !model.hasSeenAbout || !model.hasChosenInitialAppearance {
+                    StartupOnboardingView(
+                        initialPage: model.hasSeenAbout ? .appearance : .about
+                    ) {
+                        model.hasSeenAbout = true
+                        model.hasChosenInitialAppearance = true
+                    }
                 } else if model.circles.isEmpty {
                     EmptyCircleShell()
                 } else {
@@ -90,21 +93,7 @@ private struct AboutView: View {
                 AppTheme.canvas.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 28) {
-                        Image(systemName: "circle.hexagongrid.fill")
-                            .font(.system(size: 72, weight: .light))
-                            .foregroundStyle(AppTheme.primary)
-                        VStack(spacing: 8) {
-                            Text("manna circle")
-                                .font(.system(.largeTitle, design: .serif, weight: .bold))
-                            Text("daily blessings, shared together")
-                                .font(.title3)
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-                        VStack(alignment: .leading, spacing: 20) {
-                            aboutPoint("sun.haze", "About manna circle", "A friend told me that one of his prayer requests was to count his blessings from God throughout the day more. 1 John 1:7 tells us that our faith with God is meant to be shared, thus let's share our daily bread with each other throughout our day.")
-                            aboutPoint("bell.badge", "How does it work?", "Each circle receives one daily blessing time, wherever its members are. At that random time, everyone in the circle can share one thing on how God has blessed their day in the form of text, audio, or video.")
-                        }
-                        .blessingCard()
+                        AboutPageContent()
                         Button(showsDismissButton ? "Done" : "Continue") { onContinue() }
                             .buttonStyle(.borderedProminent)
                             .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
@@ -115,6 +104,30 @@ private struct AboutView: View {
             }
             .navigationTitle(showsDismissButton ? "About" : "")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+private struct AboutPageContent: View {
+    var body: some View {
+        VStack(spacing: 28) {
+            Image("MannaWordmark")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 280)
+                .accessibilityLabel("manna")
+            VStack(spacing: 8) {
+                Text("manna circle")
+                    .font(.system(.largeTitle, design: .serif, weight: .bold))
+                Text("daily blessings, shared together")
+                    .font(.title3)
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
+            VStack(alignment: .leading, spacing: 20) {
+                aboutPoint("sun.haze", "About manna circle", "A friend told me that one of his prayer requests was to count his blessings from God throughout the day more. 1 John 1:7 tells us that our faith with God is meant to be shared, thus let's share our daily bread with each other throughout our day.")
+                aboutPoint("bell.badge", "How does it work?", "Each circle receives one daily blessing time, wherever its members are. At that random time, everyone in the circle can share one thing on how God has blessed their day in the form of text, audio, or video.")
+            }
+            .blessingCard()
         }
     }
 
@@ -129,148 +142,359 @@ private struct AboutView: View {
     }
 }
 
-private struct AppearanceOnboardingView: View {
+private enum StartupOnboardingPage: Int, CaseIterable {
+    case about
+    case appearance
+    case appIcon
+    case widget
+
+    var title: String {
+        switch self {
+        case .about: "Welcome"
+        case .appearance: "Appearance"
+        case .appIcon: "App icon"
+        case .widget: "Widget"
+        }
+    }
+
+    var stepNumber: Int { rawValue + 1 }
+}
+
+private struct StartupOnboardingView: View {
     @Environment(AppModel.self) private var model
-    let onContinue: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var page: StartupOnboardingPage
+    let onFinished: () -> Void
+
+    init(initialPage: StartupOnboardingPage, onFinished: @escaping () -> Void) {
+        _page = State(initialValue: initialPage)
+        self.onFinished = onFinished
+    }
 
     var body: some View {
         @Bindable var model = model
         NavigationStack {
             ZStack {
                 AppTheme.canvas.ignoresSafeArea()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Make it feel at home")
-                                .font(.system(.largeTitle, design: .serif, weight: .bold))
-                            Text("Choose how manna circle looks on screen and on your Home Screen. You can change both anytime in User settings.")
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-                        Picker("Appearance", selection: $model.appearancePreference) {
-                            ForEach(AppearancePreference.allCases) { preference in
-                                Label(preference.title, systemImage: preference.systemImage).tag(preference)
-                            }
-                        }
-                        .pickerStyle(.inline)
-                        .blessingCard()
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("App icon")
-                                .font(.headline)
-                            AppIconChoiceGrid()
-
-                            if model.isChangingAppIcon {
-                                HStack {
-                                    ProgressView()
-                                    Text("Changing app icon…")
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.secondaryInk)
-                                }
-                            }
-                            Text("Automatic follows the Home Screen appearance. Cream and Midnight keep one logo style.")
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-                        .blessingCard()
-
-                        Button("Continue") { onContinue() }
-                            .buttonStyle(.borderedProminent)
-                            .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
-                            .disabled(model.isChangingAppIcon)
+                VStack(spacing: 0) {
+                    StartupProgressHeader(page: page)
+                    ScrollView {
+                        pageContent(appearancePreference: $model.appearancePreference)
+                            .frame(maxWidth: 620, alignment: .leading)
+                            .padding(AppTheme.pagePadding)
+                            .frame(maxWidth: .infinity)
+                            .id(page)
                     }
-                    .frame(maxWidth: 620)
-                    .padding(AppTheme.pagePadding)
-                    .frame(maxWidth: .infinity)
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                navigationControls
+            }
+            .navigationTitle(page.title)
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    @ViewBuilder
+    private func pageContent(appearancePreference: Binding<AppearancePreference>) -> some View {
+        switch page {
+        case .about:
+            AboutPageContent()
+        case .appearance:
+            AppearanceOnboardingPage(selection: appearancePreference)
+        case .appIcon:
+            AppIconOnboardingPage()
+        case .widget:
+            WidgetOnboardingPage()
+        }
+    }
+
+    private var navigationControls: some View {
+        HStack(spacing: 12) {
+            if page != .about {
+                Button("Back") { move(to: page.rawValue - 1) }
+                    .buttonStyle(.bordered)
+                    .frame(minWidth: 96, minHeight: AppTheme.controlHeight)
+            }
+            Button("Continue") {
+                if page == .widget {
+                    onFinished()
+                } else {
+                    move(to: page.rawValue + 1)
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+            .disabled(page == .appIcon && model.isChangingAppIcon)
+        }
+        .frame(maxWidth: 620)
+        .padding(.horizontal, AppTheme.pagePadding)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+    }
+
+    private func move(to rawValue: Int) {
+        guard let nextPage = StartupOnboardingPage(rawValue: rawValue) else { return }
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) {
+            page = nextPage
+        }
+    }
+}
+
+private struct StartupProgressHeader: View {
+    let page: StartupOnboardingPage
+
+    var body: some View {
+        VStack(spacing: 7) {
+            ProgressView(
+                value: Double(page.stepNumber),
+                total: Double(StartupOnboardingPage.allCases.count)
+            )
+            .tint(AppTheme.primary)
+            Text("Step \(page.stepNumber) of \(StartupOnboardingPage.allCases.count)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+        .padding(.horizontal, AppTheme.pagePadding)
+        .padding(.top, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Step \(page.stepNumber) of \(StartupOnboardingPage.allCases.count), \(page.title)")
+    }
+}
+
+private struct AppearanceOnboardingPage: View {
+    @Binding var selection: AppearancePreference
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            onboardingHeading(
+                "Make it feel at home",
+                "Choose how manna circle looks on screen. You can change this anytime in User settings."
+            )
+            Picker("Appearance", selection: $selection) {
+                ForEach(AppearancePreference.allCases) { preference in
+                    Label(preference.title, systemImage: preference.systemImage).tag(preference)
+                }
+            }
+            .pickerStyle(.inline)
+            .blessingCard()
+        }
+    }
+}
+
+private struct AppIconOnboardingPage: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            onboardingHeading(
+                "Choose your manna icon",
+                "Pick the logo you want on your Home Screen. Automatic follows your device appearance."
+            )
+            AppIconChoiceGrid()
+            if model.isChangingAppIcon {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Changing app icon…")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+                .accessibilityElement(children: .combine)
             }
         }
     }
 }
 
+private struct WidgetOnboardingPage: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            onboardingHeading(
+                "Add manna to your Home Screen",
+                "The widget takes you straight to Today when it is time to share. At other times, it gently rotates recent blessings from your circles."
+            )
+            WidgetOnboardingPreview()
+            VStack(alignment: .leading, spacing: 18) {
+                instructionRow(1, "Touch and hold an empty area on your Home Screen.")
+                instructionRow(2, "Tap Edit, then Add Widget.")
+                instructionRow(3, "Search for “manna circle,” choose a size, and add it.")
+            }
+            .blessingCard()
+            Text("You can continue without adding it and follow these same steps whenever you’re ready.")
+                .font(.footnote)
+                .foregroundStyle(AppTheme.secondaryInk)
+        }
+    }
+
+    private func instructionRow(_ number: Int, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Text("\(number)")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(AppTheme.primary, in: Circle())
+                .accessibilityHidden(true)
+            Text(text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Step \(number). \(text)")
+    }
+}
+
+private struct WidgetOnboardingPreview: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Your circle")
+                        .font(.headline)
+                    Text("Time to share a blessing")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+                Spacer()
+                Image("MannaWordmark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 74)
+                    .accessibilityHidden(true)
+            }
+            Text("What has blessed you today?")
+                .font(.title3.weight(.semibold))
+            Label("Opens Today", systemImage: "arrow.up.forward.app")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.primary)
+        }
+        .padding(18)
+        .frame(maxWidth: 330, minHeight: 168, alignment: .leading)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(AppTheme.divider, lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.08), radius: 18, y: 8)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Example manna circle widget. Your circle. Time to share a blessing. What has blessed you today? Opens Today.")
+    }
+}
+
+private func onboardingHeading(_ title: String, _ detail: String) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+        Text(title)
+            .font(.system(.largeTitle, design: .serif, weight: .bold))
+        Text(detail)
+            .foregroundStyle(AppTheme.secondaryInk)
+    }
+}
+
 private struct AppIconChoiceGrid: View {
     @Environment(AppModel.self) private var model
-    private let columns = [GridItem(.adaptive(minimum: 112), spacing: 12)]
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
+        VStack(spacing: 12) {
             ForEach(AppIconPreference.allCases) { preference in
                 let isSelected = model.appIconPreference == preference
                 Button {
                     Task { await model.updateAppIcon(preference) }
                 } label: {
-                    VStack(spacing: 10) {
-                        AppIconPreview(preference: preference)
-                            .frame(height: 78)
-                        HStack(spacing: 5) {
-                            Text(preference.title)
-                                .font(.subheadline.weight(.semibold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            if isSelected {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(AppTheme.primary)
-                                    .accessibilityHidden(true)
+                    Group {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            VStack(spacing: 14) {
+                                AppIconPreview(preference: preference)
+                                choiceText(preference, isSelected: isSelected)
+                            }
+                        } else {
+                            HStack(spacing: 16) {
+                                AppIconPreview(preference: preference)
+                                    .frame(width: 154)
+                                choiceText(preference, isSelected: isSelected)
                             }
                         }
                     }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, minHeight: 132)
-                    .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .padding(16)
+                    .frame(maxWidth: .infinity, minHeight: 124)
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 3 : 1)
                     }
-                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .disabled(model.isChangingAppIcon)
+                .accessibilityIdentifier("onboarding-icon-\(preference.rawValue)")
                 .accessibilityLabel("\(preference.title) app icon")
                 .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                .accessibilityHint(preference.detail)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
+        }
+    }
+
+    private func choiceText(_ preference: AppIconPreference, isSelected: Bool) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(preference.title)
+                    .font(.headline)
+                Text(preference.detail)
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .multilineTextAlignment(.leading)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.title2)
+                .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.secondaryInk)
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private extension AppIconPreference {
+    var detail: String {
+        switch self {
+        case .automatic: "Matches your device appearance"
+        case .cream: "Warm cream background"
+        case .midnight: "Deep charcoal background"
         }
     }
 }
 
 private struct AppIconPreview: View {
     let preference: AppIconPreference
-    private let cream = Color(red: 0.98, green: 0.95, blue: 0.86)
-    private let charcoal = Color(red: 0.08, green: 0.07, blue: 0.07)
-    private let orange = Color(red: 0.69, green: 0.36, blue: 0.13)
 
     var body: some View {
-        switch preference {
-        case .automatic:
-            HStack(spacing: 6) {
-                logoTile(background: cream, foreground: charcoal)
-                logoTile(background: charcoal, foreground: cream)
+        Group {
+            switch preference {
+            case .automatic:
+                HStack(spacing: 8) {
+                    iconImage("MannaIconCream")
+                    iconImage("MannaIconMidnight")
+                }
+            case .cream:
+                iconImage("MannaIconCream")
+            case .midnight:
+                iconImage("MannaIconMidnight")
             }
-        case .cream:
-            logoTile(background: cream, foreground: charcoal)
-        case .midnight:
-            logoTile(background: charcoal, foreground: cream)
         }
+        .frame(height: 88)
+        .accessibilityHidden(true)
     }
 
-    private func logoTile(background: Color, foreground: Color) -> some View {
-        RoundedRectangle(cornerRadius: 15, style: .continuous)
-            .fill(background)
-            .aspectRatio(1, contentMode: .fit)
+    private func iconImage(_ name: String) -> some View {
+        Image(name)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 72, height: 72)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
-                HStack(spacing: 0) {
-                    Text("m")
-                        .foregroundStyle(foreground)
-                    Text(".")
-                        .foregroundStyle(orange)
-                }
-                .font(.system(size: 31, weight: .bold, design: .serif))
-                .minimumScaleFactor(0.65)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(.white.opacity(0.14), lineWidth: 1)
             }
-            .accessibilityHidden(true)
     }
 }
 
