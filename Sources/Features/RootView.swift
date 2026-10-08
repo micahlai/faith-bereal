@@ -212,19 +212,24 @@ private struct StartupOnboardingView: View {
     private var navigationControls: some View {
         HStack(spacing: 12) {
             if page != .about {
-                Button("Back") { move(to: page.rawValue - 1) }
+                Button { move(to: page.rawValue - 1) } label: {
+                    Text("Back")
+                        .frame(minWidth: 64, minHeight: AppTheme.controlHeight)
+                }
                     .buttonStyle(.bordered)
-                    .frame(minWidth: 96, minHeight: AppTheme.controlHeight)
             }
-            Button("Continue") {
+            Spacer(minLength: 12)
+            Button {
                 if page == .widget {
                     onFinished()
                 } else {
                     move(to: page.rawValue + 1)
                 }
+            } label: {
+                Text("Continue")
+                    .frame(minWidth: 104, minHeight: AppTheme.controlHeight)
             }
             .buttonStyle(.borderedProminent)
-            .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             .disabled(page == .appIcon && model.isChangingAppIcon)
         }
         .frame(maxWidth: 620)

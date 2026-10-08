@@ -3,6 +3,7 @@
 ## 2026-10-07 About heading refinement
 
 - The About/onboarding wordmark now sits above the single word “circle” in the same system serif family at regular weight, avoiding a repeated “manna” name below the logo.
+- Onboarding's fixed bottom bar now anchors Back to the left and Continue to the right, with the minimum tap area inside each styled button rather than an invisible full-width wrapper.
 
 ## 2026-10-07 end-of-day blessings
 

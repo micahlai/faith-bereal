@@ -28,6 +28,10 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertTrue(app.buttons["onboarding-icon-automatic"].exists)
         XCTAssertTrue(app.buttons["onboarding-icon-cream"].exists)
         XCTAssertTrue(app.buttons["onboarding-icon-midnight"].exists)
+        let continueButton = app.buttons["Continue"]
+        XCTAssertGreaterThan(continueButton.frame.midX, app.frame.width * 0.7)
+        XCTAssertLessThan(app.buttons["Back"].frame.midX, app.frame.width * 0.3)
+        XCTAssertEqual(continueButton.frame.midY, app.buttons["Back"].frame.midY, accuracy: 2)
 
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.navigationBars["Widget"].waitForExistence(timeout: 3))
