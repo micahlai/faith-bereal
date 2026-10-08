@@ -96,6 +96,8 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 
 For blessing length validation, run `bash Scripts/test-blessing-character-limit.sh` with local PostgreSQL tools installed. It starts a disposable database, applies the real limit migration, and tests typed/voice/video submission and edits at the old/new boundaries, Unicode length, direct-table enforcement, RPC grants, and unchanged 600-character responses. Its entry predicate is a fixture, not full hosted membership/RLS coverage. Do not run `blessing_character_limit_schema.sql` against any existing database.
 
+After deployment, `npx --no-install supabase db query --linked --file supabase/tests/blessing_character_limit_hosted.sql` checks the actual hosted create/submission/edit RPCs and guards using temporary transaction-scoped users/circles. Fixtures, posts, and notification queue events roll back; no dispatcher, cleanup worker, or Storage API runs. It tests RPC authorization rules but is not a complete authenticated-role RLS test.
+
 ## Integration tests
 
 - create and join circle with two accounts;
