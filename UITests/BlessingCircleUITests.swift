@@ -95,6 +95,53 @@ final class BlessingCircleUITests: XCTestCase {
     }
 
     @MainActor
+    func testTodayBottomRemainsStableAcrossClockTicksAndRepeatedScrolling() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 5))
+        app.buttons["Share a blessing"].tap()
+        let editor = app.textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.tap()
+        editor.typeText(String(repeating: "Thankful for the people who helped me today. ", count: 12))
+        app.swipeUp()
+        app.buttons["Send blessing"].tap()
+        XCTAssertTrue(app.staticTexts["Today’s circle"].waitForExistence(timeout: 5))
+
+        let scrollView = app.scrollViews["today.scrollView"]
+        for _ in 0..<3 { scrollView.swipeUp() }
+        let bottomComposer = app.textFields.matching(identifier: "Text response").element(boundBy: 1)
+        XCTAssertTrue(bottomComposer.waitForExistence(timeout: 5))
+        XCTAssertTrue(bottomComposer.isHittable)
+        let initialY = bottomComposer.frame.minY
+        // Multiple one-second timer updates must not change the resting bottom
+        // position; a predicate also catches oscillation between sample frames.
+        var samples = 0
+        var maximumDrift: CGFloat = 0
+        let stable = NSPredicate { _, _ in
+            maximumDrift = max(maximumDrift, abs(bottomComposer.frame.minY - initialY))
+            samples += 1
+            return samples >= 5
+        }
+        expectation(for: stable, evaluatedWith: nil)
+        waitForExpectations(timeout: 12)
+        XCTAssertLessThanOrEqual(maximumDrift, 2)
+
+        bottomComposer.tap()
+        bottomComposer.typeText("Keep this response draft")
+        scrollView.swipeDown()
+        scrollView.swipeDown()
+        scrollView.swipeUp()
+        scrollView.swipeUp()
+        XCTAssertEqual(bottomComposer.value as? String, "Keep this response draft")
+        XCTAssertFalse(app.alerts["manna circle"].exists)
+    }
+
+    @MainActor
     func testTodayAtLargestTextInDarkMode() {
         continueAfterFailure = false
         let app = XCUIApplication()

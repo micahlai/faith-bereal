@@ -4,22 +4,25 @@ struct TodayView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
-            ZStack {
-                AppTheme.canvas.ignoresSafeArea()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 28) {
-                        header
+        ZStack {
+            AppTheme.canvas.ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    header
+                    // Keep the scroll container outside the clock's invalidation
+                    // boundary, while still updating prompt/deadline transitions.
+                    SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
                         todayContent(at: context.date)
                     }
-                    .frame(maxWidth: 680)
-                    .padding(.horizontal, AppTheme.pagePadding)
-                    .padding(.vertical, 18)
-                    .padding(.bottom, 100)
-                    .frame(maxWidth: .infinity)
                 }
-                .refreshable { await model.refreshCurrentCircle() }
+                .frame(maxWidth: 680)
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.vertical, 18)
+                .padding(.bottom, 100)
+                .frame(maxWidth: .infinity)
             }
+            .accessibilityIdentifier("today.scrollView")
+            .refreshable { await model.refreshCurrentCircle() }
         }
         .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
@@ -40,6 +43,7 @@ struct TodayView: View {
             let items = model.currentPromptBlessings(at: date)
             if !items.isEmpty {
                 TodayBlessingsFeed(items: items)
+                    .equatable()
             }
 
             if model.currentUserBlessing(at: date) == nil {
@@ -138,11 +142,14 @@ private struct WaitingForPromptView: View {
     }
 }
 
-private struct TodayBlessingsFeed: View {
+private struct TodayBlessingsFeed: View, Equatable {
     let items: [BlessingFeedItem]
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 28) {
+        // This is one day's bounded feed, not the historical timeline. Lazy
+        // estimated heights and recycled async scripture/response rows can
+        // repeatedly change the bottom scroll limit as cards enter/leave view.
+        VStack(alignment: .leading, spacing: 28) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Today’s circle")

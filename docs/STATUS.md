@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-08 Today scroll stability
+
+- The Today scroll container no longer lives inside the once-per-second timer. Its bounded daily feed uses persistent, exactly sized cards rather than recycled lazy height estimates, and unchanged feed inputs skip timer-driven recomputation.
+- The local-demo regression verifies a long blessing, peer scripture/response content, resting bottom position across several timer ticks, repeated up/down scrolling, and preservation of a response draft. The focused simulator test passes.
+
 ## 2026-10-07 timeline frozen-layer repair
 
 - The member row is now a compact fixed header outside the two-axis content scroller, preventing tall section-header sizing and content painting above the pinned row.
