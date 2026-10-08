@@ -6,6 +6,10 @@ struct SavedBlessingRecord: Codable, Sendable {
     let savedAt: Date
     // Only relative file names are persisted: app container paths can change.
     let files: [String: String]
+    // Optional for compatibility with existing manual-save manifests.
+    var automaticallySaved: Bool? = nil
+
+    var isAutomatic: Bool { automaticallySaved == true }
 
     var containsExpiredMedia: Bool {
         expiredMedia(at: .now)
@@ -46,8 +50,16 @@ actor SavedBlessingStore {
     private let copier: any SavedBlessingMediaCopying
 
     init(root: URL? = nil, copier: any SavedBlessingMediaCopying = SavedBlessingMediaCopier()) {
-        self.root = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        var defaultRoot = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("SavedBlessings", isDirectory: true)
+#if DEBUG
+        if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1",
+           let session = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SAVING_TEST_SESSION"],
+           let id = UUID(uuidString: session) {
+            defaultRoot = FileManager.default.temporaryDirectory.appendingPathComponent("SavingUITests-\(id.uuidString)")
+        }
+#endif
+        self.root = root ?? defaultRoot
         self.copier = copier
     }
 
@@ -57,19 +69,48 @@ actor SavedBlessingStore {
         var records: [UUID: SavedBlessingRecord] = [:]
         for directory in try FileManager.default.contentsOfDirectory(at: account, includingPropertiesForKeys: nil) {
             guard let id = UUID(uuidString: directory.lastPathComponent),
-                  let data = try? Data(contentsOf: directory.appendingPathComponent("blessing.json")),
-                  let record = try? JSONDecoder().decode(SavedBlessingRecord.self, from: data),
-                  record.blessing.id == id else { continue }
-            records[id] = resolved(record, in: directory)
+                  let record = loadRecord(blessingID: id, userID: userID) else { continue }
+            records[id] = record
         }
         return records
     }
 
-    func save(blessing: Blessing, responses: [BlessingResponse], userID: UUID, now: Date = .now) async throws -> SavedBlessingRecord {
+    private func loadRecord(blessingID: UUID, userID: UUID) -> SavedBlessingRecord? {
+        let directory = root.appendingPathComponent(userID.uuidString).appendingPathComponent(blessingID.uuidString)
+        guard let data = try? Data(contentsOf: directory.appendingPathComponent("blessing.json")),
+              let record = try? JSONDecoder().decode(SavedBlessingRecord.self, from: data),
+              record.blessing.id == blessingID else { return nil }
+        return resolved(record, in: directory)
+    }
+
+    func loadPreferences(userID: UUID) throws -> LocalSavingPreferences {
+        let file = root.appendingPathComponent(userID.uuidString).appendingPathComponent("preferences.json")
+        guard FileManager.default.fileExists(atPath: file.path) else { return LocalSavingPreferences() }
+        return try JSONDecoder().decode(LocalSavingPreferences.self, from: Data(contentsOf: file))
+    }
+
+    func savePreferences(_ preferences: LocalSavingPreferences, userID: UUID) throws {
+        let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
+        try makeProtectedDirectory(account)
+        try JSONEncoder().encode(preferences).write(to: account.appendingPathComponent("preferences.json"),
+            options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    func keepManually(blessingID: UUID, userID: UUID) throws -> SavedBlessingRecord? {
+        guard var record = loadRecord(blessingID: blessingID, userID: userID) else { return nil }
+        record.automaticallySaved = false
+        let directory = root.appendingPathComponent(userID.uuidString).appendingPathComponent(blessingID.uuidString)
+        try writeManifest(record, in: directory)
+        return record
+    }
+
+    func save(blessing: Blessing, responses: [BlessingResponse], userID: UUID, now: Date = .now,
+              automatically: Bool = false, refreshing: Bool = false) async throws -> SavedBlessingRecord {
         let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
         try makeProtectedDirectory(account)
         let destination = account.appendingPathComponent(blessing.id.uuidString, isDirectory: true)
-        if let existing = try load(userID: userID)[blessing.id] { return existing }
+        let existing = loadRecord(blessingID: blessing.id, userID: userID)
+        if let existing, !refreshing { return existing }
         let staging = account.appendingPathComponent("staging-\(UUID().uuidString)", isDirectory: true)
         try makeProtectedDirectory(staging)
         defer { try? FileManager.default.removeItem(at: staging) }
@@ -84,7 +125,12 @@ actor SavedBlessingStore {
         for (key, source) in sources {
             try Task.checkCancellation()
             let ext = source.pathExtension.lowercased()
-            let name = key + "." + (["m4a", "mp4", "mov", "jpg", "jpeg", "png", "heic", "wav", "aac"].contains(ext) ? ext : "data")
+            if let name = existing?.files[key], source == destination.appendingPathComponent(name),
+               FileManager.default.fileExists(atPath: source.path) {
+                files[key] = name
+                continue
+            }
+            let name = key + "-" + UUID().uuidString + "." + (["m4a", "mp4", "mov", "jpg", "jpeg", "png", "heic", "wav", "aac"].contains(ext) ? ext : "data")
             let target = staging.appendingPathComponent(name)
             try await copier.copy(from: source, to: target)
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)
@@ -93,12 +139,44 @@ actor SavedBlessingStore {
         try Task.checkCancellation()
         let record = SavedBlessingRecord(
             blessing: blessing.replacingMedia(audio: nil, video: nil, photo: nil),
-            responses: responses.map { $0.replacingAudio(nil) }, savedAt: now, files: files
+            responses: responses.map { $0.replacingAudio(nil) }, savedAt: now, files: files,
+            automaticallySaved: automatically
         )
-        try JSONEncoder().encode(record).write(to: staging.appendingPathComponent("blessing.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try writeManifest(record, in: staging)
+        if let existing {
+            // Install new files first, then atomically switch the manifest. A failed
+            // refresh leaves the previous complete archive playable.
+            var installed: [URL] = []
+            do {
+                for name in files.values where existing.files.values.contains(name) == false {
+                    let target = destination.appendingPathComponent(name)
+                    try FileManager.default.moveItem(at: staging.appendingPathComponent(name), to: target)
+                    installed.append(target)
+                }
+                try writeManifest(record, in: destination)
+            } catch {
+                for file in installed { try? FileManager.default.removeItem(at: file) }
+                throw error
+            }
+            for name in existing.files.values where files.values.contains(name) == false {
+                guard name == URL(fileURLWithPath: name).lastPathComponent else { continue }
+                try? FileManager.default.removeItem(at: destination.appendingPathComponent(name))
+            }
+            return resolved(record, in: destination)
+        }
         // Publish only when every requested media file and the manifest exist.
         try FileManager.default.moveItem(at: staging, to: destination)
         return resolved(record, in: destination)
+    }
+
+    private func writeManifest(_ record: SavedBlessingRecord, in directory: URL) throws {
+        let manifest = SavedBlessingRecord(
+            blessing: record.blessing.replacingMedia(audio: nil, video: nil, photo: nil),
+            responses: record.responses.map { $0.replacingAudio(nil) }, savedAt: record.savedAt,
+            files: record.files, automaticallySaved: record.automaticallySaved
+        )
+        try JSONEncoder().encode(manifest).write(to: directory.appendingPathComponent("blessing.json"),
+            options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     func unsave(blessingID: UUID, userID: UUID) throws {
@@ -128,7 +206,7 @@ actor SavedBlessingStore {
         return SavedBlessingRecord(
             blessing: record.blessing.replacingMedia(audio: file("audio"), video: file("video"), photo: file("photo")),
             responses: record.responses.map { $0.replacingAudio(file($0.id.uuidString)) },
-            savedAt: record.savedAt, files: record.files
+            savedAt: record.savedAt, files: record.files, automaticallySaved: record.automaticallySaved
         )
     }
 }

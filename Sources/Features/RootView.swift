@@ -10,9 +10,10 @@ struct RootView: View {
             case .idle, .loading:
                 LoadingView()
             case .ready:
-                if !model.hasSeenAbout || !model.hasChosenInitialAppearance {
+                if !model.hasSeenAbout || !model.hasChosenInitialAppearance || !model.hasChosenInitialSaving {
                     StartupOnboardingView(
-                        initialPage: model.hasSeenAbout ? .appearance : .about
+                        initialPage: !model.hasSeenAbout ? .about
+                            : (!model.hasChosenInitialAppearance ? .appearance : .saving)
                     ) {
                         model.hasSeenAbout = true
                         model.hasChosenInitialAppearance = true
@@ -149,6 +150,7 @@ private enum StartupOnboardingPage: Int, CaseIterable {
     case about
     case appearance
     case appIcon
+    case saving
     case widget
 
     var title: String {
@@ -156,6 +158,7 @@ private enum StartupOnboardingPage: Int, CaseIterable {
         case .about: "Welcome"
         case .appearance: "Appearance"
         case .appIcon: "App icon"
+        case .saving: "Local saving"
         case .widget: "Widget"
         }
     }
@@ -207,39 +210,63 @@ private struct StartupOnboardingView: View {
             AppearanceOnboardingPage(selection: appearancePreference)
         case .appIcon:
             AppIconOnboardingPage()
+        case .saving:
+            VStack(alignment: .leading, spacing: 24) {
+                onboardingHeading("Keep blessings close", "Choose whether manna should keep private copies automatically. You can change this later in User settings.")
+                VStack(alignment: .leading, spacing: 16) {
+                    AutomaticSavingSettings()
+                }.blessingCard()
+                Label("Saved copies keep their audio/video after the server’s 30-day limit.", systemImage: "bookmark")
+                Label("Only content you’re allowed to see is saved. Opening manna lets new copies download; it cannot guarantee saving while the app is closed.", systemImage: "iphone")
+                    .foregroundStyle(AppTheme.secondaryInk)
+            }
         case .widget:
             WidgetOnboardingPage()
         }
     }
 
     private var navigationControls: some View {
-        HStack(spacing: 12) {
-            if page != .about {
-                Button { move(to: page.rawValue - 1) } label: {
-                    Text("Back")
-                        .frame(minWidth: 64, minHeight: AppTheme.controlHeight)
-                }
-                    .buttonStyle(.bordered)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                if page != .about { backControl }
+                Spacer(minLength: 12)
+                continueControl
             }
-            Spacer(minLength: 12)
-            Button {
-                if page == .widget {
-                    onFinished()
-                } else {
-                    move(to: page.rawValue + 1)
+            VStack(spacing: 8) {
+                if page != .about {
+                    backControl.frame(maxWidth: .infinity, alignment: .leading)
                 }
-            } label: {
-                Text("Continue")
-                    .frame(minWidth: 104, minHeight: AppTheme.controlHeight)
+                continueControl.frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(page == .appIcon && model.isChangingAppIcon)
         }
         .frame(maxWidth: 620)
         .padding(.horizontal, AppTheme.pagePadding)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
         .background(.bar)
+    }
+
+    private var backControl: some View {
+        Button { move(to: page.rawValue - 1) } label: {
+            Text("Back").fixedSize()
+                .frame(minWidth: 64, minHeight: AppTheme.controlHeight)
+        }.buttonStyle(.bordered)
+    }
+
+    private var continueControl: some View {
+        Button {
+            if page == .widget {
+                Task {
+                    if !model.hasChosenInitialSaving { await model.setAutomaticSavingEnabled(false) }
+                    if model.hasChosenInitialSaving { onFinished() }
+                }
+            } else { move(to: page.rawValue + 1) }
+        } label: {
+            Text("Continue").fixedSize()
+                .frame(minWidth: 104, minHeight: AppTheme.controlHeight)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled((page == .appIcon && model.isChangingAppIcon) || model.isChangingAutomaticSaving)
     }
 
     private func move(to rawValue: Int) {
@@ -802,6 +829,12 @@ private struct UserSettingsView: View {
                     Text("Appearance")
                 } footer: {
                     Text("Automatic lets iOS use the cream or midnight manna icon with the Home Screen appearance. Choose one to keep that logo all the time.")
+                }
+
+                Section {
+                    AutomaticSavingSettings()
+                } header: {
+                    Text("Saved blessings")
                 }
 
                 Section {

@@ -42,7 +42,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### User settings
 
-- First launch is a reversible four-step flow: About, Appearance, App Icon, and Widget. Every step after the first provides Back and Continue controls. App-icon choices use the real cream and midnight artwork in equal one-column cards, and the widget page briefly explains both prompt and rotating-blessing states plus Apple's Home Screen installation steps.
+- First launch is a reversible five-step flow: About, Appearance, App Icon, Local Saving, and Widget. Every step after the first provides Back and Continue controls. App-icon choices use the real cream and midnight artwork in equal one-column cards, and the widget page briefly explains both prompt and rotating-blessing states plus Apple's Home Screen installation steps. Accounts which completed the older setup are asked only for the new local-saving choice and widget reminder.
 - A global hamburger menu opens user settings and circle management from every primary tab.
 - Bible translation is an account-wide preference in user settings, not a circle setting.
 - Appearance is an account-wide preference with system, light, and dark choices.
@@ -145,6 +145,8 @@ This resolves the example in the brief as “history is always readable; only th
 - Saved media opens from the existing Timeline card after hosted expiry. The first save explains device-only storage, snapshot behavior, and loss on uninstall/device loss. Photo/video export to Photos is independent.
 - Above the Timeline card, show Saved for an archived blessing; otherwise show an audio/video expiry warning during the final 48 hours, including response audio due to expire. Text-only blessings with no voice responses do not get a false expiry warning.
 - Unsave removes only this account's local copy. If captured media is already past its hosted expiry, require a permanent-loss confirmation first.
+- Automatically save locally is an opt-in, account/device-specific setting offered during startup and in User settings. While the app is open, it archives visible blessings across all joined circles and refreshes automatic copies for new responses/edits. It does not unlock peer content or promise background downloads. Failures retry on the next refresh; they never interrupt scrolling with an alert.
+- Turning automatic saving off pauses the worker while the user chooses Keep all, Keep only my blessings, Keep none, or Choose from a list. Retained automatic copies become ordinary manual saves; pre-existing manual saves are untouched. Removing captured expired audio/video requires a permanent-loss confirmation. Cancel leaves automatic saving enabled. Individual Unsave excludes that blessing from future automatic saves.
 - See `docs/MEDIA_RETENTION.md` for storage, cleanup, and safe rollout details.
 
 ## Customer Help and circle setup

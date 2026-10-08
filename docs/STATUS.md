@@ -1,5 +1,13 @@
 # Project status
 
+## 2026-10-08 automatic private saving
+
+- Account setup adds a Local Saving step, and User settings exposes Automatically save locally. The preference and archives are account-isolated on this device; it is opt-in and does not change server retention or privacy gates.
+- While open/refreshing, manna archives visible blessings across all joined circles. Automatic copies refresh for new responses and edits with atomic manifests and reuse of downloaded media; manual saves remain snapshots. Individual Unsave prevents an automatic re-save. Download errors remain in Settings rather than creating scrolling alerts.
+- Turning off pauses downloads and offers Keep all, Keep only my blessings, Keep none, or an individually selectable list. Kept copies become ordinary manual saves; existing manual saves are never removed. Expired-media removal requires a permanent-loss warning, and Cancel resumes automatic saving.
+- Retention is 30 days, with Timeline warnings during days 28–30. Cleanup stays disabled until the save-capable TestFlight build is available, as explicitly selected by the owner. Hosted deployment/Storage acceptance and physical-device verification remain pending.
+- All 104 app/domain tests pass, including legacy-manifest compatibility and damaged-preference startup recovery. Focused small-phone checks pass for saving choices/Cancel, five-step onboarding, and largest-text dark/landscape setup. The UI/UX review led to adaptive stacked navigation at accessibility sizes so Back/Continue labels never split.
+
 ## 2026-10-08 guided circle creation
 
 - Circle creation is a full-screen nine-step flow with progress, Back/Continue controls, and focused explanations for name, optional photo, time zone, random range, entry duration, late sharing, evening time, and reuse window.
@@ -23,7 +31,7 @@
 - Save/Unsave blessing stores a complete available blessing snapshot and its current responses in account-isolated Application Support storage, including photo/audio/video and response audio. All requested files must download before Saved appears; partial failures leave no archive.
 - Relative media paths survive app-container changes; archives are protected and excluded from backup. They remain private to this account/device and do not affect peer access, hosted retention, or current-day sharing gates.
 - Timeline labels show Saved or a final-48-hour media-expiry warning above each blessing. Saved files are used for playback after remote expiry. The first save explains device-only behavior; removing an archive containing expired media requires a permanent-loss warning.
-- Local archive reload, video/voice/response preservation, account isolation, exact 12/30-day boundaries, partial failure, and privacy tests pass. The focused first-save/unsave UI flow passes. The current combined suite has 96 passing app/domain tests; physical-device media acceptance remains pending.
+- Local archive reload, video/voice/response preservation, account isolation, exact 28/30-day boundaries, partial failure, and privacy tests pass. The focused first-save/unsave UI flow passes. The current combined suite has 96 passing app/domain tests; physical-device media acceptance remains pending.
 
 ## 2026-10-08 photo and video export
 

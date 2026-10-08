@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0656CBB1BB9ED874C70CDF04 /* LocalSavingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99766B569313481B4404FC8 /* LocalSavingPreferences.swift */; };
 		081FDE84368F337DA538DBDB /* DebugPromptProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */; };
 		10596D0F5F4625E0FD03005C /* DomainRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */; };
 		11F93C0EA7D910BF3AD4ED3A /* BlessingCircleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8041666727C8764C007E33AB /* BlessingCircleUITests.swift */; };
@@ -32,6 +33,7 @@
 		6BF92E4D99CABF90A577F055 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234411076A53B6836F09CC17 /* CaptureView.swift */; };
 		6CB8153521635F4A4A1B73E0 /* SupabaseAuthenticationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */; };
 		6E3EA5BC5EB12D28AE3E167A /* BibleTextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94EA65921D482A449590AD64 /* BibleTextService.swift */; };
+		6E8B5C66679ECBF67B06008E /* AutomaticSavingSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A1A874188E1541AB6AE199 /* AutomaticSavingSettings.swift */; };
 		7062561AB6739AD4A1753E10 /* NotificationLogoDark.png in Resources */ = {isa = PBXBuildFile; fileRef = 593AC44B1C0400D9F82A6CC7 /* NotificationLogoDark.png */; };
 		7111D9D4FF317807638938E9 /* BlessingWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46B4D2ACEF8C03D2F117DE3 /* BlessingWidgetSnapshot.swift */; };
 		75E13967995B0BFF55A18ED9 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E10C692366BEAE2B09BBC9 /* SignInView.swift */; };
@@ -170,11 +172,13 @@
 		ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleLiveActivity.swift; sourceTree = "<group>"; };
 		AF96D83DCB140C9B96F965AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B2E758C164EC8B3AADB88384 /* HelpContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpContentTests.swift; sourceTree = "<group>"; };
+		B4A1A874188E1541AB6AE199 /* AutomaticSavingSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomaticSavingSettings.swift; sourceTree = "<group>"; };
 		B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseBlessingRepository.swift; sourceTree = "<group>"; };
 		BC88D8B6472E51A3AAACA1C4 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		BD086AB78C2411FC6492A448 /* BlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingRepository.swift; sourceTree = "<group>"; };
 		BE92F563E6DAAEFBB2C27EDD /* Production.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Production.xcconfig; sourceTree = "<group>"; };
 		C6CA663FF90616DE4D2EF65F /* PhotoResizeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoResizeEditor.swift; sourceTree = "<group>"; };
+		C99766B569313481B4404FC8 /* LocalSavingPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSavingPreferences.swift; sourceTree = "<group>"; };
 		CB07FA27407C6DC392249358 /* SaveBlessingMediaButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveBlessingMediaButton.swift; sourceTree = "<group>"; };
 		D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BlessingCircleLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlaybackController.swift; sourceTree = "<group>"; };
@@ -316,6 +320,7 @@
 		AEE7611FEBB0300B04EC7EC3 /* Media */ = {
 			isa = PBXGroup;
 			children = (
+				B4A1A874188E1541AB6AE199 /* AutomaticSavingSettings.swift */,
 				D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */,
 				CB07FA27407C6DC392249358 /* SaveBlessingMediaButton.swift */,
 				47D6E72576B35390AF97F762 /* SavedBlessingButton.swift */,
@@ -340,6 +345,7 @@
 				089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */,
 				A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */,
 				5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */,
+				C99766B569313481B4404FC8 /* LocalSavingPreferences.swift */,
 				7B59FA0F4DDB92375588F2E3 /* MediaRetentionPolicy.swift */,
 				766D059B090295A07973C5B3 /* Models.swift */,
 			);
@@ -659,6 +665,7 @@
 				6B1509197360169D25A8D398 /* AppDelegate.swift in Sources */,
 				821381643ABA5544F55B82B0 /* AppModel.swift in Sources */,
 				515DFFB02152CC5BA58CE379 /* AppTheme.swift in Sources */,
+				6E8B5C66679ECBF67B06008E /* AutomaticSavingSettings.swift in Sources */,
 				9D5FCA300508C441D2DCC72D /* BackendConfiguration.swift in Sources */,
 				4FBFFAFAD04AB8B07EFE16FA /* BibleModels.swift in Sources */,
 				989B338792772AC73A036EEC /* BibleReferencePicker.swift in Sources */,
@@ -678,6 +685,7 @@
 				A80F5D8A0A7E7E84AE2D1515 /* HelpContent.swift in Sources */,
 				C5AF669D80DCB1E8938FEC74 /* HelpView.swift in Sources */,
 				B693844FB4B9B287A6CF7CCC /* LocalBlessingRepository.swift in Sources */,
+				0656CBB1BB9ED874C70CDF04 /* LocalSavingPreferences.swift in Sources */,
 				8C46C5252F22D454030670E7 /* MediaAuthorization.swift in Sources */,
 				CACCB05EEFF73ED373306CBD /* MediaPlaybackController.swift in Sources */,
 				34E50D922571FAB91FD69D39 /* MediaRetentionPolicy.swift in Sources */,

@@ -741,6 +741,7 @@ struct BlessingContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if let audioURL = blessing.audioURL {
                         AudioBlessingPlayer(url: audioURL)
+                            .id(audioURL)
                     } else {
                         Label(MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt)
                             ? "Audio expired after 30 days" : "Audio is unavailable", systemImage: "waveform.slash")
@@ -759,6 +760,7 @@ struct BlessingContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if let videoURL = blessing.videoURL {
                         VideoBlessingPlayer(url: videoURL)
+                            .id(videoURL)
                         SaveBlessingMediaButton(url: videoURL, kind: .video)
                     } else {
                         ContentUnavailableView(MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt)

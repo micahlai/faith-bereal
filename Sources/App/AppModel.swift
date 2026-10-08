@@ -22,6 +22,18 @@ final class AppModel {
     private(set) var savedBlessings: [UUID: SavedBlessingRecord] = [:]
     private(set) var savingBlessingIDs: Set<UUID> = []
     private(set) var responseMediaDates: [UUID: [Date]] = [:]
+    private var localSavingPreferences = LocalSavingPreferences()
+    private var automaticSaveTask: Task<Void, Never>?
+    private var automaticSaveRunID: UUID?
+    private var automaticSaveNeedsAnotherPass = false
+    private(set) var isChangingAutomaticSaving = false
+    private(set) var isChoosingAutomaticSaving = false
+    private(set) var automaticSavingError: String?
+    private(set) var hasChosenInitialSaving = false
+    var automaticallySavesLocally: Bool { localSavingPreferences.isEnabled }
+    var automaticSavedBlessings: [SavedBlessingRecord] {
+        savedBlessings.values.filter(\.isAutomatic).sorted { $0.blessing.submittedAt > $1.blessing.submittedAt }
+    }
     private let activityController = PromptActivityController()
     private var realtimeTask: Task<Void, Never>?
     private var widgetSnapshotTask: Task<Void, Never>?
@@ -288,6 +300,15 @@ final class AppModel {
             let bootstrap = try await repository.bootstrap()
             self.currentUser = bootstrap.currentUser
             savedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
+            do {
+                localSavingPreferences = try await savedBlessingStore.loadPreferences(userID: bootstrap.currentUser.id)
+            } catch {
+                // A damaged local preference must not block sign-in or circle access.
+                localSavingPreferences = LocalSavingPreferences()
+                automaticSavingError = "Local saving settings couldn’t be read. Please choose your preference again; existing saved copies are unchanged."
+            }
+            hasChosenInitialSaving = localSavingPreferences.hasChosen
+                || ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
             self.circles = bootstrap.circles
             let preferredID = Self.persistedCircleID.flatMap { id in
                 bootstrap.circles.contains(where: { $0.id == id }) ? id : nil
@@ -341,8 +362,15 @@ final class AppModel {
         guard let authentication else { return }
         do {
             try await authentication.signOut()
+            automaticSaveTask?.cancel()
+            automaticSaveTask = nil
+            automaticSaveRunID = nil
             currentUser = nil
             savedBlessings = [:]
+            localSavingPreferences = LocalSavingPreferences()
+            hasChosenInitialSaving = false
+            automaticSavingError = nil
+            isChoosingAutomaticSaving = false
             responseMediaDates = [:]
             circles = []
             circle = nil
@@ -366,6 +394,7 @@ final class AppModel {
         guard let circle, let currentUser else { return }
         lanes = try await repository.timeline(circleID: circle.id, viewerID: currentUser.id, now: now)
         scheduleWidgetSnapshotRefresh(now: now)
+        scheduleAutomaticSaving()
     }
 
     func refreshCurrentCircle(now: Date = .now) async {
@@ -1046,6 +1075,7 @@ final class AppModel {
         do {
             let responses = try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
             responseMediaDates[blessing.id] = responses.filter { $0.mode == .voice }.map(\.submittedAt)
+            if savedBlessings[blessing.id]?.isAutomatic == true { scheduleAutomaticSaving() }
             let saved = savedBlessings[blessing.id]?.responses ?? []
             return responses.map { response in
                 if let localURL = saved.first(where: { $0.id == response.id })?.audioURL {
@@ -1118,10 +1148,165 @@ final class AppModel {
     func unsaveBlessing(_ blessing: Blessing) async {
         guard let userID = currentUser?.id else { return }
         do {
+            var preferences = localSavingPreferences
+            preferences.excludedBlessingIDs.insert(blessing.id)
+            try await savedBlessingStore.savePreferences(preferences, userID: userID)
+            guard currentUser?.id == userID else { return }
+            localSavingPreferences = preferences
             try await savedBlessingStore.unsave(blessingID: blessing.id, userID: userID)
             if currentUser?.id == userID { savedBlessings.removeValue(forKey: blessing.id) }
         } catch {
             message = "Couldn’t remove the saved blessing: \(error.localizedDescription)"
+        }
+    }
+
+    func setAutomaticSavingEnabled(_ enabled: Bool) async {
+        guard let userID = currentUser?.id, !isChangingAutomaticSaving else { return }
+        isChangingAutomaticSaving = true
+        defer { isChangingAutomaticSaving = false }
+        do {
+            var preferences = localSavingPreferences
+            preferences.isEnabled = enabled
+            preferences.hasChosen = true
+            try await savedBlessingStore.savePreferences(preferences, userID: userID)
+            guard currentUser?.id == userID else { return }
+            localSavingPreferences = preferences
+            hasChosenInitialSaving = true
+            automaticSavingError = nil
+            isChangingAutomaticSaving = false
+            if enabled { scheduleAutomaticSaving() }
+        } catch { message = "Couldn’t change local saving: \(error.localizedDescription)" }
+    }
+
+    func pauseAutomaticSavingForSelection() async {
+        isChoosingAutomaticSaving = true
+        automaticSaveTask?.cancel()
+        await automaticSaveTask?.value
+        automaticSaveTask = nil
+    }
+
+    func resumeAutomaticSavingAfterSelection() {
+        isChoosingAutomaticSaving = false
+        scheduleAutomaticSaving()
+    }
+
+    func disableAutomaticSaving(keepingIDs: Set<UUID>) async -> Bool {
+        guard let userID = currentUser?.id, !isChangingAutomaticSaving else { return false }
+        isChangingAutomaticSaving = true
+        defer { isChangingAutomaticSaving = false; isChoosingAutomaticSaving = false }
+        automaticSaveTask?.cancel()
+        await automaticSaveTask?.value
+        automaticSaveTask = nil
+        guard currentUser?.id == userID else { return false }
+        do {
+            var preferences = localSavingPreferences
+            preferences.isEnabled = false
+            preferences.hasChosen = true
+            try await savedBlessingStore.savePreferences(preferences, userID: userID)
+            localSavingPreferences = preferences
+            hasChosenInitialSaving = true
+            for record in automaticSavedBlessings {
+                let id = record.blessing.id
+                if keepingIDs.contains(id) {
+                    let kept = try await savedBlessingStore.keepManually(blessingID: id, userID: userID)
+                    guard currentUser?.id == userID else { return false }
+                    savedBlessings[id] = kept
+                } else {
+                    try await savedBlessingStore.unsave(blessingID: id, userID: userID)
+                    guard currentUser?.id == userID else { return false }
+                    savedBlessings.removeValue(forKey: id)
+                }
+            }
+            automaticSavingError = nil
+            return true
+        } catch {
+            message = "Couldn’t finish changing saved copies: \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func scheduleAutomaticSaving() {
+        guard automaticallySavesLocally, !isChangingAutomaticSaving, !isChoosingAutomaticSaving else { return }
+        if automaticSaveTask != nil {
+            automaticSaveNeedsAnotherPass = true
+            return
+        }
+        let runID = UUID()
+        automaticSaveRunID = runID
+        automaticSaveTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if self.automaticSaveRunID == runID {
+                    self.automaticSaveTask = nil
+                    self.automaticSaveRunID = nil
+                }
+            }
+            repeat {
+                self.automaticSaveNeedsAnotherPass = false
+                do { try await Task.sleep(for: .milliseconds(600)) } catch { return }
+                await self.saveVisibleBlessingsAutomatically()
+            } while self.automaticSaveNeedsAnotherPass && !Task.isCancelled && self.automaticallySavesLocally
+        }
+    }
+
+    // Can also be awaited by local regression tests; production calls run away
+    // from the main screen's loading lifecycle and never surface scrolling alerts.
+    func saveVisibleBlessingsAutomatically() async {
+        guard let userID = currentUser?.id, automaticallySavesLocally, !isChoosingAutomaticSaving else { return }
+        let memberships = circles
+        var failures = 0
+        for membership in memberships {
+            do {
+                try Task.checkCancellation()
+                let visibleLanes = membership.id == circle?.id ? lanes
+                    : try await repository.timeline(circleID: membership.id, viewerID: userID, now: .now)
+                let blessings = visibleLanes.flatMap(\.events).compactMap { event -> Blessing? in
+                    if case let .blessing(blessing) = event.status { return blessing }
+                    return nil
+                }
+                for blessing in blessings {
+                    try Task.checkCancellation()
+                    guard currentUser?.id == userID, automaticallySavesLocally,
+                          circles.contains(where: { $0.id == blessing.circleID }) else { return }
+                    guard !localSavingPreferences.excludedBlessingIDs.contains(blessing.id),
+                          !savingBlessingIDs.contains(blessing.id) else { continue }
+                    let existing = savedBlessings[blessing.id]
+                    if let existing, !existing.isAutomatic { continue }
+                    savingBlessingIDs.insert(blessing.id)
+                    do {
+                        defer { savingBlessingIDs.remove(blessing.id) }
+                        let responses = try await repository.responses(blessingID: blessing.id, viewerID: userID)
+                        if let existing,
+                           existing.blessing.body == blessing.body,
+                           existing.blessing.scriptureReference == blessing.scriptureReference,
+                           existing.responses.map(\.id) == responses.map(\.id),
+                           existing.responses.map(\.body) == responses.map(\.body) { continue }
+                        let available = resolvedBlessing(blessing)
+                        if blessing.captureMode != .typed, available.audioURL == nil && available.videoURL == nil,
+                           !MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt) {
+                            throw BlessingMediaSaveError.unavailable
+                        }
+                        let archivedResponses = responses.map { response in
+                            response.replacingAudio(existing?.responses.first(where: { $0.id == response.id })?.audioURL
+                                ?? (MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) ? nil : response.audioURL))
+                        }
+                        let record = try await savedBlessingStore.save(blessing: available, responses: archivedResponses,
+                            userID: userID, automatically: true, refreshing: existing != nil)
+                        guard currentUser?.id == userID, !Task.isCancelled else { return }
+                        savedBlessings[blessing.id] = record
+                    } catch {
+                        if Task.isCancelled || Self.isCancellation(error) { return }
+                        failures += 1
+                    }
+                }
+            } catch {
+                if Task.isCancelled || Self.isCancellation(error) { return }
+                failures += 1
+            }
+        }
+        if currentUser?.id == userID {
+            automaticSavingError = failures == 0 ? nil
+                : "Some blessings couldn’t be saved. Available copies will retry next time the app refreshes."
         }
     }
 

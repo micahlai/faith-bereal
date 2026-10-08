@@ -124,6 +124,153 @@ final class SavedBlessingStoreTests: XCTestCase {
         return root
     }
 
+    func testAutomaticPreferencePersistsOnlyForItsAccount() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), excluded = UUID()
+        let preferences = LocalSavingPreferences(isEnabled: true, hasChosen: true, excludedBlessingIDs: [excluded])
+        try await SavedBlessingStore(root: root).savePreferences(preferences, userID: user)
+        let same = try await SavedBlessingStore(root: root).loadPreferences(userID: user)
+        let other = try await SavedBlessingStore(root: root).loadPreferences(userID: UUID())
+        XCTAssertTrue(same.isEnabled)
+        XCTAssertTrue(same.hasChosen)
+        XCTAssertEqual(same.excludedBlessingIDs, [excluded])
+        XCTAssertFalse(other.isEnabled)
+        XCTAssertFalse(other.hasChosen)
+    }
+
+    func testExistingManifestWithoutAutomaticFlagRemainsManual() throws {
+        let record = SavedBlessingRecord(blessing: fixture(), responses: [], savedAt: .now, files: [:])
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(record)) as? [String: Any])
+        object.removeValue(forKey: "automaticallySaved")
+        let old = try JSONDecoder().decode(SavedBlessingRecord.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertFalse(old.isAutomatic)
+    }
+
+    @MainActor
+    func testDamagedSavingPreferenceCannotBlockStartupOrEraseCopies() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = LocalBlessingRepository()
+        let userID = try await repository.bootstrap().currentUser.id
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
+        try await store.savePreferences(LocalSavingPreferences(isEnabled: true, hasChosen: true), userID: userID)
+        let blessing = fixture()
+        _ = try await store.save(blessing: blessing, responses: [], userID: userID)
+        try Data("damaged preference".utf8).write(to: root.appendingPathComponent(userID.uuidString).appendingPathComponent("preferences.json"))
+        let model = AppModel(repository: repository, savedBlessingStore: store)
+        await model.bootstrap()
+        XCTAssertEqual(model.loadState, .ready)
+        XCTAssertFalse(model.automaticallySavesLocally)
+        XCTAssertNotNil(model.automaticSavingError)
+        XCTAssertNotNil(model.savedBlessings[blessing.id])
+    }
+
+    func testAllFourKeepChoicesFilterOnlyAutomaticCopies() async throws {
+        let mine = fixture(), other = fixture()
+        let records = [mine, other].map {
+            SavedBlessingRecord(blessing: $0, responses: [], savedAt: .now, files: [:], automaticallySaved: true)
+        }
+        XCTAssertEqual(AutomaticSaveKeepChoice.all.keptIDs(records: records, userID: mine.authorID, selectedIDs: []), [mine.id, other.id])
+        XCTAssertEqual(AutomaticSaveKeepChoice.mine.keptIDs(records: records, userID: mine.authorID, selectedIDs: []), [mine.id])
+        XCTAssertTrue(AutomaticSaveKeepChoice.none.keptIDs(records: records, userID: mine.authorID, selectedIDs: []).isEmpty)
+        XCTAssertEqual(AutomaticSaveKeepChoice.selected.keptIDs(records: records, userID: mine.authorID, selectedIDs: [other.id, UUID()]), [other.id])
+    }
+
+    func testKeepingAutomaticCopyConvertsToManualWithoutRemovingMedia() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blessing = fixture()
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
+        let automatic = try await store.save(blessing: blessing, responses: [], userID: user, automatically: true)
+        XCTAssertTrue(automatic.isAutomatic)
+        let kept = try await store.keepManually(blessingID: blessing.id, userID: user)
+        XCTAssertFalse(try XCTUnwrap(kept).isAutomatic)
+        XCTAssertEqual(kept?.blessing.audioURL, automatic.blessing.audioURL)
+        let reloaded = try await store.load(userID: user)
+        XCTAssertFalse(try XCTUnwrap(reloaded[blessing.id]).isAutomatic)
+    }
+
+    func testAutomaticRefreshAddsNewResponseAndFailurePreservesPreviousArchive() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blessing = fixture()
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
+        let first = try await store.save(blessing: blessing, responses: [], userID: user, automatically: true)
+        let response = responseFixture(blessing: blessing)
+        let updated = try await store.save(blessing: first.blessing, responses: [response], userID: user,
+            automatically: true, refreshing: true)
+        XCTAssertEqual(updated.blessing.audioURL, first.blessing.audioURL, "Keep the already downloaded file")
+        XCTAssertTrue(updated.responses[0].audioURL?.isFileURL == true)
+        let failing = SavedBlessingStore(root: root, copier: FixtureArchiveCopier(failingFile: "video.mp4"))
+        do {
+            let newResponse = responseFixture(blessing: blessing).replacingAudio(URL(string: "https://example.com/video.mp4"))
+            _ = try await failing.save(blessing: updated.blessing, responses: updated.responses + [newResponse], userID: user,
+                automatically: true, refreshing: true)
+            XCTFail("Download must fail")
+        } catch {}
+        let reloaded = try await store.load(userID: user)
+        XCTAssertEqual(reloaded[blessing.id]?.responses.map(\.id), [response.id])
+        XCTAssertEqual(reloaded[blessing.id]?.blessing.audioURL, first.blessing.audioURL)
+    }
+
+    @MainActor
+    func testAutomaticSavingCoversCirclesWithoutUnlockingAndRespectsIndividualUnsave() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
+        let repository = LocalBlessingRepository()
+        let bootstrap = try await repository.bootstrap()
+        let secondary = try await repository.circleContext(circleID: bootstrap.circles[1].id)
+        _ = try await repository.submit(promptID: XCTUnwrap(secondary.prompt?.id), authorID: bootstrap.currentUser.id,
+            mode: .typed, body: "A blessing in my other circle", audioURL: nil, videoURL: nil, photoURL: nil,
+            scriptureReference: nil, now: .now)
+        let model = AppModel(repository: repository, savedBlessingStore: store)
+        await model.bootstrap()
+        await model.setAutomaticSavingEnabled(true)
+        await model.saveVisibleBlessingsAutomatically()
+        XCTAssertTrue(model.currentPromptBlessings().isEmpty)
+        XCTAssertGreaterThan(Set(model.savedBlessings.values.map(\.blessing.circleID)).count, 1)
+        XCTAssertTrue(model.savedBlessings.values.allSatisfy(\.isAutomatic))
+        let saved = try XCTUnwrap(model.savedBlessings.values.first)
+        await model.unsaveBlessing(saved.blessing)
+        await model.saveVisibleBlessingsAutomatically()
+        XCTAssertNil(model.savedBlessings[saved.blessing.id])
+        await model.pauseAutomaticSavingForSelection()
+        let keep = Set(model.savedBlessings.keys)
+        let disabled = await model.disableAutomaticSaving(keepingIDs: keep)
+        XCTAssertTrue(disabled)
+        XCTAssertFalse(model.automaticallySavesLocally)
+        XCTAssertEqual(Set(model.savedBlessings.keys), keep)
+        XCTAssertTrue(model.savedBlessings.values.allSatisfy { !$0.isAutomatic })
+        let prefs = try await store.loadPreferences(userID: XCTUnwrap(model.currentUser?.id))
+        XCTAssertFalse(prefs.isEnabled)
+        XCTAssertTrue(prefs.hasChosen)
+    }
+
+    @MainActor
+    func testKeepNoneNeverDeletesExistingManualSave() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = AppModel(repository: LocalBlessingRepository(),
+            savedBlessingStore: SavedBlessingStore(root: root, copier: FixtureArchiveCopier()))
+        await model.bootstrap()
+        let blessing = try XCTUnwrap(model.lanes.flatMap(\.events).compactMap { event -> Blessing? in
+            if case let .blessing(value) = event.status, value.captureMode == .typed { return value }
+            return nil
+        }.first)
+        let saved = await model.saveBlessing(blessing)
+        XCTAssertTrue(saved)
+        await model.setAutomaticSavingEnabled(true)
+        await model.saveVisibleBlessingsAutomatically()
+        XCTAssertGreaterThan(model.automaticSavedBlessings.count, 0)
+        let disabled = await model.disableAutomaticSaving(keepingIDs: [])
+        XCTAssertTrue(disabled)
+        XCTAssertEqual(Array(model.savedBlessings.keys), [blessing.id])
+        await model.saveVisibleBlessingsAutomatically()
+        XCTAssertEqual(model.savedBlessings.count, 1)
+    }
+
     private func fixture(mode: CaptureMode = .voice, sent: Date = .now) -> Blessing {
         Blessing(
             id: UUID(), circleID: UUID(), promptID: UUID(), authorID: UUID(), captureMode: mode,

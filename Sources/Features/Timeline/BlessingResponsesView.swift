@@ -146,6 +146,7 @@ struct BlessingResponsesView: View {
             }
             if response.mode == .voice, let audioURL = response.audioURL {
                 AudioBlessingPlayer(url: audioURL)
+                    .id(audioURL)
             } else if response.mode == .voice,
                       MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) {
                 Label("Audio expired after 30 days", systemImage: "waveform.slash")

@@ -6,6 +6,7 @@ final class BlessingCircleUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += [
             "-onboarding.hasSeenAbout", "NO",
             "-onboarding.hasChosenAppearance", "NO",
@@ -13,7 +14,7 @@ final class BlessingCircleUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Step 1 of 4"].exists)
+        XCTAssertTrue(app.staticTexts["Step 1 of 5"].exists)
         XCTAssertTrue(app.staticTexts["circle"].exists)
         app.buttons["Continue"].tap()
 
@@ -38,13 +39,108 @@ final class BlessingCircleUITests: XCTestCase {
         add(onboardingLayout)
 
         app.buttons["Continue"].tap()
+        XCTAssertTrue(app.navigationBars["Local saving"].waitForExistence(timeout: 3))
+        let automaticSaving = app.switches["saving.automaticToggle"]
+        XCTAssertTrue(automaticSaving.exists)
+        automaticSaving.tap()
+        XCTAssertTrue(automaticSaving.waitForExistence(timeout: 3))
+        XCTAssertEqual(automaticSaving.value as? String, "1")
+        app.buttons["Continue"].tap()
         XCTAssertTrue(app.navigationBars["Widget"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Add manna to your Home Screen"].exists)
         XCTAssertTrue(app.staticTexts["Search for “manna circle,” choose a size, and add it."].exists)
         XCTAssertTrue(app.buttons["Back"].exists)
 
+        app.buttons["Back"].tap()
+        XCTAssertTrue(app.navigationBars["Local saving"].waitForExistence(timeout: 3))
+        XCTAssertEqual(app.switches["saving.automaticToggle"].value as? String, "1")
+        app.buttons["Continue"].tap()
+
         app.buttons["Continue"].tap()
         XCTAssertFalse(app.navigationBars["Widget"].exists)
+    }
+
+    @MainActor
+    func testAutomaticSavingSettingsOffersKeepChoicesAndCancellation() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
+        app.buttons["App menu"].tap()
+        app.buttons["User settings"].tap()
+        XCTAssertTrue(app.navigationBars["User settings"].waitForExistence(timeout: 3))
+        let automatic = app.switches["saving.automaticToggle"]
+        for _ in 0..<5 where !automatic.isHittable { app.swipeUp() }
+        XCTAssertTrue(automatic.isHittable)
+        // A Form exposes the entire labeled row as Switch; only the trailing
+        // UISwitch is interactive, unlike the standalone onboarding control.
+        automatic.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '1'"), object: automatic)
+        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 5), .completed)
+        automatic.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(app.navigationBars["Saved copies"].waitForExistence(timeout: 5))
+        for label in ["Keep all", "Keep only my blessings", "Keep none", "Choose from a list"] {
+            XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch.exists)
+        }
+        app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Choose from a list")).firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Pick blessings to keep"].waitForExistence(timeout: 3))
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Choose automatic copies to keep"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(automatic.waitForExistence(timeout: 3))
+        XCTAssertEqual(automatic.value as? String, "1")
+        automatic.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(app.navigationBars["Saved copies"].waitForExistence(timeout: 5))
+        app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Keep all")).firstMatch.tap()
+        app.buttons["Turn off"].tap()
+        let disabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '0'"), object: automatic)
+        XCTAssertEqual(XCTWaiter.wait(for: [disabled], timeout: 5), .completed)
+    }
+
+    @MainActor
+    func testLocalSavingSetupAtLargestTextInDarkAndLandscape() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchArguments += [
+            "-onboarding.hasSeenAbout", "YES", "-onboarding.hasChosenAppearance", "YES",
+            "-user.appearancePreference", "dark",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+            "-UIAccessibilityReduceMotionEnabled", "YES",
+        ]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Local saving"].waitForExistence(timeout: 5))
+        let automatic = app.switches["saving.automaticToggle"]
+        for _ in 0..<4 where !automatic.isHittable { app.swipeUp() }
+        XCTAssertTrue(automatic.isHittable)
+        XCTAssertTrue(app.buttons["Continue"].isHittable)
+        XCTAssertGreaterThanOrEqual(app.buttons["Continue"].frame.height, 44)
+        XCTAssertLessThanOrEqual(app.buttons["Continue"].frame.maxX, app.frame.width)
+        let portrait = XCTAttachment(screenshot: app.screenshot())
+        portrait.name = "Local saving at accessibility size in dark appearance"
+        portrait.lifetime = .keepAlways
+        add(portrait)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let rotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in app.frame.width > app.frame.height }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 5), .completed)
+        // Wait for the rotated scene to finish drawing, not just its window frame.
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Continue"].isHittable)
+        let landscape = XCTAttachment(screenshot: app.screenshot())
+        landscape.name = "Local saving landscape with safe navigation"
+        landscape.lifetime = .keepAlways
+        add(landscape)
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.navigationBars["Widget"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Back"].isHittable)
     }
 
     @MainActor
@@ -275,7 +371,7 @@ final class BlessingCircleUITests: XCTestCase {
         for _ in 0..<3 where !saving.isHittable { app.swipeUp() }
         saving.tap()
         XCTAssertTrue(app.navigationBars["Saving & media expiry"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["1. 14 days for hosted media"].exists)
+        XCTAssertTrue(app.staticTexts["1. 30 days for hosted media"].exists)
         let guide = XCTAttachment(screenshot: app.screenshot())
         guide.name = "Saving help topic"
         guide.lifetime = .keepAlways

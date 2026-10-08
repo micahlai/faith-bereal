@@ -22,7 +22,7 @@ begin
 
   perform public.queue_expired_media(100);
   if (select audio_path is not null or media_expired_at is null from public.blessings where id = v_old) then
-    raise exception 'exact 14-day boundary must expire'; end if;
+    raise exception 'exact 30-day boundary must expire'; end if;
   if (select body <> 'Keep transcript and photo' or photo_path <> 'old/photo.jpg' from public.blessings where id = v_old) then
     raise exception 'cleanup must retain text and photo'; end if;
   if exists(select 1 from public.media_deletion_queue where storage_path = 'old/audio.m4a') then

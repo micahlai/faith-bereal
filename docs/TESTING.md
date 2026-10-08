@@ -16,7 +16,7 @@ xcodebuild -project BlessingCircle.xcodeproj \
 ```
 
 Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
-UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → App Icon → Widget → Join/Create first-run flow.
+UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → App Icon → Local Saving → Widget → Join/Create first-run flow. Saving tests supply a unique `BLESSING_CIRCLE_SAVING_TEST_SESSION` in local Debug mode, isolating their temporary archives and preferences from normal simulator data.
 
 ## TestFlight candidate
 
@@ -46,7 +46,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Unit tests
 
-- media-retention boundaries at 12/30 days, account-isolated archive save/reload/unsave, response timestamps, atomic partial-download failure, and media restored through local Timeline playback;
+- media-retention boundaries at 28/30 days, account-isolated archive save/reload/unsave, response timestamps, atomic partial-download failure, and media restored through local Timeline playback;
 - Help catalog completeness and customer-facing explanations of saving, privacy, and deadline rules;
 
 - deadline boundary: just before, exactly at, and after `ends_at`;
@@ -111,8 +111,10 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 - guided circle setup validates the name, preserves Back navigation, explains each setting, and creates only after review;
 - Help opens from the app menu and its topic menu switches directly between features;
 - first Save blessing explains device-only storage; Save/Unsave updates the detail control and Timeline label;
+- automatic saving is offered in setup and Settings; disabling shows all four keep choices, supports selection and Cancel, and keeps the toggle on until a choice is committed;
+- automatic preference/account isolation, all/mine/none/selected filtering, conversion to manual, preserving pre-existing manual saves, cross-circle visibility locks, individual unsave exclusions, and atomic refresh failure;
 
-- first-run onboarding can move About → Appearance → App Icon → Widget, move backward without losing choices, and finish into the joined/no-circle app state;
+- first-run onboarding can move About → Appearance → App Icon → Local Saving → Widget, move backward without losing choices, and finish into the joined/no-circle app state;
 - app-icon onboarding cards use the actual cream/midnight artwork in one column, and the widget guide remains readable at accessibility text sizes;
 - circle creation exposes all owner settings before the final create action;
 - circle creation exposes the optional photo picker, while Circle Settings confirms before discarding unsaved changes and saves from the top-right toolbar;
