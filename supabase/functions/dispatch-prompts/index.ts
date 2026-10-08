@@ -11,6 +11,7 @@ import {
   circleActivityTitle,
   notificationMedia,
   promptReminder,
+  reminderMedia,
 } from "./notification-payload.ts";
 
 type Prompt = {
@@ -446,7 +447,7 @@ type DispatchOutcome = {
 async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   const { data: circle, error: circleError } = await admin
     .from("circles")
-    .select("name, allow_late_blessings")
+    .select("name, allow_late_blessings, photo_path")
     .eq("id", prompt.circle_id)
     .single();
   if (circleError) throw circleError;
@@ -479,6 +480,10 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
     circleName: circle.name,
     responseWindowMinutes: prompt.response_window_minutes,
   });
+  const circlePhoto = reminderMedia(circle.photo_path);
+  const circlePhotoURL = circlePhoto
+    ? await signedStorageURL(circlePhoto.bucket, circlePhoto.path)
+    : null;
   const sends = activeDevices.flatMap((device) => {
     const deviceSends: Array<{
       deviceID: string;
@@ -499,6 +504,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
           },
           route: captureRoute(prompt.circle_id, prompt.id),
           prompt_id: prompt.id,
+          ...(circlePhotoURL ? { circle_photo_url: circlePhotoURL } : {}),
         }, `prompt-${prompt.dispatch_key}`),
       });
     }

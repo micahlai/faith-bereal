@@ -4,6 +4,7 @@ import {
   circleActivityTitle,
   notificationMedia,
   promptReminder,
+  reminderMedia,
   scriptureReference,
 } from "../supabase/functions/dispatch-prompts/notification-payload.ts";
 
@@ -13,6 +14,13 @@ const john316 = {
   verseStart: 16,
   verseEnd: 16,
 };
+
+assert.equal(reminderMedia(null), null);
+assert.equal(reminderMedia(""), null);
+assert.equal(reminderMedia("   "), null);
+assert.deepEqual(reminderMedia("circle/circle.jpg"), {
+  bucket: "circle-photos", path: "circle/circle.jpg",
+});
 
 assert.equal(circleActivityTitle("blessing_shared", "Sunday Table"), "New blessing in Sunday Table");
 assert.equal(circleActivityTitle("response_shared", "Sunday Table"), "Sunday Table");

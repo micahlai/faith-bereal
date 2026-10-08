@@ -35,9 +35,14 @@ export type ScriptureReferenceParts = {
 };
 
 export type NotificationMedia = {
-  bucket: "blessing-media";
+  bucket: "blessing-media" | "circle-photos";
   path: string;
 };
+
+export function reminderMedia(circlePhotoPath: string | null): NotificationMedia | null {
+  const path = circlePhotoPath?.trim();
+  return path ? { bucket: "circle-photos", path } : null;
+}
 
 export function scriptureReference(parts: ScriptureReferenceParts): string | null {
   if (!parts.bookName || parts.chapter === null || parts.verseStart === null || parts.verseEnd === null) {

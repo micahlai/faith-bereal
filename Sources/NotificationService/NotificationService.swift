@@ -243,6 +243,42 @@ private final class NotificationDownloadedAssets: @unchecked Sendable {
     }
 }
 
+// Prompt reminders have no sender intent. Their optional right-hand image is
+// the circle's custom photo, never the app logo or a generated default icon.
+private final class ReminderNotificationRequest: @unchecked Sendable {
+    private let content: UNMutableNotificationContent
+    private let deliveryState: NotificationDeliveryState
+
+    init(content: UNMutableNotificationContent, deliveryState: NotificationDeliveryState) {
+        self.content = content
+        self.deliveryState = deliveryState
+    }
+
+    func start() {
+        guard let value = content.userInfo["circle_photo_url"] as? String,
+              let remoteURL = URL(string: value), remoteURL.scheme == "https" else {
+            deliveryState.deliver(content)
+            return
+        }
+        URLSession.shared.downloadTask(with: URLRequest(url: remoteURL, timeoutInterval: 8)) {
+            [self] temporaryURL, response, _ in
+            if let response = response as? HTTPURLResponse,
+               (200..<300).contains(response.statusCode),
+               let temporaryURL,
+               let byteCount = try? temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+               byteCount <= 5 * 1_024 * 1_024 {
+                let destination = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("circle-reminder-\(UUID().uuidString).jpg")
+                if (try? FileManager.default.copyItem(at: temporaryURL, to: destination)) != nil,
+                   let attachment = try? UNNotificationAttachment(identifier: "circle-photo", url: destination) {
+                    content.attachments.insert(attachment, at: 0)
+                }
+            }
+            deliveryState.deliver(content)
+        }.resume()
+    }
+}
+
 final class NotificationService: UNNotificationServiceExtension {
     private let deliveryState = NotificationDeliveryState()
 
@@ -261,15 +297,7 @@ final class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        if let logoURL = Bundle.main.url(forResource: "NotificationLogo", withExtension: "png"),
-           let attachment = try? UNNotificationAttachment(
-               identifier: "manna-circle-logo",
-               url: logoURL
-           ) {
-            content.attachments.insert(attachment, at: 0)
-        }
-
-        deliveryState.deliver(content)
+        ReminderNotificationRequest(content: content, deliveryState: deliveryState).start()
     }
 
     private func deliverCommunicationNotification(

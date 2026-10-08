@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-08 custom circle reminder thumbnail
+
+- Daily and end-of-day reminder alerts use the circle's custom photo as their optional right attachment. Default-circle reminders have no right image; the duplicate manna-logo attachment is removed.
+- Peer blessing alerts retain their attached photo/video thumbnail and existing privacy rules. Notification payload tests and dispatcher type checking pass. Deployment and physical-device presentation remain pending.
+
 ## 2026-10-08 Today scroll stability
 
 - The Today scroll container no longer lives inside the once-per-second timer. Its bounded daily feed uses persistent, exactly sized cards rather than recycled lazy height estimates, and unchanged feed inputs skip timer-driven recomputation.
