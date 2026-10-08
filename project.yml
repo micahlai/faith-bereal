@@ -42,6 +42,7 @@ targets:
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: manna circle transcribes your spoken blessing into editable text.
         INFOPLIST_KEY_NSCameraUsageDescription: manna circle uses the camera when you choose to take a photo or record a video blessing.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: manna circle can import a photo or video you choose for your blessing.
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: manna circle saves blessing photos and videos to your Photos library when you choose Save.
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
     entitlements:
@@ -79,6 +80,7 @@ targets:
         NSSpeechRecognitionUsageDescription: manna circle transcribes your spoken blessing into editable text.
         NSCameraUsageDescription: manna circle uses the camera when you choose to take a photo or record a video blessing.
         NSPhotoLibraryUsageDescription: manna circle can import a photo or video you choose for your blessing.
+        NSPhotoLibraryAddUsageDescription: manna circle saves blessing photos and videos to your Photos library when you choose Save.
         NSSupportsLiveActivities: true
         NSUserActivityTypes:
           - INSendMessageIntent

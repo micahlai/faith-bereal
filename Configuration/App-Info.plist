@@ -37,6 +37,8 @@
 	<string>manna circle uses the camera when you choose to take a photo or record a video blessing.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>manna circle uses the microphone while you record a voice or video blessing.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>manna circle saves blessing photos and videos to your Photos library when you choose Save.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>manna circle can import a photo or video you choose for your blessing.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

@@ -16,6 +16,7 @@
 		2BECB4628763C37DF3D9CE45 /* MannaWidgetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6815B2285D5C5EFFA35D896 /* MannaWidgetTheme.swift */; };
 		2C562A4E4BA20C8861508E3E /* NotificationLogo.png in Resources */ = {isa = PBXBuildFile; fileRef = 5AA633448ED63CFD632146E3 /* NotificationLogo.png */; };
 		3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
+		393F22BB398884D9F713A08B /* BlessingMediaSaverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */; };
 		4CFB5E6D1A6F3B7C3560DC32 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */; };
 		4FBFFAFAD04AB8B07EFE16FA /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */; };
 		515DFFB02152CC5BA58CE379 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9598DE0EDAB20B48B60056D /* AppTheme.swift */; };
@@ -38,6 +39,7 @@
 		8704FD748616E0FDC60A6B02 /* VideoCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */; };
 		879481067520378A11890A2B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B69BDB637FBD5E1800B58241 /* Supabase */; };
 		8C46C5252F22D454030670E7 /* MediaAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D21C002BA640BCA51357A90 /* MediaAuthorization.swift */; };
+		8F107350B3D74EF87A6D095E /* BlessingMediaSaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440084DAEA3155F578F975C1 /* BlessingMediaSaver.swift */; };
 		9476284B95C8E5DBFFBDFCAD /* CircleInviteLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */; };
 		97A4EB7FB4579E73FD2A7E4D /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
 		989B338792772AC73A036EEC /* BibleReferencePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF821C48CC75D537252691D /* BibleReferencePicker.swift */; };
@@ -51,6 +53,7 @@
 		BA134C761549591173452160 /* NotificationIdentityImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80C07B211B1EEE86AEFEA95 /* NotificationIdentityImage.swift */; };
 		C4D0BAE369D612DBA4BBDA6A /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78394E2536925B55E8D27A81 /* NotificationService.swift */; };
 		C5E886DC0C3FF80F1DF8B517 /* BlessingCircleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */; };
+		C9A1BB20ED433AB663626CD9 /* SaveBlessingMediaButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB07FA27407C6DC392249358 /* SaveBlessingMediaButton.swift */; };
 		CACCB05EEFF73ED373306CBD /* MediaPlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */; };
 		CED8F4825F464AFB5F2C7264 /* BlessingCircleHomeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */; };
 		D39F594EE10456032E8678DE /* AppComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */; };
@@ -124,9 +127,11 @@
 		2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfiguration.swift; sourceTree = "<group>"; };
 		2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptActivityController.swift; sourceTree = "<group>"; };
 		33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleApp.swift; sourceTree = "<group>"; };
+		440084DAEA3155F578F975C1 /* BlessingMediaSaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingMediaSaver.swift; sourceTree = "<group>"; };
 		593AC44B1C0400D9F82A6CC7 /* NotificationLogoDark.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogoDark.png; sourceTree = "<group>"; };
 		5AA633448ED63CFD632146E3 /* NotificationLogo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogo.png; sourceTree = "<group>"; };
 		5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleLocalDay.swift; sourceTree = "<group>"; };
+		5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingMediaSaverTests.swift; sourceTree = "<group>"; };
 		5D21C002BA640BCA51357A90 /* MediaAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAuthorization.swift; sourceTree = "<group>"; };
 		5EF821C48CC75D537252691D /* BibleReferencePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReferencePicker.swift; sourceTree = "<group>"; };
 		660201AD49EDEB78FA773753 /* SupabaseAuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthenticationService.swift; sourceTree = "<group>"; };
@@ -158,6 +163,7 @@
 		BD086AB78C2411FC6492A448 /* BlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingRepository.swift; sourceTree = "<group>"; };
 		BE92F563E6DAAEFBB2C27EDD /* Production.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Production.xcconfig; sourceTree = "<group>"; };
 		C6CA663FF90616DE4D2EF65F /* PhotoResizeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoResizeEditor.swift; sourceTree = "<group>"; };
+		CB07FA27407C6DC392249358 /* SaveBlessingMediaButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveBlessingMediaButton.swift; sourceTree = "<group>"; };
 		D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BlessingCircleLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlaybackController.swift; sourceTree = "<group>"; };
 		D73F45A4D730D17D2CC8CD2C /* NotificationBrandPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationBrandPreference.swift; sourceTree = "<group>"; };
@@ -193,6 +199,7 @@
 			children = (
 				2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */,
 				94EA65921D482A449590AD64 /* BibleTextService.swift */,
+				440084DAEA3155F578F975C1 /* BlessingMediaSaver.swift */,
 				BD086AB78C2411FC6492A448 /* BlessingRepository.swift */,
 				A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */,
 				86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */,
@@ -285,6 +292,7 @@
 			isa = PBXGroup;
 			children = (
 				D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */,
+				CB07FA27407C6DC392249358 /* SaveBlessingMediaButton.swift */,
 			);
 			path = Media;
 			sourceTree = "<group>";
@@ -347,6 +355,7 @@
 		D118C97A2FE90BC8EB8F90AD /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */,
 				A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */,
 			);
 			path = Tests;
@@ -626,6 +635,7 @@
 				989B338792772AC73A036EEC /* BibleReferencePicker.swift in Sources */,
 				6E3EA5BC5EB12D28AE3E167A /* BibleTextService.swift in Sources */,
 				C5E886DC0C3FF80F1DF8B517 /* BlessingCircleApp.swift in Sources */,
+				8F107350B3D74EF87A6D095E /* BlessingMediaSaver.swift in Sources */,
 				683C74774B522C0B71C3DAC5 /* BlessingRepository.swift in Sources */,
 				2B3C310DE0DED51EBA4A5E4B /* BlessingResponsesView.swift in Sources */,
 				A84C21D6ED0FE43EA1F4E975 /* BlessingWidgetSnapshot.swift in Sources */,
@@ -646,6 +656,7 @@
 				3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */,
 				E8BF3EB4CB41784548937894 /* PromptActivityController.swift in Sources */,
 				76D913FC848A66CB5A1A94BB /* RootView.swift in Sources */,
+				C9A1BB20ED433AB663626CD9 /* SaveBlessingMediaButton.swift in Sources */,
 				75E13967995B0BFF55A18ED9 /* SignInView.swift in Sources */,
 				69D5AACA21015D8BC316820F /* SpeechTranscriber.swift in Sources */,
 				6CB8153521635F4A4A1B73E0 /* SupabaseAuthenticationService.swift in Sources */,
@@ -659,6 +670,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				393F22BB398884D9F713A08B /* BlessingMediaSaverTests.swift in Sources */,
 				10596D0F5F4625E0FD03005C /* DomainRulesTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -859,6 +871,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "manna circle uses the camera when you choose to take a photo or record a video blessing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "manna circle uses the microphone while you record a voice or video blessing.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "manna circle saves blessing photos and videos to your Photos library when you choose Save.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "manna circle can import a photo or video you choose for your blessing.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "manna circle transcribes your spoken blessing into editable text.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -946,6 +959,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "manna circle uses the camera when you choose to take a photo or record a video blessing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "manna circle uses the microphone while you record a voice or video blessing.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "manna circle saves blessing photos and videos to your Photos library when you choose Save.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "manna circle can import a photo or video you choose for your blessing.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "manna circle transcribes your spoken blessing into editable text.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

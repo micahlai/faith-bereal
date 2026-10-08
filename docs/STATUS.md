@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-08 photo and video export
+
+- Visible blessing photos and videos can be exported to Photos from Today and blessing details, regardless of author, using add-only permission, progress, success/error confirmation, and Settings recovery for denied access.
+- Downloaded temporary files are cleaned up after success/failure; local originals are preserved. All 86 app/domain tests pass including six new export permission, routing, and cleanup tests. Physical-device Photos acceptance remains pending.
+
 ## 2026-10-08 custom circle reminder thumbnail
 
 - Daily and end-of-day reminder alerts use the circle's custom photo as their optional right attachment. Default-circle reminders have no right image; the duplicate manna-logo attachment is removed.

@@ -727,6 +727,7 @@ struct BlessingContentView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     if let photoURL = blessing.photoURL {
                         BlessingPhotoView(url: photoURL)
+                        SaveBlessingMediaButton(url: photoURL, kind: .photo)
                     }
                     Text(blessing.body ?? "")
                         .font(.system(.title3, design: .serif))
@@ -743,6 +744,7 @@ struct BlessingContentView: View {
                     }
                     if let photoURL = blessing.photoURL {
                         BlessingPhotoView(url: photoURL)
+                        SaveBlessingMediaButton(url: photoURL, kind: .photo)
                     }
                     Text(blessing.body ?? "")
                         .font(.system(.body, design: .serif))
@@ -752,6 +754,7 @@ struct BlessingContentView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if let videoURL = blessing.videoURL {
                         VideoBlessingPlayer(url: videoURL)
+                        SaveBlessingMediaButton(url: videoURL, kind: .video)
                     } else {
                         ContentUnavailableView("Video unavailable", systemImage: "video.slash")
                     }
