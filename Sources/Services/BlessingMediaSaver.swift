@@ -87,7 +87,7 @@ enum BlessingMediaSaveError: LocalizedError {
         case .permissionDenied:
             "Allow manna circle to add photos in Settings, then try saving again."
         case .unavailable:
-            "This photo or video is unavailable. Refresh the blessing and try again."
+            "This media is unavailable. Refresh the blessing and try again."
         }
     }
 }

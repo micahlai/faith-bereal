@@ -18,6 +18,10 @@ final class AppModel {
     private let repository: any BlessingRepository
     private let bibleService: any BibleTextProviding
     private let authentication: (any AuthenticationProviding)?
+    private let savedBlessingStore: SavedBlessingStore
+    private(set) var savedBlessings: [UUID: SavedBlessingRecord] = [:]
+    private(set) var savingBlessingIDs: Set<UUID> = []
+    private(set) var responseMediaDates: [UUID: [Date]] = [:]
     private let activityController = PromptActivityController()
     private var realtimeTask: Task<Void, Never>?
     private var widgetSnapshotTask: Task<Void, Never>?
@@ -83,11 +87,13 @@ final class AppModel {
     init(
         repository: any BlessingRepository,
         bibleService: any BibleTextProviding = BibleAPIService(),
-        authentication: (any AuthenticationProviding)? = nil
+        authentication: (any AuthenticationProviding)? = nil,
+        savedBlessingStore: SavedBlessingStore = SavedBlessingStore()
     ) {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
+        self.savedBlessingStore = savedBlessingStore
         self.pendingInviteCode = UserDefaults.standard.string(forKey: Self.pendingInviteCodeKey)
             .flatMap(CircleInviteLink.normalize(code:))
         let skipsOnboarding = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
@@ -281,6 +287,7 @@ final class AppModel {
         do {
             let bootstrap = try await repository.bootstrap()
             self.currentUser = bootstrap.currentUser
+            savedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
             self.circles = bootstrap.circles
             let preferredID = Self.persistedCircleID.flatMap { id in
                 bootstrap.circles.contains(where: { $0.id == id }) ? id : nil
@@ -335,6 +342,8 @@ final class AppModel {
         do {
             try await authentication.signOut()
             currentUser = nil
+            savedBlessings = [:]
+            responseMediaDates = [:]
             circles = []
             circle = nil
             prompt = nil
@@ -1035,11 +1044,84 @@ final class AppModel {
     func responses(for blessing: Blessing) async -> [BlessingResponse] {
         guard let currentUser else { return [] }
         do {
-            return try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
+            let responses = try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
+            responseMediaDates[blessing.id] = responses.filter { $0.mode == .voice }.map(\.submittedAt)
+            let saved = savedBlessings[blessing.id]?.responses ?? []
+            return responses.map { response in
+                if let localURL = saved.first(where: { $0.id == response.id })?.audioURL {
+                    return response.replacingAudio(localURL)
+                }
+                return response.replacingAudio(
+                    MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) ? nil : response.audioURL
+                )
+            }
         } catch {
             guard !Task.isCancelled, !Self.isCancellation(error) else { return [] }
+            if let saved = savedBlessings[blessing.id] { return saved.responses }
             message = error.localizedDescription
             return []
+        }
+    }
+
+    func resolvedBlessing(_ blessing: Blessing, at now: Date = .now) -> Blessing {
+        let saved = savedBlessings[blessing.id]?.blessing
+        let expired = MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt, at: now)
+        return blessing.replacingMedia(
+            audio: saved?.audioURL ?? (expired ? nil : blessing.audioURL),
+            video: saved?.videoURL ?? (expired ? nil : blessing.videoURL),
+            photo: saved?.photoURL ?? blessing.photoURL
+        )
+    }
+
+    func mediaExpiryWarning(for blessing: Blessing, at now: Date = .now) -> String? {
+        guard savedBlessings[blessing.id] == nil else { return nil }
+        var dates = responseMediaDates[blessing.id] ?? []
+        if blessing.captureMode != .typed { dates.append(blessing.submittedAt) }
+        return dates.sorted().compactMap { MediaRetentionPolicy.warning(for: $0, at: now) }.first
+    }
+
+    func saveBlessing(_ blessing: Blessing) async -> Bool {
+        guard let user = currentUser,
+              circles.contains(where: { $0.id == blessing.circleID }),
+              savedBlessings[blessing.id] == nil,
+              !savingBlessingIDs.contains(blessing.id) else { return false }
+        // Do not archive a fabricated or locked peer payload.
+        guard lanes.flatMap(\.events).contains(where: {
+            if case let .blessing(visible) = $0.status { return visible.id == blessing.id }
+            return false
+        }) else { return false }
+        savingBlessingIDs.insert(blessing.id)
+        defer { savingBlessingIDs.remove(blessing.id) }
+        do {
+            let responses = try await repository.responses(blessingID: blessing.id, viewerID: user.id)
+            let available = resolvedBlessing(blessing)
+            if blessing.captureMode != .typed,
+               available.audioURL == nil && available.videoURL == nil,
+               !MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt) {
+                throw BlessingMediaSaveError.unavailable
+            }
+            let record = try await savedBlessingStore.save(
+                blessing: available,
+                responses: responses.map {
+                    $0.replacingAudio(MediaRetentionPolicy.isExpired(submittedAt: $0.submittedAt) ? nil : $0.audioURL)
+                }, userID: user.id
+            )
+            if currentUser?.id == user.id { savedBlessings[blessing.id] = record }
+            return true
+        } catch {
+            guard !Task.isCancelled, !Self.isCancellation(error) else { return false }
+            message = "Couldn’t save this blessing: \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    func unsaveBlessing(_ blessing: Blessing) async {
+        guard let userID = currentUser?.id else { return }
+        do {
+            try await savedBlessingStore.unsave(blessingID: blessing.id, userID: userID)
+            if currentUser?.id == userID { savedBlessings.removeValue(forKey: blessing.id) }
+        } catch {
+            message = "Couldn’t remove the saved blessing: \(error.localizedDescription)"
         }
     }
 

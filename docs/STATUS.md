@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-08 private saved blessings
+
+- Save/Unsave blessing stores a complete available blessing snapshot and its current responses in account-isolated Application Support storage, including photo/audio/video and response audio. All requested files must download before Saved appears; partial failures leave no archive.
+- Relative media paths survive app-container changes; archives are protected and excluded from backup. They remain private to this account/device and do not affect peer access, hosted retention, or current-day sharing gates.
+- Timeline labels show Saved or a final-48-hour media-expiry warning above each blessing. Saved files are used for playback after remote expiry. The first save explains device-only behavior; removing an archive containing expired media requires a permanent-loss warning.
+- Local archive reload, video/voice/response preservation, account isolation, exact 12/14-day boundaries, partial failure, and privacy tests pass. The focused first-save/unsave UI flow passes. The current combined suite has 96 passing app/domain tests; physical-device media acceptance remains pending.
+
 ## 2026-10-08 photo and video export
 
 - Visible blessing photos and videos can be exported to Photos from Today and blessing details, regardless of author, using add-only permission, progress, success/error confirmation, and Settings recovery for denied access.

@@ -219,6 +219,7 @@ private struct TodayBlessingCard: View {
                 showsHeading: false,
                 usesCard: false
             )
+            SavedBlessingButton(blessing: item.blessing)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .blessingCard()

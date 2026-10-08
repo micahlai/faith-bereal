@@ -25,7 +25,7 @@ struct BlessingResponsesView: View {
                 }
             }
         }
-        .task(id: blessing.id) {
+        .task(id: "\(blessing.id)-\(model.savedBlessings[blessing.id]?.savedAt.timeIntervalSince1970 ?? 0)") {
             responses = await model.responses(for: blessing)
             isLoading = false
         }
@@ -146,6 +146,11 @@ struct BlessingResponsesView: View {
             }
             if response.mode == .voice, let audioURL = response.audioURL {
                 AudioBlessingPlayer(url: audioURL)
+            } else if response.mode == .voice,
+                      MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) {
+                Label("Audio expired after 14 days", systemImage: "waveform.slash")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryInk)
             }
             Text(response.body)
                 .font(.subheadline)

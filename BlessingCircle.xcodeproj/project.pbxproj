@@ -10,11 +10,14 @@
 		081FDE84368F337DA538DBDB /* DebugPromptProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */; };
 		10596D0F5F4625E0FD03005C /* DomainRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */; };
 		11F93C0EA7D910BF3AD4ED3A /* BlessingCircleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8041666727C8764C007E33AB /* BlessingCircleUITests.swift */; };
+		12D1919663FA81AF93F1F266 /* SavedBlessingStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD439211361E73A41C0DBFC4 /* SavedBlessingStoreTests.swift */; };
 		13622CFB23BD69B5E99BEC74 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04A5ED107CC59C2FCAD788AC /* TodayView.swift */; };
 		1F62BF5CECCC80304AF0E271 /* PhotoResizeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6CA663FF90616DE4D2EF65F /* PhotoResizeEditor.swift */; };
 		2B3C310DE0DED51EBA4A5E4B /* BlessingResponsesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8971D0A1BC0819428DBA2CBB /* BlessingResponsesView.swift */; };
 		2BECB4628763C37DF3D9CE45 /* MannaWidgetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6815B2285D5C5EFFA35D896 /* MannaWidgetTheme.swift */; };
 		2C562A4E4BA20C8861508E3E /* NotificationLogo.png in Resources */ = {isa = PBXBuildFile; fileRef = 5AA633448ED63CFD632146E3 /* NotificationLogo.png */; };
+		2E6DABC7C956ED1177C4063D /* SavedBlessingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3FFB4BA9BCDCC20334CAAC1 /* SavedBlessingStore.swift */; };
+		34E50D922571FAB91FD69D39 /* MediaRetentionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B59FA0F4DDB92375588F2E3 /* MediaRetentionPolicy.swift */; };
 		3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
 		393F22BB398884D9F713A08B /* BlessingMediaSaverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */; };
 		4CFB5E6D1A6F3B7C3560DC32 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */; };
@@ -64,6 +67,7 @@
 		EFE5536CCC884FDACDAAB6D4 /* BlessingCircleLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F58EC1B9E3233BD4F529E454 /* SupabaseBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */; };
 		F9431471BF1E7B8237849A57 /* NotificationBrandPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73F45A4D730D17D2CC8CD2C /* NotificationBrandPreference.swift */; };
+		EFCA7F88CB4A1A2EE39D4587 /* SavedBlessingButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D6E72576B35390AF97F762 /* SavedBlessingButton.swift */; };
 		FE33A4AF6BA736FDEA701CAD /* BlessingCircleNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -131,6 +135,7 @@
 		593AC44B1C0400D9F82A6CC7 /* NotificationLogoDark.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogoDark.png; sourceTree = "<group>"; };
 		5AA633448ED63CFD632146E3 /* NotificationLogo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogo.png; sourceTree = "<group>"; };
 		5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleLocalDay.swift; sourceTree = "<group>"; };
+		47D6E72576B35390AF97F762 /* SavedBlessingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedBlessingButton.swift; sourceTree = "<group>"; };
 		5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingMediaSaverTests.swift; sourceTree = "<group>"; };
 		5D21C002BA640BCA51357A90 /* MediaAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAuthorization.swift; sourceTree = "<group>"; };
 		5EF821C48CC75D537252691D /* BibleReferencePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReferencePicker.swift; sourceTree = "<group>"; };
@@ -144,6 +149,7 @@
 		8041666727C8764C007E33AB /* BlessingCircleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleUITests.swift; sourceTree = "<group>"; };
 		86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalBlessingRepository.swift; sourceTree = "<group>"; };
 		8971D0A1BC0819428DBA2CBB /* BlessingResponsesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingResponsesView.swift; sourceTree = "<group>"; };
+		7B59FA0F4DDB92375588F2E3 /* MediaRetentionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRetentionPolicy.swift; sourceTree = "<group>"; };
 		8C99F6499C089B93C6E1D931 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		94735A84240AC2C5107135A1 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		94EA65921D482A449590AD64 /* BibleTextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleTextService.swift; sourceTree = "<group>"; };
@@ -176,8 +182,10 @@
 
 /* Begin PBXFrameworksBuildPhase section */
 		D7D19D71E0C63DC31D1EFCC0 /* Frameworks */ = {
+		F3FFB4BA9BCDCC20334CAAC1 /* SavedBlessingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedBlessingStore.swift; sourceTree = "<group>"; };
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
+		FD439211361E73A41C0DBFC4 /* SavedBlessingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedBlessingStoreTests.swift; sourceTree = "<group>"; };
 			files = (
 				879481067520378A11890A2B /* Supabase in Frameworks */,
 			);
@@ -211,6 +219,7 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
+				F3FFB4BA9BCDCC20334CAAC1 /* SavedBlessingStore.swift */,
 		3C0938108310E64070011D16 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -309,6 +318,7 @@
 			sourceTree = "<group>";
 		};
 		B912FA04B8A5490E657E0814 /* Domain */ = {
+				47D6E72576B35390AF97F762 /* SavedBlessingButton.swift */,
 			isa = PBXGroup;
 			children = (
 				089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */,
@@ -330,6 +340,7 @@
 		};
 		C8161291A24140A0CB29BCAE /* Shared */ = {
 			isa = PBXGroup;
+				7B59FA0F4DDB92375588F2E3 /* MediaRetentionPolicy.swift */,
 			children = (
 				E46B4D2ACEF8C03D2F117DE3 /* BlessingWidgetSnapshot.swift */,
 				D73F45A4D730D17D2CC8CD2C /* NotificationBrandPreference.swift */,
@@ -373,6 +384,7 @@
 		E4E8EADE3F18623893E5FE28 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				FD439211361E73A41C0DBFC4 /* SavedBlessingStoreTests.swift */,
 				6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */,
 				98F6955EDCB72669D8C4B54E /* AppDelegate.swift */,
 				8C99F6499C089B93C6E1D931 /* AppModel.swift */,
@@ -668,6 +680,7 @@
 		};
 		72BD13F3209B864B821D42F7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
+				34E50D922571FAB91FD69D39 /* MediaRetentionPolicy.swift in Sources */,
 			buildActionMask = 2147483647;
 			files = (
 				393F22BB398884D9F713A08B /* BlessingMediaSaverTests.swift in Sources */,
@@ -676,6 +689,8 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C30BC5A6F35898AB0A8FEFBD /* Sources */ = {
+				EFCA7F88CB4A1A2EE39D4587 /* SavedBlessingButton.swift in Sources */,
+				2E6DABC7C956ED1177C4063D /* SavedBlessingStore.swift in Sources */,
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -691,6 +706,7 @@
 		DACD724B31FC4C2257DDA5FC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
+				12D1919663FA81AF93F1F266 /* SavedBlessingStoreTests.swift in Sources */,
 			files = (
 				11F93C0EA7D910BF3AD4ED3A /* BlessingCircleUITests.swift in Sources */,
 			);

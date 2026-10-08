@@ -378,6 +378,7 @@ private struct TimelineEventView: View {
     private var content: some View {
         switch event.status {
         case let .blessing(blessing):
+            SavedBlessingStatusView(blessing: blessing)
             Button { onSelect(blessing) } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     if blessing.captureMode != .typed || blessing.photoURL != nil {
@@ -538,6 +539,7 @@ struct BlessingDetailView: View {
                         header
                         BlessingContentView(blessing: blessing)
                             .id(blessing.id)
+                        SavedBlessingButton(blessing: blessing)
                         if let reference = blessing.scriptureReference {
                             ScripturePassageView(reference: reference)
                         }
@@ -709,6 +711,7 @@ struct BlessingEditView: View {
 }
 
 struct BlessingContentView: View {
+    @Environment(AppModel.self) private var model
     let blessing: Blessing
     var usesCard = true
 
@@ -721,6 +724,7 @@ struct BlessingContentView: View {
     }
 
     @ViewBuilder private var content: some View {
+        let blessing = model.resolvedBlessing(blessing)
         Group {
             switch blessing.captureMode {
             case .typed:
@@ -738,7 +742,8 @@ struct BlessingContentView: View {
                     if let audioURL = blessing.audioURL {
                         AudioBlessingPlayer(url: audioURL)
                     } else {
-                        Label("Audio is unavailable", systemImage: "waveform.slash")
+                        Label(MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt)
+                            ? "Audio expired after 14 days" : "Audio is unavailable", systemImage: "waveform.slash")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.secondaryInk)
                     }
@@ -756,7 +761,8 @@ struct BlessingContentView: View {
                         VideoBlessingPlayer(url: videoURL)
                         SaveBlessingMediaButton(url: videoURL, kind: .video)
                     } else {
-                        ContentUnavailableView("Video unavailable", systemImage: "video.slash")
+                        ContentUnavailableView(MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt)
+                            ? "Video expired after 14 days" : "Video unavailable", systemImage: "video.slash")
                     }
                     Text(blessing.body ?? "")
                         .font(.system(.body, design: .serif))

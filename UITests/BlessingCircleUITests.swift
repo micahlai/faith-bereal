@@ -239,6 +239,33 @@ final class BlessingCircleUITests: XCTestCase {
     }
 
     @MainActor
+    func testFirstSaveExplainsPrivateStorageAndCanUnsaveFromDetail() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchArguments += ["-saving.explained.A0000000-0000-0000-0000-000000000001", "NO"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Timeline"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Timeline"].tap()
+        let blessing = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "A quiet walk before the rain.")).firstMatch
+        for _ in 0..<3 where !blessing.isHittable { app.swipeUp() }
+        XCTAssertTrue(blessing.waitForExistence(timeout: 3))
+        blessing.tap()
+        let save = app.buttons["Save blessing"]
+        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        save.tap()
+        let explanation = app.alerts["Save this blessing on your device?"]
+        XCTAssertTrue(explanation.waitForExistence(timeout: 3))
+        XCTAssertTrue(explanation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Only you can use this copy")).firstMatch.exists)
+        explanation.buttons["Save blessing"].tap()
+        let unsave = app.buttons["Unsave blessing"]
+        XCTAssertTrue(unsave.waitForExistence(timeout: 5))
+        unsave.tap()
+        XCTAssertTrue(save.waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testCircleOwnerCanRegenerateInviteCode() {
         continueAfterFailure = false
         let app = XCUIApplication()
