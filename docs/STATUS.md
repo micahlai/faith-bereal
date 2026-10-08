@@ -7,6 +7,7 @@
 - Turning off pauses downloads and offers Keep all, Keep only my blessings, Keep none, or an individually selectable list. Kept copies become ordinary manual saves; existing manual saves are never removed. Expired-media removal requires a permanent-loss warning, and Cancel resumes automatic saving.
 - Retention is 30 days, with Timeline warnings during days 28–30. Cleanup stays disabled until the save-capable TestFlight build is available, as explicitly selected by the owner. Hosted deployment/Storage acceptance and physical-device verification remain pending.
 - All 104 app/domain tests pass, including legacy-manifest compatibility and damaged-preference startup recovery. Focused small-phone checks pass for saving choices/Cancel, five-step onboarding, and largest-text dark/landscape setup. The UI/UX review led to adaptive stacked navigation at accessibility sizes so Back/Continue labels never split.
+- The final full local-demo simulator suite passes all 13 UI tests, including Today scroll stability, guided circle creation, Help, and Save/Unsave. The signed hosted Release device build, dispatcher type check, both APNs payload contracts, and isolated 30-day SQL retention regression pass. These checks do not substitute for physical-device media/push acceptance or a TestFlight upload.
 
 ## 2026-10-08 guided circle creation
 
