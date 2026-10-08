@@ -109,7 +109,8 @@ private struct EndOfDayPromptCard: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(MannaPrimaryButtonStyle())
+            .tint(AppTheme.actionFill)
             .disabled(isPreparingCapture)
         }
         .blessingCard()
@@ -196,6 +197,7 @@ private struct TodayBlessingCard: View {
                         Button("Edit") { isEditing = true }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
                 }
                 if item.blessing.isLate {
@@ -231,6 +233,7 @@ private struct TodayBlessingCard: View {
 
 private struct PromptWindowView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let prompt: DailyPrompt
     let date: Date
     let allowsLateBlessings: Bool
@@ -251,6 +254,7 @@ private struct PromptWindowView: View {
 
         return VStack(spacing: 24) {
             ZStack {
+              if !dynamicTypeSize.isAccessibilitySize {
                 Circle()
                     .stroke(AppTheme.divider, lineWidth: 13)
                 Circle()
@@ -264,6 +268,7 @@ private struct PromptWindowView: View {
                     )
                     .rotationEffect(.degrees(-90))
                     .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: progress)
+              }
 
                 VStack(spacing: 4) {
                     if isFirstCircleDay && phase != .open {
@@ -299,7 +304,8 @@ private struct PromptWindowView: View {
                 }
                 .foregroundStyle(AppTheme.ink)
             }
-            .frame(width: 210, height: 210)
+            .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 210,
+                   height: dynamicTypeSize.isAccessibilitySize ? nil : 210)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityLabel(phase: phase, remaining: remaining))
 
@@ -313,7 +319,8 @@ private struct PromptWindowView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(MannaPrimaryButtonStyle())
+            .tint(AppTheme.actionFill)
             .controlSize(.large)
             .disabled(
                 isPreparingCapture || !allowsSharing ||

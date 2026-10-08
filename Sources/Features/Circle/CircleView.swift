@@ -178,7 +178,8 @@ struct CircleView: View {
                 Label(model.circle == nil ? "Join a circle" : "Join another circle", systemImage: "person.badge.plus")
                     .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(MannaPrimaryButtonStyle())
+            .tint(AppTheme.actionFill)
             Button { showingCreate = true } label: {
                 Label("Create a circle", systemImage: "plus.circle")
                     .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
@@ -238,6 +239,7 @@ struct CircleView: View {
 
 private struct CircleCreationView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var isPresented: Bool
     @State private var name = ""
     @State private var timeZoneIdentifier: String
@@ -311,6 +313,7 @@ private struct CircleCreationView: View {
                         .accessibilityLabel("Circle setup progress")
                     Text(stepTitles[step])
                         .font(.system(.title, design: .serif, weight: .regular))
+                        .accessibilityAddTraits(.isHeader)
                 }
                 .padding(AppTheme.pagePadding)
                 Form {
@@ -515,17 +518,21 @@ private struct CircleCreationView: View {
             }
             .background(AppTheme.canvas)
             .safeAreaInset(edge: .bottom) {
-                HStack(spacing: 12) {
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 8))
+                    : AnyLayout(HStackLayout(spacing: 12))
+                layout {
                     if step > 0 {
                         Button {
                             step -= 1
                         } label: {
-                            Text("Back").frame(minWidth: 64, minHeight: AppTheme.controlHeight)
+                            Text("Back").fixedSize().frame(minWidth: 64, minHeight: AppTheme.controlHeight)
                         }
                         .buttonStyle(.bordered)
                         .disabled(isCreating)
+                        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
                     }
-                    Spacer(minLength: 12)
+                    if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
                     Button {
                         if step == stepTitles.count - 1 {
                             isCreating = true
@@ -537,10 +544,12 @@ private struct CircleCreationView: View {
                         HStack {
                             if isCreating { ProgressView() }
                             Text(step == stepTitles.count - 1 ? "Create circle" : "Continue")
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(minWidth: 104, minHeight: AppTheme.controlHeight)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(MannaPrimaryButtonStyle())
+                    .tint(AppTheme.actionFill)
                     .disabled(isCreating || isPreparingCirclePhoto || !canContinue)
                     .accessibilityIdentifier(
                         step == stepTitles.count - 1 ? "create-circle-submit" : "create-circle-continue")

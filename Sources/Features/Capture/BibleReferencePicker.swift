@@ -200,7 +200,9 @@ private struct VerseRangeGrid: View {
     @State private var cellFrames: [Int: CGRect] = [:]
     @State private var dragAnchor: Int?
 
-    private let columns = [GridItem(.adaptive(minimum: 42, maximum: 54), spacing: 8)]
+    @ScaledMetric(relativeTo: .subheadline) private var cellSize: CGFloat = 44
+
+    private var columns: [GridItem] { [GridItem(.adaptive(minimum: cellSize), spacing: 8)] }
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {
@@ -212,14 +214,14 @@ private struct VerseRangeGrid: View {
                     Text("\(verse)")
                         .font(.subheadline.weight(isSelected(verse) ? .bold : .regular).monospacedDigit())
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .foregroundStyle(isSelected(verse) ? Color.white : AppTheme.ink)
+                        .foregroundStyle(isSelected(verse) ? AppTheme.surface : AppTheme.ink)
                         .background(
                             isSelected(verse) ? AppTheme.iris : AppTheme.surface,
                             in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                         )
                         .overlay {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(isSelected(verse) ? AppTheme.iris : AppTheme.divider, lineWidth: 1)
+                                .stroke(isSelected(verse) ? AppTheme.iris : AppTheme.secondaryInk, lineWidth: isSelected(verse) ? 3 : 1)
                         }
                         .background {
                             GeometryReader { proxy in
@@ -232,6 +234,7 @@ private struct VerseRangeGrid: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Verse \(verse)")
+                .accessibilityInputLabels(["Verse \(verse)", "\(verse)"])
                 .accessibilityAddTraits(isSelected(verse) ? .isSelected : [])
             }
         }

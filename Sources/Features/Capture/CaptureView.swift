@@ -478,7 +478,8 @@ struct CaptureView: View {
             }
             .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(MannaPrimaryButtonStyle())
+        .tint(AppTheme.actionFill)
         .controlSize(.large)
         .disabled(model.isSubmitting || !canSubmit)
     }

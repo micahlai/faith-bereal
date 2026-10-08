@@ -36,6 +36,7 @@
 		6E8B5C66679ECBF67B06008E /* AutomaticSavingSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A1A874188E1541AB6AE199 /* AutomaticSavingSettings.swift */; };
 		7062561AB6739AD4A1753E10 /* NotificationLogoDark.png in Resources */ = {isa = PBXBuildFile; fileRef = 593AC44B1C0400D9F82A6CC7 /* NotificationLogoDark.png */; };
 		7111D9D4FF317807638938E9 /* BlessingWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46B4D2ACEF8C03D2F117DE3 /* BlessingWidgetSnapshot.swift */; };
+		7132C0DDB1D8DBDADBCE56E9 /* AccessibilityContrastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99814B5F1C5233312C8DA5B6 /* AccessibilityContrastTests.swift */; };
 		75E13967995B0BFF55A18ED9 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E10C692366BEAE2B09BBC9 /* SignInView.swift */; };
 		76D913FC848A66CB5A1A94BB /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94735A84240AC2C5107135A1 /* RootView.swift */; };
 		7D1922CBB7AFE9B86E780EA9 /* CircleTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF399AB3F16CF08C2399F2DF /* CircleTimelineView.swift */; };
@@ -161,6 +162,7 @@
 		97F8D3F47F90DD643F29C4BA /* HelpContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpContent.swift; sourceTree = "<group>"; };
 		98F6955EDCB72669D8C4B54E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		99814B5F1C5233312C8DA5B6 /* AccessibilityContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityContrastTests.swift; sourceTree = "<group>"; };
 		9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugPromptProviding.swift; sourceTree = "<group>"; };
 		A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleInviteLink.swift; sourceTree = "<group>"; };
@@ -388,6 +390,7 @@
 		D118C97A2FE90BC8EB8F90AD /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				99814B5F1C5233312C8DA5B6 /* AccessibilityContrastTests.swift */,
 				5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */,
 				A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */,
 				B2E758C164EC8B3AADB88384 /* HelpContentTests.swift */,
@@ -712,6 +715,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7132C0DDB1D8DBDADBCE56E9 /* AccessibilityContrastTests.swift in Sources */,
 				393F22BB398884D9F713A08B /* BlessingMediaSaverTests.swift in Sources */,
 				10596D0F5F4625E0FD03005C /* DomainRulesTests.swift in Sources */,
 				9264DE5ED568C50C15F09C70 /* HelpContentTests.swift in Sources */,

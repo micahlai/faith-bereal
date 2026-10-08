@@ -14,14 +14,15 @@ The generic dark-dashboard recommendation generated during design discovery was 
 | Surface | `#FFFCF3` | `#29231E` | Raised content |
 | Ink | `#2D2B2B` | `#FCF6E8` | Primary text; derived from the logo wordmark |
 | Secondary ink | `#665F56` | `#D3C6B3` | Supporting text |
-| Manna | `#975A24` | `#A85F20` | Primary action, selection, focus, and active thread |
+| Manna ink | `#975A24` | `#E4AD70` | Primary text, tint, focus, and active thread |
+| Manna action fill | `#975A24` | `#A85F20` | Filled actions with white text |
 | Iris | `#6256A5` | `#AFA3F5` | Scripture and reflective secondary accent |
-| Dawn | `#4F86A8` | `#78B8D7` | Informational state |
-| Candle | `#A9672D` | `#E4AD70` | Countdown / warmth; related to the logo’s `#BA8347` dot |
+| Dawn | `#31698E` | `#78B8D7` | Informational state |
+| Candle | `#92531E` | `#E4AD70` | Countdown / warmth; related to the logo’s `#BA8347` dot |
 | Missed | `#8B5963` | `#E09AA8` | Missed state, always paired with icon/text |
 | Divider | `#DED4C2` | `#4A4036` | Lines and boundaries |
 
-App code exposes semantic roles, not literal color names in feature views. `Manna` maintains at least 4.5:1 contrast with white button text in both appearances; purple is not used as the primary CTA color.
+App code exposes semantic roles, not literal color names in feature views. Filled orange actions maintain at least 4.5:1 contrast with white text in both appearances; dark-mode orange text uses a lighter separate token. Primary buttons use a solid fill rather than iOS's translucent prominent-button treatment, which can weaken rendered contrast. Selected scripture cells use Surface text on Iris, not white on the light-purple dark-mode tint. Purple is not used as the primary CTA color. Contrast tests resolve actual asset colors in light/dark and normal/increased contrast.
 
 ## Typography
 

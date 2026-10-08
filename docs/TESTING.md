@@ -7,15 +7,17 @@ xcodegen generate
 xcodebuild -project BlessingCircle.xcodeproj \
   -scheme BlessingCircle \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  SUPABASE_URL= SUPABASE_PUBLISHABLE_KEY= \
   build
 
 xcodebuild -project BlessingCircle.xcodeproj \
   -scheme BlessingCircle \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  SUPABASE_URL= SUPABASE_PUBLISHABLE_KEY= \
   test
 ```
 
-Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
+Pass `SUPABASE_URL= SUPABASE_PUBLISHABLE_KEY=` as **xcodebuild build-setting arguments**, not just shell environment assignments, on simulator build/test commands to force the normal blank-configuration fallback even when the ignored Secrets.xcconfig is present. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase. Do not blank these settings for Release builds.
 UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → App Icon → Local Saving → Widget → Join/Create first-run flow. Saving tests supply a unique `BLESSING_CIRCLE_SAVING_TEST_SESSION` in local Debug mode, isolating their temporary archives and preferences from normal simulator data.
 
 ## TestFlight candidate
@@ -106,6 +108,10 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 - response RLS follows the parent blessing's visibility.
 
 ## UI and accessibility checks
+
+- Native automated accessibility audits check hit regions and descriptions in Today and Timeline List, with a repeat after scrolling. Rendered contrast remains a manual acceptance requirement: the small-phone native contrast audit still flags the Share button despite its numerically passing solid foreground/background pair (see the audit document). The audit test explicitly terminates any existing instance and supplies a Debug-only `--manna-local-ui-test` argument as an additional local-backend fence.
+- Timeline defaults to a single-column List with VoiceOver or accessibility text sizes; its toolbar can switch back to Threads without increasing pinned-header spacing.
+- Actual asset contrast tests cover both appearances and Increased Contrast, including action fills and selected verse cells. See `docs/ACCESSIBILITY_AUDIT.md` for the support matrix and physical common-task acceptance checklist.
 
 - Today remains at a stable resting bottom position through timer ticks and repeated up/down scrolling; response drafts survive;
 - guided circle setup validates the name, preserves Back navigation, explains each setting, and creates only after review;

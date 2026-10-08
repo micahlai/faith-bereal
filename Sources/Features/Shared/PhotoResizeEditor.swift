@@ -28,18 +28,32 @@ struct PhotoResizeEditor: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Text("Pinch with two fingers to zoom, then drag to choose the square crop.")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.secondaryInk)
-                    .multilineTextAlignment(.center)
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Pinch with two fingers to zoom, then drag to choose the square crop.")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .multilineTextAlignment(.center)
 
-                photoViewport
-
-                Spacer(minLength: 0)
+                    photoViewport
+                    Menu("Adjust photo", systemImage: "crop") {
+                        Button("Zoom in") { adjustZoom(by: 0.25) }
+                        Button("Zoom out") { adjustZoom(by: -0.25) }
+                        Button("Move left") { movePhoto(x: -20, y: 0) }
+                        Button("Move right") { movePhoto(x: 20, y: 0) }
+                        Button("Move up") { movePhoto(x: 0, y: -20) }
+                        Button("Move down") { movePhoto(x: 0, y: 20) }
+                        Button("Reset crop", action: resetCrop)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityHint("Adjust the crop without pinching or dragging")
+                    Text("You can also use Adjust photo to zoom, move, or reset the crop.")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.vertical, 20)
             }
-            .padding(.horizontal, AppTheme.pagePadding)
-            .padding(.top, 20)
             .background(AppTheme.canvas.ignoresSafeArea())
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
@@ -56,10 +70,13 @@ struct PhotoResizeEditor: View {
             }
         }
         .presentationDetents([.large])
-        .alert("Couldn’t resize photo", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
+        .alert(
+            "Couldn’t resize photo",
+            isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )
+        ) {
             Button("OK", role: .cancel) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "Please choose another photo.")
@@ -90,12 +107,26 @@ struct PhotoResizeEditor: View {
             )
             .onAppear { updateViewportSize(size) }
             .onChange(of: size) { _, newSize in updateViewportSize(newSize) }
-            .accessibilityLabel("Square photo crop preview")
-            .accessibilityHint("Pinch with two fingers to zoom and drag to reposition the photo")
         }
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: 420, maxHeight: 420)
         .shadow(color: .black.opacity(0.14), radius: 14, y: 6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Square photo crop preview")
+        .accessibilityValue("Zoom \(Int(zoom * 100)) percent")
+        .accessibilityHint("Adjust zoom or use the actions to move and reset the photo")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: adjustZoom(by: 0.25)
+            case .decrement: adjustZoom(by: -0.25)
+            @unknown default: break
+            }
+        }
+        .accessibilityAction(named: "Move left") { movePhoto(x: -20, y: 0) }
+        .accessibilityAction(named: "Move right") { movePhoto(x: 20, y: 0) }
+        .accessibilityAction(named: "Move up") { movePhoto(x: 0, y: -20) }
+        .accessibilityAction(named: "Move down") { movePhoto(x: 0, y: 20) }
+        .accessibilityAction(named: "Reset crop") { resetCrop() }
     }
 
     private func dragGesture(viewportSize: CGSize) -> some Gesture {
@@ -139,6 +170,27 @@ struct PhotoResizeEditor: View {
         }
     }
 
+    private func adjustZoom(by amount: CGFloat) {
+        zoom = min(max(zoom + amount, 1), 4)
+        offset = constrainedOffset(offset, zoom: zoom, viewportSize: viewportSize)
+        committedZoom = zoom
+        committedOffset = offset
+    }
+
+    private func movePhoto(x: CGFloat, y: CGFloat) {
+        offset = constrainedOffset(
+            CGSize(width: offset.width + x, height: offset.height + y),
+            zoom: zoom, viewportSize: viewportSize)
+        committedOffset = offset
+    }
+
+    private func resetCrop() {
+        zoom = 1
+        committedZoom = 1
+        offset = .zero
+        committedOffset = .zero
+    }
+
     private func updateViewportSize(_ size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
         viewportSize = size
@@ -151,7 +203,8 @@ struct PhotoResizeEditor: View {
         guard imageSize.width > 0, imageSize.height > 0 else {
             return viewportSize
         }
-        let fillScale = max(viewportSize.width / imageSize.width, viewportSize.height / imageSize.height)
+        let fillScale = max(
+            viewportSize.width / imageSize.width, viewportSize.height / imageSize.height)
         return CGSize(width: imageSize.width * fillScale, height: imageSize.height * fillScale)
     }
 

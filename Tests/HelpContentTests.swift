@@ -32,4 +32,12 @@ final class HelpContentTests: XCTestCase {
             XCTAssertTrue(guide.contains(concept))
         }
     }
+
+    func testAccessibilityGuideExplainsAlternativesAndDoesNotOverclaimMediaSupport() {
+        let guide = HelpTopic.accessibility.steps.map(\.body).joined(separator: " ")
+        for concept in ["VoiceOver", "Voice Control", "List", "Reduce Motion", "Adjust photo", "start and end verse", "not yet available"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+        XCTAssertTrue(HelpTopic.personalization.steps.map(\.body).joined().contains("Adjust photo"))
+    }
 }

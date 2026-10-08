@@ -69,7 +69,7 @@ struct BlessingResponsesView: View {
                             .font(.headline)
                             .frame(width: 44, height: 44)
                             .background(
-                                transcriber.state == .listening ? AppTheme.candle : AppTheme.canvas,
+                                AppTheme.canvas,
                                 in: Circle()
                             )
                     }
@@ -80,13 +80,13 @@ struct BlessingResponsesView: View {
                         .focused($composerFocused)
                         .lineLimit(1...5)
                         .font(.body)
-                        .padding(.horizontal, 30)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .frame(minHeight: 44)
                         .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(AppTheme.divider)
+                                .stroke(AppTheme.secondaryInk)
                         }
                         .onChange(of: text) { _, value in
                             if value.count > 600 { text = String(value.prefix(600)) }
@@ -104,7 +104,7 @@ struct BlessingResponsesView: View {
                         }
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .background(AppTheme.primary, in: Circle())
+                        .background(AppTheme.actionFill, in: Circle())
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend || isSending)

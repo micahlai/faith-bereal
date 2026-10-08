@@ -4,6 +4,13 @@ import Supabase
 enum AppComposition {
     @MainActor
     static func makeModel(configuration: BackendConfiguration? = .load()) -> AppModel {
+#if DEBUG
+        // An explicit local-backend fence for accessibility UI automation.
+        // This launch argument is intentionally unavailable in Release builds.
+        if ProcessInfo.processInfo.arguments.contains("--manna-local-ui-test") {
+            return AppModel(repository: LocalBlessingRepository())
+        }
+#endif
         if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {
             return AppModel(repository: LocalBlessingRepository())
         }

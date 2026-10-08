@@ -3,8 +3,13 @@ import SwiftUI
 
 struct CircleTimelineView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @State private var selection: BlessingSelection?
     @State private var horizontalOffset: CGFloat = 0
+    @State private var prefersList: Bool?
+
+    private var showsList: Bool { prefersList ?? (dynamicTypeSize.isAccessibilitySize || voiceOverEnabled) }
 
     var body: some View {
         ZStack {
@@ -18,40 +23,47 @@ struct CircleTimelineView: View {
             } else {
                 let rows = TimelineRow.rows(for: model.lanes, calendar: circleCalendar)
                 VStack(spacing: 0) {
-                    TimelineMemberHeader(
-                        lanes: model.lanes,
-                        currentUserID: model.currentUser?.id,
-                        horizontalOffset: horizontalOffset
-                    )
-                    ScrollView([.horizontal, .vertical]) {
-                        Grid(alignment: .topLeading, horizontalSpacing: TimelineLayout.columnSpacing, verticalSpacing: 0) {
-                            ForEach(rows) { row in
-                                TimelineDayRow(
-                                    row: row,
-                                    lanes: model.lanes,
-                                    calendar: circleCalendar,
-                                    currentUserID: model.currentUser?.id,
-                                    onSelect: { member, blessing in
-                                        selection = BlessingSelection(member: member, blessing: blessing)
-                                    }
-                                )
+                    if showsList {
+                        accessibleTimeline(rows: rows)
+                    } else {
+                        TimelineMemberHeader(
+                            lanes: model.lanes,
+                            currentUserID: model.currentUser?.id,
+                            horizontalOffset: horizontalOffset
+                        )
+                        ScrollView([.horizontal, .vertical]) {
+                            Grid(
+                                alignment: .topLeading, horizontalSpacing: TimelineLayout.columnSpacing,
+                                verticalSpacing: 0
+                            ) {
+                                ForEach(rows) { row in
+                                    TimelineDayRow(
+                                        row: row,
+                                        lanes: model.lanes,
+                                        calendar: circleCalendar,
+                                        currentUserID: model.currentUser?.id,
+                                        onSelect: { member, blessing in
+                                            selection = BlessingSelection(member: member, blessing: blessing)
+                                        }
+                                    )
+                                }
                             }
+                            .padding(.leading, TimelineLayout.leadingPadding)
+                            .padding(.trailing, AppTheme.pagePadding)
+                            .padding(.top, 8)
+                            .padding(.bottom, 118)
                         }
-                        .padding(.leading, TimelineLayout.leadingPadding)
-                        .padding(.trailing, AppTheme.pagePadding)
-                        .padding(.top, 8)
-                        .padding(.bottom, 118)
+                        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                            geometry.contentOffset.x
+                        } action: { _, newOffset in
+                            horizontalOffset = newOffset
+                        }
+                        .overlayPreferenceValue(TimelineDateAnchors.self) { anchors in
+                            TimelineFrozenDates(rows: rows, anchors: anchors, calendar: circleCalendar)
+                        }
+                        .scrollIndicators(.visible)
+                        .clipped()
                     }
-                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                        geometry.contentOffset.x
-                    } action: { _, newOffset in
-                        horizontalOffset = newOffset
-                    }
-                    .overlayPreferenceValue(TimelineDateAnchors.self) { anchors in
-                        TimelineFrozenDates(rows: rows, anchors: anchors, calendar: circleCalendar)
-                    }
-                    .scrollIndicators(.visible)
-                    .clipped()
                 }
             }
         }
@@ -59,6 +71,21 @@ struct CircleTimelineView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(AppTheme.canvas, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Timeline layout", selection: Binding(get: { showsList }, set: { prefersList = $0 })) {
+                        Text("Threads").tag(false)
+                        Text("List").tag(true)
+                    }
+                } label: {
+                    Image(systemName: "list.bullet")
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("Timeline layout")
+                .accessibilityValue(showsList ? "List" : "Threads")
+            }
+        }
         .refreshable { await model.refreshCurrentCircle() }
         .sheet(item: $selection) { selection in
             BlessingDetailView(
@@ -71,6 +98,55 @@ struct CircleTimelineView: View {
 
     private var circleCalendar: Calendar {
         CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
+    }
+
+    private func accessibleTimeline(rows: [TimelineRow]) -> some View {
+        List {
+            ForEach(rows) { row in
+                Section {
+                    ForEach(model.lanes) { lane in
+                        if let events = row.eventsByMemberID[lane.member.id] {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    AvatarBadge(member: lane.member, size: 36).accessibilityHidden(true)
+                                    Text(lane.member.id == model.currentUser?.id ? "You" : lane.member.displayName)
+                                        .font(.headline)
+                                }
+                                .accessibilityAddTraits(.isHeader)
+                                ForEach(events.sorted { $0.promptKind == .endOfDay && $1.promptKind != .endOfDay }) {
+                                    event in
+                                    TimelineEventView(
+                                        event: event, member: lane.member, currentUserID: model.currentUser?.id
+                                    ) { blessing in
+                                        selection = BlessingSelection(member: lane.member, blessing: blessing)
+                                    }
+                                }
+                            }
+                            .listRowBackground(AppTheme.canvas)
+                            .listRowSeparator(.hidden)
+                        }
+                    }
+                } header: {
+                    Text(accessibleDate(row.day))
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(AppTheme.ink)
+                        .textCase(nil)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
+        }
+        // Grouped headers scroll with their section rather than pinning a large
+        // date over the content at accessibility text sizes.
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .accessibilityIdentifier("timeline.accessibleList")
+        .foregroundStyle(AppTheme.ink)
+    }
+
+    private func accessibleDate(_ day: Date) -> String {
+        var style = Date.FormatStyle.dateTime.month(.wide).day().year()
+        style.timeZone = circleCalendar.timeZone
+        return day.formatted(style)
     }
 }
 
@@ -173,7 +249,7 @@ private struct TimelineMemberHeader: View {
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
                     VStack(spacing: 4) {
-                        AvatarBadge(member: lane.member, size: 48)
+                        AvatarBadge(member: lane.member, size: 48).accessibilityHidden(true)
                         Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
                             .font(.headline)
                             .foregroundStyle(AppTheme.ink)
@@ -308,6 +384,7 @@ private struct TimelineConnectorView: View {
 }
 
 private struct TimelineEventView: View {
+    @Environment(AppModel.self) private var model
     let event: TimelineEvent
     let member: Member
     let currentUserID: UUID?
@@ -319,6 +396,7 @@ private struct TimelineEventView: View {
             VStack(spacing: 0) {
                 marker
                     .frame(width: 24, height: 24)
+                    .accessibilityHidden(true)
                 if !isJoinedMarker {
                     Rectangle()
                         .fill(AppTheme.divider)
@@ -338,7 +416,24 @@ private struct TimelineEventView: View {
             .padding(.bottom, isJoinedMarker ? 12 : 22)
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: isBlessing ? .contain : .combine)
+        .accessibilityValue(isBlessing ? "" : accessibilityContext)
+    }
+
+    private var isBlessing: Bool {
+        if case .blessing = event.status { return true }
+        return false
+    }
+
+    private var accessibilityContext: String {
+        var style = Date.FormatStyle.dateTime.month(.wide).day().year()
+        style.timeZone = TimeZone(identifier: model.circle?.timeZoneIdentifier ?? "") ?? .current
+        return "\(member.displayName), \(event.date.formatted(style)), \(event.promptKind == .endOfDay ? "end-of-day" : "daily")"
+    }
+
+    private func accessibilityDescription(for blessing: Blessing) -> String {
+        let mode = blessing.captureMode == .typed ? "text" : blessing.captureMode.rawValue
+        return "\(accessibilityContext) \(mode) blessing. \(blessing.body ?? "")\(blessing.isLate ? ". Shared late" : "")\(blessing.scriptureReference.map { ". " + $0.displayName } ?? "")"
     }
 
     private var isJoinedMarker: Bool {
@@ -398,9 +493,10 @@ private struct TimelineEventView: View {
                     TruncationAwareText(
                         text: blessing.body ?? "",
                         lineLimit: 15,
-                        font: .system(.subheadline, design: .serif),
+                        font: .system(.body, design: .serif),
                         isTruncated: $isBodyTruncated
                     )
+                    .foregroundStyle(AppTheme.ink)
                     HStack(spacing: 8) {
                         Text(blessing.submittedAt, style: .time)
                             .font(.caption2)
@@ -415,7 +511,6 @@ private struct TimelineEventView: View {
                         Label(reference.displayName, systemImage: "book.closed")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppTheme.iris)
-                            .lineLimit(1)
                     }
                     TimelineResponderAvatars(blessing: blessing)
                 }
@@ -433,6 +528,8 @@ private struct TimelineEventView: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(accessibilityDescription(for: blessing))
+            .accessibilityInputLabels(["\(member.displayName) blessing", "Open blessing"])
             .accessibilityHint("Opens the complete blessing")
         case .missed:
             Label("Missed this day", systemImage: "minus.circle")
@@ -839,7 +936,7 @@ struct AudioBlessingPlayer: View {
                         .font(.headline)
                         .frame(width: 44, height: 44)
                         .foregroundStyle(.white)
-                        .background(AppTheme.primary, in: Circle())
+                        .background(AppTheme.actionFill, in: Circle())
                     }
                     .buttonStyle(.plain)
                     .disabled(playback.isPreparing)
@@ -1102,12 +1199,12 @@ struct TruncationAwareText: View {
                     .font(font)
                     .fixedSize(horizontal: false, vertical: true)
                     .hidden()
-                    .accessibilityHidden(true)
                     .background {
                         GeometryReader { proxy in
                             Color.clear.preference(key: FullTextHeightKey.self, value: proxy.size.height)
                         }
                     }
+                    .accessibilityHidden(true)
             }
             .onPreferenceChange(LimitedTextHeightKey.self) { limitedHeight = $0; updateTruncation() }
             .onPreferenceChange(FullTextHeightKey.self) { fullHeight = $0; updateTruncation() }
@@ -1154,7 +1251,7 @@ struct AvatarBadge: View {
     private var initials: some View {
         Text(member.initials)
             .font(.system(size: size * 0.31, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
+            .foregroundStyle(AppTheme.surface)
             .frame(width: size, height: size)
             .background(avatarColor)
     }
@@ -1197,6 +1294,6 @@ struct CircleAvatarBadge: View {
             .font(.system(size: size * 0.36, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(AppTheme.primary.gradient)
+            .background(AppTheme.actionFill.gradient)
     }
 }

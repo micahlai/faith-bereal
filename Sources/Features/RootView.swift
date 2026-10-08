@@ -99,7 +99,8 @@ private struct AboutView: View {
                     VStack(spacing: 28) {
                         AboutPageContent()
                         Button(showsDismissButton ? "Done" : "Continue") { onContinue() }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(MannaPrimaryButtonStyle())
+                            .tint(AppTheme.actionFill)
                             .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
                     }
                     .frame(maxWidth: 620)
@@ -265,7 +266,8 @@ private struct StartupOnboardingView: View {
             Text("Continue").fixedSize()
                 .frame(minWidth: 104, minHeight: AppTheme.controlHeight)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(MannaPrimaryButtonStyle())
+        .tint(AppTheme.actionFill)
         .disabled((page == .appIcon && model.isChangingAppIcon) || model.isChangingAutomaticSaving)
     }
 
@@ -367,7 +369,7 @@ private struct WidgetOnboardingPage: View {
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
-                .background(AppTheme.primary, in: Circle())
+                .background(AppTheme.actionFill, in: Circle())
                 .accessibilityHidden(true)
             Text(text)
                 .frame(maxWidth: .infinity, alignment: .leading)

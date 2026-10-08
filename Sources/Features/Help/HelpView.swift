@@ -69,6 +69,7 @@ private struct HelpTopicView: View {
                                 .foregroundStyle(AppTheme.primary)
                                 .accessibilityHidden(true)
                             Text("\(index + 1). \(step.title)").font(.headline)
+                                .accessibilityAddTraits(.isHeader)
                         }
                         Text(step.body).font(.body).fixedSize(horizontal: false, vertical: true)
                     }
@@ -81,6 +82,7 @@ private struct HelpTopicView: View {
             .frame(maxWidth: .infinity)
         }
         .background(AppTheme.canvas)
+        .id(topic)
         .navigationTitle(topic.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

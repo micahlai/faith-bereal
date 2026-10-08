@@ -155,6 +155,15 @@ This resolves the example in the brief as “history is always readable; only th
 - Every customer-visible feature change must update the matching Help topic and relevant tests.
 - Creating a circle opens a full-screen guided page with progress and Back/Continue controls. Collect name, optional photo, time zone, random-time range, entry duration, late-sharing policy, end-of-day time, and repeat window one step at a time. Validate each relevant step; preserve selections on Back. A final review precedes the sole create action.
 
+## Accessibility
+
+- All common tasks use native named controls with 44-point minimum targets, Dynamic Type, adaptive colors, and explicit status text/symbols. Reduced Motion disables custom countdown/onboarding animations.
+- Timeline offers Threads and a single-column List. List defaults on for VoiceOver and accessibility text sizes; it preserves membership boundaries, privacy gates, statuses, detail opening, and saved-media behavior. Spoken card names include author, circle-local date, prompt kind, capture mode, full text/transcript, late status, and Bible reference.
+- Verse selection supports native Start/End steppers alongside the drag grid, with scaled cells and selected traits/borders. Photo cropping supports an Adjust photo menu and VoiceOver zoom/movement/reset actions alongside pinch/drag. All methods produce the same square upload.
+- At accessibility sizes, countdown text is not constrained inside a fixed-size ring, and guided creation uses stacked navigation. Colors distinguish foreground tints from white-on-orange action fills; Increased Contrast strengthens card and divider boundaries.
+- Help includes an Accessibility topic explaining these alternatives and current limitations. Audio/video transcripts are readable and author-editable. Timed video captions, author-provided image descriptions, and narrated visual-description tracks are not yet implemented; do not claim full Captions or Audio Descriptions support.
+- Before declaring an App Store accessibility label, validate every common task on each supported device class. Automated audits and simulator checks do not replace physical VoiceOver, Voice Control, camera/media, and system-permission testing. See `docs/ACCESSIBILITY_AUDIT.md`.
+
 ## Success measures
 
 - prompt-to-submission conversion;

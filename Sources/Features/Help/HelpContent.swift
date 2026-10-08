@@ -2,7 +2,7 @@ import Foundation
 
 // Customer-facing feature guide. Update this catalog whenever behavior changes.
 enum HelpTopic: String, CaseIterable, Identifiable {
-    case sharing, evening, circles, timeline, responses, saving, scripture, notifications, personalization
+    case sharing, evening, circles, timeline, responses, saving, scripture, notifications, personalization, accessibility
 
     var id: Self { self }
     var title: String {
@@ -16,6 +16,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         case .scripture: "Bible verses"
         case .notifications: "Notifications & widgets"
         case .personalization: "Profile & appearance"
+        case .accessibility: "Accessibility"
         }
     }
 
@@ -30,6 +31,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         case .scripture: "book.closed"
         case .notifications: "bell.badge"
         case .personalization: "person.crop.circle"
+        case .accessibility: "accessibility"
         }
     }
 
@@ -44,6 +46,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         case .scripture: "Tag a passage; read it in your chosen version."
         case .notifications: "Stay connected, on your terms."
         case .personalization: "Make manna feel like yours."
+        case .accessibility: "Read, listen, and navigate your way."
         }
     }
 
@@ -97,9 +100,15 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             .init("gearshape", "Control the experience", "Choose the widget refresh interval in User settings, default 30 minutes. iOS controls exact refresh and delivery timing. If alerts or Live Activities are missing, check their permissions in iPhone Settings."),
         ]
         case .personalization: [
-            .init("person.crop.circle", "Your profile", "Use User settings to change your name and profile photo. Profile and circle photos use a circular preview; pinch and drag together to crop. The uploaded image is square."),
-            .init("circle.lefthalf.filled", "Light, dark, or automatic", "Choose appearance in User settings. Automatic follows your device. Choose your app icon separately; the logo artwork is also used in manna's branded surfaces."),
+            .init("person.crop.circle", "Your profile", "Use User settings to change your name and profile photo. Profile and circle photos use a circular preview; pinch and drag together to crop, or use Adjust photo to zoom and move without gestures. VoiceOver also offers crop actions. The uploaded image is square."),
+            .init("circle.lefthalf.filled", "Light, dark, or automatic", "Choose appearance in User settings. Automatic follows your device. Colors keep text readable in both appearances. Choose your app icon separately; the logo artwork is also used in manna's branded surfaces."),
             .init("line.3.horizontal", "Find your way back", "The hamburger menu keeps Help, About, User settings, and circle management within reach. You can revisit this guide whenever you need it."),
+        ]
+        case .accessibility: [
+            .init("textformat.size", "Larger text & readable colors", "manna follows your iPhone's text size, Reduce Motion, and contrast settings. Choose Light, Dark, or Automatic in User settings. Sharing states use words and symbols, not just color."),
+            .init("list.bullet", "An easier Timeline", "Open Timeline layout at the top of Timeline and choose List for one vertical stream of dates, people, and blessings. It is selected automatically for VoiceOver and accessibility text sizes. Threads remains available if you prefer member lanes."),
+            .init("hand.tap", "Controls without gestures", "Use the start and end verse controls instead of dragging the grid. In the photo crop editor, Adjust photo offers zoom, movement, and reset. VoiceOver offers these crop actions too. Named buttons work with Voice Control."),
+            .init("text.bubble", "Read recordings", "Voice and video blessings, and voice responses, show their transcripts as readable text. Authors can correct transcripts before sharing. Transcripts may contain mistakes; timed video captions and narrated descriptions of visual content are not yet available."),
         ]
         }
     }

@@ -1,5 +1,13 @@
 # Project status
 
+## 2026-10-08 accessibility baseline
+
+- Timeline adds a single-column List, selected automatically for VoiceOver and accessibility text sizes, with a toolbar choice to return to Threads. Dates scroll with their sections in List; the existing compact frozen Threads header is unchanged. Spoken cards include author, circle-local day, capture type, full text/transcript, scripture, and late status.
+- Photo cropping now has menu and VoiceOver zoom/movement/reset alternatives while preserving simultaneous pinch/drag and square output. Verse cells scale, retain the native Start/End alternatives, and distinguish selection with traits and borders. Countdown text and circle-creation navigation adapt at accessibility text sizes.
+- Orange foreground and filled-action colors are separate, selected verse text uses the correct light/dark contrast pair, primary buttons use solid fills, and Increased Contrast strengthens card boundaries. Help gains an Accessibility topic explaining alternatives and media limitations.
+- All 106 app/domain tests and all 15 local-demo UI tests pass. Coverage includes actual compiled-asset contrast across light/dark and normal/high contrast, guide content, native hit-region/description audits, manual/automatic Timeline List selection, largest-text dark/landscape layouts, and existing sharing/saving/circle regressions. The signed hosted Release device build passes; it was not deployed or uploaded to TestFlight.
+- This is not a claim of all nine App Store labels. Timed video captions and narrated audio descriptions are not implemented. The small-phone native contrast audit still flags the Share button despite its passing numeric color pair; rendered contrast and full physical-device/iPad common-task acceptance remain pending. See `docs/ACCESSIBILITY_AUDIT.md`.
+
 ## 2026-10-08 automatic private saving
 
 - Account setup adds a Local Saving step, and User settings exposes Automatically save locally. The preference and archives are account-isolated on this device; it is opt-in and does not change server retention or privacy gates.

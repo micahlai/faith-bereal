@@ -2,6 +2,77 @@ import XCTest
 
 final class BlessingCircleUITests: XCTestCase {
     @MainActor
+    func testAccessibleTimelineListAndNativeAudit() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchArguments += ["--manna-local-ui-test", "-user.appearancePreference", "light"]
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
+        try auditAccessibility(app)
+
+        app.tabBars.buttons["Timeline"].tap()
+        app.buttons["Timeline layout"].tap()
+        app.buttons["List"].tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any).matching(identifier: "timeline.accessibleList").firstMatch.waitForExistence(
+                timeout: 3))
+        try auditAccessibility(app)
+        let blessing = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "blessing.")).firstMatch
+        for _ in 0..<4 where !blessing.isHittable { app.swipeUp() }
+        XCTAssertTrue(blessing.isHittable)
+        XCTAssertTrue(blessing.label.contains(String(Calendar.current.component(.year, from: Date()))))
+        try auditAccessibility(app)
+        blessing.tap()
+        XCTAssertTrue(app.navigationBars["Blessing"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Close blessing"].exists)
+    }
+
+    @MainActor
+    private func auditAccessibility(_ app: XCUIApplication) throws {
+        // Contrast is checked independently against compiled color assets.
+        // The rendered Inspector audit remains a manual acceptance requirement;
+        // its current Share-button contrast finding is recorded in the audit doc.
+        try app.performAccessibilityAudit(for: [.hitRegion, .sufficientElementDescription]) { issue in
+            let details = XCTAttachment(
+                string:
+                    "\(issue.detailedDescription)\n\(issue.element?.debugDescription ?? "No element")\nHittable: \(issue.element?.isHittable ?? false)"
+            )
+            details.name = "Accessibility issue details"
+            details.lifetime = .keepAlways
+            self.add(details)
+            return false
+        }
+    }
+
+    @MainActor
+    func testTimelineAutomaticallyUsesListAtLargestText() {
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchArguments += [
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+            "-user.appearancePreference", "dark", "-UIAccessibilityReduceMotionEnabled", "YES",
+        ]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Timeline"].tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any).matching(identifier: "timeline.accessibleList").firstMatch.waitForExistence(
+                timeout: 3))
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "timeline.memberHeader").firstMatch.exists)
+        app.swipeUp()
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Accessible Timeline list at largest text in dark appearance"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor
     func testStartupOnboardingSupportsBackNavigationAndWidgetGuide() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -291,6 +362,8 @@ final class BlessingCircleUITests: XCTestCase {
         settingsButton.tap()
 
         let forceButton = app.buttons["Force blessing notification"]
+        // Small-phone Forms materialize lower settings only as they scroll in.
+        for _ in 0..<8 where !forceButton.isHittable { app.swipeUp() }
         XCTAssertTrue(forceButton.waitForExistence(timeout: 3))
         forceButton.tap()
         XCTAssertTrue(app.buttons["Force blessing now"].waitForExistence(timeout: 2))
