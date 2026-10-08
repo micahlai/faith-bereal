@@ -939,6 +939,27 @@ Deno.serve(async (request) => {
   await closeExpiredPrompts();
   await reconcileLateActivities();
   await processCircleNotifications();
+  // Enable only after the archive-capable client has shipped. Cleanup failures
+  // are retryable and must not block today's notifications or Live Activities.
+  if (Deno.env.get("MEDIA_RETENTION_ENABLED") === "true") {
+    try {
+      const { error: queueError } = await admin.rpc("queue_expired_media", { p_limit: 100 });
+      if (queueError) throw queueError;
+      const { data: queued, error: readError } = await admin
+        .from("media_deletion_queue").select("storage_path").order("queued_at").limit(100);
+      if (readError) throw readError;
+      const paths = (queued ?? []).map((row) => row.storage_path);
+      if (paths.length > 0) {
+        const { error: removalError } = await admin.storage.from("blessing-media").remove(paths);
+        if (removalError) throw removalError;
+        const { error: acknowledgementError } = await admin.from("media_deletion_queue")
+          .delete().in("storage_path", paths);
+        if (acknowledgementError) throw acknowledgementError;
+      }
+    } catch (error) {
+      console.error(JSON.stringify({ event: "media_retention_retry", error: String(error) }));
+    }
+  }
 
   return Response.json({ claimed: outcomes.length, outcomes });
 });

@@ -18,4 +18,8 @@ The existing scheduler performs bounded cleanup batches. The migration does not 
 
 ## Verification
 
+Run `bash Scripts/test-media-retention.sh` with local PostgreSQL tools available. It creates an isolated socket-only temporary database, installs the real migration against a minimal compatible fixture schema, checks retention/privacy invariants, then stops and removes only that fixture. It never contacts hosted Supabase.
+
+For rollout, push `202610080001_media_retention.sql` and deploy `dispatch-prompts` with cleanup left disabled. Verify a disposable hosted media fixture and ship the archive-capable app before setting the Edge Function secret `MEDIA_RETENTION_ENABLED=true`. Removing or setting that secret to `false` pauses new cleanup but cannot restore media already removed. Deployment/activation is a separate explicit release decision.
+
 Cover exact 12/14-day boundaries, response dates, privacy/account isolation, archive reload, atomic partial failure, original-file preservation, local playback after expiry, unsave and expired warnings, locked content, repeat path references, queue retry, and add-only Photos permission. UI coverage uses local demo data, never hosted sign-in.

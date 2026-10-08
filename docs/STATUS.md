@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-08 two-week media cleanup
+
+- A service-role-only retention function detaches audio/video and video-thumbnail references exactly 14 days after each submission, preserving text, references, photos, and response rows. A private deletion queue retries actual Storage API removals; shared media is protected while a younger blessing still references it.
+- The scheduler processes bounded cleanup batches only with `MEDIA_RETENTION_ENABLED=true`. Migration installation does not delete historical data. Activation is pending the archive-capable client rollout and the owner's explicit timing choice.
+- The real migration and transactional regression pass against an isolated local PostgreSQL fixture, including timestamp boundaries, response-specific dates, repeat-path safety, client denial, and idempotent queue retries. Dispatcher type checking and APNs payload contracts pass. Hosted migration/Storage acceptance remain pending.
+
 ## 2026-10-08 private saved blessings
 
 - Save/Unsave blessing stores a complete available blessing snapshot and its current responses in account-isolated Application Support storage, including photo/audio/video and response audio. All requested files must download before Saved appears; partial failures leave no archive.
