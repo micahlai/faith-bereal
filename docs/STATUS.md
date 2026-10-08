@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-08 guided circle creation
+
+- Circle creation is a full-screen nine-step flow with progress, Back/Continue controls, and focused explanations for name, optional photo, time zone, random range, entry duration, late sharing, evening time, and reuse window.
+- Each relevant step validates before continuing; going Back preserves the chosen values. The final review shows every setting, and the sole create action still applies them transactionally from the circle's first day.
+- Simulator coverage passes for name validation, backward navigation, all steps/defaults, review, and creation into the new circle.
+
 ## 2026-10-08 customer Help
 
 - The hamburger menu opens Help in both joined-circle and no-circle states. Nine illustrated, plain-language topics cover sharing, evening reflections, circles, Timeline, responses, saved media/expiry, Bible tags, notifications/widgets, and personal settings.

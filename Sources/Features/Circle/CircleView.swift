@@ -66,7 +66,7 @@ struct CircleView: View {
         .navigationTitle(model.circle == nil ? "Let’s get started" : "Circle")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingJoin) { joinSheet }
-        .sheet(isPresented: $showingCreate) { createSheet }
+        .fullScreenCover(isPresented: $showingCreate) { createSheet }
         .onAppear { presentPendingInviteIfNeeded() }
         .onChange(of: model.pendingInviteCode) { _, _ in presentPendingInviteIfNeeded() }
         .onChange(of: showingJoin) { wasShowing, isShowing in
@@ -252,6 +252,12 @@ private struct CircleCreationView: View {
     @State private var pendingCirclePhotoResize: PendingPhotoResize?
     @State private var circlePhotoURL: URL?
     @State private var isPreparingCirclePhoto = false
+    @State private var step = 0
+
+    private let stepTitles = [
+        "Circle name", "Circle photo", "Time zone", "Random blessing time", "Response window", "Late blessings",
+        "End-of-day blessing", "Repeat blessings", "Review your circle",
+    ]
 
     init(isPresented: Binding<Bool>) {
         _isPresented = isPresented
@@ -290,162 +296,258 @@ private struct CircleCreationView: View {
     }
 
     var body: some View {
-        let circlePhotoButtonTitle = circlePhotoURL == nil
+        let circlePhotoButtonTitle =
+            circlePhotoURL == nil
             ? "Choose circle photo"
             : "Change circle photo"
         NavigationStack {
-            Form {
-                Section {
-                    HStack(spacing: 16) {
-                        creationPhotoPreview
-                        VStack(alignment: .leading, spacing: 6) {
-                            PhotosPicker(selection: $selectedCirclePhoto, matching: .images) {
-                                Label(
-                                    circlePhotoButtonTitle,
-                                    systemImage: "photo"
-                                )
-                                .frame(minHeight: 44)
-                            }
-                            if circlePhotoURL != nil {
-                                Button("Remove photo", role: .destructive) {
-                                    circlePhotoURL = nil
-                                    selectedCirclePhoto = nil
-                                }
-                                .frame(minHeight: 44)
-                            }
-                        }
-                    }
-                    if isPreparingCirclePhoto {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Preparing photo…")
-                                .foregroundStyle(AppTheme.secondaryInk)
-                        }
-                    }
-                } header: {
-                    Text("Circle photo")
-                } footer: {
-                    Text("Optional. You can change this later in Circle settings.")
-                }
-
-                Section {
-                    TextField("Circle name", text: $name)
-                        .textContentType(.organizationName)
-                        .accessibilityIdentifier("create-circle-name")
-                    NavigationLink {
-                        CircleTimeZonePicker(selection: $timeZoneIdentifier)
-                    } label: {
-                        LabeledContent("Time zone", value: timeZoneDisplayName)
-                    }
-                } header: {
-                    Text("Circle")
-                } footer: {
-                    Text("The selected time zone keeps one shared blessing day for members wherever they live.")
-                }
-
-                Section {
-                    DatePicker(
-                        "Earliest time",
-                        selection: $randomWindowStart,
-                        displayedComponents: .hourAndMinute
-                    )
-                    DatePicker(
-                        "Latest time",
-                        selection: $randomWindowEnd,
-                        displayedComponents: .hourAndMinute
-                    )
-                    if randomWindowEndMinutes <= randomWindowStartMinutes {
-                        Label("Latest time must be after earliest time.", systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                } header: {
-                    Text("Random blessing time")
-                } footer: {
-                    Text("Today’s first blessing time will be chosen inside this range, using (timeZoneIdentifier).")
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("Response window")
-                                .font(.headline)
-                            Spacer()
-                            Text(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
-                                .font(.headline.monospacedDigit())
-                                .foregroundStyle(AppTheme.primary)
-                        }
-                        Slider(
-                            value: $selectedIndex,
-                            in: 0...Double(ResponseWindowOptions.minutes.count - 1),
-                            step: 1
-                        ) {
-                            Text("Response window length")
-                        } minimumValueLabel: {
-                            Text("1m").font(.caption2)
-                        } maximumValueLabel: {
-                            Text("3h").font(.caption2)
-                        }
+            VStack(spacing: 0) {
+                VStack(spacing: 8) {
+                    Text("Step \(step + 1) of \(stepTitles.count)")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(AppTheme.secondaryInk)
+                    ProgressView(value: Double(step + 1), total: Double(stepTitles.count))
                         .tint(AppTheme.primary)
-                        .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
-                    }
-                    .padding(.vertical, 6)
-                } footer: {
-                    Text("Members have this long after the shared notification to respond.")
+                        .accessibilityLabel("Circle setup progress")
+                    Text(stepTitles[step])
+                        .font(.system(.title, design: .serif, weight: .regular))
                 }
-
-                Section {
-                    Toggle("Allow late blessings", isOn: $allowsLateBlessings)
-                } footer: {
-                    Text("Late posts remain available until the next daily prompt and are labeled in the timeline.")
-                }
-
-                Section {
-                    DatePicker(
-                        "End-of-day time",
-                        selection: $endOfDayTime,
-                        displayedComponents: .hourAndMinute
-                    )
-                    if endOfDayMinutes < randomWindowEndMinutes {
-                        Label("End of day cannot be before the latest random blessing time.", systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                } header: {
-                    Text("End-of-day blessing")
-                } footer: {
-                    Text("A second, untimed reflection opens at this time and remains available for up to five hours.")
-                }
-
-                Section {
-                    Picker("Reuse window", selection: $repeatWindowMinutes) {
-                        ForEach(RepeatWindowOptions.minutes, id: \.self) { minutes in
-                            Text(Self.durationLabel(minutes)).tag(minutes)
+                .padding(AppTheme.pagePadding)
+                Form {
+                    if step == 1 {
+                        Section {
+                            HStack(spacing: 16) {
+                                creationPhotoPreview
+                                VStack(alignment: .leading, spacing: 6) {
+                                    PhotosPicker(selection: $selectedCirclePhoto, matching: .images) {
+                                        Label(
+                                            circlePhotoButtonTitle,
+                                            systemImage: "photo"
+                                        )
+                                        .frame(minHeight: 44)
+                                    }
+                                    if circlePhotoURL != nil {
+                                        Button("Remove photo", role: .destructive) {
+                                            circlePhotoURL = nil
+                                            selectedCirclePhoto = nil
+                                        }
+                                        .frame(minHeight: 44)
+                                    }
+                                }
+                            }
+                            if isPreparingCirclePhoto {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                    Text("Preparing photo…")
+                                        .foregroundStyle(AppTheme.secondaryInk)
+                                }
+                            }
+                        } header: {
+                            Text("Circle photo")
+                        } footer: {
+                            Text("Optional. You can change this later in Circle settings.")
                         }
                     }
-                } header: {
-                    Text("Repeat blessings")
-                } footer: {
-                    Text("Members can reuse their own blessing from another circle within this much time of sending it.")
-                }
 
-                Section {
+                    if step == 0 {
+                        Section {
+                            TextField("Circle name", text: $name)
+                                .textContentType(.organizationName)
+                                .accessibilityIdentifier("create-circle-name")
+                        } footer: {
+                            Text(
+                                "Choose a name your friends will recognize. It appears in the circle menu, invitations, and notifications."
+                            )
+                        }
+                    }
+                    if step == 2 {
+                        Section {
+                            NavigationLink {
+                                CircleTimeZonePicker(selection: $timeZoneIdentifier)
+                            } label: {
+                                LabeledContent("Time zone", value: timeZoneDisplayName)
+                            }
+                        } header: {
+                            Text("Circle")
+                        } footer: {
+                            Text("The selected time zone keeps one shared blessing day for members wherever they live.")
+                        }
+                    }
+
+                    if step == 3 {
+                        Section {
+                            DatePicker(
+                                "Earliest time",
+                                selection: $randomWindowStart,
+                                displayedComponents: .hourAndMinute
+                            )
+                            DatePicker(
+                                "Latest time",
+                                selection: $randomWindowEnd,
+                                displayedComponents: .hourAndMinute
+                            )
+                            if randomWindowEndMinutes <= randomWindowStartMinutes {
+                                Label(
+                                    "Latest time must be after earliest time.", systemImage: "exclamationmark.triangle"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                            }
+                        } header: {
+                            Text("Random blessing time")
+                        } footer: {
+                            Text(
+                                "Everyone receives the same random invitation within this range, in \(timeZoneDisplayName). The default is noon to 10 p.m."
+                            )
+                        }
+                    }
+
+                    if step == 4 {
+                        Section {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text("Response window")
+                                        .font(.headline)
+                                    Spacer()
+                                    Text(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                                        .font(.headline.monospacedDigit())
+                                        .foregroundStyle(AppTheme.primary)
+                                }
+                                Slider(
+                                    value: $selectedIndex,
+                                    in: 0...Double(ResponseWindowOptions.minutes.count - 1),
+                                    step: 1
+                                ) {
+                                    Text("Response window length")
+                                } minimumValueLabel: {
+                                    Text("1m").font(.caption2)
+                                } maximumValueLabel: {
+                                    Text("3h").font(.caption2)
+                                }
+                                .tint(AppTheme.primary)
+                                .accessibilityValue(selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
+                            }
+                            .padding(.vertical, 6)
+                        } footer: {
+                            Text(
+                                "This is how long members have to open the blessing composer after the notification. Once inside, they can finish and send after the timer ends."
+                            )
+                        }
+                    }
+
+                    if step == 5 {
+                        Section {
+                            Toggle("Allow late blessings", isOn: $allowsLateBlessings)
+                        } footer: {
+                            Text(
+                                "Late posts remain available until the next daily prompt and are labeled in the timeline."
+                            )
+                        }
+                    }
+
+                    if step == 6 {
+                        Section {
+                            DatePicker(
+                                "End-of-day time",
+                                selection: $endOfDayTime,
+                                displayedComponents: .hourAndMinute
+                            )
+                            if endOfDayMinutes < randomWindowEndMinutes {
+                                Label(
+                                    "End of day cannot be before the latest random blessing time.",
+                                    systemImage: "exclamationmark.triangle"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                            }
+                        } header: {
+                            Text("End-of-day blessing")
+                        } footer: {
+                            Text(
+                                "A second, untimed reflection opens at this time and remains available for up to five hours."
+                            )
+                        }
+                    }
+
+                    if step == 7 {
+                        Section {
+                            Picker("Reuse window", selection: $repeatWindowMinutes) {
+                                ForEach(RepeatWindowOptions.minutes, id: \.self) { minutes in
+                                    Text(Self.durationLabel(minutes)).tag(minutes)
+                                }
+                            }
+                        } header: {
+                            Text("Repeat blessings")
+                        } footer: {
+                            Text(
+                                "Members can reuse their own blessing from another circle within this much time of sending it."
+                            )
+                        }
+                    }
+
+                    if step == 8 {
+                        Section {
+                            LabeledContent("Name", value: name)
+                            HStack {
+                                creationPhotoPreview;
+                                Text(circlePhotoURL == nil ? "Default circle image" : "Custom circle photo")
+                            }
+                            LabeledContent("Time zone", value: timeZoneDisplayName)
+                            LabeledContent(
+                                "Random blessing time",
+                                value:
+                                    "\(randomWindowStart.formatted(date: .omitted, time: .shortened)) – \(randomWindowEnd.formatted(date: .omitted, time: .shortened))"
+                            )
+                            LabeledContent("Response window", value: Self.durationLabel(selectedMinutes))
+                            LabeledContent("Late blessings", value: allowsLateBlessings ? "Allowed" : "Not allowed")
+                            LabeledContent(
+                                "End-of-day time", value: endOfDayTime.formatted(date: .omitted, time: .shortened))
+                            LabeledContent("Reuse window", value: Self.durationLabel(repeatWindowMinutes))
+                        } footer: {
+                            Text(
+                                "Nothing has been created yet. These settings apply from today. Use Back to adjust them, or create your circle to get its join code."
+                            )
+                        }
+                    }
+                }
+                .id(step)
+                .scrollContentBackground(.hidden)
+            }
+            .background(AppTheme.canvas)
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 12) {
+                    if step > 0 {
+                        Button {
+                            step -= 1
+                        } label: {
+                            Text("Back").frame(minWidth: 64, minHeight: AppTheme.controlHeight)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isCreating)
+                    }
+                    Spacer(minLength: 12)
                     Button {
-                        isCreating = true
-                        Task { await createCircle() }
+                        if step == stepTitles.count - 1 {
+                            isCreating = true
+                            Task { await createCircle() }
+                        } else {
+                            step += 1
+                        }
                     } label: {
                         HStack {
-                            Text("Create circle")
-                            Spacer()
                             if isCreating { ProgressView() }
+                            Text(step == stepTitles.count - 1 ? "Create circle" : "Continue")
                         }
-                        .frame(minHeight: 44)
+                        .frame(minWidth: 104, minHeight: AppTheme.controlHeight)
                     }
-                    .disabled(isCreating || isPreparingCirclePhoto || !configuration.isValid)
-                    .accessibilityIdentifier("create-circle-submit")
-                } footer: {
-                    Text("These settings apply from today. You can change future scheduling in Circle settings.")
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isCreating || isPreparingCirclePhoto || !canContinue)
+                    .accessibilityIdentifier(
+                        step == stepTitles.count - 1 ? "create-circle-submit" : "create-circle-continue")
                 }
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.vertical, 12)
+                .background(.bar)
             }
             .navigationTitle("New circle")
             .navigationBarTitleDisplayMode(.inline)
@@ -482,10 +584,21 @@ private struct CircleCreationView: View {
         }
     }
 
+    private var canContinue: Bool {
+        switch step {
+        case 0: (1...80).contains(name.trimmingCharacters(in: .whitespacesAndNewlines).count)
+        case 3: randomWindowEndMinutes > randomWindowStartMinutes
+        case 6: endOfDayMinutes >= randomWindowEndMinutes
+        case 8: configuration.isValid
+        default: true
+        }
+    }
+
     @ViewBuilder private var creationPhotoPreview: some View {
         if let circlePhotoURL,
-           circlePhotoURL.isFileURL,
-           let image = UIImage(contentsOfFile: circlePhotoURL.path) {
+            circlePhotoURL.isFileURL,
+            let image = UIImage(contentsOfFile: circlePhotoURL.path)
+        {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()

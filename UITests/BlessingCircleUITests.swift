@@ -223,19 +223,42 @@ final class BlessingCircleUITests: XCTestCase {
         app.buttons["Create a circle"].tap()
 
         XCTAssertTrue(app.navigationBars["New circle"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Circle photo"].exists)
+        XCTAssertTrue(app.staticTexts["Step 1 of 9"].exists)
+        XCTAssertFalse(app.buttons["Continue"].isEnabled)
+        let name = app.textFields["create-circle-name"]
+        name.tap()
+        name.typeText("Guided test circle")
+        app.buttons["Continue"].tap()
         XCTAssertTrue(app.buttons["Choose circle photo"].exists)
-        XCTAssertTrue(app.textFields["Circle name"].exists)
+        app.buttons["Back"].tap()
+        XCTAssertEqual(name.value as? String, "Guided test circle")
+        app.buttons["Continue"].tap()
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["Time zone"].exists)
+        app.buttons["Continue"].tap()
         XCTAssertTrue(app.staticTexts["Random blessing time"].exists)
+        app.buttons["Continue"].tap()
         XCTAssertTrue(app.staticTexts["Response window"].exists)
+        app.buttons["Continue"].tap()
         let allowLate = app.switches["Allow late blessings"]
-        for _ in 0..<3 where !allowLate.isHittable { app.swipeUp() }
         XCTAssertTrue(allowLate.waitForExistence(timeout: 2))
         XCTAssertEqual(allowLate.value as? String, "1")
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["End-of-day blessing"].exists)
+        app.buttons["Continue"].tap()
         XCTAssertTrue(app.staticTexts["Reuse window"].exists)
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["Step 9 of 9"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Guided test circle")).firstMatch.exists)
+        let review = XCTAttachment(screenshot: app.screenshot())
+        review.name = "Guided circle setup review"
+        review.lifetime = .keepAlways
+        add(review)
         let create = app.buttons["Create circle"]
-        for _ in 0..<3 where !create.isHittable { app.swipeUp() }
         XCTAssertTrue(create.waitForExistence(timeout: 2))
+        create.tap()
+        XCTAssertTrue(app.navigationBars["Circle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Guided test circle"].firstMatch.exists)
     }
 
     @MainActor
