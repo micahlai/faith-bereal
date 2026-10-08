@@ -460,9 +460,12 @@ final class AppModel {
     static func isCancellation(_ error: Error) -> Bool {
         if error is CancellationError { return true }
         let error = error as NSError
+        let compactDescription = error.localizedDescription
+            .replacingOccurrences(of: " ", with: "")
+            .lowercased()
         return error.domain == "Swift.CancellationError"
             || (error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled)
-            || error.localizedDescription.localizedCaseInsensitiveContains("cancellation error")
+            || compactDescription.contains("cancellationerror")
     }
 
     func submit(
@@ -1143,7 +1146,7 @@ final class AppModel {
                     try await self?.reloadCurrentCircle(now: .now)
                 }
             } catch {
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, !Self.isCancellation(error) else { return }
                 self?.message = "Live circle updates paused: \(error.localizedDescription)"
             }
         }

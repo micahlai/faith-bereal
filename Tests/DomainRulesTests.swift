@@ -257,6 +257,11 @@ final class DomainRulesTests: XCTestCase {
     func testSwiftCancellationIsRecognizedWithoutUserFacingError() {
         XCTAssertTrue(AppModel.isCancellation(CancellationError()))
         XCTAssertTrue(AppModel.isCancellation(URLError(.cancelled)))
+        XCTAssertTrue(AppModel.isCancellation(NSError(
+            domain: "TransientTransport",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "The operation couldn’t be completed. (Swift.CancellationError error 1.)"]
+        )))
         XCTAssertFalse(AppModel.isCancellation(URLError(.timedOut)))
     }
 

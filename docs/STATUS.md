@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 cancellation-safe scrolling
+
+- Cancellation-shaped transport errors produced when lazy Today cards leave the screen are now treated as normal lifecycle cancellation, including Swift's compact `CancellationError` description.
+- Realtime subscriptions apply the same cancellation filter, so scrolling away from response and scripture loaders cannot surface an internal Swift error alert.
+
 ## 2026-10-07 startup onboarding navigation
 
 - First launch now moves through four explicit pages—About, Appearance, App Icon, and Widget—with progress, persistent bottom navigation, and a Back action on every page after Welcome.
