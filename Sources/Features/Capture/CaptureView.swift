@@ -65,7 +65,7 @@ struct CaptureView: View {
                         isTranscribingVideo = true
                         Task {
                             if let transcript = await transcriber.transcribeVideo(at: url) {
-                                text = String(transcript.prefix(600))
+                                text = BlessingTextPolicy.limited(transcript)
                             }
                             isTranscribingVideo = false
                         }
@@ -96,7 +96,7 @@ struct CaptureView: View {
                 BibleReferencePicker(selection: $scriptureReference)
             }
             .onChange(of: transcriber.transcript) { _, newValue in
-                text = newValue
+                text = BlessingTextPolicy.limited(newValue)
             }
             .onChange(of: selectedPhotoItem) { _, item in
                 guard let item else { return }
@@ -328,7 +328,7 @@ struct CaptureView: View {
     private var captureArea: some View {
         switch mode {
         case .typed:
-            editor(title: "Write your blessing", footer: "\(text.count) of 600 characters")
+            editor(title: "Write your blessing", footer: "\(BlessingTextPolicy.length(of: text)) of \(BlessingTextPolicy.maximumLength) characters")
         case .voice:
             VStack(spacing: 18) {
                 editor(title: "Your words appear here", footer: speechFooter)
@@ -408,7 +408,7 @@ struct CaptureView: View {
                         title: "Video transcript",
                         footer: isTranscribingVideo
                             ? "Listening to your video…"
-                            : "Review or edit the transcript before sending. \(text.count) of 600 characters"
+                            : "Review or edit the transcript before sending. \(BlessingTextPolicy.length(of: text)) of \(BlessingTextPolicy.maximumLength) characters"
                     )
                 }
             }
@@ -428,7 +428,8 @@ struct CaptureView: View {
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1) }
                 .onChange(of: text) { _, newValue in
-                    if newValue.count > 600 { text = String(newValue.prefix(600)) }
+                    let limited = BlessingTextPolicy.limited(newValue)
+                    if limited != newValue { text = limited }
                 }
                 .accessibilityLabel(title)
             Text(footer)
@@ -486,6 +487,7 @@ struct CaptureView: View {
 
     private var canSubmit: Bool {
         if repeatSource != nil { return true }
+        guard (try? BlessingTextPolicy.validated(text)) != nil else { return false }
         return switch mode {
         case .typed: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .voice:

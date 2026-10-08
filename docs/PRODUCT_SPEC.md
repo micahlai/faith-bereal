@@ -71,7 +71,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Capture
 
-- Typed: multiline text, 1–600 characters, with an optional captured or uploaded photo.
+- Typed: multiline text, 1–1,200 characters, with an optional captured or uploaded photo. The same 1,200-character maximum applies to voice/video transcripts and edits; response text/transcripts remain limited to 600. Character counters match the database's Unicode-scalar length (combined emoji/accents can count as multiple characters), and capture truncation never splits a displayed grapheme.
 - Voice: in-app live transcription that the user can edit before submission, with private audio playback in detail and an optional captured or uploaded photo.
 - Video: camera capture with editable transcript and private playback.
 - Optional scripture tag: book and chapter dropdowns, then a drag-select square verse grid. Preview in the user's chosen public-domain Bible translation before sending.

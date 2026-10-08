@@ -189,6 +189,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         now: Date
     ) async throws -> Blessing {
         if mode == .video, photoURL != nil { throw BlessingError.emptyBlessing }
+        let cleanBody = try BlessingTextPolicy.validated(body)
         let promptRow: PromptRow = try await client
             .from("daily_prompts")
             .select()
@@ -228,7 +229,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 params: FinalizeVideoParams(
                     promptID: promptID,
                     videoPath: videoPath,
-                    transcript: body,
+                    transcript: cleanBody,
                     thumbnailPath: thumbnailPath,
                     reference: scriptureReference
                 )
@@ -242,7 +243,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 params: SubmitTextParams(
                     promptID: promptID,
                     mode: mode.rawValue,
-                    body: body,
+                    body: cleanBody,
                     audioPath: audioPath,
                     photoPath: photoPath,
                     reference: scriptureReference
@@ -262,11 +263,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
         scriptureReference: ScriptureReference?,
         now _: Date
     ) async throws -> Blessing {
+        let cleanBody = try BlessingTextPolicy.validated(body)
         let row: BlessingRow = try await client.rpc(
             "update_blessing",
             params: UpdateBlessingParams(
                 blessingID: blessingID,
-                body: body,
+                body: cleanBody,
                 reference: scriptureReference
             )
         )

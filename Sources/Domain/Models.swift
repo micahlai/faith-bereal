@@ -399,6 +399,7 @@ enum VisibilityPolicy {
 enum BlessingError: LocalizedError, Equatable {
     case invalidInviteCode
     case emptyBlessing
+    case blessingTooLong
     case outsideResponseWindow
     case alreadySubmitted
     case cameraUnavailable
@@ -414,6 +415,7 @@ enum BlessingError: LocalizedError, Equatable {
         switch self {
         case .invalidInviteCode: "That circle code was not found. Check it and try again."
         case .emptyBlessing: "Add a thought or record a video before sending."
+        case .blessingTooLong: "Keep your blessing or transcript within \(BlessingTextPolicy.maximumLength) characters."
         case .outsideResponseWindow: "This response window has closed."
         case .alreadySubmitted: "You already shared a blessing for this prompt."
         case .cameraUnavailable: "The camera is not available on this device."

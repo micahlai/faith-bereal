@@ -33,6 +33,14 @@ final class HelpContentTests: XCTestCase {
         }
     }
 
+    func testSharingGuideExplainsBlessingLimitWithoutChangingResponses() {
+        XCTAssertEqual(BlessingTextPolicy.maximumLength, 1_200)
+        let guide = HelpTopic.sharing.steps.map(\.body).joined(separator: " ")
+        for concept in ["1,200 characters", "voice/video transcripts", "editing", "Responses still allow 600", "combined emoji"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
+
     func testAccessibilityGuideExplainsAlternativesAndDoesNotOverclaimMediaSupport() {
         let guide = HelpTopic.accessibility.steps.map(\.body).joined(separator: " ")
         for concept in ["VoiceOver", "Voice Control", "List", "Reduce Motion", "Adjust photo", "start and end verse", "not yet available"] {

@@ -48,6 +48,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Unit tests
 
+- Blessing text/transcript and edits accept 600/601/1,199/1,200 and reject 1,201; Unicode-scalar counters match PostgreSQL, and truncation preserves complete combined emoji/accents. All three local capture modes share this policy. Response limits remain 600.
 - media-retention boundaries at 28/30 days, account-isolated archive save/reload/unsave, response timestamps, atomic partial-download failure, and media restored through local Timeline playback;
 - Help catalog completeness and customer-facing explanations of saving, privacy, and deadline rules;
 
@@ -93,6 +94,8 @@ supabase db query --linked --file supabase/tests/end_of_day_blessings.sql
 
 The suite checks independent privacy after midnight, the two entry cutoffs, late daily sharing, entry grants, per-membership notification preferences, schedule validation, and anonymous RPC denial. It creates temporary test users and circles inside a transaction and rolls them back.
 
+For blessing length validation, run `bash Scripts/test-blessing-character-limit.sh` with local PostgreSQL tools installed. It starts a disposable database, applies the real limit migration, and tests typed/voice/video submission and edits at the old/new boundaries, Unicode length, direct-table enforcement, RPC grants, and unchanged 600-character responses. Its entry predicate is a fixture, not full hosted membership/RLS coverage. Do not run `blessing_character_limit_schema.sql` against any existing database.
+
 ## Integration tests
 
 - create and join circle with two accounts;
@@ -109,6 +112,7 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 
 ## UI and accessibility checks
 
+- Blessing composer accepts 1,200 characters, clamps a 1,201-character input, displays the new counter, and sends successfully in local demo mode.
 - Native automated accessibility audits check hit regions and descriptions in Today and Timeline List, with a repeat after scrolling. Rendered contrast remains a manual acceptance requirement: the small-phone native contrast audit still flags the Share button despite its numerically passing solid foreground/background pair (see the audit document). The audit test explicitly terminates any existing instance and supplies a Debug-only `--manna-local-ui-test` argument as an additional local-backend fence.
 - Timeline defaults to a single-column List with VoiceOver or accessibility text sizes; its toolbar can switch back to Threads without increasing pinned-header spacing.
 - Actual asset contrast tests cover both appearances and Increased Contrast, including action fills and selected verse cells. See `docs/ACCESSIBILITY_AUDIT.md` for the support matrix and physical common-task acceptance checklist.

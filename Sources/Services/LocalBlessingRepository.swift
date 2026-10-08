@@ -408,8 +408,7 @@ actor LocalBlessingRepository: BlessingRepository {
         guard !blessings.contains(where: { $0.promptID == promptID && $0.authorID == authorID }) else {
             throw BlessingError.alreadySubmitted
         }
-        let cleanBody = body?.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let cleanBody, !cleanBody.isEmpty else { throw BlessingError.emptyBlessing }
+        let cleanBody = try BlessingTextPolicy.validated(body)
         switch mode {
         case .typed:
             break
@@ -452,8 +451,7 @@ actor LocalBlessingRepository: BlessingRepository {
         guard BlessingEditPolicy.canEdit(existing, authorID: authorID, at: now) else {
             throw BlessingError.blessingEditWindowClosed
         }
-        let cleanBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (1...600).contains(cleanBody.count) else { throw BlessingError.emptyBlessing }
+        let cleanBody = try BlessingTextPolicy.validated(body)
 
         let updated = Blessing(
             id: existing.id,

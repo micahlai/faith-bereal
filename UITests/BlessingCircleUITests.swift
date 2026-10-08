@@ -2,6 +2,37 @@ import XCTest
 
 final class BlessingCircleUITests: XCTestCase {
     @MainActor
+    func testBlessingComposerAcceptsDoubledLimitAndClampsOverflow() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchArguments += ["--manna-local-ui-test"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 5))
+        app.buttons["Share a blessing"].tap()
+        let editor = app.textViews["Write your blessing"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.tap()
+        editor.typeText(String(repeating: "a", count: 1_201))
+        let expected = String(repeating: "a", count: 1_200)
+        let limited = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", expected), object: editor)
+        XCTAssertEqual(XCTWaiter.wait(for: [limited], timeout: 5), .completed)
+        XCTAssertTrue(app.staticTexts["1200 of 1200 characters"].exists)
+        let send = app.buttons["Send blessing"]
+        for _ in 0..<6 where !send.isHittable { app.swipeUp() }
+        XCTAssertTrue(send.isHittable)
+        XCTAssertTrue(send.isEnabled)
+        send.tap()
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
+        let confirmation = app.alerts["manna circle"]
+        XCTAssertTrue(confirmation.staticTexts["Your blessing was shared with the circle."].waitForExistence(timeout: 5))
+        confirmation.buttons["OK"].tap()
+        XCTAssertFalse(app.navigationBars["Your blessing"].exists)
+    }
+
+    @MainActor
     func testAccessibleTimelineListAndNativeAudit() throws {
         continueAfterFailure = false
         let app = XCUIApplication()

@@ -732,9 +732,9 @@ struct BlessingEditView: View {
                     TextEditor(text: $bodyText)
                         .frame(minHeight: 180)
                         .accessibilityLabel(blessing.captureMode == .typed ? "Blessing text" : "Blessing transcript")
-                    Text("\(bodyText.count)/600")
+                    Text("\(BlessingTextPolicy.length(of: bodyText))/\(BlessingTextPolicy.maximumLength)")
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(bodyText.count > 600 ? Color.red : AppTheme.secondaryInk)
+                        .foregroundStyle(BlessingTextPolicy.length(of: bodyText) > BlessingTextPolicy.maximumLength ? Color.red : AppTheme.secondaryInk)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
@@ -790,8 +790,7 @@ struct BlessingEditView: View {
     }
 
     private var canSave: Bool {
-        let trimmed = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (1...600).contains(trimmed.count)
+        return (try? BlessingTextPolicy.validated(bodyText)) != nil
     }
 
     private func save() async {

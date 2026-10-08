@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-08 doubled blessing character limit
+
+- Blessing text and voice/video transcripts now allow 1,200 characters instead of 600, including ten-minute edits. Capture counters/clamping, edit validation, local submission, and hosted pre-upload validation share one policy. Unicode-scalar counting matches PostgreSQL and truncation preserves complete emoji/accent graphemes. Response limits are unchanged at 600.
+- A forward migration widens the blessings table constraint and all three submit/finalize/edit RPCs while preserving entry, ownership, duplicate-submission, media-path, and edit-window guards. Customer Help explains the new limit and counters.
+- All 112 app/domain tests, the focused composer UI test (1,201-character input capped at 1,200 and successfully shared), the isolated PostgreSQL migration/transactional length regression, and the signed hosted Release build pass. The migration has not been pushed to hosted Supabase; hosted acceptance remains pending. No phone installation or TestFlight upload was performed.
+
 ## 2026-10-08 full sender photo in notifications
 
 - Peer blessing and response alerts now fill the main left identity image with the sender's profile photo rather than compositing a small avatar over the manna logo. A centered square crop preserves proportions, bounded to 256 pixels; missing/invalid photos retain the selected-logo fallback. A valid photo no longer depends on loading a logo resource.
