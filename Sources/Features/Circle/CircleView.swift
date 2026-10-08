@@ -243,6 +243,7 @@ private struct CircleCreationView: View {
     @State private var timeZoneIdentifier: String
     @State private var randomWindowStart: Date
     @State private var randomWindowEnd: Date
+    @State private var endOfDayTime: Date
     @State private var selectedIndex: Double
     @State private var allowsLateBlessings = false
     @State private var repeatWindowMinutes = 120
@@ -258,6 +259,7 @@ private struct CircleCreationView: View {
         _timeZoneIdentifier = State(initialValue: defaults.timeZoneIdentifier)
         _randomWindowStart = State(initialValue: Self.wallClockDate(minutes: defaults.randomWindowStartMinutes))
         _randomWindowEnd = State(initialValue: Self.wallClockDate(minutes: defaults.randomWindowEndMinutes))
+        _endOfDayTime = State(initialValue: Self.wallClockDate(minutes: defaults.endOfDayMinutes))
         _selectedIndex = State(
             initialValue: Double(ResponseWindowOptions.minutes.firstIndex(of: defaults.responseWindowMinutes) ?? 4)
         )
@@ -272,6 +274,7 @@ private struct CircleCreationView: View {
 
     private var randomWindowStartMinutes: Int { Self.minutes(from: randomWindowStart) }
     private var randomWindowEndMinutes: Int { Self.minutes(from: randomWindowEnd) }
+    private var endOfDayMinutes: Int { Self.minutes(from: endOfDayTime) }
 
     private var configuration: CircleConfiguration {
         CircleConfiguration(
@@ -281,7 +284,8 @@ private struct CircleCreationView: View {
             randomWindowEndMinutes: randomWindowEndMinutes,
             responseWindowMinutes: selectedMinutes,
             allowsLateBlessings: allowsLateBlessings,
-            repeatWindowMinutes: repeatWindowMinutes
+            repeatWindowMinutes: repeatWindowMinutes,
+            endOfDayMinutes: endOfDayMinutes
         )
     }
 
@@ -394,6 +398,23 @@ private struct CircleCreationView: View {
                     Toggle("Allow late blessings", isOn: $allowsLateBlessings)
                 } footer: {
                     Text("Late posts remain available until the next daily prompt and are labeled in the timeline.")
+                }
+
+                Section {
+                    DatePicker(
+                        "End-of-day time",
+                        selection: $endOfDayTime,
+                        displayedComponents: .hourAndMinute
+                    )
+                    if endOfDayMinutes < randomWindowEndMinutes {
+                        Label("End of day cannot be before the latest random blessing time.", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("End-of-day blessing")
+                } footer: {
+                    Text("A second, untimed reflection opens at this time and remains available for up to five hours.")
                 }
 
                 Section {
@@ -531,6 +552,7 @@ private struct CircleSettingsView: View {
     @State private var timeZoneIdentifier: String
     @State private var randomWindowStart: Date
     @State private var randomWindowEnd: Date
+    @State private var endOfDayTime: Date
     @State private var isSaving = false
     @State private var isLeaving = false
     @State private var showingLeaveConfirmation = false
@@ -558,6 +580,7 @@ private struct CircleSettingsView: View {
         _timeZoneIdentifier = State(initialValue: circle.timeZoneIdentifier)
         _randomWindowStart = State(initialValue: Self.wallClockDate(minutes: circle.randomWindowStartMinutes))
         _randomWindowEnd = State(initialValue: Self.wallClockDate(minutes: circle.randomWindowEndMinutes))
+        _endOfDayTime = State(initialValue: Self.wallClockDate(minutes: circle.endOfDayMinutes))
         _pendingCirclePhotoURL = State(initialValue: circle.photoURL)
     }
 
@@ -568,9 +591,11 @@ private struct CircleSettingsView: View {
 
     private var randomWindowStartMinutes: Int { Self.minutes(from: randomWindowStart) }
     private var randomWindowEndMinutes: Int { Self.minutes(from: randomWindowEnd) }
+    private var endOfDayMinutes: Int { Self.minutes(from: endOfDayTime) }
     private var settingsAreValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && randomWindowEndMinutes > randomWindowStartMinutes
+            && endOfDayMinutes >= randomWindowEndMinutes
     }
     private var isOwner: Bool { model.circle?.ownerID == model.currentUser?.id }
     private var hasUnsavedChanges: Bool {
@@ -582,6 +607,7 @@ private struct CircleSettingsView: View {
             || selectedMinutes != circle.responseWindowMinutes
             || allowsLateBlessings != circle.allowsLateBlessings
             || repeatWindowMinutes != circle.repeatWindowMinutes
+            || endOfDayMinutes != circle.endOfDayMinutes
             || circlePhotoChanged
     }
 
@@ -744,6 +770,23 @@ private struct CircleSettingsView: View {
                     }
 
                     Section {
+                        DatePicker(
+                            "End-of-day time",
+                            selection: $endOfDayTime,
+                            displayedComponents: .hourAndMinute
+                        )
+                        if endOfDayMinutes < randomWindowEndMinutes {
+                            Label("End of day cannot be before the latest random blessing time.", systemImage: "exclamationmark.triangle")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    } header: {
+                        Text("End-of-day blessing")
+                    } footer: {
+                        Text("This opens a second reflection with no countdown. It closes after five hours or when the next daily blessing begins.")
+                    }
+
+                    Section {
                         Picker("Reuse window", selection: $repeatWindowMinutes) {
                             ForEach(RepeatWindowOptions.minutes, id: \.self) { minutes in
                                 Text(Self.durationLabel(minutes)).tag(minutes)
@@ -793,6 +836,7 @@ private struct CircleSettingsView: View {
                         LabeledContent("Response window", value: selectedMinutes == 1 ? "1 minute" : "\(selectedMinutes) minutes")
                         LabeledContent("Late blessings", value: allowsLateBlessings ? "Allowed" : "Not allowed")
                         LabeledContent("Reuse window", value: Self.durationLabel(repeatWindowMinutes))
+                        LabeledContent("End-of-day blessing", value: endOfDayTime.formatted(date: .omitted, time: .shortened))
                     }
                 }
 
@@ -970,7 +1014,8 @@ private struct CircleSettingsView: View {
             randomWindowEndMinutes: randomWindowEndMinutes,
             responseWindowMinutes: selectedMinutes,
             allowsLateBlessings: allowsLateBlessings,
-            repeatWindowMinutes: repeatWindowMinutes
+            repeatWindowMinutes: repeatWindowMinutes,
+            endOfDayMinutes: endOfDayMinutes
         )
         guard settingsSaved else { return }
         if circlePhotoChanged {

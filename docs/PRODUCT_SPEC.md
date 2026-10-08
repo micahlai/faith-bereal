@@ -34,9 +34,9 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Create a circle and receive a human-readable, case-insensitive invite code. Sharing sends an HTTPS invitation at `manna-circle.micahlai.com/join/<code>` that opens the installed app through Universal Links and otherwise presents the website fallback. The owner can regenerate the code later; rotation immediately invalidates the previous link/code without changing current memberships.
 - Join by code, leave, and view members. If an owner leaves, ownership passes to the longest-standing remaining member; leaving an owner-only circle deletes it.
 - The circle owner can rotate the invite code and remove members.
-- The circle owner can upload, replace, or remove a private circle photo. Choosing a circle or profile photo opens a resize editor with zoom and position controls; the complete photo is visible by default, its original aspect ratio is preserved, and its longest side is bounded to 1024 pixels before upload. Photo previews use aspect-fit presentation rather than cropping. Members see the circle photo in the Circle-page identity position, replacing the seven-dot fallback; notification presentation uses it as the group image when available. The global circle switcher presents circle names without group icons.
+- The circle owner can upload, replace, or remove a private circle photo. Circle and profile photos use a circular pinch-and-drag crop editor and are normalized to a square JPEG before upload. Members see the circle photo in the Circle-page identity position, replacing the seven-dot fallback; notification presentation uses it as the group image when available. The global circle switcher presents circle names without group icons.
 - The circle owner can explicitly transfer ownership to another current member. The server performs the transfer atomically and the former owner remains a member.
-- The circle owner can rename the circle, select its IANA time zone, configure the daily random-time range, choose a response duration from `1, 2, 3, 5, 10, 15, 20, 40, 60, 90, 120, 180` minutes, and allow or disallow late posts.
+- The circle owner can rename the circle, select its IANA time zone, configure the daily random-time range, choose a response duration from `1, 2, 3, 5, 10, 15, 20, 40, 60, 90, 120, 180` minutes, allow or disallow late posts, and choose an end-of-day time no earlier than the random range's end.
 - The circle owner configures a repeat window in minutes. A member may reuse one of their own blessings from another circle only when the target circle's current prompt is accepting submissions and the new submission occurs within that many minutes of the original blessing's `submitted_at` time. Notification and prompt start times do not affect repeat eligibility.
 - Members can belong to multiple circles. A global top-bar menu switches the active circle, and all Today, Timeline, capture, response, and settings data follows that selection.
 
@@ -47,7 +47,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Bible translation is an account-wide preference in user settings, not a circle setting.
 - Appearance is an account-wide preference with system, light, and dark choices.
 - Bible translations are grouped by language, with language groups ordered by broad usage and translations clearly labeled by language and abbreviation.
-- User settings list every joined circle with an independent activity-notification switch. The switch controls peer blessing and followed-response alerts for that membership and defaults on.
+- User settings list every joined circle with separate switches for peer blessing/followed-response alerts and the end-of-day reminder. Both default on.
 
 ### Daily prompt
 
@@ -59,6 +59,14 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - A notification and Live Activity deep-link to today's capture screen.
 - The lock-screen Live Activity shows the circle name, “What has blessed you today”, and a smaller live “`m:ss to respond`” countdown. After the viewer submits, it changes immediately to “Blessing submitted”. Dynamic Island presentation remains distinct and unchanged.
 - After a member submits, the Live Activity remains visible for three minutes. Without late sharing it remains for three minutes after the entry deadline; with late sharing it stays available until that member submits or a newer circle prompt replaces it.
+
+### End-of-day prompt
+
+- Every circle has a second, independent end-of-day prompt, defaulting to 22:00 in the circle time zone and never scheduled before the daily random range ends.
+- It sends one ordinary push notification to members who enabled that circle's end-of-day reminder. It never starts a Live Activity and Today presents no countdown.
+- Entry opens at the configured time and closes after five hours or when the next daily random prompt starts, whichever happens first. A member who enters while open retains the same server entry grant as the daily capture flow and may finish afterward.
+- Its privacy gate is independent: submitting the random daily blessing does not reveal peer end-of-day blessings, and vice versa.
+- End-of-day blessings use the same capture, edit, scripture, media, response, and notification behavior as other blessings. Today mixes visible blessings by recency. Timeline renders the end-of-day event above the random event inside the same member/day cell.
 
 ### Capture
 
@@ -95,7 +103,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Current-day peer content is replaced by a locked state until the viewer posts.
 - Previews show up to 15 lines of original text or transcript plus the reference when present. Every member cell for a given day shares the height of that day's longest preview.
 - Timeline blessing previews show only the profile icons of members who responded, without response text.
-- Tapping a blessing opens text, audio plus transcript, or video plus transcript. Audio and video expose a seekable playhead, and video includes a dedicated full-screen player. An optional photo appears with text or audio content, tagged scripture appears before responses in the viewer's selected translation, and historical responses are view-only; current-day details may include the response composer.
+- Tapping a blessing opens text, audio plus transcript, or video plus transcript. Audio exposes a seekable playhead; video preserves its original presentation aspect ratio and uses Apple's native inline/full-screen playback controls. An optional photo appears with text or audio content, tagged scripture appears before responses in the viewer's selected translation, and historical responses are view-only; current-day details may include the response composer.
 - Each member lane stops at a “Joined circle” marker and never fabricates missed days before membership began.
 
 ### Later scope: widgets

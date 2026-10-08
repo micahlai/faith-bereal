@@ -39,22 +39,28 @@ actor SupabaseBlessingRepository: BlessingRepository {
         }
         let selectedCircle = circles.first(where: { $0.id == selectedMembership.circleID })
         let currentPrompt: DailyPrompt?
+        let endOfDayPrompt: DailyPrompt?
         if let selectedCircle {
-            currentPrompt = try await fetchCurrentPrompt(circle: selectedCircle)
+            let prompts = try await fetchCurrentPrompts(circle: selectedCircle)
+            currentPrompt = prompts.daily
+            endOfDayPrompt = prompts.endOfDay
         } else {
             currentPrompt = nil
+            endOfDayPrompt = nil
         }
         return AppBootstrap(
             currentUser: currentUser,
             circles: circles,
             selectedCircleID: selectedMembership.circleID,
-            prompt: currentPrompt
+            prompt: currentPrompt,
+            endOfDayPrompt: endOfDayPrompt
         )
     }
 
     func circleContext(circleID: UUID) async throws -> CircleContext {
         let circle = try await fetchCircle(id: circleID, inviteCode: "")
-        return CircleContext(circle: circle, prompt: try await fetchCurrentPrompt(circle: circle))
+        let prompts = try await fetchCurrentPrompts(circle: circle)
+        return CircleContext(circle: circle, prompt: prompts.daily, endOfDayPrompt: prompts.endOfDay)
     }
 
     func circleContext(promptID: UUID) async throws -> CircleContext {
@@ -67,9 +73,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .value
         guard let row = rows.first else { throw BlessingError.circleNotFound }
         let circle = try await fetchCircle(id: row.circleID, inviteCode: "")
+        let selectedPrompt = prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
+        let current = try await fetchCurrentPrompts(circle: circle)
         return CircleContext(
             circle: circle,
-            prompt: prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
+            prompt: selectedPrompt.kind == .daily ? selectedPrompt : current.daily,
+            endOfDayPrompt: selectedPrompt.kind == .endOfDay ? selectedPrompt : current.endOfDay
         )
     }
 
@@ -87,7 +96,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .order("local_date", ascending: false)
             .execute()
             .value
-        guard !promptRows.isEmpty else {
+        let visiblePromptRows = promptRows.filter { $0.kind == .daily || $0.startsAt <= now }
+        guard !visiblePromptRows.isEmpty else {
             return circle.members.map {
                 TimelineLane(
                     member: $0,
@@ -99,7 +109,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         let blessingRows: [BlessingRow] = try await client
             .from("blessings")
             .select()
-            .in("prompt_id", values: promptRows.map(\.id))
+            .in("prompt_id", values: visiblePromptRows.map(\.id))
             .execute()
             .value
         var blessings: [Blessing] = []
@@ -108,13 +118,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
         }
 
         let calendar = circleCalendar(circle)
-        let currentPrompt = promptRows.first(where: { $0.localDate == currentLocalDate })
-        let viewerHasSubmitted = currentPrompt.map { promptRow in
-            blessings.contains { $0.promptID == promptRow.id && $0.authorID == viewerID }
-        } ?? false
+        let nextDailyStart = visiblePromptRows
+            .filter { $0.kind == .daily && $0.startsAt > now }
+            .map(\.startsAt)
+            .min()
 
         return circle.members.map { member in
-            var events = promptRows
+            var events = visiblePromptRows
                 .filter {
                     $0.startsAt >= member.joinedAt
                         || calendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
@@ -123,17 +133,37 @@ actor SupabaseBlessingRepository: BlessingRepository {
                     let prompt = prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
                     let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
                     let isToday = row.localDate == currentLocalDate
+                    let viewerHasSubmitted = blessings.contains {
+                        $0.promptID == prompt.id && $0.authorID == viewerID
+                    }
+                    let newerDailyHasStarted = visiblePromptRows.contains {
+                        $0.kind == .daily
+                            && $0.startsAt > prompt.startsAt
+                            && $0.startsAt <= now
+                    }
+                    let endOfDayOpen = prompt.kind == .endOfDay
+                        && prompt.phase(at: now) == .open
+                        && !newerDailyHasStarted
+                        && nextDailyStart.map { now < $0 } ?? true
+                    let requiresSubmissionGate = isToday || endOfDayOpen
                     let status: TimelineStatus
-                    if isToday && member.id != viewerID && !viewerHasSubmitted {
+                    if requiresSubmissionGate && member.id != viewerID && !viewerHasSubmitted {
                         status = .locked
                     } else if let match {
                         status = .blessing(match)
-                    } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings || FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)) {
+                    } else if prompt.kind == .endOfDay && endOfDayOpen {
+                        status = .waiting
+                    } else if isToday && prompt.kind == .daily && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings || FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)) {
                         status = .waiting
                     } else {
                         status = .missed
                     }
-                    return TimelineEvent(memberID: member.id, date: prompt.localDate, status: status)
+                    return TimelineEvent(
+                        memberID: member.id,
+                        date: prompt.localDate,
+                        status: status,
+                        promptKind: prompt.kind
+                    )
                 }
             events.append(TimelineEvent(memberID: member.id, date: member.joinedAt, status: .joinedCircle))
             return TimelineLane(member: member, events: events)
@@ -270,7 +300,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 windowEnd: Self.postgresTime(minutes: configuration.randomWindowEndMinutes),
                 responseWindowMinutes: configuration.responseWindowMinutes,
                 allowLateBlessings: configuration.allowsLateBlessings,
-                repeatWindowMinutes: configuration.repeatWindowMinutes
+                repeatWindowMinutes: configuration.repeatWindowMinutes,
+                endOfDayTime: Self.postgresTime(minutes: configuration.endOfDayMinutes)
             )
         )
         .single()
@@ -300,7 +331,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
         randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
         allowsLateBlessings: Bool,
-        repeatWindowMinutes: Int
+        repeatWindowMinutes: Int,
+        endOfDayMinutes: Int
     ) async throws -> CircleGroup {
         let row: CircleRow = try await client.rpc(
             "update_circle_settings",
@@ -312,7 +344,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 windowEnd: Self.postgresTime(minutes: randomWindowEndMinutes),
                 responseWindowMinutes: responseWindowMinutes,
                 allowLateBlessings: allowsLateBlessings,
-                repeatWindowMinutes: repeatWindowMinutes
+                repeatWindowMinutes: repeatWindowMinutes,
+                endOfDayTime: Self.postgresTime(minutes: endOfDayMinutes)
             )
         )
         .single()
@@ -353,6 +386,17 @@ actor SupabaseBlessingRepository: BlessingRepository {
         _ = try await client.rpc(
             "update_circle_activity_notifications",
             params: UpdateCircleActivityNotificationsParams(circleID: circleID, enabled: enabled)
+        ).execute()
+    }
+
+    func updateEndOfDayNotifications(
+        circleID: UUID,
+        memberID _: UUID,
+        enabled: Bool
+    ) async throws {
+        _ = try await client.rpc(
+            "update_end_of_day_notifications",
+            params: UpdateEndOfDayNotificationsParams(circleID: circleID, enabled: enabled)
         ).execute()
     }
 
@@ -680,10 +724,14 @@ actor SupabaseBlessingRepository: BlessingRepository {
             responseWindowMinutes: row.responseWindowMinutes,
             allowsLateBlessings: row.allowLateBlessings,
             repeatWindowMinutes: row.repeatWindowMinutes,
+            endOfDayMinutes: Self.minutes(postgresTime: row.endOfDayTime),
             photoURL: try await circlePhotoSignedURL(path: row.photoPath),
             circleActivityNotificationsEnabled: membershipRows
                 .first(where: { $0.userID == viewerID })?
-                .notifyOnCircleActivity ?? true
+                .notifyOnCircleActivity ?? true,
+            endOfDayNotificationsEnabled: membershipRows
+                .first(where: { $0.userID == viewerID })?
+                .notifyOnEndOfDay ?? true
         )
     }
 
@@ -692,22 +740,47 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await client.storage.from(circlePhotoBucket).createSignedURL(path: path, expiresIn: 86_400)
     }
 
-    private func fetchCurrentPrompt(circle: CircleGroup, now: Date = .now) async throws -> DailyPrompt? {
+    private func fetchCurrentPrompts(
+        circle: CircleGroup,
+        now: Date = .now
+    ) async throws -> (daily: DailyPrompt?, endOfDay: DailyPrompt?) {
         let localDate = Self.localDateString(
             at: now,
             timeZoneIdentifier: circle.timeZoneIdentifier
         )
-        let rows: [PromptRow] = try await client
+        let currentRows: [PromptRow] = try await client
             .from("daily_prompts")
             .select()
             .eq("circle_id", value: circle.id)
             .eq("local_date", value: localDate)
+            .execute()
+            .value
+        let activeEndRows: [PromptRow] = try await client
+            .from("daily_prompts")
+            .select()
+            .eq("circle_id", value: circle.id)
+            .eq("kind", value: PromptKind.endOfDay.rawValue)
+            .lte("starts_at", value: now)
+            .gt("ends_at", value: now)
+            .order("starts_at", ascending: false)
             .limit(1)
             .execute()
             .value
-        return rows.first.map {
-            prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier)
+        let dailyRow = currentRows.first { $0.kind == .daily }
+        let scheduledEndRow = currentRows.first { $0.kind == .endOfDay }
+        let activeEndRow = activeEndRows.first.flatMap { row -> PromptRow? in
+            if let dailyRow,
+               dailyRow.startsAt > row.startsAt,
+               dailyRow.startsAt <= now {
+                return nil
+            }
+            return row
         }
+        let endRow = activeEndRow ?? scheduledEndRow
+        return (
+            dailyRow.map { prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier) },
+            endRow.map { prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier) }
+        )
     }
 
     private func fetchBlessing(id: UUID) async throws -> BlessingWithCircleRow {
@@ -773,7 +846,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             circleID: row.circleID,
             localDate: row.localDateValue(timeZoneIdentifier: timeZoneIdentifier),
             startsAt: row.startsAt,
-            endsAt: row.endsAt
+            endsAt: row.endsAt,
+            kind: row.kind
         )
     }
 
@@ -867,12 +941,14 @@ private struct MembershipRow: Codable, Sendable {
     let userID: UUID
     let joinedAt: Date
     let notifyOnCircleActivity: Bool?
+    let notifyOnEndOfDay: Bool?
 
     enum CodingKeys: String, CodingKey {
         case circleID = "circle_id"
         case userID = "user_id"
         case joinedAt = "joined_at"
         case notifyOnCircleActivity = "notify_on_circle_activity"
+        case notifyOnEndOfDay = "notify_on_end_of_day"
     }
 }
 
@@ -886,6 +962,7 @@ private struct CircleRow: Codable, Sendable {
     let responseWindowMinutes: Int
     let allowLateBlessings: Bool
     let repeatWindowMinutes: Int
+    let endOfDayTime: String
     let photoPath: String?
 
     enum CodingKeys: String, CodingKey {
@@ -897,6 +974,7 @@ private struct CircleRow: Codable, Sendable {
         case responseWindowMinutes = "response_window_minutes"
         case allowLateBlessings = "allow_late_blessings"
         case repeatWindowMinutes = "repeat_window_minutes"
+        case endOfDayTime = "end_of_day_time"
         case photoPath = "photo_path"
     }
 }
@@ -907,6 +985,7 @@ private struct PromptRow: Codable, Sendable {
     let localDate: String
     let startsAt: Date
     let endsAt: Date
+    let kind: PromptKind
 
     func localDateValue(timeZoneIdentifier: String) -> Date {
         CircleLocalDay.date(from: localDate, timeZoneIdentifier: timeZoneIdentifier) ?? startsAt
@@ -918,6 +997,7 @@ private struct PromptRow: Codable, Sendable {
         case localDate = "local_date"
         case startsAt = "starts_at"
         case endsAt = "ends_at"
+        case kind
     }
 }
 
@@ -1042,6 +1122,7 @@ private struct CreateCircleParams: Encodable, Sendable {
     let responseWindowMinutes: Int
     let allowLateBlessings: Bool
     let repeatWindowMinutes: Int
+    let endOfDayTime: String
     enum CodingKeys: String, CodingKey {
         case name = "p_name"
         case inviteCode = "p_invite_code"
@@ -1051,6 +1132,7 @@ private struct CreateCircleParams: Encodable, Sendable {
         case responseWindowMinutes = "p_response_window_minutes"
         case allowLateBlessings = "p_allow_late_blessings"
         case repeatWindowMinutes = "p_repeat_window_minutes"
+        case endOfDayTime = "p_end_of_day_time"
     }
 }
 
@@ -1073,6 +1155,7 @@ private struct UpdateCircleSettingsParams: Encodable, Sendable {
     let responseWindowMinutes: Int
     let allowLateBlessings: Bool
     let repeatWindowMinutes: Int
+    let endOfDayTime: String
     enum CodingKeys: String, CodingKey {
         case circleID = "p_circle_id"
         case name = "p_name"
@@ -1082,6 +1165,7 @@ private struct UpdateCircleSettingsParams: Encodable, Sendable {
         case responseWindowMinutes = "p_response_window_minutes"
         case allowLateBlessings = "p_allow_late_blessings"
         case repeatWindowMinutes = "p_repeat_window_minutes"
+        case endOfDayTime = "p_end_of_day_time"
     }
 }
 
@@ -1096,6 +1180,16 @@ private struct UpdateCirclePhotoParams: Encodable, Sendable {
 }
 
 private struct UpdateCircleActivityNotificationsParams: Encodable, Sendable {
+    let circleID: UUID
+    let enabled: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case circleID = "p_circle_id"
+        case enabled = "p_enabled"
+    }
+}
+
+private struct UpdateEndOfDayNotificationsParams: Encodable, Sendable {
     let circleID: UUID
     let enabled: Bool
 

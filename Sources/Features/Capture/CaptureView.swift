@@ -227,10 +227,14 @@ struct CaptureView: View {
 
     private var promptHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Pause for what is good.")
+            Text(model.capturePrompt?.kind == .endOfDay ? "End your day with gratitude." : "Pause for what is good.")
                 .font(.system(.title, design: .serif, weight: .semibold))
                 .foregroundStyle(AppTheme.ink)
-            Text("Share one true thing from today. You can review it before sending.")
+            Text(
+                model.capturePrompt?.kind == .endOfDay
+                    ? "Share one final blessing from today. You can review it before sending."
+                    : "Share one true thing from today. You can review it before sending."
+            )
                 .foregroundStyle(AppTheme.secondaryInk)
         }
     }

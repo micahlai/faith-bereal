@@ -61,6 +61,7 @@ Exit: randomized prompts reliably open/close across devices without relying on t
 - [x] Restrict response composition to Today and current-day Timeline details
 - [x] Expand public-domain Bible translations and group the selector by language
 - [x] Add domain and UI coverage for the new business rules
+- [x] Add independently gated end-of-day blessings, circle scheduling, per-circle reminders, Today/Timeline composition, and hosted dispatch support
 
 Exit: the expanded client loop is complete against the deterministic local repository and all existing production-service adapters still compile.
 

@@ -28,21 +28,36 @@ struct TodayView: View {
 
     @ViewBuilder
     private func todayContent(at date: Date) -> some View {
-        if model.currentUserBlessing(at: date) != nil {
-            TodayBlessingsFeed(items: model.currentPromptBlessings(at: date))
-        } else if let prompt = model.prompt,
-                  model.canEnterCurrentPrompt(at: date) {
-            PromptWindowView(
-                prompt: prompt,
-                date: date,
-                allowsLateBlessings: model.circle?.allowsLateBlessings == true,
-                isFirstCircleDay: model.isFirstCircleDay(at: date),
-                allowsSharing: allowsSharing,
-                isPreparingCapture: model.isPreparingCapture,
-                shareAction: { Task { await model.openCapture() } }
-            )
-        } else {
-            WaitingForPromptView(circleName: model.circle?.name)
+        VStack(alignment: .leading, spacing: 28) {
+            if let endOfDayPrompt = model.endOfDayPrompt,
+               model.canEnterEndOfDayPrompt(at: date) {
+                EndOfDayPromptCard(
+                    isPreparingCapture: model.isPreparingCapture,
+                    shareAction: { Task { await model.openCapture(for: endOfDayPrompt) } }
+                )
+            }
+
+            let items = model.currentPromptBlessings(at: date)
+            if !items.isEmpty {
+                TodayBlessingsFeed(items: items)
+            }
+
+            if model.currentUserBlessing(at: date) == nil {
+                if let prompt = model.prompt,
+                   model.canEnterCurrentPrompt(at: date) {
+                    PromptWindowView(
+                        prompt: prompt,
+                        date: date,
+                        allowsLateBlessings: model.circle?.allowsLateBlessings == true,
+                        isFirstCircleDay: model.isFirstCircleDay(at: date),
+                        allowsSharing: allowsSharing,
+                        isPreparingCapture: model.isPreparingCapture,
+                        shareAction: { Task { await model.openCapture() } }
+                    )
+                } else if items.isEmpty {
+                    WaitingForPromptView(circleName: model.circle?.name)
+                }
+            }
         }
     }
 
@@ -66,6 +81,35 @@ struct TodayView: View {
         }
     }
 
+}
+
+private struct EndOfDayPromptCard: View {
+    let isPreparingCapture: Bool
+    let shareAction: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("End-of-day blessing", systemImage: "moon.stars.fill")
+                .font(.system(.title2, design: .serif, weight: .semibold))
+                .foregroundStyle(AppTheme.iris)
+            Text("Pause once more and share where you noticed God’s goodness today.")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.secondaryInk)
+            Button(action: shareAction) {
+                Group {
+                    if isPreparingCapture {
+                        ProgressView()
+                    } else {
+                        Label("Share end-of-day blessing", systemImage: "plus")
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isPreparingCapture)
+        }
+        .blessingCard()
+    }
 }
 
 private struct WaitingForPromptView: View {
@@ -164,7 +208,7 @@ private struct TodayBlessingCard: View {
 
             BlessingResponsesView(
                 blessing: item.blessing,
-                allowsResponding: true,
+                allowsResponding: model.canRespond(to: item.blessing),
                 showsHeading: false,
                 usesCard: false
             )

@@ -18,7 +18,7 @@
 
 ### `circles`
 
-`id`, `name`, `owner_id`, `invite_code_hash`, `time_zone`, `window_start`, `window_end`, `response_window_minutes`, `allow_late_blessings`, `repeat_window_minutes`, `created_at`
+`id`, `name`, `owner_id`, `invite_code_hash`, `time_zone`, `window_start`, `window_end`, `response_window_minutes`, `allow_late_blessings`, `repeat_window_minutes`, `end_of_day_time`, `created_at`
 
 Only a hash of the normalized invite code is stored. Joining happens through a security-definer RPC that rate-limits attempts.
 
@@ -28,7 +28,7 @@ Only a hash of the normalized invite code is stored. Joining happens through a s
 
 ### `circle_members`
 
-`circle_id`, `user_id`, `role`, `joined_at`, `removed_at`
+`circle_id`, `user_id`, `role`, `joined_at`, `removed_at`, `notify_on_circle_activity`, `notify_on_end_of_day`
 
 Unique active membership per circle/user pair.
 
@@ -36,11 +36,11 @@ Unique active membership per circle/user pair.
 
 ### `daily_prompts`
 
-`id`, `circle_id`, `local_date`, `starts_at`, `ends_at`, `response_window_minutes`, `state`, `dispatch_key`, `created_at`
+`id`, `circle_id`, `local_date`, `kind`, `starts_at`, `ends_at`, `response_window_minutes`, `state`, `dispatch_key`, `created_at`
 
-Unique `(circle_id, local_date)`. `ends_at` is constrained to the response duration snapshotted from its circle when the prompt is created.
+Unique `(circle_id, local_date, kind)`. `kind` is `daily` or `end_of_day`; `ends_at` is constrained to the response duration snapshotted when the prompt is created. End-of-day prompts snapshot 300 minutes and also close when the next daily prompt starts.
 
-The random timestamp is a dispatch target. `claim_due_prompts` replaces `starts_at` and `ends_at` with the actual server claim time and the snapshotted duration before APNs delivery, so minute-level scheduler latency never consumes the member's entry window. Scheduled prompts missed by more than five minutes are closed without sending a stale alert.
+The timestamp is a dispatch target. `claim_due_prompts` replaces `starts_at` and `ends_at` with the actual server claim time and the snapshotted duration before APNs delivery, so minute-level scheduler latency never consumes the member's entry window. Stale suppression applies to daily random prompts; a due end-of-day prompt remains claimable and sends only a normal alert to opted-in members, never a Live Activity.
 
 ### `blessing_entry_grants`
 
@@ -77,7 +77,7 @@ Used for per-device Live Activity updates. A future `broadcast_channel_id` can r
 RLS policy logic for `blessings` should require active circle membership and then allow either:
 
 ```text
-prompt.local_date < viewer_local_today
+prompt is historical and no longer an active end-of-day prompt
 OR blessing.author_id = auth.uid()
 OR viewer has a blessing for prompt.id
 ```

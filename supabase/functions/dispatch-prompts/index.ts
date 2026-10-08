@@ -9,6 +9,7 @@ import {
 import {
   circleActivityBody,
   notificationMedia,
+  promptReminder,
 } from "./notification-payload.ts";
 
 type Prompt = {
@@ -18,6 +19,7 @@ type Prompt = {
   ends_at: string;
   dispatch_key: string;
   response_window_minutes: number;
+  kind: "daily" | "end_of_day";
 };
 
 type Device = {
@@ -450,11 +452,14 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
 
   const { data: memberships, error: membershipError } = await admin
     .from("circle_members")
-    .select("user_id")
+    .select("user_id, notify_on_end_of_day")
     .eq("circle_id", prompt.circle_id)
     .is("removed_at", null);
   if (membershipError) throw membershipError;
-  const userIDs = (memberships ?? []).map((row) => row.user_id);
+  const eligibleMemberships = prompt.kind === "end_of_day"
+    ? (memberships ?? []).filter((row) => row.notify_on_end_of_day !== false)
+    : (memberships ?? []);
+  const userIDs = eligibleMemberships.map((row) => row.user_id);
   if (userIDs.length === 0) {
     return { delivered: 0, attempted: 0, failed: 0, registeredDevices: 0, memberCount: 0 };
   }
@@ -468,9 +473,11 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   const activeDevices = (devices ?? []) as Device[];
 
   const timestamp = unixSeconds(new Date());
-  const windowLabel = prompt.response_window_minutes === 1
-    ? "one minute"
-    : `${prompt.response_window_minutes} minutes`;
+  const reminder = promptReminder({
+    kind: prompt.kind,
+    circleName: circle.name,
+    responseWindowMinutes: prompt.response_window_minutes,
+  });
   const sends = activeDevices.flatMap((device) => {
     const deviceSends: Array<{
       deviceID: string;
@@ -483,7 +490,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
         tokenField: "apns_token",
         promise: sendAPNs(device.apns_token, device.environment, bundleID, "alert", {
           aps: {
-            alert: { title: `${circle.name} is ready`, body: `You have ${windowLabel} to share today’s blessing.` },
+            alert: reminder.alert,
             sound: "default",
             "mutable-content": 1,
             "thread-id": prompt.circle_id,
@@ -491,10 +498,10 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
           },
           route: captureRoute(prompt.circle_id, prompt.id),
           prompt_id: prompt.id,
-        }),
+        }, `prompt-${prompt.dispatch_key}`),
       });
     }
-    if (device.push_to_start_token) {
+    if (reminder.startsLiveActivity && device.push_to_start_token) {
       deviceSends.push({
         deviceID: device.id,
         tokenField: "push_to_start_token",
@@ -518,8 +525,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
                 circle.allow_late_blessings ? null : graceDate(prompt.ends_at),
               ),
               alert: {
-                title: `${circle.name} is ready`,
-                body: `You have ${windowLabel} to share today’s blessing.`,
+                ...reminder.alert,
                 sound: "default",
               },
             },
@@ -590,6 +596,7 @@ async function updateOpenActivities(): Promise<void> {
     .from("daily_prompts")
     .select("id, circle_id, ends_at")
     .eq("state", "open")
+    .eq("kind", "daily")
     .gt("ends_at", new Date().toISOString());
   if (promptError) throw promptError;
 
@@ -664,12 +671,13 @@ async function closeExpiredPrompts(): Promise<void> {
   const now = new Date();
   const { data: prompts, error: promptError } = await admin
     .from("daily_prompts")
-    .select("id, circle_id, ends_at")
+    .select("id, circle_id, ends_at, kind")
     .in("state", ["open", "dispatching"])
     .lte("ends_at", now.toISOString());
   if (promptError) throw promptError;
 
   for (const prompt of prompts ?? []) {
+    if (prompt.kind !== "daily") continue;
     const { data: circle, error: circleError } = await admin
       .from("circles")
       .select("allow_late_blessings")
@@ -756,7 +764,7 @@ async function reconcileLateActivities(): Promise<void> {
   const promptIDs = [...new Set(registrations.map((registration) => registration.prompt_id))];
   const { data: prompts, error: promptError } = await admin
     .from("daily_prompts")
-    .select("id, circle_id, starts_at, ends_at")
+    .select("id, circle_id, starts_at, ends_at, kind")
     .in("id", promptIDs)
     .lte("ends_at", now.toISOString());
   if (promptError) throw promptError;
@@ -771,7 +779,9 @@ async function reconcileLateActivities(): Promise<void> {
   const allowsLateByCircle = new Map(
     (circles ?? []).map((circle) => [circle.id, circle.allow_late_blessings]),
   );
-  const latePrompts = prompts.filter((prompt) => allowsLateByCircle.get(prompt.circle_id) === true);
+  const latePrompts = prompts.filter((prompt) =>
+    prompt.kind === "daily" && allowsLateByCircle.get(prompt.circle_id) === true
+  );
   if (latePrompts.length === 0) return;
 
   const latePromptIDs = latePrompts.map((prompt) => prompt.id);
@@ -791,6 +801,7 @@ async function reconcileLateActivities(): Promise<void> {
     .from("daily_prompts")
     .select("circle_id, starts_at")
     .in("circle_id", circleIDs)
+    .eq("kind", "daily")
     .lte("starts_at", now.toISOString());
   if (startedPromptError) throw startedPromptError;
 

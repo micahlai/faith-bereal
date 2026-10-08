@@ -685,30 +685,46 @@ private struct UserSettingsView: View {
                 if !model.circles.isEmpty {
                     Section {
                         ForEach(model.circles) { circle in
-                            Toggle(
-                                isOn: Binding(
-                                    get: {
-                                        model.circles
-                                            .first(where: { $0.id == circle.id })?
-                                            .circleActivityNotificationsEnabled ?? true
-                                    },
-                                    set: { enabled in
-                                        Task { await model.setCircleActivityNotifications(enabled, for: circle.id) }
-                                    }
-                                )
-                            ) {
+                            VStack(alignment: .leading, spacing: 10) {
                                 HStack(spacing: 12) {
                                     CircleAvatarBadge(circle: circle, size: 38)
                                     Text(circle.name)
+                                        .font(.headline)
                                         .foregroundStyle(AppTheme.ink)
                                 }
+                                Toggle(
+                                    "Blessings and responses",
+                                    isOn: Binding(
+                                        get: {
+                                            model.circles
+                                                .first(where: { $0.id == circle.id })?
+                                                .circleActivityNotificationsEnabled ?? true
+                                        },
+                                        set: { enabled in
+                                            Task { await model.setCircleActivityNotifications(enabled, for: circle.id) }
+                                        }
+                                    )
+                                )
+                                Toggle(
+                                    "End-of-day reminder",
+                                    isOn: Binding(
+                                        get: {
+                                            model.circles
+                                                .first(where: { $0.id == circle.id })?
+                                                .endOfDayNotificationsEnabled ?? true
+                                        },
+                                        set: { enabled in
+                                            Task { await model.setEndOfDayNotifications(enabled, for: circle.id) }
+                                        }
+                                    )
+                                )
                             }
-                            .frame(minHeight: 44)
+                            .padding(.vertical, 4)
                         }
                     } header: {
                         Text("Circle notifications")
                     } footer: {
-                        Text("Choose which circles can notify you when someone shares a blessing or adds a response to a blessing you follow.")
+                        Text("Control activity alerts and the scheduled end-of-day reminder separately for each circle.")
                     }
                 }
 

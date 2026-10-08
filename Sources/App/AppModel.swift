@@ -31,6 +31,7 @@ final class AppModel {
     var circles: [CircleGroup] = []
     var circle: CircleGroup?
     var prompt: DailyPrompt?
+    var endOfDayPrompt: DailyPrompt?
     private(set) var capturePrompt: DailyPrompt?
     var lanes: [TimelineLane] = []
     var selectedTab = 0
@@ -109,6 +110,11 @@ final class AppModel {
         currentUserBlessing() != nil
     }
 
+    var hasSubmittedEndOfDay: Bool {
+        guard let endOfDayPrompt else { return false }
+        return currentUserBlessing(for: endOfDayPrompt) != nil
+    }
+
     func updateAppIcon(_ preference: AppIconPreference) async {
         guard UIApplication.shared.supportsAlternateIcons else {
             message = "This device does not support changing the app icon."
@@ -143,11 +149,21 @@ final class AppModel {
 
     func currentUserBlessing(at date: Date = .now) -> Blessing? {
         guard let currentUser, let prompt, isCurrentPromptToday(at: date) else { return nil }
-        if let submittedBlessing, submittedBlessing.promptID == prompt.id {
+        return currentUserBlessing(for: prompt, userID: currentUser.id)
+    }
+
+    func currentEndOfDayBlessing() -> Blessing? {
+        guard let currentUser, let endOfDayPrompt else { return nil }
+        return currentUserBlessing(for: endOfDayPrompt, userID: currentUser.id)
+    }
+
+    private func currentUserBlessing(for targetPrompt: DailyPrompt, userID: UUID? = nil) -> Blessing? {
+        guard let userID = userID ?? currentUser?.id else { return nil }
+        if let submittedBlessing, submittedBlessing.promptID == targetPrompt.id {
             return submittedBlessing
         }
         return lanes
-            .first(where: { $0.member.id == currentUser.id })?
+            .first(where: { $0.member.id == userID })?
             .events
             .compactMap { event -> Blessing? in
                 if case let .blessing(blessing) = event.status {
@@ -155,28 +171,57 @@ final class AppModel {
                 }
                 return nil
             }
-            .first(where: { $0.promptID == prompt.id })
+            .first(where: { $0.promptID == targetPrompt.id })
     }
 
     func currentPromptBlessings(at date: Date = .now) -> [BlessingFeedItem] {
-        guard let prompt, isCurrentPromptToday(at: date), currentUserBlessing(at: date) != nil else {
-            return []
+        var visiblePromptIDs = Set<UUID>()
+        if let prompt,
+           isCurrentPromptToday(at: date),
+           currentUserBlessing(at: date) != nil {
+            visiblePromptIDs.insert(prompt.id)
         }
-        return lanes.compactMap { lane in
-            lane.events.compactMap { event -> Blessing? in
+        if let endOfDayPrompt,
+           endOfDayPrompt.occursOnCircleDay(
+               at: date,
+               timeZoneIdentifier: circle?.timeZoneIdentifier ?? TimeZone.current.identifier
+           ) || isEndOfDayWindowOpen(at: date),
+           currentUserBlessing(for: endOfDayPrompt) != nil {
+            visiblePromptIDs.insert(endOfDayPrompt.id)
+        }
+        guard !visiblePromptIDs.isEmpty else { return [] }
+
+        return lanes.flatMap { lane in
+            lane.events.compactMap { event -> BlessingFeedItem? in
                 guard case let .blessing(blessing) = event.status,
-                      blessing.promptID == prompt.id else { return nil }
-                return blessing
+                      visiblePromptIDs.contains(blessing.promptID) else { return nil }
+                return BlessingFeedItem(member: lane.member, blessing: blessing)
             }
-            .first
-            .map { BlessingFeedItem(member: lane.member, blessing: $0) }
         }
         .sorted { lhs, rhs in
             if lhs.blessing.submittedAt != rhs.blessing.submittedAt {
-                return lhs.blessing.submittedAt < rhs.blessing.submittedAt
+                return lhs.blessing.submittedAt > rhs.blessing.submittedAt
             }
             return lhs.member.displayName.localizedCaseInsensitiveCompare(rhs.member.displayName) == .orderedAscending
         }
+    }
+
+    func canEnterEndOfDayPrompt(at date: Date = .now) -> Bool {
+        guard let endOfDayPrompt,
+              currentUserBlessing(for: endOfDayPrompt) == nil else { return false }
+        return isEndOfDayWindowOpen(at: date)
+    }
+
+    private func isEndOfDayWindowOpen(at date: Date) -> Bool {
+        guard let endOfDayPrompt,
+              endOfDayPrompt.phase(at: date) == .open else { return false }
+        if let prompt,
+           prompt.kind == .daily,
+           prompt.startsAt > endOfDayPrompt.startsAt,
+           prompt.startsAt <= date {
+            return false
+        }
+        return true
     }
 
     func canEnterCurrentPrompt(at date: Date = .now) -> Bool {
@@ -193,8 +238,8 @@ final class AppModel {
         canEnterCurrentPrompt()
     }
 
-    func openCapture(now: Date = .now) async -> Bool {
-        guard !isPreparingCapture, let prompt, let currentUser else {
+    func openCapture(for targetPrompt: DailyPrompt? = nil, now: Date = .now) async -> Bool {
+        guard !isPreparingCapture, let targetPrompt = targetPrompt ?? prompt, let currentUser else {
             message = BlessingError.outsideResponseWindow.localizedDescription
             return false
         }
@@ -202,11 +247,11 @@ final class AppModel {
         defer { isPreparingCapture = false }
         do {
             try await repository.beginBlessingEntry(
-                promptID: prompt.id,
+                promptID: targetPrompt.id,
                 memberID: currentUser.id,
                 now: now
             )
-            capturePrompt = prompt
+            capturePrompt = targetPrompt
             isCapturePresented = true
             return true
         } catch {
@@ -244,9 +289,11 @@ final class AppModel {
                 let context = try await repository.circleContext(circleID: preferredID)
                 self.circle = context.circle
                 self.prompt = context.prompt
+                self.endOfDayPrompt = context.endOfDayPrompt
             } else {
                 self.circle = bootstrap.circle
                 self.prompt = bootstrap.prompt
+                self.endOfDayPrompt = bootstrap.endOfDayPrompt
             }
             Self.persistedCircleID = self.circle?.id
             if self.circle == nil { selectedTab = 2 }
@@ -291,6 +338,7 @@ final class AppModel {
             circles = []
             circle = nil
             prompt = nil
+            endOfDayPrompt = nil
             capturePrompt = nil
             lanes = []
             realtimeTask?.cancel()
@@ -338,6 +386,7 @@ final class AppModel {
             let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
             circle = resolvedCircle
             prompt = context.prompt
+            endOfDayPrompt = context.endOfDayPrompt
             capturePrompt = nil
 #if DEBUG
             isDebugPromptPreview = false
@@ -396,6 +445,7 @@ final class AppModel {
         let refreshedCircle = context.circle.preservingInviteCode(knownInviteCode)
         circle = refreshedCircle
         prompt = context.prompt
+        endOfDayPrompt = context.endOfDayPrompt
         lanes = refreshedLanes
         upsertCircle(refreshedCircle)
         scheduleWidgetSnapshotRefresh(now: now)
@@ -431,8 +481,11 @@ final class AppModel {
             let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
             circle = resolvedCircle
             prompt = context.prompt
-            if capturePrompt?.id != context.prompt?.id {
-                capturePrompt = nil
+            endOfDayPrompt = context.endOfDayPrompt
+            let contextPromptIDs = Set([context.prompt?.id, context.endOfDayPrompt?.id].compactMap { $0 })
+            if let activeCapturePrompt = capturePrompt,
+               !contextPromptIDs.contains(activeCapturePrompt.id) {
+                self.capturePrompt = nil
                 submittedBlessing = nil
             }
             lanes = refreshedLanes
@@ -495,13 +548,18 @@ final class AppModel {
                 now: .now
             )
             submittedBlessing = savedBlessing
-            let knownBlessingIDs = Set(
-                currentPromptBlessings(at: .now).map(\.id) + [savedBlessing.id]
-            )
-            await activityController.markSubmitted(
-                promptID: targetPrompt.id,
-                responseCount: knownBlessingIDs.count
-            )
+            if targetPrompt.kind == .daily {
+                let knownBlessingIDs = Set(
+                    currentPromptBlessings(at: .now)
+                        .map(\.blessing)
+                        .filter { $0.promptID == targetPrompt.id }
+                        .map(\.id) + [savedBlessing.id]
+                )
+                await activityController.markSubmitted(
+                    promptID: targetPrompt.id,
+                    responseCount: knownBlessingIDs.count
+                )
+            }
             do {
                 try await refreshTimeline()
             } catch {
@@ -555,7 +613,12 @@ final class AppModel {
             let events = lane.events.map { event in
                 guard case let .blessing(blessing) = event.status,
                       blessing.id == updated.id else { return event }
-                return TimelineEvent(memberID: lane.member.id, date: event.date, status: .blessing(updated))
+                return TimelineEvent(
+                    memberID: lane.member.id,
+                    date: event.date,
+                    status: .blessing(updated),
+                    promptKind: event.promptKind
+                )
             }
             return TimelineLane(member: lane.member, events: events)
         }
@@ -626,7 +689,8 @@ final class AppModel {
         randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
         allowsLateBlessings: Bool,
-        repeatWindowMinutes: Int
+        repeatWindowMinutes: Int,
+        endOfDayMinutes: Int
     ) async -> Bool {
         guard let circle, let currentUser else { return false }
         do {
@@ -639,10 +703,12 @@ final class AppModel {
                 randomWindowEndMinutes: randomWindowEndMinutes,
                 responseWindowMinutes: responseWindowMinutes,
                 allowsLateBlessings: allowsLateBlessings,
-                repeatWindowMinutes: repeatWindowMinutes
+                repeatWindowMinutes: repeatWindowMinutes,
+                endOfDayMinutes: endOfDayMinutes
             )
             self.circle = updatedCircle
             upsertCircle(updatedCircle)
+            try await reloadCurrentCircle(now: .now)
             message = "Circle settings saved. The response length applies to future prompts."
             return true
         } catch {
@@ -687,6 +753,26 @@ final class AppModel {
         } catch {
             circles[index].circleActivityNotificationsEnabled = previous
             if circle?.id == circleID { circle?.circleActivityNotificationsEnabled = previous }
+            message = error.localizedDescription
+        }
+    }
+
+    func setEndOfDayNotifications(_ enabled: Bool, for circleID: UUID) async {
+        guard let currentUser,
+              let index = circles.firstIndex(where: { $0.id == circleID }) else { return }
+        let previous = circles[index].endOfDayNotificationsEnabled
+        circles[index].endOfDayNotificationsEnabled = enabled
+        if circle?.id == circleID { circle?.endOfDayNotificationsEnabled = enabled }
+
+        do {
+            try await repository.updateEndOfDayNotifications(
+                circleID: circleID,
+                memberID: currentUser.id,
+                enabled: enabled
+            )
+        } catch {
+            circles[index].endOfDayNotificationsEnabled = previous
+            if circle?.id == circleID { circle?.endOfDayNotificationsEnabled = previous }
             message = error.localizedDescription
         }
     }
@@ -874,13 +960,18 @@ final class AppModel {
                 now: now
             )
             submittedBlessing = savedBlessing
-            let knownBlessingIDs = Set(
-                currentPromptBlessings(at: now).map(\.id) + [savedBlessing.id]
-            )
-            await activityController.markSubmitted(
-                promptID: targetPrompt.id,
-                responseCount: knownBlessingIDs.count
-            )
+            if targetPrompt.kind == .daily {
+                let knownBlessingIDs = Set(
+                    currentPromptBlessings(at: now)
+                        .map(\.blessing)
+                        .filter { $0.promptID == targetPrompt.id }
+                        .map(\.id) + [savedBlessing.id]
+                )
+                await activityController.markSubmitted(
+                    promptID: targetPrompt.id,
+                    responseCount: knownBlessingIDs.count
+                )
+            }
             do {
                 try await refreshTimeline(now: now)
             } catch {
@@ -906,6 +997,7 @@ final class AppModel {
             realtimeTask = nil
             self.circle = nil
             prompt = nil
+            endOfDayPrompt = nil
             capturePrompt = nil
             lanes = []
             submittedBlessing = nil
@@ -952,11 +1044,17 @@ final class AppModel {
     }
 
     func canRespond(to blessing: Blessing, at date: Date = .now) -> Bool {
-        ResponseCompositionPolicy.canRespond(
-            to: blessing,
-            currentPrompt: prompt,
-            isCurrentPromptToday: isCurrentPromptToday(at: date)
-        )
+        if let prompt,
+           isCurrentPromptToday(at: date),
+           blessing.promptID == prompt.id {
+            return true
+        }
+        guard let endOfDayPrompt,
+              blessing.promptID == endOfDayPrompt.id else { return false }
+        return endOfDayPrompt.occursOnCircleDay(
+            at: date,
+            timeZoneIdentifier: circle?.timeZoneIdentifier ?? TimeZone.current.identifier
+        ) || isEndOfDayWindowOpen(at: date)
     }
 
     func submitResponse(
@@ -1015,7 +1113,12 @@ final class AppModel {
         switch url.host {
         case "today":
             selectedTab = 0
-            if url.path == "/capture" { _ = await openCapture() }
+            if url.path == "/capture" {
+                let targetPrompt = [prompt, endOfDayPrompt]
+                    .compactMap { $0 }
+                    .first { $0.id == promptID }
+                _ = await openCapture(for: targetPrompt)
+            }
         case "blessing":
             guard let blessingID = url.pathComponents.dropFirst().first.flatMap(UUID.init(uuidString:)),
                   let item = blessingFeedItem(id: blessingID) else { return }

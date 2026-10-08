@@ -127,12 +127,12 @@ private struct TimelineRow: Identifiable {
 
     let day: Date
     let kind: Kind
-    let eventsByMemberID: [UUID: TimelineEvent]
+    let eventsByMemberID: [UUID: [TimelineEvent]]
 
     var id: String { "\(day.timeIntervalSinceReferenceDate)-\(kind.rawValue)" }
 
     static func rows(for lanes: [TimelineLane], calendar: Calendar = .current) -> [TimelineRow] {
-        var promptRows: [Date: [UUID: TimelineEvent]] = [:]
+        var promptRows: [Date: [UUID: [TimelineEvent]]] = [:]
         var joinedRows: [Date: [UUID: TimelineEvent]] = [:]
 
         for lane in lanes {
@@ -141,7 +141,7 @@ private struct TimelineRow: Identifiable {
                 if case .joinedCircle = event.status {
                     joinedRows[day, default: [:]][lane.member.id] = event
                 } else {
-                    promptRows[day, default: [:]][lane.member.id] = event
+                    promptRows[day, default: [:]][lane.member.id, default: []].append(event)
                 }
             }
         }
@@ -150,7 +150,11 @@ private struct TimelineRow: Identifiable {
             TimelineRow(day: $0.key, kind: .prompt, eventsByMemberID: $0.value)
         }
         let joins = joinedRows.map {
-            TimelineRow(day: $0.key, kind: .joined, eventsByMemberID: $0.value)
+            TimelineRow(
+                day: $0.key,
+                kind: .joined,
+                eventsByMemberID: $0.value.mapValues { [$0] }
+            )
         }
         return (prompts + joins).sorted { lhs, rhs in
             if lhs.day != rhs.day { return lhs.day > rhs.day }
@@ -188,13 +192,17 @@ private struct TimelineDayRow: View {
             .accessibilityIdentifier("timeline.dayColumn")
 
             ForEach(lanes) { lane in
-                if let event = row.eventsByMemberID[lane.member.id] {
-                    TimelineEventView(
-                        event: event,
-                        member: lane.member,
-                        currentUserID: currentUserID,
-                        onSelect: { blessing in onSelect(lane.member, blessing) }
-                    )
+                if let events = row.eventsByMemberID[lane.member.id] {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(sorted(events)) { event in
+                            TimelineEventView(
+                                event: event,
+                                member: lane.member,
+                                currentUserID: currentUserID,
+                                onSelect: { blessing in onSelect(lane.member, blessing) }
+                            )
+                        }
+                    }
                     .frame(width: TimelineLayout.memberColumnWidth)
                     .frame(maxHeight: .infinity, alignment: .top)
                 } else {
@@ -212,6 +220,13 @@ private struct TimelineDayRow: View {
         var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
         style.timeZone = calendar.timeZone
         return row.day.formatted(style)
+    }
+
+    private func sorted(_ events: [TimelineEvent]) -> [TimelineEvent] {
+        events.sorted { lhs, rhs in
+            if lhs.promptKind != rhs.promptKind { return lhs.promptKind == .endOfDay }
+            return lhs.id < rhs.id
+        }
     }
 }
 
@@ -251,6 +266,11 @@ private struct TimelineEventView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
+                if event.promptKind == .endOfDay {
+                    Label("End of day", systemImage: "moon.stars.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.iris)
+                }
                 content
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

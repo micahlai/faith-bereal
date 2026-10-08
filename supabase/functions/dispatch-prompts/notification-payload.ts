@@ -1,5 +1,28 @@
 export type CircleActivityEvent = "blessing_shared" | "response_shared";
 
+export function promptReminder(input: {
+  kind: "daily" | "end_of_day";
+  circleName: string;
+  responseWindowMinutes: number;
+}): { alert: { title: string; body: string }; startsLiveActivity: boolean } {
+  if (input.kind === "end_of_day") {
+    return {
+      alert: { title: input.circleName, body: "What blessed you at the end of today?" },
+      startsLiveActivity: false,
+    };
+  }
+  const windowLabel = input.responseWindowMinutes === 1
+    ? "one minute"
+    : `${input.responseWindowMinutes} minutes`;
+  return {
+    alert: {
+      title: `${input.circleName} is ready`,
+      body: `You have ${windowLabel} to share today’s blessing.`,
+    },
+    startsLiveActivity: true,
+  };
+}
+
 export type ScriptureReferenceParts = {
   bookName: string | null;
   chapter: number | null;

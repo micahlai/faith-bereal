@@ -890,7 +890,8 @@ final class DomainRulesTests: XCTestCase {
             randomWindowEndMinutes: 18 * 60,
             responseWindowMinutes: 40,
             allowsLateBlessings: true,
-            repeatWindowMinutes: 180
+            repeatWindowMinutes: 180,
+            endOfDayMinutes: 22 * 60
         )
 
         XCTAssertEqual(updated.responseWindowMinutes, 40)
@@ -1301,7 +1302,8 @@ final class DomainRulesTests: XCTestCase {
             randomWindowEndMinutes: circle.randomWindowEndMinutes,
             responseWindowMinutes: circle.responseWindowMinutes,
             allowsLateBlessings: false,
-            repeatWindowMinutes: circle.repeatWindowMinutes
+            repeatWindowMinutes: circle.repeatWindowMinutes,
+            endOfDayMinutes: circle.endOfDayMinutes
         )
 
         try await repository.beginBlessingEntry(
@@ -1362,7 +1364,8 @@ final class DomainRulesTests: XCTestCase {
             randomWindowEndMinutes: circle.randomWindowEndMinutes,
             responseWindowMinutes: circle.responseWindowMinutes,
             allowsLateBlessings: false,
-            repeatWindowMinutes: circle.repeatWindowMinutes
+            repeatWindowMinutes: circle.repeatWindowMinutes,
+            endOfDayMinutes: circle.endOfDayMinutes
         )
 
         do {
@@ -1430,7 +1433,7 @@ final class DomainRulesTests: XCTestCase {
         guard case .joinedCircle = newestMemberLane.events.last?.status else {
             return XCTFail("Expected the lane to end with the membership marker")
         }
-        XCTAssertEqual(newestMemberLane.events.count, 3)
+        XCTAssertEqual(newestMemberLane.events.filter { $0.promptKind != .endOfDay }.count, 3)
     }
 
     func testTimelineExcludesServerPrecreatedFuturePrompts() async throws {
@@ -1475,7 +1478,7 @@ final class DomainRulesTests: XCTestCase {
             lane.events.first(where: { event in
                 guard calendar.isDate(event.date, inSameDayAs: prompt.localDate) else { return false }
                 if case .joinedCircle = event.status { return false }
-                return true
+                return event.promptKind == .daily
             })?.status
         }
 
@@ -1599,6 +1602,159 @@ final class DomainRulesTests: XCTestCase {
             memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle,
             now: day.addingTimeInterval(26 * 3_600)
         ))
+    }
+
+    func testEndOfDayTimeMustNotPrecedeRandomWindowEnd() {
+        var configuration = CircleConfiguration.defaults(timeZoneIdentifier: "America/New_York")
+        configuration.name = "Evening Circle"
+
+        XCTAssertEqual(configuration.endOfDayMinutes, 22 * 60)
+        XCTAssertTrue(configuration.isValid)
+
+        configuration.endOfDayMinutes = configuration.randomWindowEndMinutes - 1
+        XCTAssertFalse(configuration.isValid)
+    }
+
+    func testFirstDayExceptionDoesNotOpenEndOfDayPromptEarly() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+        let day = calendar.startOfDay(for: Date(timeIntervalSince1970: 1_800_000_000))
+        let member = Member(
+            id: UUID(), displayName: "New Friend", initials: "NF", tintSeed: 1,
+            joinedAt: day.addingTimeInterval(8 * 3_600)
+        )
+        let circle = CircleGroup(
+            id: UUID(), name: "Test", inviteCode: "TEST12", ownerID: member.id, members: [member],
+            timeZoneIdentifier: calendar.timeZone.identifier, randomWindowStartMinutes: 720,
+            randomWindowEndMinutes: 1_320, responseWindowMinutes: 10,
+            allowsLateBlessings: true, repeatWindowMinutes: 60
+        )
+        let prompt = DailyPrompt(
+            id: UUID(), circleID: circle.id, localDate: day,
+            startsAt: day.addingTimeInterval(22 * 3_600),
+            endsAt: day.addingTimeInterval(27 * 3_600), kind: .endOfDay
+        )
+
+        XCTAssertFalse(FirstDaySubmissionPolicy.isEligible(
+            memberJoinedAt: member.joinedAt,
+            prompt: prompt,
+            circle: circle,
+            now: day.addingTimeInterval(10 * 3_600)
+        ))
+    }
+
+    func testEndOfDayPrivacyGateIsIndependentFromDailyBlessing() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let startOfToday = calendar.startOfDay(for: .now)
+        let now = startOfToday.addingTimeInterval(22 * 3_600 + 60)
+        let repository = LocalBlessingRepository(now: now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let daily = try XCTUnwrap(bootstrap.prompt)
+        let endOfDay = try XCTUnwrap(bootstrap.endOfDayPrompt)
+        let peer = try XCTUnwrap(circle.members.first(where: { $0.id != user.id }))
+
+        _ = try await repository.submit(
+            promptID: endOfDay.id, authorID: peer.id, mode: .typed,
+            body: "Peace at the end of the day", audioURL: nil, videoURL: nil,
+            scriptureReference: nil, now: now
+        )
+        _ = try await repository.submit(
+            promptID: daily.id, authorID: user.id, mode: .typed,
+            body: "My daily blessing", audioURL: nil, videoURL: nil,
+            scriptureReference: nil, now: now
+        )
+
+        let before = try await repository.timeline(circleID: circle.id, viewerID: user.id, now: now)
+        let peerBefore = try XCTUnwrap(before.first(where: { $0.member.id == peer.id }))
+        let endOfDayBefore = try XCTUnwrap(peerBefore.events.first(where: {
+            $0.promptKind == .endOfDay
+        }))
+        guard case .locked = endOfDayBefore.status else {
+            return XCTFail("Daily submission must not unlock the separate end-of-day prompt")
+        }
+
+        _ = try await repository.submit(
+            promptID: endOfDay.id, authorID: user.id, mode: .typed,
+            body: "My evening blessing", audioURL: nil, videoURL: nil,
+            scriptureReference: nil, now: now.addingTimeInterval(1)
+        )
+        let after = try await repository.timeline(
+            circleID: circle.id, viewerID: user.id, now: now.addingTimeInterval(1)
+        )
+        let peerAfter = try XCTUnwrap(after.first(where: { $0.member.id == peer.id }))
+        let endOfDayAfter = try XCTUnwrap(peerAfter.events.first(where: {
+            $0.promptKind == .endOfDay
+        }))
+        guard case let .blessing(blessing) = endOfDayAfter.status else {
+            return XCTFail("End-of-day submission should unlock peer end-of-day blessings")
+        }
+        XCTAssertEqual(blessing.body, "Peace at the end of the day")
+    }
+
+    func testEndOfDayEntryClosesAtFiveHoursAndNextDailyPrompt() async throws {
+        let now = Date.now
+        let repository = LocalBlessingRepository(now: now, endOfDayStartsAt: now)
+        let bootstrap = try await repository.bootstrap()
+        let user = bootstrap.currentUser
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let evening = try XCTUnwrap(bootstrap.endOfDayPrompt)
+
+        try await repository.beginBlessingEntry(
+            promptID: evening.id, memberID: user.id, now: evening.endsAt.addingTimeInterval(-1)
+        )
+        do {
+            try await repository.beginBlessingEntry(
+                promptID: evening.id, memberID: circle.members[1].id, now: evening.endsAt
+            )
+            XCTFail("Late sharing must not extend the end-of-day window")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .outsideResponseWindow)
+        }
+        let saved = try await repository.submit(
+            promptID: evening.id, authorID: user.id, mode: .typed,
+            body: "Finishing after the deadline", audioURL: nil, videoURL: nil,
+            scriptureReference: nil, now: evening.endsAt.addingTimeInterval(60)
+        )
+        XCTAssertEqual(saved.promptID, evening.id)
+
+        let nextDaily = try await repository.forceCirclePrompt(
+            circleID: circle.id, ownerID: user.id, now: now.addingTimeInterval(60)
+        )
+        do {
+            try await repository.beginBlessingEntry(
+                promptID: evening.id,
+                memberID: circle.members[2].id,
+                now: nextDaily.prompt.startsAt
+            )
+            XCTFail("The next daily prompt must close end-of-day entry immediately")
+        } catch let error as BlessingError {
+            XCTAssertEqual(error, .outsideResponseWindow)
+        }
+    }
+
+    @MainActor
+    func testEndOfDayNotificationOpensItsOwnComposer() async throws {
+        let now = Date.now
+        let repository = LocalBlessingRepository(
+            now: now, endOfDayStartsAt: now.addingTimeInterval(-30)
+        )
+        let bootstrap = try await repository.bootstrap()
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let evening = try XCTUnwrap(bootstrap.endOfDayPrompt)
+        let model = AppModel(repository: repository)
+        await model.bootstrap()
+        let route = try XCTUnwrap(URL(string:
+            "blessingcircle://today/capture?circle=\(circle.id)&prompt=\(evening.id)"
+        ))
+
+        await model.handleDeepLink(route)
+
+        XCTAssertEqual(model.capturePrompt?.id, evening.id)
+        XCTAssertEqual(model.capturePrompt?.kind, .endOfDay)
+        XCTAssertTrue(model.isCapturePresented)
     }
 }
 

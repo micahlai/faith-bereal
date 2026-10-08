@@ -2,6 +2,7 @@ import Foundation
 
 enum FirstDaySubmissionPolicy {
     static func isEligible(memberJoinedAt: Date, prompt: DailyPrompt, circle: CircleGroup, now: Date) -> Bool {
+        guard prompt.kind == .daily else { return false }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
         return calendar.isDate(memberJoinedAt, inSameDayAs: prompt.startsAt)
@@ -78,6 +79,21 @@ struct AppBootstrap: Sendable {
     let circles: [CircleGroup]
     let selectedCircleID: UUID?
     let prompt: DailyPrompt?
+    let endOfDayPrompt: DailyPrompt?
+
+    init(
+        currentUser: Member,
+        circles: [CircleGroup],
+        selectedCircleID: UUID?,
+        prompt: DailyPrompt?,
+        endOfDayPrompt: DailyPrompt? = nil
+    ) {
+        self.currentUser = currentUser
+        self.circles = circles
+        self.selectedCircleID = selectedCircleID
+        self.prompt = prompt
+        self.endOfDayPrompt = endOfDayPrompt
+    }
 
     var circle: CircleGroup? {
         guard let selectedCircleID else { return nil }
@@ -88,6 +104,13 @@ struct AppBootstrap: Sendable {
 struct CircleContext: Sendable {
     let circle: CircleGroup
     let prompt: DailyPrompt?
+    let endOfDayPrompt: DailyPrompt?
+
+    init(circle: CircleGroup, prompt: DailyPrompt?, endOfDayPrompt: DailyPrompt? = nil) {
+        self.circle = circle
+        self.prompt = prompt
+        self.endOfDayPrompt = endOfDayPrompt
+    }
 }
 
 struct Member: Identifiable, Codable, Hashable, Sendable {
@@ -112,8 +135,10 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     var responseWindowMinutes: Int
     var allowsLateBlessings: Bool
     var repeatWindowMinutes: Int
+    var endOfDayMinutes: Int = 22 * 60
     var photoURL: URL? = nil
     var circleActivityNotificationsEnabled: Bool = true
+    var endOfDayNotificationsEnabled: Bool = true
 
     var responseWindowDuration: TimeInterval {
         TimeInterval(responseWindowMinutes * 60)
@@ -145,6 +170,7 @@ struct CircleConfiguration: Equatable, Sendable {
     var responseWindowMinutes: Int
     var allowsLateBlessings: Bool
     var repeatWindowMinutes: Int
+    var endOfDayMinutes: Int = 22 * 60
 
     static func defaults(timeZoneIdentifier: String = TimeZone.current.identifier) -> CircleConfiguration {
         CircleConfiguration(
@@ -154,7 +180,8 @@ struct CircleConfiguration: Equatable, Sendable {
             randomWindowEndMinutes: 22 * 60,
             responseWindowMinutes: 10,
             allowsLateBlessings: true,
-            repeatWindowMinutes: 120
+            repeatWindowMinutes: 120,
+            endOfDayMinutes: 22 * 60
         )
     }
 
@@ -166,9 +193,16 @@ struct CircleConfiguration: Equatable, Sendable {
             && (0..<1_440).contains(randomWindowStartMinutes)
             && (1...1_440).contains(randomWindowEndMinutes)
             && randomWindowEndMinutes > randomWindowStartMinutes
+            && (0..<1_440).contains(endOfDayMinutes)
+            && endOfDayMinutes >= randomWindowEndMinutes
             && ResponseWindowOptions.minutes.contains(responseWindowMinutes)
             && RepeatWindowOptions.minutes.contains(repeatWindowMinutes)
     }
+}
+
+enum PromptKind: String, Codable, Hashable, Sendable {
+    case daily
+    case endOfDay = "end_of_day"
 }
 
 struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
@@ -177,6 +211,23 @@ struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
     let localDate: Date
     let startsAt: Date
     let endsAt: Date
+    let kind: PromptKind
+
+    init(
+        id: UUID,
+        circleID: UUID,
+        localDate: Date,
+        startsAt: Date,
+        endsAt: Date,
+        kind: PromptKind = .daily
+    ) {
+        self.id = id
+        self.circleID = circleID
+        self.localDate = localDate
+        self.startsAt = startsAt
+        self.endsAt = endsAt
+        self.kind = kind
+    }
 
     func phase(at date: Date) -> PromptPhase {
         if date < startsAt { return .scheduled }
@@ -317,11 +368,13 @@ struct TimelineEvent: Identifiable, Hashable, Sendable {
     let id: String
     let date: Date
     let status: TimelineStatus
+    let promptKind: PromptKind?
 
-    init(memberID: UUID, date: Date, status: TimelineStatus) {
-        self.id = "\(memberID.uuidString)-\(date.timeIntervalSince1970)"
+    init(memberID: UUID, date: Date, status: TimelineStatus, promptKind: PromptKind? = nil) {
+        self.id = "\(memberID.uuidString)-\(date.timeIntervalSince1970)-\(promptKind?.rawValue ?? "membership")"
         self.date = date
         self.status = status
+        self.promptKind = promptKind
     }
 }
 

@@ -16,7 +16,7 @@ xcodebuild -project BlessingCircle.xcodeproj \
 ```
 
 Set `SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY=''` on simulator build/test commands to force the normal blank-configuration fallback. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase.
-UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → Join/Create first-run flow.
+UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → App Icon → Widget → Join/Create first-run flow.
 
 ## TestFlight candidate
 
@@ -75,8 +75,18 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - a member may submit before or after the response window on the local calendar day they join, but not on a later day unless ordinary late-sharing rules apply.
 - blessing edits accept the author before ten minutes, reject other users, and close at the exact ten-minute boundary.
 - circle photo changes require the current owner and remain isolated to the selected circle.
-- profile and circle photo resize output preserves the source aspect ratio in a bounded JPEG, including zoom/offset rendering and invalid-viewport rejection.
+- profile and circle photo crop output is always a square bounded JPEG, including zoom/offset rendering and invalid-viewport rejection; blessing photos retain their original aspect ratio.
 - circle activity notification preferences default on and change only the selected membership.
+- end-of-day time cannot precede the random range end, the join-day exception cannot open it early, and its visibility gate remains independent from the daily prompt.
+- end-of-day entry closes at exactly five hours or the next daily prompt; a timely entry grant still permits completion later, and notification deep links select the evening composer rather than the daily composer.
+
+The transactional database regression suite can run against the linked migrated project without retaining fixtures:
+
+```sh
+supabase db query --linked --file supabase/tests/end_of_day_blessings.sql
+```
+
+The suite checks independent privacy after midnight, the two entry cutoffs, late daily sharing, entry grants, per-membership notification preferences, schedule validation, and anonymous RPC denial. It creates temporary test users and circles inside a transaction and rolls them back.
 
 ## Integration tests
 
@@ -115,6 +125,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - lock-screen Live Activity circle name, prompt copy, `m:ss to respond` countdown, and immediate submitted state without changes to Dynamic Island;
 - lock-screen privacy settings;
 - sender/circle images and locked/unlocked activity-notification copy on a two-account physical-device circle;
+- one opted-in end-of-day reminder arrives without starting a Live Activity, opted-out members receive none, and the window closes after five hours or the next daily prompt;
 - background video upload interruption;
 - speech transcription latency and audio-session interruption.
 - voice capture produces a playable audio file after permission grant, interruption, stop, and relaunch;

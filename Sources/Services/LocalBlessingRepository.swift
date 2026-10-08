@@ -14,7 +14,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var blessingResponses: [BlessingResponse]
     private var entryGrants: Set<BlessingEntryGrantKey> = []
 
-    init(now: Date = .now) {
+    init(now: Date = .now, endOfDayStartsAt: Date? = nil) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -65,7 +65,16 @@ actor LocalBlessingRepository: BlessingRepository {
             startsAt: currentStart,
             endsAt: currentStart.addingTimeInterval(600)
         )
-        var seededPrompts = [current]
+        let endOfDayStart = endOfDayStartsAt ?? startOfToday.addingTimeInterval(22 * 3_600)
+        let currentEndOfDay = DailyPrompt(
+            id: UUID(uuidString: "C0000000-0000-0000-0000-000000000003")!,
+            circleID: primaryCircle.id,
+            localDate: startOfToday,
+            startsAt: endOfDayStart,
+            endsAt: endOfDayStart.addingTimeInterval(5 * 3_600),
+            kind: .endOfDay
+        )
+        var seededPrompts = [current, currentEndOfDay]
         var seededBlessings: [Blessing] = [
             Blessing(
                 id: UUID(),
@@ -192,6 +201,16 @@ actor LocalBlessingRepository: BlessingRepository {
                 endsAt: prayerStart.addingTimeInterval(900)
             )
         )
+        seededPrompts.append(
+            DailyPrompt(
+                id: UUID(uuidString: "C0000000-0000-0000-0000-000000000004")!,
+                circleID: prayerCircle.id,
+                localDate: startOfToday,
+                startsAt: endOfDayStart,
+                endsAt: endOfDayStart.addingTimeInterval(5 * 3_600),
+                kind: .endOfDay
+            )
+        )
 
         circles = [primaryCircle, prayerCircle]
         prompts = seededPrompts
@@ -204,14 +223,14 @@ actor LocalBlessingRepository: BlessingRepository {
             circle.members.contains(where: { $0.id == currentUser.id })
         }
         let selectedCircleID = memberCircles.first?.id
-        let prompt = selectedCircleID.flatMap { id in
-            prompts.filter { $0.circleID == id }.max(by: { $0.localDate < $1.localDate })
-        }
+        let prompt = selectedCircleID.flatMap { id in currentDailyPrompt(circleID: id, now: .now) }
+        let endOfDayPrompt = selectedCircleID.flatMap { id in currentEndOfDayPrompt(circleID: id, now: .now) }
         return AppBootstrap(
             currentUser: currentUser,
             circles: memberCircles,
             selectedCircleID: selectedCircleID,
-            prompt: prompt
+            prompt: prompt,
+            endOfDayPrompt: endOfDayPrompt
         )
     }
 
@@ -221,10 +240,11 @@ actor LocalBlessingRepository: BlessingRepository {
         }) else {
             throw BlessingError.circleNotFound
         }
-        let prompt = prompts
-            .filter { $0.circleID == circleID }
-            .max(by: { $0.localDate < $1.localDate })
-        return CircleContext(circle: circle, prompt: prompt)
+        return CircleContext(
+            circle: circle,
+            prompt: currentDailyPrompt(circleID: circleID, now: .now),
+            endOfDayPrompt: currentEndOfDayPrompt(circleID: circleID, now: .now)
+        )
     }
 
     func circleContext(promptID: UUID) async throws -> CircleContext {
@@ -235,7 +255,11 @@ actor LocalBlessingRepository: BlessingRepository {
               }) else {
             throw BlessingError.circleNotFound
         }
-        return CircleContext(circle: circle, prompt: prompt)
+        return CircleContext(
+            circle: circle,
+            prompt: prompt.kind == .daily ? prompt : currentDailyPrompt(circleID: circle.id, now: .now),
+            endOfDayPrompt: prompt.kind == .endOfDay ? prompt : currentEndOfDayPrompt(circleID: circle.id, now: .now)
+        )
     }
 
     func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void> {
@@ -267,12 +291,12 @@ actor LocalBlessingRepository: BlessingRepository {
             .filter {
                 $0.circleID == circleID
                     && circleCalendar.startOfDay(for: $0.localDate) <= currentLocalDay
+                    && ($0.kind == .daily || $0.startsAt <= now)
             }
-            .sorted { $0.localDate > $1.localDate }
-        let currentPrompt = circlePrompts.first { circleCalendar.isDate($0.localDate, inSameDayAs: now) }
-        let viewerHasSubmitted = currentPrompt.map { prompt in
-            blessings.contains { $0.promptID == prompt.id && $0.authorID == viewerID }
-        } ?? false
+            .sorted {
+                if $0.localDate != $1.localDate { return $0.localDate > $1.localDate }
+                return $0.kind == .endOfDay && $1.kind == .daily
+            }
 
         return circle.members.map { member in
             var events = circlePrompts
@@ -283,27 +307,47 @@ actor LocalBlessingRepository: BlessingRepository {
                 .map { prompt -> TimelineEvent in
                 let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
                 let isToday = circleCalendar.isDate(prompt.localDate, inSameDayAs: now)
+                let nextDailyStart = prompts
+                    .filter {
+                        $0.circleID == prompt.circleID
+                            && $0.kind == .daily
+                            && $0.startsAt > prompt.startsAt
+                    }
+                    .map(\.startsAt)
+                    .min()
+                let entryIsOpen = acceptsEntry(
+                    prompt: prompt,
+                    circle: circle,
+                    memberID: member.id,
+                    now: now,
+                    nextPromptStart: nextDailyStart
+                )
+                let requiresSubmissionGate = isToday
+                    || (prompt.kind == .endOfDay && entryIsOpen)
+                let viewerHasSubmitted = blessings.contains {
+                    $0.promptID == prompt.id && $0.authorID == viewerID
+                }
                 let status: TimelineStatus
 
-                if isToday && member.id != viewerID && !viewerHasSubmitted {
+                if requiresSubmissionGate && member.id != viewerID && !viewerHasSubmitted {
                     status = .locked
                 } else if let match {
-                    if member.id == viewerID || VisibilityPolicy.canReadPeerBlessing(
-                        promptDate: prompt.localDate,
-                        now: now,
-                        viewerHasSubmitted: viewerHasSubmitted,
-                        calendar: circleCalendar
-                    ) {
+                    if member.id == viewerID || !requiresSubmissionGate || viewerHasSubmitted {
                         status = .blessing(match)
                     } else {
                         status = .locked
                     }
-                } else if isToday && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings || FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)) {
+                } else if requiresSubmissionGate && entryIsOpen {
                     status = .waiting
                 } else {
                     status = .missed
                 }
-                return TimelineEvent(memberID: member.id, date: prompt.localDate, status: status)
+                return TimelineEvent(
+                    memberID: member.id,
+                    date: prompt.localDate,
+                    status: status,
+                    promptKind: prompt.kind
+                )
             }
             events.append(
                 TimelineEvent(memberID: member.id, date: member.joinedAt, status: .joinedCircle)
@@ -341,7 +385,11 @@ actor LocalBlessingRepository: BlessingRepository {
             throw BlessingError.outsideResponseWindow
         }
         let nextPromptStart = prompts
-            .filter { $0.circleID == prompt.circleID && $0.startsAt > prompt.startsAt }
+            .filter {
+                $0.circleID == prompt.circleID
+                    && $0.kind == .daily
+                    && $0.startsAt > prompt.startsAt
+            }
             .map(\.startsAt)
             .min()
         guard let circle = circles.first(where: { $0.id == prompt.circleID }) else {
@@ -435,7 +483,11 @@ actor LocalBlessingRepository: BlessingRepository {
         nextPromptStart: Date? = nil
     ) -> Bool {
         let resolvedNextPromptStart = nextPromptStart ?? prompts
-            .filter { $0.circleID == prompt.circleID && $0.startsAt > prompt.startsAt }
+            .filter {
+                $0.circleID == prompt.circleID
+                    && $0.kind == .daily
+                    && $0.startsAt > prompt.startsAt
+            }
             .map(\.startsAt)
             .min()
         let joinedAt = circle.members.first(where: { $0.id == memberID })?.joinedAt
@@ -448,6 +500,10 @@ actor LocalBlessingRepository: BlessingRepository {
                 now: now
             )
         } ?? false
+        if prompt.kind == .endOfDay {
+            return prompt.phase(at: now) == .open
+                && (resolvedNextPromptStart.map { now < $0 } ?? true)
+        }
         let isAcceptedLate = circle.allowsLateBlessings
             && now >= prompt.endsAt
             && resolvedNextPromptStart.map { now < $0 } ?? true
@@ -483,7 +539,8 @@ actor LocalBlessingRepository: BlessingRepository {
             randomWindowEndMinutes: configuration.randomWindowEndMinutes,
             responseWindowMinutes: configuration.responseWindowMinutes,
             allowsLateBlessings: configuration.allowsLateBlessings,
-            repeatWindowMinutes: configuration.repeatWindowMinutes
+            repeatWindowMinutes: configuration.repeatWindowMinutes,
+            endOfDayMinutes: configuration.endOfDayMinutes
         )
         circles.append(circle)
 
@@ -513,6 +570,22 @@ actor LocalBlessingRepository: BlessingRepository {
                 endsAt: promptStart.addingTimeInterval(circle.responseWindowDuration)
             )
         )
+        let configuredEndOfDayStart = circleCalendar.date(
+            byAdding: .minute,
+            value: configuration.endOfDayMinutes,
+            to: localDate
+        ) ?? localDate.addingTimeInterval(22 * 3_600)
+        let endOfDayStart = max(configuredEndOfDayStart, now)
+        prompts.append(
+            DailyPrompt(
+                id: UUID(),
+                circleID: circle.id,
+                localDate: localDate,
+                startsAt: endOfDayStart,
+                endsAt: endOfDayStart.addingTimeInterval(5 * 3_600),
+                kind: .endOfDay
+            )
+        )
         return circle
     }
 
@@ -534,7 +607,8 @@ actor LocalBlessingRepository: BlessingRepository {
         randomWindowEndMinutes: Int,
         responseWindowMinutes: Int,
         allowsLateBlessings: Bool,
-        repeatWindowMinutes: Int
+        repeatWindowMinutes: Int,
+        endOfDayMinutes: Int
     ) async throws -> CircleGroup {
         guard let index = circles.firstIndex(where: { $0.id == circleID }),
               circles[index].ownerID == ownerID else {
@@ -552,7 +626,9 @@ actor LocalBlessingRepository: BlessingRepository {
               TimeZone(identifier: timeZoneIdentifier) != nil,
               (0..<1_440).contains(randomWindowStartMinutes),
               (1...1_440).contains(randomWindowEndMinutes),
-              randomWindowEndMinutes > randomWindowStartMinutes else {
+              randomWindowEndMinutes > randomWindowStartMinutes,
+              (0..<1_440).contains(endOfDayMinutes),
+              endOfDayMinutes >= randomWindowEndMinutes else {
             throw BlessingError.invalidInviteCode
         }
         circles[index].name = cleanedName
@@ -562,6 +638,34 @@ actor LocalBlessingRepository: BlessingRepository {
         circles[index].responseWindowMinutes = responseWindowMinutes
         circles[index].allowsLateBlessings = allowsLateBlessings
         circles[index].repeatWindowMinutes = repeatWindowMinutes
+        circles[index].endOfDayMinutes = endOfDayMinutes
+        var circleCalendar = Calendar(identifier: .gregorian)
+        circleCalendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        let now = Date.now
+        let localDate = circleCalendar.startOfDay(for: now)
+        if let promptIndex = prompts.firstIndex(where: { candidate in
+            candidate.circleID == circleID
+                && candidate.kind == .endOfDay
+                && circleCalendar.isDate(candidate.localDate, inSameDayAs: now)
+                && candidate.startsAt > now
+                && !blessings.contains(where: { $0.promptID == candidate.id })
+        }) {
+            let configuredStart = circleCalendar.date(
+                byAdding: .minute,
+                value: endOfDayMinutes,
+                to: localDate
+            ) ?? localDate.addingTimeInterval(22 * 3_600)
+            let start = max(configuredStart, now)
+            let existing = prompts[promptIndex]
+            prompts[promptIndex] = DailyPrompt(
+                id: existing.id,
+                circleID: existing.circleID,
+                localDate: localDate,
+                startsAt: start,
+                endsAt: start.addingTimeInterval(5 * 3_600),
+                kind: .endOfDay
+            )
+        }
         return circles[index]
     }
 
@@ -643,6 +747,14 @@ actor LocalBlessingRepository: BlessingRepository {
             throw BlessingError.circleNotFound
         }
         circles[index].circleActivityNotificationsEnabled = enabled
+    }
+
+    func updateEndOfDayNotifications(circleID: UUID, memberID: UUID, enabled: Bool) async throws {
+        guard let index = circles.firstIndex(where: { $0.id == circleID }),
+              circles[index].members.contains(where: { $0.id == memberID }) else {
+            throw BlessingError.circleNotFound
+        }
+        circles[index].endOfDayNotificationsEnabled = enabled
     }
 
     private static func initials(for name: String) -> String {
@@ -804,12 +916,55 @@ extension LocalBlessingRepository: DebugPromptProviding {
 #endif
 
 private extension LocalBlessingRepository {
+    func currentDailyPrompt(circleID: UUID, now: Date) -> DailyPrompt? {
+        guard let circle = circles.first(where: { $0.id == circleID }) else { return nil }
+        var circleCalendar = Calendar(identifier: .gregorian)
+        circleCalendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+        if let current = prompts.first(where: {
+            $0.circleID == circleID
+                && $0.kind == .daily
+                && circleCalendar.isDate($0.localDate, inSameDayAs: now)
+        }) {
+            return current
+        }
+        return prompts
+            .filter { $0.circleID == circleID && $0.kind == .daily }
+            .max(by: { $0.localDate < $1.localDate })
+    }
+
+    func currentEndOfDayPrompt(circleID: UUID, now: Date) -> DailyPrompt? {
+        guard let circle = circles.first(where: { $0.id == circleID }) else { return nil }
+        var circleCalendar = Calendar(identifier: .gregorian)
+        circleCalendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
+        let candidates = prompts.filter { $0.circleID == circleID && $0.kind == .endOfDay }
+        if let active = (candidates
+            .filter { prompt in
+                guard prompt.startsAt <= now, prompt.endsAt > now else { return false }
+                let nextDailyStart = prompts
+                    .filter {
+                        $0.circleID == circleID
+                            && $0.kind == .daily
+                            && $0.startsAt > prompt.startsAt
+                    }
+                    .map(\.startsAt)
+                    .min()
+                return nextDailyStart.map { now < $0 } ?? true
+            }
+            .max(by: { $0.startsAt < $1.startsAt })) {
+            return active
+        }
+        return candidates.first { circleCalendar.isDate($0.localDate, inSameDayAs: now) }
+            ?? candidates.max(by: { $0.localDate < $1.localDate })
+    }
+
     func beginLocalPrompt(circle: CircleGroup, now: Date) throws -> DailyPrompt {
         var circleCalendar = Calendar(identifier: .gregorian)
         circleCalendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
         let localDate = circleCalendar.startOfDay(for: now)
         let existingIndex = prompts.firstIndex {
-            $0.circleID == circle.id && circleCalendar.isDate($0.localDate, inSameDayAs: now)
+            $0.circleID == circle.id
+                && $0.kind == .daily
+                && circleCalendar.isDate($0.localDate, inSameDayAs: now)
         }
         let promptID = existingIndex.map { prompts[$0].id } ?? UUID()
         let debugPrompt = DailyPrompt(

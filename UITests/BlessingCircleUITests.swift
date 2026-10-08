@@ -63,6 +63,9 @@ final class BlessingCircleUITests: XCTestCase {
         app.swipeLeft()
         XCTAssertEqual(dayColumn.frame.minX, initialDayColumnX, accuracy: 2)
 
+        // Member lanes intentionally scroll horizontally; restore You before
+        // checking that its header remains visible during vertical scrolling.
+        app.swipeRight()
         app.swipeUp()
         XCTAssertTrue(memberHeader.isHittable)
     }

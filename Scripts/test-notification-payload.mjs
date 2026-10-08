@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   circleActivityBody,
   notificationMedia,
+  promptReminder,
   scriptureReference,
 } from "../supabase/functions/dispatch-prompts/notification-payload.ts";
 
@@ -11,6 +12,19 @@ const john316 = {
   verseStart: 16,
   verseEnd: 16,
 };
+
+assert.deepEqual(promptReminder({
+  kind: "end_of_day", circleName: "Evening Bread", responseWindowMinutes: 300,
+}), {
+  alert: { title: "Evening Bread", body: "What blessed you at the end of today?" },
+  startsLiveActivity: false,
+});
+assert.deepEqual(promptReminder({
+  kind: "daily", circleName: "Sunday Table", responseWindowMinutes: 10,
+}), {
+  alert: { title: "Sunday Table is ready", body: "You have 10 minutes to share today’s blessing." },
+  startsLiveActivity: true,
+});
 
 assert.equal(scriptureReference(john316), "John 3:16");
 assert.equal(scriptureReference({ ...john316, verseEnd: 18 }), "John 3:16–18");
