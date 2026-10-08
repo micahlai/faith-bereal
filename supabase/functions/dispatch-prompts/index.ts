@@ -8,6 +8,7 @@ import {
 } from "./live-activity-payload.ts";
 import {
   circleActivityBody,
+  circleActivityTitle,
   notificationMedia,
   promptReminder,
 } from "./notification-payload.ts";
@@ -335,11 +336,10 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
     captureMode: blessing.capture_mode,
     thumbnailPath: blessing.thumbnail_path,
     photoPath: blessing.photo_path,
-    senderAvatarPath: sender.avatar_path,
   });
-  const blessingMediaURL = blessingMedia?.bucket === "blessing-media"
+  const blessingMediaURL = blessingMedia
     ? await signedStorageURL(blessingMedia.bucket, blessingMedia.path)
-    : senderAvatarURL;
+    : null;
   const invalidByDevice = new Map<string, Set<DeviceTokenField>>();
   const results = await Promise.allSettled(activeDevices.map((device) => {
     const unlocked = notification.event_type === "response_shared" || submittedByRecipient.has(device.user_id);
@@ -366,7 +366,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
       "alert",
       {
         aps: {
-          alert: { title: circle.name, body },
+          alert: { title: circleActivityTitle(notification.event_type, circle.name), body },
           sound: "default",
           "mutable-content": 1,
           category: "CIRCLE_ACTIVITY",
@@ -378,6 +378,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
         sender_name: sender.display_name,
         circle_id: prompt.circle_id,
         circle_name: circle.name,
+        ...(senderAvatarURL ? { sender_avatar_url: senderAvatarURL } : {}),
         ...(richMediaURL ? { rich_media_url: richMediaURL } : {}),
         blessing_id: blessing.id,
       },

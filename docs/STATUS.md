@@ -1,5 +1,13 @@
 # Project status
 
+## 2026-10-07 notification identity and title revision
+
+- Peer blessing titles now say “New blessing in [circle name]”, while response titles use the circle name. Existing locked/unlocked message copy and scripture references are unchanged.
+- The extension combines the locally selected manna logo with a small circular sender avatar in the lower-left area. iOS still owns and displays the separate app-icon badge at the lower right; it cannot be replaced.
+- Right-hand attachments now contain only blessing photos or video frames. Text/audio blessings without photos and response alerts have no right attachment; sender profile photos arrive in a separate identity field instead. Locked alerts retain their media privacy gate.
+- Avatar and attachment downloads run in parallel with bounded timeouts and size checks, and identity avatars are downsampled before rendering. Timeout/failure still falls back to the ordinary alert through the existing single-delivery bridge.
+- Physical-device presentation remains pending a build containing the updated notification extension.
+
 ## 2026-10-07 About heading refinement
 
 - The About/onboarding wordmark now sits above the single word “circle” in the same system serif family at regular weight, avoiding a repeated “manna” name below the logo.

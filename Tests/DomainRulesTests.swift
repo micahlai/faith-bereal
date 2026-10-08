@@ -4,6 +4,44 @@ import AVFoundation
 @testable import BlessingCircle
 
 final class DomainRulesTests: XCTestCase {
+    func testNotificationIdentityRetainsLogoWithoutAnAvatar() {
+        let logo = UIGraphicsImageRenderer(size: NotificationIdentityImage.size).image { _ in
+            UIColor.red.setFill()
+            UIRectFill(CGRect(origin: .zero, size: NotificationIdentityImage.size))
+        }
+        XCTAssertTrue(NotificationIdentityImage.make(logo: logo, avatar: nil) === logo)
+    }
+
+    func testNotificationIdentityAddsSmallAvatarWithoutReplacingLogo() throws {
+        let logo = UIGraphicsImageRenderer(size: NotificationIdentityImage.size).image { _ in
+            UIColor.red.setFill()
+            UIRectFill(CGRect(origin: .zero, size: NotificationIdentityImage.size))
+        }
+        let avatar = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 60)).image { _ in
+            UIColor.blue.setFill()
+            UIRectFill(CGRect(x: 0, y: 0, width: 120, height: 60))
+        }
+        let identity = NotificationIdentityImage.make(logo: logo, avatar: avatar)
+        XCTAssertEqual(identity.size, NotificationIdentityImage.size)
+        let cgImage = try XCTUnwrap(identity.cgImage)
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: 256, height: 256, bitsPerComponent: 8, bytesPerRow: 256 * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.draw(cgImage, in: CGRect(origin: .zero, size: NotificationIdentityImage.size))
+        let bytes = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
+        var redPixels = 0
+        var bluePixels = 0
+        for index in stride(from: 0, to: 256 * 256 * 4, by: 4) {
+            if bytes[index] > 240 && bytes[index + 2] < 15 { redPixels += 1 }
+            if bytes[index + 2] > 240 && bytes[index] < 15 { bluePixels += 1 }
+        }
+        XCTAssertGreaterThan(redPixels, 50_000)
+        XCTAssertGreaterThan(bluePixels, 1_000)
+        XCTAssertLessThan(bluePixels, 10_000)
+        XCTAssertLessThan(NotificationIdentityImage.avatarFrame.midX, identity.size.width / 2)
+    }
+
     func testCircleInviteLinkBuildsAndParsesTheProductionUniversalLink() throws {
         let url = try XCTUnwrap(CircleInviteLink.webURL(for: " light7 "))
 

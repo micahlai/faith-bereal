@@ -48,6 +48,7 @@
 		B2D27388B9EAD4325B01637D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */; };
 		B33A2D1FC21C2B810722E7EF /* MannaWordmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 218B05F8EA26894C0DB33863 /* MannaWordmark.swift */; };
 		B693844FB4B9B287A6CF7CCC /* LocalBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86BE8467DA49E4C1EFF6C54F /* LocalBlessingRepository.swift */; };
+		BA134C761549591173452160 /* NotificationIdentityImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80C07B211B1EEE86AEFEA95 /* NotificationIdentityImage.swift */; };
 		C4D0BAE369D612DBA4BBDA6A /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78394E2536925B55E8D27A81 /* NotificationService.swift */; };
 		C5E886DC0C3FF80F1DF8B517 /* BlessingCircleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */; };
 		CACCB05EEFF73ED373306CBD /* MediaPlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */; };
@@ -55,6 +56,7 @@
 		D39F594EE10456032E8678DE /* AppComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */; };
 		D3A39B6B7BB6AA5F14D2DED3 /* CircleLocalDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */; };
 		D74894BE66CA5A3744DECA05 /* NotificationBrandPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73F45A4D730D17D2CC8CD2C /* NotificationBrandPreference.swift */; };
+		DC99FD536C56588FD0D90386 /* NotificationIdentityImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80C07B211B1EEE86AEFEA95 /* NotificationIdentityImage.swift */; };
 		E8BF3EB4CB41784548937894 /* PromptActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E9B4C7BC58F8FA3AB2741AB /* PromptActivityController.swift */; };
 		EFE5536CCC884FDACDAAB6D4 /* BlessingCircleLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F58EC1B9E3233BD4F529E454 /* SupabaseBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */; };
@@ -147,6 +149,7 @@
 		A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleInviteLink.swift; sourceTree = "<group>"; };
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
 		A64B2CD999847E450C198DDA /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
+		A80C07B211B1EEE86AEFEA95 /* NotificationIdentityImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationIdentityImage.swift; sourceTree = "<group>"; };
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
 		AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleLiveActivity.swift; sourceTree = "<group>"; };
@@ -322,6 +325,7 @@
 			children = (
 				E46B4D2ACEF8C03D2F117DE3 /* BlessingWidgetSnapshot.swift */,
 				D73F45A4D730D17D2CC8CD2C /* NotificationBrandPreference.swift */,
+				A80C07B211B1EEE86AEFEA95 /* NotificationIdentityImage.swift */,
 				6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */,
 			);
 			path = Shared;
@@ -637,6 +641,7 @@
 				CACCB05EEFF73ED373306CBD /* MediaPlaybackController.swift in Sources */,
 				A3A80BC1BB9ED561C129800B /* Models.swift in Sources */,
 				F9431471BF1E7B8237849A57 /* NotificationBrandPreference.swift in Sources */,
+				DC99FD536C56588FD0D90386 /* NotificationIdentityImage.swift in Sources */,
 				1F62BF5CECCC80304AF0E271 /* PhotoResizeEditor.swift in Sources */,
 				3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */,
 				E8BF3EB4CB41784548937894 /* PromptActivityController.swift in Sources */,
@@ -684,6 +689,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D74894BE66CA5A3744DECA05 /* NotificationBrandPreference.swift in Sources */,
+				BA134C761549591173452160 /* NotificationIdentityImage.swift in Sources */,
 				C4D0BAE369D612DBA4BBDA6A /* NotificationService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   circleActivityBody,
+  circleActivityTitle,
   notificationMedia,
   promptReminder,
   scriptureReference,
@@ -12,6 +13,9 @@ const john316 = {
   verseStart: 16,
   verseEnd: 16,
 };
+
+assert.equal(circleActivityTitle("blessing_shared", "Sunday Table"), "New blessing in Sunday Table");
+assert.equal(circleActivityTitle("response_shared", "Sunday Table"), "Sunday Table");
 
 assert.deepEqual(promptReminder({
   kind: "end_of_day", circleName: "Evening Bread", responseWindowMinutes: 300,
@@ -65,7 +69,6 @@ const mediaBase = {
   captureMode: "video",
   thumbnailPath: "circle/prompt/user/thumbnail.jpg",
   photoPath: "circle/prompt/user/photo.jpg",
-  senderAvatarPath: "user/avatar.jpg",
 };
 assert.deepEqual(notificationMedia(mediaBase), {
   bucket: "blessing-media",
@@ -75,15 +78,14 @@ assert.deepEqual(notificationMedia({ ...mediaBase, captureMode: "typed", thumbna
   bucket: "blessing-media",
   path: mediaBase.photoPath,
 });
-assert.deepEqual(notificationMedia({
+assert.equal(notificationMedia({
   ...mediaBase,
   eventType: "response_shared",
   thumbnailPath: null,
   photoPath: null,
-}), {
-  bucket: "avatars",
-  path: mediaBase.senderAvatarPath,
-});
+}), null);
+assert.equal(notificationMedia({ ...mediaBase, captureMode: "voice", photoPath: null }), null);
+assert.equal(notificationMedia({ ...mediaBase, captureMode: "typed", photoPath: null }), null);
 assert.equal(notificationMedia({ ...mediaBase, unlocked: false }), null);
 
 console.log("APNs circle activity payload contract passed.");

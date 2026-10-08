@@ -57,8 +57,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - Universal invitation construction/parsing, unsafe-host rejection, and invitation persistence through bootstrap;
 - circle-local prompt dates remain on their stored calendar day in western time zones;
 - Live Activity APNs state remains backward compatible and encodes its exact three-minute terminal dismissal timestamp;
-- notification copy preserves the locked-content gate, formats scripture references on a second line, and selects rich media in video-frame → attached-photo → sender-avatar order;
-- the communication-notification sender image follows the selected manna icon, including automatic light/dark resolution;
+- notification copy preserves the locked-content gate, formats scripture references on a second line, uses “New blessing in [circle]” / “[circle]” titles, and selects right-side media in video-frame → attached-photo order with no avatar fallback;
+- the communication-notification identity artwork follows the selected manna icon, including automatic light/dark resolution, and adds a small sender avatar inside the left image without replacing the logo;
 - cancelled row-level response loads are classified as cancellation and do not surface a user-facing error;
 - circle creation preserves every selected setting and creates the current local-day prompt from the selected time zone, range, and response duration;
 - invite-code regeneration requires the owner and immediately invalidates the previous code;
@@ -124,7 +124,7 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 - Dynamic Island compact/minimal/expanded layouts;
 - lock-screen Live Activity circle name, prompt copy, `m:ss to respond` countdown, and immediate submitted state without changes to Dynamic Island;
 - lock-screen privacy settings;
-- sender/circle images and locked/unlocked activity-notification copy on a two-account physical-device circle;
+- logo-plus-sender-avatar left artwork, circle-oriented title, photo/video-only right attachment, and locked/unlocked copy on a two-account physical-device circle; iOS's separate app-icon badge remains system-owned;
 - one opted-in end-of-day reminder arrives without starting a Live Activity, opted-out members receive none, and the window closes after five hours or the next daily prompt;
 - background video upload interruption;
 - speech transcription latency and audio-session interruption.

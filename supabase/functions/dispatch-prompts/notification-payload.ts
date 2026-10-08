@@ -1,5 +1,9 @@
 export type CircleActivityEvent = "blessing_shared" | "response_shared";
 
+export function circleActivityTitle(eventType: CircleActivityEvent, circleName: string): string {
+  return eventType === "blessing_shared" ? `New blessing in ${circleName}` : circleName;
+}
+
 export function promptReminder(input: {
   kind: "daily" | "end_of_day";
   circleName: string;
@@ -31,7 +35,7 @@ export type ScriptureReferenceParts = {
 };
 
 export type NotificationMedia = {
-  bucket: "blessing-media" | "avatars";
+  bucket: "blessing-media";
   path: string;
 };
 
@@ -67,7 +71,6 @@ export function notificationMedia(input: {
   captureMode: string;
   thumbnailPath: string | null;
   photoPath: string | null;
-  senderAvatarPath: string | null;
 }): NotificationMedia | null {
   if (!input.unlocked) return null;
   if (input.eventType === "blessing_shared") {
@@ -78,7 +81,5 @@ export function notificationMedia(input: {
       return { bucket: "blessing-media", path: input.photoPath };
     }
   }
-  return input.senderAvatarPath
-    ? { bucket: "avatars", path: input.senderAvatarPath }
-    : null;
+  return null;
 }

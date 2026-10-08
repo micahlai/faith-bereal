@@ -103,7 +103,6 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
     private let content: UNMutableNotificationContent
     private let deliveryState: NotificationDeliveryState
     private let senderID: String
-    private let senderName: String
     private let circleID: String
     private let circleName: String
 
@@ -112,7 +111,6 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
         deliveryState: NotificationDeliveryState
     ) {
         guard let senderID = content.userInfo["sender_id"] as? String,
-              let senderName = content.userInfo["sender_name"] as? String,
               let circleID = content.userInfo["circle_id"] as? String,
               let circleName = content.userInfo["circle_name"] as? String else {
             return nil
@@ -120,20 +118,41 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
         self.content = content
         self.deliveryState = deliveryState
         self.senderID = senderID
-        self.senderName = senderName
         self.circleID = circleID
         self.circleName = circleName
     }
 
     func start() {
-        guard let value = content.userInfo["rich_media_url"] as? String,
-              let remoteURL = URL(string: value) else {
-            finish(mediaURL: nil)
+        let assets: [(String, URL)] = ["rich_media_url", "sender_avatar_url"].compactMap { key in
+            guard let value = content.userInfo[key] as? String,
+                  let url = URL(string: value), url.scheme == "https" else { return nil }
+            return (key, url)
+        }
+        guard !assets.isEmpty else {
+            finish(mediaURL: nil, avatarURL: nil)
             return
         }
-        URLSession.shared.downloadTask(with: remoteURL) { [self] temporaryURL, _, _ in
-            finish(mediaURL: temporaryURL.flatMap { persistDownloadedMedia($0, sourceURL: remoteURL) })
-        }.resume()
+        let downloads = NotificationDownloadedAssets()
+        let group = DispatchGroup()
+        for (key, remoteURL) in assets {
+            group.enter()
+            URLSession.shared.downloadTask(with: URLRequest(url: remoteURL, timeoutInterval: 8)) {
+                [self] temporaryURL, response, _ in
+                defer { group.leave() }
+                guard let response = response as? HTTPURLResponse,
+                      (200..<300).contains(response.statusCode),
+                      let temporaryURL,
+                      let byteCount = try? temporaryURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                      byteCount <= 10 * 1_024 * 1_024 else { return }
+                downloads.store(persistDownloadedMedia(temporaryURL, sourceURL: remoteURL), for: key)
+            }.resume()
+        }
+        group.notify(queue: .global(qos: .userInitiated)) { [self] in
+            finish(
+                mediaURL: downloads.url(for: "rich_media_url"),
+                avatarURL: downloads.url(for: "sender_avatar_url")
+            )
+        }
     }
 
     private func persistDownloadedMedia(_ sourceURL: URL, sourceURL remoteURL: URL) -> URL? {
@@ -149,7 +168,7 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
         }
     }
 
-    private func finish(mediaURL: URL?) {
+    private func finish(mediaURL: URL?, avatarURL: URL?) {
         if let mediaURL {
             if let attachment = try? UNNotificationAttachment(
                 identifier: "circle-activity-media",
@@ -165,11 +184,22 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
         )
         let logoURL = Bundle.main.url(forResource: logoName, withExtension: "png")
             ?? Bundle.main.url(forResource: "NotificationLogo", withExtension: "png")
+        let identityImage = logoURL
+            .flatMap { UIImage(contentsOfFile: $0.path) }
+            .flatMap { logo in
+                NotificationIdentityImage.make(
+                    logo: logo,
+                    avatar: avatarURL.flatMap(NotificationIdentityImage.loadAvatar)
+                ).pngData()
+            }
+            .map { INImage(imageData: $0) }
         let sender = INPerson(
             personHandle: INPersonHandle(value: senderID, type: .unknown),
             nameComponents: nil,
-            displayName: senderName,
-            image: logoURL.flatMap(INImage.init(url:)),
+            // Communication notifications take their visible title from the
+            // intent, even if UNNotificationContent.title is restored later.
+            displayName: content.title.isEmpty ? circleName : content.title,
+            image: identityImage,
             contactIdentifier: nil,
             customIdentifier: senderID,
             isMe: false,
@@ -179,7 +209,7 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
             recipients: nil,
             outgoingMessageType: .outgoingMessageText,
             content: content.body,
-            speakableGroupName: INSpeakableString(spokenPhrase: circleName),
+            speakableGroupName: nil,
             conversationIdentifier: circleID,
             serviceName: "manna circle",
             sender: sender,
@@ -193,6 +223,23 @@ private final class CommunicationNotificationRequest: @unchecked Sendable {
             deliveryState: deliveryState
         )
         interaction.donate { _ in update.finish() }
+    }
+}
+
+private final class NotificationDownloadedAssets: @unchecked Sendable {
+    private let lock = NSLock()
+    private var urls: [String: URL] = [:]
+
+    func store(_ url: URL?, for key: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        urls[key] = url
+    }
+
+    func url(for key: String) -> URL? {
+        lock.lock()
+        defer { lock.unlock() }
+        return urls[key]
     }
 }
 
