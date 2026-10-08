@@ -1,5 +1,9 @@
 # Project status
 
+## 2026-10-07 About heading refinement
+
+- The About/onboarding wordmark now sits above the single word “circle” in the same system serif family at regular weight, avoiding a repeated “manna” name below the logo.
+
 ## 2026-10-07 end-of-day blessings
 
 - Circles now schedule an independent end-of-day prompt at an owner-selected circle-local time, defaulting to 10:00 p.m. and constrained to the tail of the random daily range or later.

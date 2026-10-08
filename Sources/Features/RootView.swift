@@ -117,8 +117,8 @@ private struct AboutPageContent: View {
                 .frame(maxWidth: 280)
                 .accessibilityLabel("manna")
             VStack(spacing: 8) {
-                Text("manna circle")
-                    .font(.system(.largeTitle, design: .serif, weight: .bold))
+                Text("circle")
+                    .font(.system(.largeTitle, design: .serif, weight: .regular))
                 Text("daily blessings, shared together")
                     .font(.title3)
                     .foregroundStyle(AppTheme.secondaryInk)

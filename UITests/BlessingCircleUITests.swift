@@ -14,6 +14,7 @@ final class BlessingCircleUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Step 1 of 4"].exists)
+        XCTAssertTrue(app.staticTexts["circle"].exists)
         app.buttons["Continue"].tap()
 
         XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
