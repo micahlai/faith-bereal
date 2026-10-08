@@ -11,10 +11,10 @@ private struct CircleHeaderIdentity: View {
                 if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFit()
+                        .scaledToFill()
                 } else {
                     AsyncImage(url: photoURL) { image in
-                        image.resizable().scaledToFit()
+                        image.resizable().scaledToFill()
                     } placeholder: {
                         fallback
                     }
@@ -467,7 +467,7 @@ private struct CircleCreationView: View {
            let image = UIImage(contentsOfFile: circlePhotoURL.path) {
             Image(uiImage: image)
                 .resizable()
-                .scaledToFit()
+                .scaledToFill()
                 .frame(width: 72, height: 72)
                 .background(AppTheme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))

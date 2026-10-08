@@ -1024,7 +1024,7 @@ struct AvatarBadge: View {
         Group {
             if let avatarURL = member.avatarURL {
                 AsyncImage(url: avatarURL) { image in
-                    image.resizable().scaledToFit()
+                    image.resizable().scaledToFill()
                 } placeholder: {
                     initials
                 }
@@ -1061,10 +1061,10 @@ struct CircleAvatarBadge: View {
                 if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFit()
+                        .scaledToFill()
                 } else {
                     AsyncImage(url: photoURL) { image in
-                        image.resizable().scaledToFit()
+                        image.resizable().scaledToFill()
                     } placeholder: {
                         fallback
                     }

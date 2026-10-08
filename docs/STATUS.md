@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 square profile and circle photos
+
+- Profile and circle photo selection now uses a single circular crop preview with simultaneous two-finger zoom and drag; the former arrows and zoom slider are removed.
+- The client always writes a square JPEG before upload, and profile/circle photo surfaces use fill framing so the saved crop is presented consistently.
+
 ## 2026-10-07 cancellation-safe scrolling
 
 - Cancellation-shaped transport errors produced when lazy Today cards leave the screen are now treated as normal lifecycle cancellation, including Swift's compact `CancellationError` description.

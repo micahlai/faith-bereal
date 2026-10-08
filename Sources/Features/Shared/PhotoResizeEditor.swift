@@ -19,7 +19,6 @@ struct PhotoResizeEditor: View {
     let onCancel: () -> Void
     let onUsePhoto: (URL) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var zoom: CGFloat = 1
     @State private var committedZoom: CGFloat = 1
     @State private var offset: CGSize = .zero
@@ -30,41 +29,12 @@ struct PhotoResizeEditor: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Text("Move and resize the photo while keeping its original proportions.")
+                Text("Pinch with two fingers to zoom, then drag to choose the square crop.")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryInk)
                     .multilineTextAlignment(.center)
 
                 photoViewport
-
-                VStack(spacing: 14) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "minus.magnifyingglass")
-                            .accessibilityHidden(true)
-                        Slider(
-                            value: Binding(
-                                get: { zoom },
-                                set: { setZoom($0) }
-                            ),
-                            in: 1...4
-                        )
-                        .accessibilityLabel("Photo size")
-                        .accessibilityValue("\(Int((zoom * 100).rounded())) percent")
-                        Image(systemName: "plus.magnifyingglass")
-                            .accessibilityHidden(true)
-                    }
-
-                    HStack(spacing: 10) {
-                        nudgeButton("Move left", systemImage: "arrow.left", x: -16, y: 0)
-                        nudgeButton("Move up", systemImage: "arrow.up", x: 0, y: -16)
-                        Button("Reset") { resetPhoto() }
-                            .buttonStyle(.bordered)
-                            .frame(minHeight: 44)
-                        nudgeButton("Move down", systemImage: "arrow.down", x: 0, y: 16)
-                        nudgeButton("Move right", systemImage: "arrow.right", x: 16, y: 0)
-                    }
-                }
-                .frame(maxWidth: 520)
 
                 Spacer(minLength: 0)
             }
@@ -111,22 +81,20 @@ struct PhotoResizeEditor: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .overlay {
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .stroke(.white.opacity(0.9), lineWidth: 2)
-                    .allowsHitTesting(false)
-            }
-            .contentShape(Rectangle())
-            .gesture(dragGesture(viewportSize: size))
-            .simultaneousGesture(magnifyGesture(viewportSize: size))
+            .clipShape(Circle())
+            .overlay { Circle().stroke(.white.opacity(0.9), lineWidth: 2).allowsHitTesting(false) }
+            .contentShape(Circle())
+            .gesture(
+                dragGesture(viewportSize: size)
+                    .simultaneously(with: magnifyGesture(viewportSize: size))
+            )
             .onAppear { updateViewportSize(size) }
             .onChange(of: size) { _, newSize in updateViewportSize(newSize) }
-            .accessibilityLabel("Photo resize preview")
-            .accessibilityHint("Use the photo size slider and move buttons to adjust the framing")
+            .accessibilityLabel("Square photo crop preview")
+            .accessibilityHint("Pinch with two fingers to zoom and drag to reposition the photo")
         }
-        .aspectRatio(photoAspectRatio, contentMode: .fit)
-        .frame(maxWidth: 520, maxHeight: 460)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: 420, maxHeight: 420)
         .shadow(color: .black.opacity(0.14), radius: 14, y: 6)
     }
 
@@ -157,48 +125,6 @@ struct PhotoResizeEditor: View {
             }
     }
 
-    private func nudgeButton(
-        _ label: String,
-        systemImage: String,
-        x: CGFloat,
-        y: CGFloat
-    ) -> some View {
-        Button {
-            offset = constrainedOffset(
-                CGSize(width: offset.width + x, height: offset.height + y),
-                zoom: zoom,
-                viewportSize: viewportSize
-            )
-            committedOffset = offset
-        } label: {
-            Image(systemName: systemImage)
-                .frame(minWidth: 44, minHeight: 44)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityLabel(label)
-    }
-
-    private func setZoom(_ newZoom: CGFloat) {
-        zoom = min(max(newZoom, 1), 4)
-        committedZoom = zoom
-        offset = constrainedOffset(offset, zoom: zoom, viewportSize: viewportSize)
-        committedOffset = offset
-    }
-
-    private func resetPhoto() {
-        let changes = {
-            zoom = 1
-            committedZoom = 1
-            offset = .zero
-            committedOffset = .zero
-        }
-        if reduceMotion {
-            changes()
-        } else {
-            withAnimation(.snappy(duration: 0.2), changes)
-        }
-    }
-
     private func usePhoto() {
         do {
             let url = try CaptureMediaStore.persistResizedProfilePhoto(
@@ -218,12 +144,6 @@ struct PhotoResizeEditor: View {
         viewportSize = size
         offset = constrainedOffset(offset, zoom: zoom, viewportSize: size)
         committedOffset = offset
-    }
-
-    private var photoAspectRatio: CGFloat {
-        let imageSize = photo.image.size
-        guard imageSize.width > 0, imageSize.height > 0 else { return 1 }
-        return imageSize.width / imageSize.height
     }
 
     private func baseImageSize(viewportSize: CGSize) -> CGSize {

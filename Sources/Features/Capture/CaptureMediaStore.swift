@@ -102,14 +102,12 @@ enum CaptureMediaStore {
             width: min(max(offset.width, -maxX), maxX),
             height: min(max(offset.height, -maxY), maxY)
         )
-        let longestSide = max(image.size.width, image.size.height)
-        let outputScale = min(1, maximumPixelSize / longestSide)
-        let outputSize = CGSize(
-            width: max(1, (image.size.width * outputScale).rounded()),
-            height: max(1, (image.size.height * outputScale).rounded())
-        )
-        let horizontalScale = outputSize.width / viewportSize.width
-        let verticalScale = outputSize.height / viewportSize.height
+        let pixelWidth = image.size.width * image.scale
+        let pixelHeight = image.size.height * image.scale
+        let outputSide = max(1, min(maximumPixelSize, min(pixelWidth, pixelHeight)).rounded())
+        let outputSize = CGSize(width: outputSide, height: outputSide)
+        let horizontalScale = outputSide / viewportSize.width
+        let verticalScale = outputSide / viewportSize.height
         let drawRect = CGRect(
             x: ((viewportSize.width - drawSize.width) / 2 + clampedOffset.width) * horizontalScale,
             y: ((viewportSize.height - drawSize.height) / 2 + clampedOffset.height) * verticalScale,
