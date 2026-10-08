@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-07 native video presentation
+
+- Inline videos now size themselves from the asset's transformed presentation dimensions, preserving portrait, landscape, and rotated source aspect ratios.
+- Redundant custom video playheads were removed from inline and full-screen playback; Apple's native video controls remain responsible for seeking.
+
 ## 2026-10-07 square profile and circle photos
 
 - Profile and circle photo selection now uses a single circular crop preview with simultaneous two-finger zoom and drag; the former arrows and zoom slider are removed.

@@ -30,6 +30,7 @@ final class MediaPlaybackController {
     let player = AVPlayer()
     private(set) var currentTime: TimeInterval = 0
     private(set) var duration: TimeInterval = 0
+    private(set) var videoAspectRatio: CGFloat = 16 / 9
     private(set) var isPlaying = false
     private(set) var isPreparing = true
     private(set) var errorMessage: String?
@@ -66,6 +67,17 @@ final class MediaPlaybackController {
             let playable = try await asset.load(.isPlayable)
             guard playable else {
                 throw MediaPlaybackError.unplayable
+            }
+            if kind == .video,
+               let videoTrack = try await asset.loadTracks(withMediaType: .video).first {
+                let naturalSize = try await videoTrack.load(.naturalSize)
+                let transform = try await videoTrack.load(.preferredTransform)
+                let presentationSize = naturalSize.applying(transform)
+                let width = abs(presentationSize.width)
+                let height = abs(presentationSize.height)
+                if width > 0, height > 0 {
+                    videoAspectRatio = width / height
+                }
             }
             player.replaceCurrentItem(with: AVPlayerItem(asset: asset))
             if let loadedDuration = try? await asset.load(.duration) {

@@ -787,7 +787,7 @@ struct VideoBlessingPlayer: View {
             } else {
                 ZStack(alignment: .topTrailing) {
                     VideoPlayer(player: playback.player)
-                        .aspectRatio(16 / 9, contentMode: .fit)
+                        .aspectRatio(playback.videoAspectRatio, contentMode: .fit)
                         .background(.black)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
@@ -804,7 +804,6 @@ struct VideoBlessingPlayer: View {
                     .padding(8)
                     .accessibilityLabel("Open video full screen")
                 }
-                MediaPlayhead(playback: playback)
             }
         }
         .task { await playback.prepare() }
@@ -842,10 +841,6 @@ private struct FullscreenVideoPlayer: View {
                     .accessibilityLabel("Close full-screen video")
                 }
                 Spacer()
-                MediaPlayhead(playback: playback)
-                    .tint(.white)
-                    .padding(16)
-                    .background(.black.opacity(0.64), in: RoundedRectangle(cornerRadius: 16))
             }
             .padding()
         }
