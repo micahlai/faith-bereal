@@ -115,6 +115,7 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 - VoiceOver order, labels, actions, and locked/missed announcements;
 - keyboard avoidance and every touch target at least 44 points;
 - camera/voice permission denial and recovery paths.
+- timeline member header begins immediately below navigation, stays fixed on vertical scroll, permits avatars over the date-column area on horizontal scroll, and clips body cards below the horizontal divider and behind the full-width date strip.
 
 ## Device-only checks
 

@@ -98,7 +98,8 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Timeline
 
-- A vertically scrollable timeline with a horizontal lane per member, each with a vertical thread. Profile photos and names stay pinned while the timeline scrolls vertically.
+- A vertically scrollable timeline with a horizontal lane per member, each with a vertical thread. Profile photos and names sit in a compact fixed header directly below navigation; they move with horizontal member scrolling but stay pinned vertically.
+- Dates are viewport-anchored to the left of a continuous vertical divider with eight points of trailing padding. A full-height opaque strip hides body content beneath them, including the leading gutter and during horizontal overscroll. The date strip begins below the header, so it never masks profile photos or names. Body content cannot paint above the header's horizontal divider.
 - Each daily event has a dated dot, content preview, and time.
 - A missed day has a distinct hollow marker and text label; color is never the only cue.
 - Past days are visible to members regardless of today's submission.

@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-07 timeline frozen-layer repair
+
+- The member row is now a compact fixed header outside the two-axis content scroller, preventing tall section-header sizing and content painting above the pinned row.
+- Member icons scroll horizontally across the header's full width; the date-strip mask no longer cuts through avatars or names.
+- Date labels now render in a viewport-fixed overlay, using row anchors only for vertical alignment. They cannot drift horizontally, even during a right-edge rubber-band gesture, and sit eight points before the vertical divider. The opaque strip covers the complete leading gutter so cards cannot peek around its left edge.
+- A continuous vertical divider extends below the header's horizontal separator. Only the name's line height scales with Dynamic Type, keeping the fixed profile row compact without shrinking its text.
+
 ## 2026-10-07 notification identity and title revision
 
 - Peer blessing titles now say “New blessing in [circle name]”, while response titles use the circle name. Existing locked/unlocked message copy and scripture references are unchanged.

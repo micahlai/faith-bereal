@@ -32,6 +32,10 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertGreaterThan(continueButton.frame.midX, app.frame.width * 0.7)
         XCTAssertLessThan(app.buttons["Back"].frame.midX, app.frame.width * 0.3)
         XCTAssertEqual(continueButton.frame.midY, app.buttons["Back"].frame.midY, accuracy: 2)
+        let onboardingLayout = XCTAttachment(screenshot: app.screenshot())
+        onboardingLayout.name = "App icon page with corner-aligned navigation"
+        onboardingLayout.lifetime = .keepAlways
+        add(onboardingLayout)
 
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.navigationBars["Widget"].waitForExistence(timeout: 3))
@@ -59,6 +63,16 @@ final class BlessingCircleUITests: XCTestCase {
 
         let memberHeader = app.staticTexts["You"].firstMatch
         XCTAssertTrue(memberHeader.waitForExistence(timeout: 3))
+        let frozenHeader = app.descendants(matching: .any)
+            .matching(identifier: "timeline.memberHeader").firstMatch
+        XCTAssertTrue(frozenHeader.waitForExistence(timeout: 3))
+        let initialHeaderY = frozenHeader.frame.minY
+        XCTAssertLessThanOrEqual(initialHeaderY - app.navigationBars["Timeline"].frame.maxY, 10)
+        XCTAssertLessThan(memberHeader.frame.maxY - app.navigationBars["Timeline"].frame.maxY, 140)
+        let initialTimeline = XCTAttachment(screenshot: app.screenshot())
+        initialTimeline.name = "Compact fixed timeline header"
+        initialTimeline.lifetime = .keepAlways
+        add(initialTimeline)
 
         let dayColumn = app.descendants(matching: .any)
             .matching(identifier: "timeline.dayColumn")
@@ -73,6 +87,11 @@ final class BlessingCircleUITests: XCTestCase {
         app.swipeRight()
         app.swipeUp()
         XCTAssertTrue(memberHeader.isHittable)
+        XCTAssertEqual(frozenHeader.frame.minY, initialHeaderY, accuracy: 2)
+        let scrolledTimeline = XCTAttachment(screenshot: app.screenshot())
+        scrolledTimeline.name = "Timeline content below fixed header and date strip"
+        scrolledTimeline.lifetime = .keepAlways
+        add(scrolledTimeline)
     }
 
     @MainActor

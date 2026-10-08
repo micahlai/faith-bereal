@@ -16,41 +16,43 @@ struct CircleTimelineView: View {
                     description: Text("Your circle’s blessings will gather here.")
                 )
             } else {
-                ScrollView([.horizontal, .vertical]) {
-                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        Section {
-                            Grid(alignment: .topLeading, horizontalSpacing: TimelineLayout.columnSpacing, verticalSpacing: 0) {
-                                ForEach(TimelineRow.rows(for: model.lanes, calendar: circleCalendar)) { row in
-                                    TimelineDayRow(
-                                        row: row,
-                                        lanes: model.lanes,
-                                        calendar: circleCalendar,
-                                        currentUserID: model.currentUser?.id,
-                                        horizontalOffset: horizontalOffset,
-                                        onSelect: { member, blessing in
-                                            selection = BlessingSelection(member: member, blessing: blessing)
-                                        }
-                                    )
-                                }
+                let rows = TimelineRow.rows(for: model.lanes, calendar: circleCalendar)
+                VStack(spacing: 0) {
+                    TimelineMemberHeader(
+                        lanes: model.lanes,
+                        currentUserID: model.currentUser?.id,
+                        horizontalOffset: horizontalOffset
+                    )
+                    ScrollView([.horizontal, .vertical]) {
+                        Grid(alignment: .topLeading, horizontalSpacing: TimelineLayout.columnSpacing, verticalSpacing: 0) {
+                            ForEach(rows) { row in
+                                TimelineDayRow(
+                                    row: row,
+                                    lanes: model.lanes,
+                                    calendar: circleCalendar,
+                                    currentUserID: model.currentUser?.id,
+                                    onSelect: { member, blessing in
+                                        selection = BlessingSelection(member: member, blessing: blessing)
+                                    }
+                                )
                             }
-                        } header: {
-                            TimelineMemberHeader(
-                                lanes: model.lanes,
-                                currentUserID: model.currentUser?.id,
-                                horizontalOffset: horizontalOffset
-                            )
                         }
+                        .padding(.leading, TimelineLayout.leadingPadding)
+                        .padding(.trailing, AppTheme.pagePadding)
+                        .padding(.top, 8)
+                        .padding(.bottom, 118)
                     }
-                    .padding(.leading, TimelineLayout.leadingPadding)
-                    .padding(.trailing, AppTheme.pagePadding)
-                    .padding(.bottom, 118)
+                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                        geometry.contentOffset.x
+                    } action: { _, newOffset in
+                        horizontalOffset = newOffset
+                    }
+                    .overlayPreferenceValue(TimelineDateAnchors.self) { anchors in
+                        TimelineFrozenDates(rows: rows, anchors: anchors, calendar: circleCalendar)
+                    }
+                    .scrollIndicators(.visible)
+                    .clipped()
                 }
-                .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                    max(0, geometry.contentOffset.x)
-                } action: { _, newOffset in
-                    horizontalOffset = newOffset
-                }
-                .scrollIndicators(.visible)
             }
         }
         .navigationTitle("Timeline")
@@ -79,6 +81,78 @@ private enum TimelineLayout {
     static let leadingPadding: CGFloat = 6
 }
 
+private struct TimelineDateAnchors: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] { [:] }
+
+    static func reduce(
+        value: inout [String: Anchor<CGRect>],
+        nextValue: () -> [String: Anchor<CGRect>]
+    ) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct TimelineFrozenDates: View {
+    let rows: [TimelineRow]
+    let anchors: [String: Anchor<CGRect>]
+    let calendar: Calendar
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .topLeading) {
+                AppTheme.canvas
+                    .frame(width: TimelineLayout.leadingPadding + TimelineLayout.dayColumnWidth)
+                    .accessibilityHidden(true)
+                ForEach(rows) { row in
+                    if let anchor = anchors[row.id] {
+                        let rect = geometry[anchor]
+                        TimelineDateLabel(row: row, calendar: calendar)
+                        .frame(height: rect.height, alignment: .topTrailing)
+                        .offset(x: TimelineLayout.leadingPadding, y: rect.minY)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("timeline.dayColumn")
+                    }
+                }
+                Rectangle()
+                    .fill(AppTheme.divider)
+                    .frame(width: 1)
+                    .offset(x: TimelineLayout.leadingPadding + TimelineLayout.dayColumnWidth)
+                    .accessibilityHidden(true)
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
+    }
+
+}
+
+private struct TimelineDateLabel: View {
+    let row: TimelineRow
+    let calendar: Calendar
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(dayLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.secondaryInk)
+            if row.kind == .joined {
+                Text("Joined")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.primary)
+            }
+        }
+        .padding(.trailing, 8)
+        .padding(.top, 3)
+        .frame(width: TimelineLayout.dayColumnWidth, alignment: .trailing)
+    }
+
+    private var dayLabel: String {
+        var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        style.timeZone = calendar.timeZone
+        return row.day.formatted(style)
+    }
+}
+
 private struct BlessingSelection: Identifiable {
     let member: Member
     let blessing: Blessing
@@ -89,17 +163,16 @@ private struct TimelineMemberHeader: View {
     let lanes: [TimelineLane]
     let currentUserID: UUID?
     let horizontalOffset: CGFloat
+    @ScaledMetric(relativeTo: .headline) private var nameLineHeight: CGFloat = 22
 
     var body: some View {
-        Grid(alignment: .bottomLeading, horizontalSpacing: TimelineLayout.columnSpacing) {
-            GridRow(alignment: .bottom) {
-                AppTheme.canvas
-                    .frame(width: TimelineLayout.dayColumnWidth, height: 68)
-                    .offset(x: horizontalOffset)
-                    .zIndex(3)
+        GeometryReader { geometry in
+            HStack(alignment: .top, spacing: TimelineLayout.columnSpacing) {
+                Color.clear
+                    .frame(width: TimelineLayout.dayColumnWidth)
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
-                    VStack(spacing: 8) {
+                    VStack(spacing: 4) {
                         AvatarBadge(member: lane.member, size: 48)
                         Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
                             .font(.headline)
@@ -109,11 +182,18 @@ private struct TimelineMemberHeader: View {
                     .frame(width: TimelineLayout.memberColumnWidth)
                 }
             }
+            .padding(.leading, TimelineLayout.leadingPadding)
+            .padding(.trailing, AppTheme.pagePadding)
+            .padding(.top, 2)
+            .fixedSize(horizontal: true, vertical: false)
+            .offset(x: -horizontalOffset)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
-        .padding(.top, 3)
-        .padding(.bottom, 7)
+        .frame(height: 60 + nameLineHeight)
         .background(AppTheme.canvas)
+        .clipped()
         .overlay(alignment: .bottom) { Divider() }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("timeline.memberHeader")
         .zIndex(10)
     }
@@ -168,28 +248,15 @@ private struct TimelineDayRow: View {
     let lanes: [TimelineLane]
     let calendar: Calendar
     let currentUserID: UUID?
-    let horizontalOffset: CGFloat
     let onSelect: (Member, Blessing) -> Void
 
     var body: some View {
         GridRow(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(dayLabel)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.secondaryInk)
-                if row.kind == .joined {
-                    Text("Joined")
-                        .font(.caption2)
-                        .foregroundStyle(AppTheme.primary)
-                }
-            }
-            .frame(width: TimelineLayout.dayColumnWidth, alignment: .leading)
-            .frame(maxHeight: .infinity, alignment: .topLeading)
-            .padding(.top, 3)
-            .background(AppTheme.canvas)
-            .offset(x: horizontalOffset)
-            .zIndex(4)
-            .accessibilityIdentifier("timeline.dayColumn")
+            TimelineDateLabel(row: row, calendar: calendar)
+                .hidden()
+                .frame(maxHeight: .infinity)
+                .anchorPreference(key: TimelineDateAnchors.self, value: .bounds) { [row.id: $0] }
+                .accessibilityHidden(true)
 
             ForEach(lanes) { lane in
                 if let events = row.eventsByMemberID[lane.member.id] {
@@ -214,12 +281,6 @@ private struct TimelineDayRow: View {
                 }
             }
         }
-    }
-
-    private var dayLabel: String {
-        var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        style.timeZone = calendar.timeZone
-        return row.day.formatted(style)
     }
 
     private func sorted(_ events: [TimelineEvent]) -> [TimelineEvent] {
