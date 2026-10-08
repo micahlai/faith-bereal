@@ -1,5 +1,7 @@
 # manna circle - daily blessings
 
+[manna-circle.micahlai.com](manna-circle.micahlai.com)
+
 manna circle is an Apple-native daily gratitude app. At one unpredictable moment each day, every member of a private circle gets the same time-limited invitation to share a blessing by typing, dictating, or recording a short video.
 
 This repository contains:
