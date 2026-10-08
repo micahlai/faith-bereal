@@ -62,6 +62,7 @@ struct RootView: View {
 private struct EmptyCircleShell: View {
     @State private var showingUserSettings = false
     @State private var showingAbout = false
+    @State private var showingHelp = false
 
     var body: some View {
         NavigationStack {
@@ -69,6 +70,7 @@ private struct EmptyCircleShell: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Menu {
+                            Button("Help", systemImage: "questionmark.circle") { showingHelp = true }
                             Button("About manna circle", systemImage: "info.circle") { showingAbout = true }
                             Button("User settings", systemImage: "person.crop.circle") { showingUserSettings = true }
                         } label: {
@@ -80,6 +82,7 @@ private struct EmptyCircleShell: View {
         }
         .sheet(isPresented: $showingUserSettings) { UserSettingsView(isPresented: $showingUserSettings) }
         .sheet(isPresented: $showingAbout) { AboutView(showsDismissButton: true) { showingAbout = false } }
+        .sheet(isPresented: $showingHelp) { HelpView() }
     }
 }
 
@@ -527,27 +530,28 @@ struct MainTabView: View {
     @Environment(AppModel.self) private var model
     @State private var showingUserSettings = false
     @State private var showingAbout = false
+    @State private var showingHelp = false
 
     var body: some View {
         @Bindable var model = model
         TabView(selection: $model.selectedTab) {
             NavigationStack {
                 TodayView()
-                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout) }
+                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout, showingHelp: $showingHelp) }
             }
             .tabItem { Label("Today", systemImage: "sun.max") }
             .tag(0)
 
             NavigationStack {
                 CircleTimelineView()
-                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout) }
+                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout, showingHelp: $showingHelp) }
             }
             .tabItem { Label("Timeline", systemImage: "point.3.connected.trianglepath.dotted") }
             .tag(1)
 
             NavigationStack {
                 CircleView()
-                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout) }
+                    .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout, showingHelp: $showingHelp) }
             }
             .tabItem { Label("Circle", systemImage: "person.3") }
             .tag(2)
@@ -561,6 +565,7 @@ struct MainTabView: View {
             UserSettingsView(isPresented: $showingUserSettings)
         }
         .sheet(isPresented: $showingAbout) { AboutView(showsDismissButton: true) { showingAbout = false } }
+        .sheet(isPresented: $showingHelp) { HelpView() }
         .sheet(item: $model.deepLinkedBlessing) { item in
             BlessingDetailView(
                 member: item.member,
@@ -576,10 +581,12 @@ private struct GlobalAppToolbar: ToolbarContent {
     @Environment(AppModel.self) private var model
     @Binding var showingUserSettings: Bool
     @Binding var showingAbout: Bool
+    @Binding var showingHelp: Bool
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Menu {
+                Button("Help", systemImage: "questionmark.circle") { showingHelp = true }
                 Button {
                     showingAbout = true
                 } label: {

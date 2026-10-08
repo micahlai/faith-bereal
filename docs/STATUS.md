@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-08 customer Help
+
+- The hamburger menu opens Help in both joined-circle and no-circle states. Nine illustrated, plain-language topics cover sharing, evening reflections, circles, Timeline, responses, saved media/expiry, Bible tags, notifications/widgets, and personal settings.
+- A Topics menu switches directly between features without accumulating navigation screens. Dynamic Type and semantic colors reuse the native design system; topic steps remain vertically readable instead of relying on wide diagrams.
+- Guide completeness, retention/privacy explanation, and entry-deadline wording tests pass. Simulator topic navigation passes. `AGENTS.md` requires future customer-visible changes to update the relevant Help topic and guide tests.
+
 ## 2026-10-08 two-week media cleanup
 
 - A service-role-only retention function detaches audio/video and video-thumbnail references exactly 14 days after each submission, preserving text, references, photos, and response rows. A private deletion queue retries actual Storage API removals; shared media is protected while a younger blessing still references it.

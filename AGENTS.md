@@ -20,8 +20,8 @@ Read `docs/STATUS.md` first, then the relevant spec before editing.
 - Treat dates as UTC in storage and convert only for display.
 - Add or update tests for business-rule changes.
 - Update `docs/STATUS.md` when a milestone materially changes.
+- Whenever customer-visible behavior changes, update the matching topic in `Sources/Features/Help/HelpContent.swift` and its guide tests in the same feature change. Keep Help free of backend jargon and explain limits honestly.
 
 ## Verification
 
 Generate the Xcode project with `xcodegen generate`, then build and test with the commands in `docs/TESTING.md`.
-

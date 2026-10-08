@@ -239,6 +239,30 @@ final class BlessingCircleUITests: XCTestCase {
     }
 
     @MainActor
+    func testHelpMenuExplainsSavingAndSupportsTopicNavigation() {
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launch()
+        XCTAssertTrue(app.buttons["App menu"].waitForExistence(timeout: 5))
+        app.buttons["App menu"].tap()
+        app.buttons["Help"].tap()
+        XCTAssertTrue(app.navigationBars["Help"].waitForExistence(timeout: 3))
+        let saving = app.buttons["help-topic-saving"]
+        for _ in 0..<3 where !saving.isHittable { app.swipeUp() }
+        saving.tap()
+        XCTAssertTrue(app.navigationBars["Saving & media expiry"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["1. 14 days for hosted media"].exists)
+        let guide = XCTAttachment(screenshot: app.screenshot())
+        guide.name = "Saving help topic"
+        guide.lifetime = .keepAlways
+        add(guide)
+        app.buttons["Jump to help topic"].tap()
+        app.buttons["Your circles"].tap()
+        XCTAssertTrue(app.navigationBars["Your circles"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testFirstSaveExplainsPrivateStorageAndCanUnsaveFromDetail() {
         continueAfterFailure = false
         let app = XCUIApplication()
