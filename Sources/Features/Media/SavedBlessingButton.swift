@@ -42,7 +42,7 @@ struct SavedBlessingButton: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Audio and video leave the server after 14 days. Saving keeps this blessing, its photo/audio/video, Bible reference, and current responses on this device so you can open them from Timeline later.\n\nOnly you can use this copy. Future responses aren't added automatically. It doesn't sync to other devices and will be lost if you uninstall manna. Saving to Photos is a separate option.")
+            Text("Audio and video leave the server after 30 days. Saving keeps this blessing, its photo/audio/video, Bible reference, and current responses on this device so you can open them from Timeline later.\n\nOnly you can use this copy. Future responses aren't added automatically. It doesn't sync to other devices and will be lost if you uninstall manna. Saving to Photos is a separate option.")
         }
         .alert("Permanently remove saved media?", isPresented: $showingPermanentRemoval) {
             Button("Unsave permanently", role: .destructive) {
@@ -50,7 +50,7 @@ struct SavedBlessingButton: View {
             }
             Button("Keep saved", role: .cancel) {}
         } message: {
-            Text("Some audio or video in this saved blessing is past its 14-day expiry and is no longer available from the server. Unsaving deletes your device's copy permanently. The text and Bible reference remain in history.")
+            Text("Some audio or video in this saved blessing is past its 30-day expiry and is no longer available from the server. Unsaving deletes your device's copy permanently. The text and Bible reference remain in history.")
         }
     }
 }

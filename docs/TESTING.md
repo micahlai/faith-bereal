@@ -46,6 +46,9 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Unit tests
 
+- media-retention boundaries at 12/30 days, account-isolated archive save/reload/unsave, response timestamps, atomic partial-download failure, and media restored through local Timeline playback;
+- Help catalog completeness and customer-facing explanations of saving, privacy, and deadline rules;
+
 - deadline boundary: just before, exactly at, and after `ends_at`;
 - an on-time entry grant permits completion after `ends_at` and after midnight while preserving the original prompt/day; without a grant, a no-late prompt rejects entry at the deadline;
 - current-day gating versus historical visibility;
@@ -104,6 +107,11 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 
 ## UI and accessibility checks
 
+- Today remains at a stable resting bottom position through timer ticks and repeated up/down scrolling; response drafts survive;
+- guided circle setup validates the name, preserves Back navigation, explains each setting, and creates only after review;
+- Help opens from the app menu and its topic menu switches directly between features;
+- first Save blessing explains device-only storage; Save/Unsave updates the detail control and Timeline label;
+
 - first-run onboarding can move About → Appearance → App Icon → Widget, move backward without losing choices, and finish into the joined/no-circle app state;
 - app-icon onboarding cards use the actual cream/midnight artwork in one column, and the widget guide remains readable at accessibility text sizes;
 - circle creation exposes all owner settings before the final create action;
@@ -118,6 +126,9 @@ The suite checks independent privacy after midnight, the two entry cutoffs, late
 - timeline member header begins immediately below navigation, stays fixed on vertical scroll, permits avatars over the date-column area on horizontal scroll, and clips body cards below the horizontal divider and behind the full-width date strip.
 
 ## Device-only checks
+
+- Save photo/video to Photos handles add-only permission, denied access, and playable exports;
+- saved audio/video and response audio play after a 30-day hosted expiry; expired Unsave warns and removes only that account's archive;
 
 - push-to-start, update, and explicit end Live Activity;
 - no-late deadline and submission dismissals occur at terminal event + three minutes, while late-enabled activities stay visible until submission or replacement;

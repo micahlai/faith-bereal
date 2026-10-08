@@ -743,7 +743,7 @@ struct BlessingContentView: View {
                         AudioBlessingPlayer(url: audioURL)
                     } else {
                         Label(MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt)
-                            ? "Audio expired after 14 days" : "Audio is unavailable", systemImage: "waveform.slash")
+                            ? "Audio expired after 30 days" : "Audio is unavailable", systemImage: "waveform.slash")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.secondaryInk)
                     }
@@ -762,7 +762,7 @@ struct BlessingContentView: View {
                         SaveBlessingMediaButton(url: videoURL, kind: .video)
                     } else {
                         ContentUnavailableView(MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt)
-                            ? "Video expired after 14 days" : "Video unavailable", systemImage: "video.slash")
+                            ? "Video expired after 30 days" : "Video unavailable", systemImage: "video.slash")
                     }
                     Text(blessing.body ?? "")
                         .font(.system(.body, design: .serif))

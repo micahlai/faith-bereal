@@ -4,12 +4,12 @@ import XCTest
 final class SavedBlessingStoreTests: XCTestCase {
     func testRetentionBoundaryAndTwoDayWarning() {
         let sent = Date(timeIntervalSince1970: 1_000)
-        XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(12 * 86_400 - 1)))
-        XCTAssertEqual(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(12 * 86_400)), "Media expires in 2 days")
-        XCTAssertEqual(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(14 * 86_400 - 1)), "Media expires in 1h")
-        XCTAssertFalse(MediaRetentionPolicy.isExpired(submittedAt: sent, at: sent.addingTimeInterval(14 * 86_400 - 1)))
-        XCTAssertTrue(MediaRetentionPolicy.isExpired(submittedAt: sent, at: sent.addingTimeInterval(14 * 86_400)))
-        XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(14 * 86_400)))
+        XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(28 * 86_400 - 1)))
+        XCTAssertEqual(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(28 * 86_400)), "Media expires in 2 days")
+        XCTAssertEqual(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(30 * 86_400 - 1)), "Media expires in 1h")
+        XCTAssertFalse(MediaRetentionPolicy.isExpired(submittedAt: sent, at: sent.addingTimeInterval(30 * 86_400 - 1)))
+        XCTAssertTrue(MediaRetentionPolicy.isExpired(submittedAt: sent, at: sent.addingTimeInterval(30 * 86_400)))
+        XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(30 * 86_400)))
     }
 
     func testArchiveReloadKeepsTextReferencePhotoAndResponseAudioAfterExpiry() async throws {
@@ -91,8 +91,8 @@ final class SavedBlessingStoreTests: XCTestCase {
         let response = responseFixture(blessing: blessing, sent: sent.addingTimeInterval(86_400))
         let record = try await SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
             .save(blessing: blessing, responses: [response], userID: UUID())
-        XCTAssertFalse(record.expiredMedia(at: sent.addingTimeInterval(14 * 86_400)))
-        XCTAssertTrue(record.expiredMedia(at: sent.addingTimeInterval(15 * 86_400)))
+        XCTAssertFalse(record.expiredMedia(at: sent.addingTimeInterval(30 * 86_400)))
+        XCTAssertTrue(record.expiredMedia(at: sent.addingTimeInterval(31 * 86_400)))
     }
 
     @MainActor

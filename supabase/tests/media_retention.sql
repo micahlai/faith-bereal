@@ -7,15 +7,15 @@ declare
   v_recent_response uuid;
 begin
   insert into public.blessings(capture_mode, body, audio_path, photo_path, submitted_at)
-  values ('voice', 'Keep transcript and photo', 'old/audio.m4a', 'old/photo.jpg', now() - interval '14 days')
+  values ('voice', 'Keep transcript and photo', 'old/audio.m4a', 'old/photo.jpg', now() - interval '30 days')
   returning id into v_old;
   insert into public.blessings(capture_mode, body, audio_path, submitted_at)
-  values ('voice', 'Shared repeat', 'old/audio.m4a', now() - interval '13 days') returning id into v_fresh;
+  values ('voice', 'Shared repeat', 'old/audio.m4a', now() - interval '29 days') returning id into v_fresh;
   insert into public.blessings(capture_mode, body, video_path, thumbnail_path, submitted_at)
-  values ('video', 'Keep video transcript', 'old/video.mp4', 'old/thumbnail.jpg', now() - interval '15 days')
+  values ('video', 'Keep video transcript', 'old/video.mp4', 'old/thumbnail.jpg', now() - interval '31 days')
   returning id into v_video;
   insert into public.blessing_responses(blessing_id, mode, body, audio_path, submitted_at)
-  values (v_old, 'voice', 'Old response transcript', 'old/response.m4a', now() - interval '14 days');
+  values (v_old, 'voice', 'Old response transcript', 'old/response.m4a', now() - interval '30 days');
   insert into public.blessing_responses(blessing_id, mode, body, audio_path, submitted_at)
   values (v_old, 'voice', 'Younger response', 'fresh/response.m4a', now() - interval '2 days')
   returning id into v_recent_response;
@@ -44,7 +44,7 @@ begin
   exception when raise_exception then
     if sqlerrm <> 'This media has expired and cannot be reused' then raise; end if;
   end;
-  update public.blessings set submitted_at = now() - interval '14 days' where id = v_fresh;
+  update public.blessings set submitted_at = now() - interval '30 days' where id = v_fresh;
   perform public.queue_expired_media(1);
   if not exists(select 1 from public.media_deletion_queue where storage_path = 'old/audio.m4a') then
     raise exception 'shared bytes must be queued after the final reference expires'; end if;

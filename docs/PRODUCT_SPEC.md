@@ -92,6 +92,8 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Today
 
+- Visible blessings offer Save blessing for a private device copy, separately from photo/video export to Photos.
+
 - Before a prompt starts, Today shows the waiting state. During an open prompt, it shows the response timer and capture action until the viewer submits.
 - After submission, Today becomes a vertically scrolling, full-width feed of every visible blessing for that circle's current prompt, including text/transcript, media preview or playback, optional full scripture passage, and responses.
 - Each Today blessing uses one continuous panel for its content, scripture, response history, and composer. The blessing body and transcript are presented directly without redundant “Reflection,” “Transcript,” or “Responses” headings.
@@ -136,6 +138,21 @@ This resolves the example in the brief as “history is always readable; only th
 - multiple posts per person per daily prompt;
 - background speech recording.
 
+## Private saves and media retention
+
+- Audio/video blessings and audio responses expire on the server 30 days after each submission. Text, transcripts, Bible references, response records, and attached photos remain in history.
+- Save blessing captures its available text/reference/media and current responses in private on-device storage scoped to the signed-in account. It neither changes other users' access nor extends server retention. New responses are not added automatically.
+- Saved media opens from the existing Timeline card after hosted expiry. The first save explains device-only storage, snapshot behavior, and loss on uninstall/device loss. Photo/video export to Photos is independent.
+- Above the Timeline card, show Saved for an archived blessing; otherwise show an audio/video expiry warning during the final 48 hours, including response audio due to expire. Text-only blessings with no voice responses do not get a false expiry warning.
+- Unsave removes only this account's local copy. If captured media is already past its hosted expiry, require a permanent-loss confirmation first.
+- See `docs/MEDIA_RETENTION.md` for storage, cleanup, and safe rollout details.
+
+## Customer Help and circle setup
+
+- Help is available from the hamburger menu both inside a circle and in the no-circle state. Illustrated, plain-language topics explain sharing, evening reflections, circles, Timeline, responses, saving/expiry, Bible tags, notifications/widgets, and personal settings. A Topics menu jumps between features without building a deep navigation stack.
+- Every customer-visible feature change must update the matching Help topic and relevant tests.
+- Creating a circle opens a full-screen guided page with progress and Back/Continue controls. Collect name, optional photo, time zone, random-time range, entry duration, late-sharing policy, end-of-day time, and repeat window one step at a time. Validate each relevant step; preserve selections on Back. A final review precedes the sole create action.
+
 ## Success measures
 
 - prompt-to-submission conversion;
@@ -147,5 +164,5 @@ This resolves the example in the brief as “history is always readable; only th
 
 ## Open product decisions
 
-- Exact video retention policy and whether originals are downsampled after upload.
+- Whether video originals should be downsampled after upload; audio/video retention is fixed at 30 days.
 - Trademark and App Store availability checks for “manna circle - daily blessings” are required before release.

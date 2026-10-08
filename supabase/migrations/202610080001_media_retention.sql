@@ -58,7 +58,7 @@ begin
   lock table public.blessings, public.blessing_responses in share row exclusive mode;
   select array_agg(id) into v_blessing_ids from (
     select id from public.blessings
-    where submitted_at <= now() - interval '14 days'
+    where submitted_at <= now() - interval '30 days'
       and (audio_path is not null or video_path is not null or thumbnail_path is not null)
     order by submitted_at limit p_limit for update
   ) expired;
@@ -74,7 +74,7 @@ begin
 
   select array_agg(id) into v_response_ids from (
     select id from public.blessing_responses
-    where submitted_at <= now() - interval '14 days' and audio_path is not null
+    where submitted_at <= now() - interval '30 days' and audio_path is not null
     order by submitted_at limit p_limit for update
   ) expired;
   select array_agg(r.audio_path) into v_added

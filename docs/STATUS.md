@@ -12,10 +12,10 @@
 - A Topics menu switches directly between features without accumulating navigation screens. Dynamic Type and semantic colors reuse the native design system; topic steps remain vertically readable instead of relying on wide diagrams.
 - Guide completeness, retention/privacy explanation, and entry-deadline wording tests pass. Simulator topic navigation passes. `AGENTS.md` requires future customer-visible changes to update the relevant Help topic and guide tests.
 
-## 2026-10-08 two-week media cleanup
+## 2026-10-08 30-day media cleanup
 
-- A service-role-only retention function detaches audio/video and video-thumbnail references exactly 14 days after each submission, preserving text, references, photos, and response rows. A private deletion queue retries actual Storage API removals; shared media is protected while a younger blessing still references it.
-- The scheduler processes bounded cleanup batches only with `MEDIA_RETENTION_ENABLED=true`. Migration installation does not delete historical data. Activation is pending the archive-capable client rollout and the owner's explicit timing choice.
+- A service-role-only retention function detaches audio/video and video-thumbnail references exactly 30 days after each submission, preserving text, references, photos, and response rows. A private deletion queue retries actual Storage API removals; shared media is protected while a younger blessing still references it.
+- The scheduler processes bounded cleanup batches only with `MEDIA_RETENTION_ENABLED=true`. Migration installation does not delete historical data. The owner chose activation **after the save-capable TestFlight build is available**; cleanup remains disabled until then. Retention was extended to 30 days before deployment, and final-two-day warnings now start at day 28.
 - The real migration and transactional regression pass against an isolated local PostgreSQL fixture, including timestamp boundaries, response-specific dates, repeat-path safety, client denial, and idempotent queue retries. Dispatcher type checking and APNs payload contracts pass. Hosted migration/Storage acceptance remain pending.
 
 ## 2026-10-08 private saved blessings
@@ -23,7 +23,7 @@
 - Save/Unsave blessing stores a complete available blessing snapshot and its current responses in account-isolated Application Support storage, including photo/audio/video and response audio. All requested files must download before Saved appears; partial failures leave no archive.
 - Relative media paths survive app-container changes; archives are protected and excluded from backup. They remain private to this account/device and do not affect peer access, hosted retention, or current-day sharing gates.
 - Timeline labels show Saved or a final-48-hour media-expiry warning above each blessing. Saved files are used for playback after remote expiry. The first save explains device-only behavior; removing an archive containing expired media requires a permanent-loss warning.
-- Local archive reload, video/voice/response preservation, account isolation, exact 12/14-day boundaries, partial failure, and privacy tests pass. The focused first-save/unsave UI flow passes. The current combined suite has 96 passing app/domain tests; physical-device media acceptance remains pending.
+- Local archive reload, video/voice/response preservation, account isolation, exact 12/30-day boundaries, partial failure, and privacy tests pass. The focused first-save/unsave UI flow passes. The current combined suite has 96 passing app/domain tests; physical-device media acceptance remains pending.
 
 ## 2026-10-08 photo and video export
 

@@ -18,9 +18,9 @@ final class HelpContentTests: XCTestCase {
     }
 
     func testSavingGuideTracksRetentionAndDeviceOnlyLimits() {
-        XCTAssertEqual(MediaRetentionPolicy.lifetime / 86_400, 14)
+        XCTAssertEqual(MediaRetentionPolicy.lifetime / 86_400, 30)
         let guide = HelpTopic.saving.steps.map(\.body).joined(separator: " ")
-        for concept in ["14 days", "responses", "Photos", "uninstall", "other people", "permanent", "Future responses"] {
+        for concept in ["30 days", "responses", "Photos", "uninstall", "other people", "permanent", "Future responses"] {
             XCTAssertTrue(guide.contains(concept), "Saving guide must explain \(concept)")
         }
     }

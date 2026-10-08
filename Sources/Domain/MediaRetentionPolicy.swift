@@ -1,7 +1,7 @@
 import Foundation
 
 enum MediaRetentionPolicy {
-    static let lifetime: TimeInterval = 14 * 24 * 60 * 60
+    static let lifetime: TimeInterval = 30 * 24 * 60 * 60
     static let warningWindow: TimeInterval = 2 * 24 * 60 * 60
 
     static func expiresAt(submittedAt: Date) -> Date { submittedAt.addingTimeInterval(lifetime) }

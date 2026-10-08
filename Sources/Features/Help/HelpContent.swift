@@ -78,7 +78,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             .init("person.crop.circle", "See who replied", "Timeline cards show responder profile icons. Open a blessing to read responses or listen to saved/available audio."),
         ]
         case .saving: [
-            .init("clock", "14 days for hosted media", "Blessing audio/video and response audio expire 14 days after each was sent. Text, transcripts, Bible references, and photos stay in circle history. A warning above Timeline cards appears during the final two days."),
+            .init("clock", "30 days for hosted media", "Blessing audio/video and response audio expire 30 days after each was sent. Text, transcripts, Bible references, and photos stay in circle history. A warning above Timeline cards appears during the final two days."),
             .init("bookmark", "Save the blessing", "Save blessing downloads a private copy of its text, Bible reference, photo/audio/video, and the responses available now. Wait until it is marked Saved. Future responses aren't added automatically. Saving does not prevent server deletion for other people."),
             .init("iphone", "Only this account, on this device", "Open saved media from the same Timeline card after expiry. Copies do not sync to another device or another person and are lost if you uninstall manna or lose the device. Save photo/video to Photos is a separate export option."),
             .init("bookmark.slash", "Unsave carefully", "Unsave removes your device's copy. If captured media has already expired on the server, manna warns you first: removing the last local copy is permanent. Saving after expiry preserves only what is still available."),

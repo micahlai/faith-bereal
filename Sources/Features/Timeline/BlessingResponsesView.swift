@@ -80,7 +80,7 @@ struct BlessingResponsesView: View {
                         .focused($composerFocused)
                         .lineLimit(1...5)
                         .font(.body)
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, 30)
                         .padding(.vertical, 10)
                         .frame(minHeight: 44)
                         .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -148,7 +148,7 @@ struct BlessingResponsesView: View {
                 AudioBlessingPlayer(url: audioURL)
             } else if response.mode == .voice,
                       MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) {
-                Label("Audio expired after 14 days", systemImage: "waveform.slash")
+                Label("Audio expired after 30 days", systemImage: "waveform.slash")
                     .font(.caption)
                     .foregroundStyle(AppTheme.secondaryInk)
             }

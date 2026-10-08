@@ -10,6 +10,8 @@ The scheduler also creates and claims an independent `end_of_day` prompt at each
 
 Before production:
 
+Audio/video cleanup is gated by `MEDIA_RETENTION_ENABLED=true` and stays disabled for rollout. After the save-capable TestFlight build is available and disposable-object acceptance passes, the scheduler queues media 30 days after submission and removes Storage bytes with retry-safe batches. Text, photos, and references are retained. See `docs/MEDIA_RETENTION.md`; migration installation alone does not delete historical files.
+
 1. Configure all values shown in `supabase/.env.example` as function secrets.
 2. Enable Push Notifications, Time Sensitive Notifications, and Live Activities for the signed app target.
 3. Verify ActivityKit’s generated JSON keys against a physical-device push-to-start capture before enabling production APNs.
