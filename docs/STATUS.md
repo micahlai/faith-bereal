@@ -6,6 +6,7 @@
 - Member icons scroll horizontally across the header's full width; the date-strip mask no longer cuts through avatars or names.
 - Date labels now render in a viewport-fixed overlay, using row anchors only for vertical alignment. They cannot drift horizontally, even during a right-edge rubber-band gesture, and sit eight points before the vertical divider. The opaque strip covers the complete leading gutter so cards cannot peek around its left edge.
 - A continuous vertical divider extends below the header's horizontal separator. Only the name's line height scales with Dynamic Type, keeping the fixed profile row compact without shrinking its text.
+- All eight local-demo UI tests pass; the final date-layout adjustment also passes its focused timeline regression. Exported screenshots confirm compact header placement, clipping after vertical scrolling, and divider-aligned dates. The signed Release device build passes.
 
 ## 2026-10-07 notification identity and title revision
 
@@ -14,6 +15,7 @@
 - Right-hand attachments now contain only blessing photos or video frames. Text/audio blessings without photos and response alerts have no right attachment; sender profile photos arrive in a separate identity field instead. Locked alerts retain their media privacy gate.
 - Avatar and attachment downloads run in parallel with bounded timeouts and size checks, and identity avatars are downsampled before rendering. Timeout/failure still falls back to the ordinary alert through the existing single-delivery bridge.
 - Physical-device presentation remains pending a build containing the updated notification extension.
+- All 80 app/domain tests and both APNs payload contract checks pass, including logo-plus-avatar rendering and media-free response alerts. Dispatcher type checking and the signed Release device build pass. `dispatch-prompts` version 15 is deployed; a new app/TestFlight build is required for the new notification-extension presentation.
 
 ## 2026-10-07 About heading refinement
 
