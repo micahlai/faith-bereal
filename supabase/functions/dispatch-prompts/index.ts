@@ -59,9 +59,10 @@ type BlessingAuthor = {
 
 type CircleNotification = {
   id: string;
-  event_type: "blessing_shared" | "response_shared";
+  event_type: "blessing_shared" | "response_shared" | "member_nudged";
   blessing_id: string;
   response_id: string | null;
+  recipient_id: string | null;
 };
 
 type NotificationBlessing = {
@@ -161,6 +162,7 @@ async function sendAPNs(
   pushType: "alert" | "liveactivity",
   payload: unknown,
   collapseID?: string,
+  expiration?: number,
 ): Promise<void> {
   const host = environment === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
   const response = await fetch(`https://${host}/3/device/${token}`, {
@@ -172,6 +174,7 @@ async function sendAPNs(
       "apns-priority": "10",
       "content-type": "application/json",
       ...(collapseID ? { "apns-collapse-id": collapseID } : {}),
+      ...(expiration !== undefined ? { "apns-expiration": String(expiration) } : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -239,6 +242,11 @@ function todayRoute(circleID: string, promptID: string): string {
 }
 
 async function dispatchCircleNotification(notification: CircleNotification): Promise<void> {
+  if (notification.event_type === "member_nudged") {
+    const { data: deliverable, error } = await admin.rpc("nudge_is_deliverable", { p_notification_id: notification.id });
+    if (error) throw error;
+    if (deliverable !== true) return;
+  }
   const { data: blessingData, error: blessingError } = await admin
     .from("blessings")
     .select(
@@ -251,7 +259,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
 
   const { data: prompt, error: promptError } = await admin
     .from("daily_prompts")
-    .select("circle_id")
+    .select("circle_id, kind")
     .eq("id", blessing.prompt_id)
     .single();
   if (promptError) throw promptError;
@@ -295,7 +303,10 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
 
   let recipientIDs: string[];
   const submittedByRecipient = new Set<string>();
-  if (notification.event_type === "blessing_shared") {
+  if (notification.event_type === "member_nudged") {
+    recipientIDs = notification.recipient_id && enabledMemberIDs.has(notification.recipient_id)
+      ? [notification.recipient_id] : [];
+  } else if (notification.event_type === "blessing_shared") {
     recipientIDs = [...enabledMemberIDs];
     if (recipientIDs.length > 0) {
       const { data: submissions, error: submissionError } = await admin
@@ -347,8 +358,9 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
     const body = circleActivityBody({
       eventType: notification.event_type,
       senderName: sender.display_name,
-      message: notification.event_type === "blessing_shared" ? blessing.body : response!.body,
+      message: response?.body ?? blessing.body,
       unlocked,
+      promptKind: prompt.kind,
       scripture: {
         bookName: blessing.scripture_book_name,
         chapter: blessing.scripture_chapter,
@@ -357,7 +369,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
       },
     });
     const richMediaURL = unlocked ? blessingMediaURL : null;
-    const route = notification.event_type === "blessing_shared" && !unlocked
+    const route = notification.event_type === "member_nudged" || (notification.event_type === "blessing_shared" && !unlocked)
       ? todayRoute(prompt.circle_id, blessing.prompt_id)
       : blessingRoute(prompt.circle_id, blessing.id);
     return sendAPNs(
@@ -384,6 +396,8 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
         blessing_id: blessing.id,
       },
       notification.id,
+      // Do not store offline nudges for delivery after the sharing window.
+      notification.event_type === "member_nudged" ? 0 : undefined,
     );
   }));
 

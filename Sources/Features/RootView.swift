@@ -734,7 +734,7 @@ private struct UserSettingsView: View {
                                         .foregroundStyle(AppTheme.ink)
                                 }
                                 Toggle(
-                                    "Blessings and responses",
+                                    "Blessings, responses, and nudges",
                                     isOn: Binding(
                                         get: {
                                             model.circles
@@ -765,7 +765,7 @@ private struct UserSettingsView: View {
                     } header: {
                         Text("Circle notifications")
                     } footer: {
-                        Text("Control activity alerts and the scheduled end-of-day reminder separately for each circle.")
+                        Text("Control blessing, response, and nudge alerts separately from the scheduled end-of-day reminder for each circle.")
                     }
                 }
 

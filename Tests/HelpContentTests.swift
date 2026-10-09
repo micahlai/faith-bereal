@@ -62,6 +62,14 @@ final class HelpContentTests: XCTestCase {
         }
     }
 
+    func testNudgeGuideExplainsSamePromptPrivacyAndLimits() {
+        let guide = HelpTopic.sharing.steps.map(\.body).joined(separator: " ")
+        for concept in ["After sharing for a prompt", "same daily or end-of-day", "late sharing", "one nudge per prompt",
+                        "never reveals", "notification switch", "window closes", "local demo"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
+
     func testAccessibilityGuideExplainsAlternativesAndDoesNotOverclaimMediaSupport() {
         let guide = HelpTopic.accessibility.steps.map(\.body).joined(separator: " ")
         for concept in ["VoiceOver", "Voice Control", "List", "Reduce Motion", "Adjust photo", "start and end verse", "not yet available"] {

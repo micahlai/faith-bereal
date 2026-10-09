@@ -22,14 +22,19 @@ for name in is_circle_member has_submitted try_uuid; do
   extract_function "$name" "$repo_root/supabase/migrations/202609290001_initial_schema.sql"
 done
 extract_function can_view_blessing "$repo_root/supabase/migrations/202610070008_end_of_day_blessings.sql"
+extract_function prompt_accepts_entry "$repo_root/supabase/migrations/202610070008_end_of_day_blessings.sql"
 extract_function create_circle "$repo_root/supabase/migrations/202610070008_end_of_day_blessings.sql"
 extract_function regenerate_circle_invite_code "$repo_root/supabase/migrations/202610060010_circle_creation_settings_and_code_rotation.sql"
 run_sql -f "$repo_root/supabase/migrations/202610070002_universal_circle_invites.sql" \
+  -f "$repo_root/supabase/migrations/202610070005_circle_activity_notifications.sql" \
   -f "$repo_root/supabase/migrations/202610080001_media_retention.sql" \
   -f "$repo_root/supabase/migrations/202610080002_blessing_character_limit.sql" \
   -f "$repo_root/supabase/migrations/202610090001_reuse_blessing_media.sql" \
   -f "$repo_root/supabase/migrations/202610090002_durable_circle_invites.sql" \
+  -f "$repo_root/supabase/migrations/202610090003_circle_nudges.sql" \
+  -f "$repo_root/supabase/migrations/202610090004_nudge_window_boundaries.sql" \
   -f "$repo_root/supabase/tests/reuse_blessing_media.sql" \
   -f "$repo_root/supabase/tests/durable_circle_invites.sql" \
-  -f "$repo_root/supabase/tests/reuse_storage_visibility.sql"
-echo 'Reuse media, invite recovery, and private Storage visibility checks passed locally.'
+  -f "$repo_root/supabase/tests/reuse_storage_visibility.sql" \
+  -f "$repo_root/supabase/tests/circle_nudges.sql"
+echo 'Reuse media, invite recovery, private Storage visibility, and nudge checks passed locally.'

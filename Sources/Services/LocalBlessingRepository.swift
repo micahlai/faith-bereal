@@ -13,6 +13,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var blessings: [Blessing]
     private var blessingResponses: [BlessingResponse]
     private var entryGrants: Set<BlessingEntryGrantKey> = []
+    private var nudgedMembers: Set<NudgeKey> = []
 
     init(now: Date = .now, endOfDayStartsAt: Date? = nil) {
         var calendar = Calendar(identifier: .gregorian)
@@ -841,6 +842,23 @@ actor LocalBlessingRepository: BlessingRepository {
                   let successor = circles[circleIndex].members.min(by: { $0.joinedAt < $1.joinedAt }) {
             circles[circleIndex].ownerID = successor.id
         }
+    }
+
+    func nudgeMember(promptID: UUID, recipientID: UUID, senderID: UUID, now: Date) async throws -> Bool {
+        guard let prompt = prompts.first(where: { $0.id == promptID }),
+              let circle = circles.first(where: { $0.id == prompt.circleID }) else {
+            throw BlessingError.nudgeUnavailable
+        }
+        let next = prompts.filter {
+            $0.circleID == circle.id && $0.kind == .daily && $0.startsAt > prompt.startsAt
+        }.map(\.startsAt).min()
+        guard NudgePolicy.isEligible(
+            prompt: prompt, circle: circle, senderID: senderID, recipientID: recipientID,
+            senderHasShared: blessings.contains { $0.promptID == promptID && $0.authorID == senderID },
+            recipientHasShared: blessings.contains { $0.promptID == promptID && $0.authorID == recipientID },
+            now: now, nextDailyStart: next
+        ) else { throw BlessingError.nudgeUnavailable }
+        return nudgedMembers.insert(NudgeKey(promptID: promptID, recipientID: recipientID)).inserted
     }
 
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {

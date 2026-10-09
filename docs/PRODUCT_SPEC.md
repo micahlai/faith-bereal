@@ -84,6 +84,9 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Circle activity notifications
 
+- After submitting for a prompt, a current member may nudge another current member who has not shared for that exact prompt. Today exposes this only after the prompt starts, while entry is open or daily late sharing remains available. End-of-day nudges close at five hours or the next daily start. Entry grants and the first-day exception never extend nudge eligibility before start/after close.
+- A recipient gets at most one nudge per prompt across the entire circle, enforced transactionally. The ordinary circle activity switch controls nudges. The dispatcher rechecks sender/recipient membership, the entry window, recipient submission, and preferences before sending a regular notification (no Live Activity), with the sender's avatar and no blessing content/media. The notification routes to the exact prompt's Today composer.
+
 - A new blessing notifies enabled members other than its author. Before the recipient shares for that prompt, the body is exactly “`[name] has shared a blessing. share yours to see`” and routes to Today; afterward it is “`[name] - [blessing text/transcript]`” and routes to the blessing. A tagged scripture reference appears on the next line without scripture text.
 - A new response notifies the blessing author and members who responded earlier, excluding the new responder, using “`[name] - [response]`” and routing to the blessing.
 - Blessing alert titles are “New blessing in [circle name]”; response alert titles are “[circle name]”. Message bodies and scripture-reference lines retain the rules above.

@@ -2,6 +2,37 @@ import XCTest
 
 final class BlessingCircleUITests: XCTestCase {
     @MainActor
+    func testNudgeAppearsOnlyAfterSharingAndCannotBeRepeated() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchArguments += ["--manna-local-ui-test"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 15))
+        let nudge = app.buttons["Nudge Ben for daily blessing"]
+        XCTAssertFalse(nudge.exists)
+        app.buttons["Share a blessing"].tap()
+        let editor = app.textViews["Write your blessing"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.tap()
+        editor.typeText("Grateful for my circle today")
+        let send = app.buttons["Send blessing"]
+        for _ in 0..<6 where !send.isHittable { app.swipeUp() }
+        send.tap()
+        let alert = app.alerts["manna circle"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["OK"].tap()
+        for _ in 0..<4 where !nudge.isHittable { app.swipeDown() }
+        XCTAssertTrue(nudge.waitForExistence(timeout: 5))
+        XCTAssertTrue(nudge.isEnabled)
+        nudge.tap()
+        XCTAssertTrue(alert.staticTexts["Nudge queued for Ben. Their notification settings still apply."].waitForExistence(timeout: 5))
+        alert.buttons["OK"].tap()
+        XCTAssertFalse(nudge.isEnabled)
+    }
+
+    @MainActor
     func testBlessingComposerAcceptsDoubledLimitAndClampsOverflow() {
         continueAfterFailure = false
         let app = XCUIApplication()

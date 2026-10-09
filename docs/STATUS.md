@@ -1,22 +1,30 @@
 # Project status
 
+## 2026-10-09 gentle circle nudges
+
+- Today exposes named Nudge controls only after the viewer submits for that exact random/end-of-day prompt, for current members who have not shared and can still enter. First-day exceptions and retained entry grants never open nudges before the prompt starts or after the evening/no-late cutoff.
+- Server-authorized nudges enter the existing notification outbox with one event per recipient/prompt across all senders. Before APNs, the dispatcher rechecks membership, entry timing, recipient completion, and the ordinary circle-activity preference. Alerts contain sender identity and a reminder only, route to the exact Today prompt, never start a Live Activity, and use APNs expiration zero to avoid storing offline reminders past the window.
+- Help and user settings describe the shared switch and rate limit. Local mode validates rules but sends no remote alert. The UI/UX review kept reminders secondary to sharing, with named native controls, progress/disabled feedback, semantic colors, and 44-point targets.
+- All 123 app/domain tests, isolated SQL/Storage-policy regressions, hosted rollback-only RPC regressions, both APNs payload contracts, dispatcher type checking, and the signed hosted Release device build pass. Hosted migrations `202610090001`–`202610090004` and dispatcher version 18 are deployed. The final forward migration specifically excludes first-day entry exceptions from nudges; hosted queue/dispatch tests cover this boundary too. No temporary regression circles or media deletion queue entries remain. `MEDIA_RETENTION_ENABLED=false` remains explicitly set; no cleanup was activated.
+- The initial 17-test simulator UI batch passed 15, including the new nudge flow, but failed initial navigation in the accessibility audit and a composer scroll in its text editor. App tests subsequently passed all 123 on a clean disposable simulator after the existing test-runner stall. Focused reruns pass the accessibility audit and nudge flow; the existing long-text composer test remains failing at Send-button reachability. Experimental test gestures did not resolve it and were discarded. This is not a full UI-suite pass. No phone installation, TestFlight upload, or real two-account APNs delivery was performed; updated client presentation/reuse needs a new build.
+
 ## 2026-10-09 scheduled Timeline state
 
 - Local and hosted timelines share a status policy: an unstarted prompt without an early post says Waiting for notification, never You can still share or Missed. Actual early peer posts remain locked; the explicit first-day sharing exception remains available.
 - Future calendar-day prompts remain excluded. Current open/late states, expired no-late states, independent evening privacy, and historical visibility are unchanged.
-- All 119 app/domain tests pass, including all-format reuse, invite-cache recreation/isolation, scheduled/current/deadline status boundaries, first-day exception, and Help guides. Isolated database RPC and Storage-policy checks also pass. Simulator UI and signed Release verification are pending for this combined build.
+- Initial verification passed all 119 app/domain tests, including all-format reuse, invite-cache recreation/isolation, scheduled/current/deadline status boundaries, first-day exception, and Help guides. Combined verification now passes all 123 and the signed Release build; see the nudge rollout above for UI/hosted results.
 
 ## 2026-10-09 durable invitations
 
 - App updates/relaunches no longer lose invite codes: the client keeps stable account/circle-isolated hints, verified against the current server hash on every load. New create/join/explicit-rotation transactions store a recoverable code in a private, non-exposed table for active-member-only lookup.
 - No existing circle is rotated. A valid known legacy code backfills its private record. Lost hash-only codes require an existing valid join link or one deliberate owner regeneration. Removed members/outsiders cannot recover codes; stale hints cannot overwrite the new code after rotation.
-- Cache relaunch/isolation tests and real-function transactional SQL checks pass for creation, recovery, old-code invalidation, owner-only rotation, member lookup, removal, and unchanged join dates. Hosted deployment remains pending.
+- Cache relaunch/isolation tests and local/hosted transactional SQL checks pass for creation, recovery, old-code invalidation, owner-only rotation, member lookup, removal, and unchanged join dates. The durable-invitation migration is deployed without changing any existing code.
 
 ## 2026-10-09 reuse retains media
 
 - Reuse preserves typed/voice/video format, audio, photo, video, thumbnail, and scripture. Capture previews the complete original blessing; responses remain on the original. Each repeat gets a new target prompt, submission time, and privacy gate.
 - The RPC reuses private paths without uploading again; Storage reads recognize visible receiving-circle blessing references. The retention worker already protects paths still referenced by younger posts. Author, entry, reuse-window, and duplicate guards remain enforced.
-- Local app/domain coverage and transactional SQL checks pass for all formats, media preservation, duplicate/other-author rejection, and peer/outsider/removed-member access. Actual Storage SELECT policy checks pass in the isolated PostgreSQL fixture. Hosted deployment and physical playback acceptance are pending.
+- Local app/domain coverage and local/hosted transactional SQL checks pass for all formats, media preservation, duplicate/other-author rejection, and peer/outsider/removed-member access. Actual Storage SELECT policy checks pass in the isolated PostgreSQL fixture. The migration is deployed; physical playback acceptance remains pending a new client build.
 
 ## 2026-10-08 doubled blessing character limit
 

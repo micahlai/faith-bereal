@@ -1,4 +1,4 @@
-export type CircleActivityEvent = "blessing_shared" | "response_shared";
+export type CircleActivityEvent = "blessing_shared" | "response_shared" | "member_nudged";
 
 export function circleActivityTitle(eventType: CircleActivityEvent, circleName: string): string {
   return eventType === "blessing_shared" ? `New blessing in ${circleName}` : circleName;
@@ -60,7 +60,11 @@ export function circleActivityBody(input: {
   message: string;
   unlocked: boolean;
   scripture: ScriptureReferenceParts;
+  promptKind?: "daily" | "end_of_day";
 }): string {
+  if (input.eventType === "member_nudged") {
+    return `${input.senderName} nudged you to share your ${input.promptKind === "end_of_day" ? "end-of-day" : "daily"} blessing.`;
+  }
   if (input.eventType === "blessing_shared" && !input.unlocked) {
     return `${input.senderName} has shared a blessing. share yours to see`;
   }

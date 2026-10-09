@@ -60,6 +60,8 @@ final class AppModel {
     }
     var isPreparingCapture = false
     var isSubmitting = false
+    private(set) var nudgingMembers: Set<NudgeKey> = []
+    private(set) var nudgedMembers: Set<NudgeKey> = []
     var isSwitchingCircle = false
     var message: String?
     var submittedBlessing: Blessing?
@@ -298,6 +300,10 @@ final class AppModel {
         }
         do {
             let bootstrap = try await repository.bootstrap()
+            if currentUser?.id != bootstrap.currentUser.id {
+                nudgingMembers = []
+                nudgedMembers = []
+            }
             self.currentUser = bootstrap.currentUser
             savedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
             do {
@@ -366,6 +372,8 @@ final class AppModel {
             automaticSaveTask = nil
             automaticSaveRunID = nil
             currentUser = nil
+            nudgingMembers = []
+            nudgedMembers = []
             savedBlessings = [:]
             localSavingPreferences = LocalSavingPreferences()
             hasChosenInitialSaving = false
@@ -983,6 +991,43 @@ final class AppModel {
         } catch {
             message = error.localizedDescription
             return []
+        }
+    }
+
+    func nudgeCandidates(at date: Date = .now) -> [NudgeCandidate] {
+        guard let circle, let user = currentUser else { return [] }
+        return [prompt, endOfDayPrompt].compactMap { $0 }.flatMap { target in
+            let shared = Set(lanes.flatMap(\.events).compactMap { event -> UUID? in
+                if case let .blessing(blessing) = event.status, blessing.promptID == target.id {
+                    return blessing.authorID
+                }
+                return nil
+            })
+            let next = prompt.flatMap { $0.kind == .daily && $0.startsAt > target.startsAt ? $0.startsAt : nil }
+            return circle.members.filter { member in
+                NudgePolicy.isEligible(prompt: target, circle: circle, senderID: user.id, recipientID: member.id,
+                    senderHasShared: currentUserBlessing(for: target) != nil,
+                    recipientHasShared: shared.contains(member.id), now: date, nextDailyStart: next)
+            }.map { NudgeCandidate(prompt: target, member: $0) }
+        }
+    }
+
+    func nudge(_ candidate: NudgeCandidate, now: Date = .now) async {
+        guard let user = currentUser, !nudgingMembers.contains(candidate.id), !nudgedMembers.contains(candidate.id),
+              nudgeCandidates(at: now).contains(where: { $0.id == candidate.id }) else { return }
+        nudgingMembers.insert(candidate.id)
+        defer { nudgingMembers.remove(candidate.id) }
+        do {
+            let queued = try await repository.nudgeMember(promptID: candidate.prompt.id,
+                recipientID: candidate.member.id, senderID: user.id, now: now)
+            guard currentUser?.id == user.id else { return }
+            nudgedMembers.insert(candidate.id)
+            message = queued
+                ? "Nudge queued for \(candidate.member.displayName). Their notification settings still apply."
+                : "This person has already been nudged for this blessing."
+        } catch {
+            guard currentUser?.id == user.id, !Self.isCancellation(error) else { return }
+            message = error.localizedDescription
         }
     }
 

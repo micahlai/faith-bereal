@@ -42,6 +42,10 @@ struct TodayView: View {
 
             let items = model.currentPromptBlessings(at: date)
             if !items.isEmpty {
+                let nudges = model.nudgeCandidates(at: date)
+                if !nudges.isEmpty {
+                    TodayNudgePanel(candidates: nudges)
+                }
                 TodayBlessingsFeed(items: items)
                     .equatable()
             }
@@ -85,6 +89,48 @@ struct TodayView: View {
         }
     }
 
+}
+
+private struct TodayNudgePanel: View {
+    @Environment(AppModel.self) private var model
+    let candidates: [NudgeCandidate]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Nudge your circle", systemImage: "hand.wave")
+                .font(.headline)
+            Text("A gentle reminder for someone who can still share. One nudge per person for each daily or end-of-day blessing.")
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryInk)
+            ForEach(candidates) { candidate in
+                HStack(spacing: 12) {
+                    AvatarBadge(member: candidate.member, size: 36)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(candidate.member.displayName).font(.subheadline.weight(.semibold))
+                        Text(candidate.prompt.kind == .daily ? "Daily blessing" : "End-of-day blessing")
+                            .font(.caption).foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    Spacer(minLength: 8)
+                    Button {
+                        Task { await model.nudge(candidate) }
+                    } label: {
+                        if model.nudgingMembers.contains(candidate.id) {
+                            ProgressView().frame(minWidth: 44, minHeight: 44)
+                        } else {
+                            Text(model.nudgedMembers.contains(candidate.id) ? "Nudged" : "Nudge")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary)
+                    .disabled(model.nudgingMembers.contains(candidate.id) || model.nudgedMembers.contains(candidate.id))
+                    .accessibilityLabel("Nudge \(candidate.member.displayName) for \(candidate.prompt.kind == .daily ? "daily" : "end-of-day") blessing")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .blessingCard()
+    }
 }
 
 private struct EndOfDayPromptCard: View {

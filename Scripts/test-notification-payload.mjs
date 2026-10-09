@@ -24,6 +24,13 @@ assert.deepEqual(reminderMedia("circle/circle.jpg"), {
 
 assert.equal(circleActivityTitle("blessing_shared", "Sunday Table"), "New blessing in Sunday Table");
 assert.equal(circleActivityTitle("response_shared", "Sunday Table"), "Sunday Table");
+assert.equal(circleActivityTitle("member_nudged", "Sunday Table"), "Sunday Table");
+for (const [kind, label] of [["daily", "daily"], ["end_of_day", "end-of-day"]]) {
+  assert.equal(circleActivityBody({eventType: "member_nudged", senderName: "Micah", message: "Private blessing",
+    unlocked: false, scripture: john316, promptKind: kind}), `Micah nudged you to share your ${label} blessing.`);
+  assert.equal(notificationMedia({eventType: "member_nudged", unlocked: true,
+    captureMode: "video", thumbnailPath: "private/frame.jpg", photoPath: "private/photo.jpg"}), null);
+}
 
 assert.deepEqual(promptReminder({
   kind: "end_of_day", circleName: "Evening Bread", responseWindowMinutes: 300,

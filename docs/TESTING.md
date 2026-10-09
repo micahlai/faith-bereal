@@ -48,6 +48,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Unit tests
 
+- Nudges require the sender's submission for the exact prompt, two current distinct members, and an unsubmitted recipient. Scheduled, no-late deadline, five-hour evening deadline, next daily cutoff, same-prompt privacy, and one nudge per recipient/prompt are checked. Local mode never contacts APNs.
+
 - Reuse preserves capture format, audio/photo/video/thumbnail and scripture; no responses are copied. Receiving-circle media respects the target privacy gate even for people outside the original circle.
 - Invite hints survive store recreation/app updates, remain account/circle-isolated, and are validated by the server. Active members recover stored codes; legacy backfill never rotates, stale hints never restore a rotated code, removed members/outsiders cannot read codes.
 - Timeline scheduled prompts show Waiting for notification; open/late and first-day entry remain shareable, future days remain excluded, and early peer posts stay locked.
@@ -104,7 +106,7 @@ After deployment, `npx --no-install supabase db query --linked --file supabase/t
 
 ## Integration tests
 
-For isolated reuse/invite regressions run `bash Scripts/test-reuse-and-invites.sh`. It applies both real migrations and the existing media-retention/length migrations against a disposable PostgreSQL fixture, loading the actual creation/join/rotation/visibility functions. It verifies typed/voice/video media reuse, active-member code recovery and explicit rotation, and the actual Storage SELECT policy. Entry timing is a minimal fixture, not full hosted entry-grant coverage. Never run the schema fixture or the Storage fixture against hosted Supabase. `reuse_blessing_media.sql` and `durable_circle_invites.sql` are separate transaction/rollback RPC tests suitable for an already migrated linked project; they leave no users/circles/posts/notification events behind and never invoke Storage or a dispatcher.
+For isolated reuse/invite/nudge regressions run `bash Scripts/test-reuse-and-invites.sh`. It applies the real feature migrations and existing media-retention/length/outbox migrations against a disposable PostgreSQL fixture, loading the actual creation/join/rotation/visibility/entry functions. It verifies typed/voice/video media reuse, active-member code recovery and explicit rotation, the actual Storage SELECT policy, and nudge queue/dispatch authorization and timing. Submission timing is a minimal fixture, not full hosted entry-grant coverage. Never run the schema fixture or the Storage fixture against hosted Supabase. `reuse_blessing_media.sql`, `durable_circle_invites.sql`, and `circle_nudges.sql` are separate transaction/rollback RPC tests suitable for an already migrated linked project; they leave no users/circles/posts/notification events behind and never invoke Storage or a dispatcher.
 
 - create and join circle with two accounts;
 - switch between multiple memberships and verify prompt/timeline isolation;
@@ -146,6 +148,8 @@ For isolated reuse/invite regressions run `bash Scripts/test-reuse-and-invites.s
 - timeline member header begins immediately below navigation, stays fixed on vertical scroll, permits avatars over the date-column area on horizontal scroll, and clips body cards below the horizontal divider and behind the full-width date strip.
 
 ## Device-only checks
+
+- A nudge arrives only for an opted-in unsubmitted recipient, uses sender artwork with no content/media, opens the exact random/evening prompt, and does not start a Live Activity. Closed/completed/removed-member queue events are skipped; offline nudges are not stored for later APNs delivery.
 
 - Save photo/video to Photos handles add-only permission, denied access, and playable exports;
 - saved audio/video and response audio play after a 30-day hosted expiry; expired Unsave warns and removes only that account's archive;

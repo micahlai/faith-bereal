@@ -55,6 +55,7 @@ protocol BlessingRepository: Sendable {
         now: Date
     ) async throws -> Blessing
     func leaveCircle(circleID: UUID, memberID: UUID) async throws
+    func nudgeMember(promptID: UUID, recipientID: UUID, senderID: UUID, now: Date) async throws -> Bool
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse]
     func submitResponse(
         blessingID: UUID,

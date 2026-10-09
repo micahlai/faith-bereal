@@ -572,6 +572,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
         ).execute()
     }
 
+    func nudgeMember(promptID: UUID, recipientID: UUID, senderID _: UUID, now _: Date) async throws -> Bool {
+        try await client.rpc("nudge_circle_member", params: [
+            "p_prompt_id": promptID, "p_recipient_id": recipientID,
+        ]).execute().value
+    }
+
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
         let blessingRow = try await fetchBlessing(id: blessingID)
         let rows: [ResponseRow] = try await client
