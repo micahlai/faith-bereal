@@ -147,18 +147,19 @@ actor SupabaseBlessingRepository: BlessingRepository {
                         && !newerDailyHasStarted
                         && nextDailyStart.map { now < $0 } ?? true
                     let requiresSubmissionGate = isToday || endOfDayOpen
-                    let status: TimelineStatus
-                    if requiresSubmissionGate && member.id != viewerID && !viewerHasSubmitted {
-                        status = .locked
-                    } else if let match {
-                        status = .blessing(match)
-                    } else if prompt.kind == .endOfDay && endOfDayOpen {
-                        status = .waiting
-                    } else if isToday && prompt.kind == .daily && (prompt.phase(at: now) != .closed || circle.allowsLateBlessings || FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)) {
-                        status = .waiting
-                    } else {
-                        status = .missed
-                    }
+                    let dailyEntryOpen = prompt.kind == .daily && isToday && (
+                        prompt.phase(at: now) == .open
+                        || (prompt.phase(at: now) == .closed && circle.allowsLateBlessings)
+                        || FirstDaySubmissionPolicy.isEligible(
+                            memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now
+                        )
+                    )
+                    let status = TimelineStatusPolicy.status(
+                        prompt: prompt, circle: circle, member: member,
+                        viewerID: viewerID, viewerHasSubmitted: viewerHasSubmitted, blessing: match,
+                        now: now, entryIsOpen: dailyEntryOpen || endOfDayOpen,
+                        requiresSubmissionGate: requiresSubmissionGate
+                    )
                     return TimelineEvent(
                         memberID: member.id,
                         date: prompt.localDate,

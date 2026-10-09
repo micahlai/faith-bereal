@@ -361,6 +361,7 @@ enum TimelineStatus: Hashable, Sendable {
     case missed
     case locked
     case waiting
+    case scheduled
     case joinedCircle
 }
 

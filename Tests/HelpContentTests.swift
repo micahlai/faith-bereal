@@ -55,6 +55,13 @@ final class HelpContentTests: XCTestCase {
         }
     }
 
+    func testTimelineGuideDistinguishesScheduledAndShareableStates() {
+        let guide = HelpTopic.timeline.steps.map(\.body).joined(separator: " ")
+        for concept in ["Waiting for notification", "has not started", "You can still share", "first-day exception", "Future days"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
+
     func testAccessibilityGuideExplainsAlternativesAndDoesNotOverclaimMediaSupport() {
         let guide = HelpTopic.accessibility.steps.map(\.body).joined(separator: " ")
         for concept in ["VoiceOver", "Voice Control", "List", "Reduce Motion", "Adjust photo", "start and end verse", "not yet available"] {

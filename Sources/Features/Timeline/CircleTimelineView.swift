@@ -457,7 +457,7 @@ private struct TimelineEventView: View {
                 .font(.caption)
                 .foregroundStyle(AppTheme.candle)
                 .background(Circle().fill(AppTheme.surface).frame(width: 24, height: 24))
-        case .waiting:
+        case .waiting, .scheduled:
             Circle()
                 .stroke(AppTheme.dawn, lineWidth: 2)
                 .padding(4)
@@ -555,6 +555,11 @@ private struct TimelineEventView: View {
             )
                 .font(.subheadline)
                 .foregroundStyle(AppTheme.dawn)
+                .padding(.vertical, 10)
+        case .scheduled:
+            Label("Waiting for notification", systemImage: "bell.badge")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.secondaryInk)
                 .padding(.vertical, 10)
         case .joinedCircle:
             VStack(alignment: .leading, spacing: 4) {

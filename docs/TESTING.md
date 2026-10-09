@@ -48,6 +48,10 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Unit tests
 
+- Reuse preserves capture format, audio/photo/video/thumbnail and scripture; no responses are copied. Receiving-circle media respects the target privacy gate even for people outside the original circle.
+- Invite hints survive store recreation/app updates, remain account/circle-isolated, and are validated by the server. Active members recover stored codes; legacy backfill never rotates, stale hints never restore a rotated code, removed members/outsiders cannot read codes.
+- Timeline scheduled prompts show Waiting for notification; open/late and first-day entry remain shareable, future days remain excluded, and early peer posts stay locked.
+
 - Blessing text/transcript and edits accept 600/601/1,199/1,200 and reject 1,201; Unicode-scalar counters match PostgreSQL, and truncation preserves complete combined emoji/accents. All three local capture modes share this policy. Response limits remain 600.
 - media-retention boundaries at 28/30 days, account-isolated archive save/reload/unsave, response timestamps, atomic partial-download failure, and media restored through local Timeline playback;
 - Help catalog completeness and customer-facing explanations of saving, privacy, and deadline rules;
@@ -99,6 +103,8 @@ For blessing length validation, run `bash Scripts/test-blessing-character-limit.
 After deployment, `npx --no-install supabase db query --linked --file supabase/tests/blessing_character_limit_hosted.sql` checks the actual hosted create/submission/edit RPCs and guards using temporary transaction-scoped users/circles. Fixtures, posts, and notification queue events roll back; no dispatcher, cleanup worker, or Storage API runs. It tests RPC authorization rules but is not a complete authenticated-role RLS test.
 
 ## Integration tests
+
+For isolated reuse/invite regressions run `bash Scripts/test-reuse-and-invites.sh`. It applies both real migrations and the existing media-retention/length migrations against a disposable PostgreSQL fixture, loading the actual creation/join/rotation/visibility functions. It verifies typed/voice/video media reuse, active-member code recovery and explicit rotation, and the actual Storage SELECT policy. Entry timing is a minimal fixture, not full hosted entry-grant coverage. Never run the schema fixture or the Storage fixture against hosted Supabase. `reuse_blessing_media.sql` and `durable_circle_invites.sql` are separate transaction/rollback RPC tests suitable for an already migrated linked project; they leave no users/circles/posts/notification events behind and never invoke Storage or a dispatcher.
 
 - create and join circle with two accounts;
 - switch between multiple memberships and verify prompt/timeline isolation;

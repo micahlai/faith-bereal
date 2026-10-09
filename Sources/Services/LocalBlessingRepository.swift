@@ -327,21 +327,11 @@ actor LocalBlessingRepository: BlessingRepository {
                 let viewerHasSubmitted = blessings.contains {
                     $0.promptID == prompt.id && $0.authorID == viewerID
                 }
-                let status: TimelineStatus
-
-                if requiresSubmissionGate && member.id != viewerID && !viewerHasSubmitted {
-                    status = .locked
-                } else if let match {
-                    if member.id == viewerID || !requiresSubmissionGate || viewerHasSubmitted {
-                        status = .blessing(match)
-                    } else {
-                        status = .locked
-                    }
-                } else if requiresSubmissionGate && entryIsOpen {
-                    status = .waiting
-                } else {
-                    status = .missed
-                }
+                let status = TimelineStatusPolicy.status(
+                    prompt: prompt, circle: circle, member: member,
+                    viewerID: viewerID, viewerHasSubmitted: viewerHasSubmitted, blessing: match,
+                    now: now, entryIsOpen: entryIsOpen, requiresSubmissionGate: requiresSubmissionGate
+                )
                 return TimelineEvent(
                     memberID: member.id,
                     date: prompt.localDate,

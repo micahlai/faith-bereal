@@ -73,7 +73,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             .init("sun.max", "Today is a shared feed", "After you share, visible blessings fill Today in newest-first order, with photos, audio/video, Bible verses, and responses. Peer blessings for a prompt stay locked until you share for that prompt."),
             .init("point.3.connected.trianglepath.dotted", "Follow each person's story", "Timeline has a lane per person. Scroll vertically for days and horizontally for people; the date strip and profile row stay in place. Each lane ends at Joined circle—no missed days are added before membership."),
             .init("hand.tap", "Open the whole blessing", "Tap a card for its full content. Preview text is limited to 15 lines; Bible previews to five lines, with an expand option. Evening blessings sit above the random blessing in the same day row."),
-            .init("lock.open", "History remains visible", "Past history is readable without sharing today. Missed, locked, late, and still-open states explain what happened without relying on color alone."),
+            .init("lock.open", "History remains visible", "Past history is readable without sharing today. Waiting for notification means the invitation has not started; You can still share means entry is available, including the first-day exception. Future days are not shown as missed. Missed, locked, late, and still-open states explain what happened without relying on color alone."),
         ]
         case .responses: [
             .init("text.bubble", "Reply simply", "Use the small response box, microphone, and send button on Today. A current-day blessing opened from Timeline can also accept a response. Historical blessings are read-only."),

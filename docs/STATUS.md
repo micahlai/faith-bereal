@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-09 scheduled Timeline state
+
+- Local and hosted timelines share a status policy: an unstarted prompt without an early post says Waiting for notification, never You can still share or Missed. Actual early peer posts remain locked; the explicit first-day sharing exception remains available.
+- Future calendar-day prompts remain excluded. Current open/late states, expired no-late states, independent evening privacy, and historical visibility are unchanged.
+- All 119 app/domain tests pass, including all-format reuse, invite-cache recreation/isolation, scheduled/current/deadline status boundaries, first-day exception, and Help guides. Isolated database RPC and Storage-policy checks also pass. Simulator UI and signed Release verification are pending for this combined build.
+
 ## 2026-10-09 durable invitations
 
 - App updates/relaunches no longer lose invite codes: the client keeps stable account/circle-isolated hints, verified against the current server hash on every load. New create/join/explicit-rotation transactions store a recoverable code in a private, non-exposed table for active-member-only lookup.

@@ -78,7 +78,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Optional scripture tag: book and chapter dropdowns, then a drag-select square verse grid. Preview in the user's chosen public-domain Bible translation before sending.
 - Submission shows an explicit progress state and cannot be duplicated by repeated taps.
 - The server is authoritative for membership, prompt state, entry deadline, entry grants, and uniqueness. A client cannot create a post-deadline grant by changing its clock.
-- When eligible, capture offers a quiet “Reuse a recent blessing” action. It preserves the original capture format, message/transcript, Bible reference, and attached audio, photo, or video as a new blessing in the target circle. Hosted media references are reused without re-uploading; target-circle members can read them only through the target blessing's visibility gate. Responses are not copied. it never exposes unavailable or expired reuse choices.
+- When eligible, capture offers a quiet “Reuse a recent blessing” action. It preserves the original capture format, message/transcript, Bible reference, and attached audio, photo, or video as a new blessing in the target circle. Hosted media references are reused without re-uploading; target-circle members can read them only through the target blessing's visibility gate. Responses are not copied. It never exposes unavailable or expired reuse choices.
 - Voice capture records playable audio while producing an editable transcript. Capture previews and submitted voice content include play/pause, elapsed and total time, and a seekable playhead. Camera capture owns its recording lifecycle and handles authorization, interruption, denial, and unavailable hardware on physical devices.
 - An author may edit the text or transcript and optional scripture tag for exactly ten minutes after `submitted_at`. The global limit is independent of circle settings, is enforced by the server, and never replaces the original audio, video, or photo.
 
@@ -106,6 +106,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Dates are viewport-anchored to the left of a continuous vertical divider with eight points of trailing padding. A full-height opaque strip hides body content beneath them, including the leading gutter and during horizontal overscroll. The date strip begins below the header, so it never masks profile photos or names. Body content cannot paint above the header's horizontal divider.
 - Each daily event has a dated dot, content preview, and time.
 - A missed day has a distinct hollow marker and text label; color is never the only cue.
+- Before the daily prompt starts, empty lanes say Waiting for notification, not You can still share or Missed; the first-day exception remains shareable. Future calendar-day prompts are omitted. Existing current-day peer blessings remain gated even when a member posted early under that exception.
 - Past days are visible to members regardless of today's submission.
 - Current-day peer content is replaced by a locked state until the viewer posts.
 - Previews show up to 15 lines of original text or transcript plus the reference when present. Every member cell for a given day shares the height of that day's longest preview.
