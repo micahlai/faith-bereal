@@ -823,11 +823,11 @@ actor LocalBlessingRepository: BlessingRepository {
         var repeated = try await submit(
             promptID: targetPromptID,
             authorID: authorID,
-            mode: .typed,
+            mode: source.captureMode,
             body: source.body,
-            audioURL: nil,
-            videoURL: nil,
-            photoURL: nil,
+            audioURL: source.audioURL,
+            videoURL: source.videoURL,
+            photoURL: source.photoURL,
             scriptureReference: source.scriptureReference,
             now: now
         )

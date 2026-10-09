@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-09 reuse retains media
+
+- Reuse preserves typed/voice/video format, audio, photo, video, thumbnail, and scripture. Capture previews the complete original blessing; responses remain on the original. Each repeat gets a new target prompt, submission time, and privacy gate.
+- The RPC reuses private paths without uploading again; Storage reads recognize visible receiving-circle blessing references. The retention worker already protects paths still referenced by younger posts. Author, entry, reuse-window, and duplicate guards remain enforced.
+- Local app/domain coverage and transactional SQL checks pass for all formats, media preservation, duplicate/other-author rejection, and peer/outsider/removed-member access. Actual Storage SELECT policy checks pass in the isolated PostgreSQL fixture. Hosted deployment and physical playback acceptance are pending.
+
 ## 2026-10-08 doubled blessing character limit
 
 - Blessing text and voice/video transcripts now allow 1,200 characters instead of 600, including ten-minute edits. Capture counters/clamping, edit validation, local submission, and hosted pre-upload validation share one policy. Unicode-scalar counting matches PostgreSQL and truncation preserves complete emoji/accent graphemes. Response limits are unchanged at 600.

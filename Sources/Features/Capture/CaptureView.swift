@@ -123,7 +123,7 @@ struct CaptureView: View {
                 ForEach(repeatCandidates) { blessing in
                     Button {
                         repeatSource = blessing
-                        mode = .typed
+                        mode = blessing.captureMode
                         text = blessing.body ?? ""
                         scriptureReference = blessing.scriptureReference
                         photoURL = nil
@@ -153,7 +153,7 @@ struct CaptureView: View {
                         .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityHint("Reuses this message and Bible verse in the current circle")
+                    .accessibilityHint("Reuses this blessing, attached media, and Bible verse in the current circle")
                 }
             }
             .blessingCard()
@@ -169,20 +169,21 @@ struct CaptureView: View {
                 Spacer()
                 Button("Choose another") {
                     repeatSource = nil
+                    mode = .typed
                     text = ""
                     scriptureReference = nil
                 }
                 .font(.subheadline)
             }
-            Text(text)
-                .font(.system(.title3, design: .serif))
-                .textSelection(.enabled)
+            if let repeatSource {
+                BlessingContentView(blessing: repeatSource, usesCard: false)
+            }
             if let scriptureReference {
                 Label(scriptureReference.displayName, systemImage: "book.closed")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.iris)
             }
-            Text("This is sent as a new text blessing in \(model.circle?.name ?? "this circle").")
+            Text("This keeps your original format and attached media as a new blessing in \(model.circle?.name ?? "this circle"). Responses are not copied.")
                 .font(.caption)
                 .foregroundStyle(AppTheme.secondaryInk)
         }

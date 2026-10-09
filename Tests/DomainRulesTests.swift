@@ -1199,7 +1199,7 @@ final class DomainRulesTests: XCTestCase {
         )
     }
 
-    func testRepeatingBlessingCopiesMessageAndScriptureIntoTargetCircle() async throws {
+    func testRepeatingBlessingCopiesVoicePhotoAndScriptureIntoTargetCircle() async throws {
         let now = Date()
         let repository = LocalBlessingRepository(now: now)
         let bootstrap = try await repository.bootstrap()
@@ -1222,6 +1222,7 @@ final class DomainRulesTests: XCTestCase {
             body: "Provision in a difficult week.",
             audioURL: URL(fileURLWithPath: "/tmp/source.caf"),
             videoURL: nil,
+            photoURL: URL(fileURLWithPath: "/tmp/source.jpg"),
             scriptureReference: reference,
             now: now
         )
@@ -1234,11 +1235,13 @@ final class DomainRulesTests: XCTestCase {
         )
 
         XCTAssertEqual(repeated.circleID, targetCircle.id)
-        XCTAssertEqual(repeated.captureMode, .typed)
+        XCTAssertEqual(repeated.captureMode, .voice)
         XCTAssertEqual(repeated.body, source.body)
         XCTAssertEqual(repeated.scriptureReference, reference)
         XCTAssertEqual(repeated.repeatedFromBlessingID, source.id)
-        XCTAssertNil(repeated.audioURL)
+        XCTAssertEqual(repeated.audioURL, source.audioURL)
+        XCTAssertEqual(repeated.photoURL, source.photoURL)
+        XCTAssertNil(repeated.videoURL)
     }
 
     func testOwnerCanTransferCircleOwnershipToCurrentMember() async throws {
