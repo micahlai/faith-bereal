@@ -64,7 +64,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             .init("lock.open", "Unlock evening stories", "You must send an end-of-day blessing to see others' evening blessings. Sending the random daily blessing does not unlock them. The two types share the feed, but have separate sharing gates."),
         ]
         case .circles: [
-            .init("link", "Join people you know", "Enter a circle's code or open its join link. Installed apps open the link directly. The circle page lets you share that link with friends."),
+            .init("link", "Join people you know", "Enter a circle's code or open its join link. Installed apps open the link directly. The circle page lets you share that link with friends. App updates and relaunches do not change the code; only a leader's Regenerate action changes it. For an older circle whose code is unavailable, use a saved join link to recover it or ask the leader to regenerate once."),
             .init("slider.horizontal.3", "Create with intention", "The guided setup explains each setting before you create anything. Defaults are noon–10 p.m., a 10-minute entry window, late sharing on, and an end-of-day reflection at 10 p.m."),
             .init("arrow.left.arrow.right", "Switch circles", "Use the circle-name menu at the top. Blessings belong to the circle you send them to; switching changes Today, Timeline, and circle settings."),
             .init("person.badge.key", "Lead or leave", "Leaders can rename the circle, change its photo and schedule, allow late sharing, regenerate codes, remove members, or transfer leadership. Circle settings also lets you leave. If a leader leaves, leadership passes to a remaining member; an empty circle is deleted."),

@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-09 durable invitations
+
+- App updates/relaunches no longer lose invite codes: the client keeps stable account/circle-isolated hints, verified against the current server hash on every load. New create/join/explicit-rotation transactions store a recoverable code in a private, non-exposed table for active-member-only lookup.
+- No existing circle is rotated. A valid known legacy code backfills its private record. Lost hash-only codes require an existing valid join link or one deliberate owner regeneration. Removed members/outsiders cannot recover codes; stale hints cannot overwrite the new code after rotation.
+- Cache relaunch/isolation tests and real-function transactional SQL checks pass for creation, recovery, old-code invalidation, owner-only rotation, member lookup, removal, and unchanged join dates. Hosted deployment remains pending.
+
 ## 2026-10-09 reuse retains media
 
 - Reuse preserves typed/voice/video format, audio, photo, video, thumbnail, and scripture. Capture previews the complete original blessing; responses remain on the original. Each repeat gets a new target prompt, submission time, and privacy gate.

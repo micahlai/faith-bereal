@@ -6,6 +6,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
     private let mediaBucket = "blessing-media"
     private let avatarBucket = "avatars"
     private let circlePhotoBucket = "circle-photos"
+    private let inviteCodeStore = CircleInviteCodeStore()
 
     init(client: SupabaseClient) {
         self.client = client
@@ -694,6 +695,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
     private func fetchCircle(id: UUID, inviteCode: String) async throws -> CircleGroup {
         let viewerID = try await client.auth.session.user.id
         let row: CircleRow = try await client.from("circles").select().eq("id", value: id).single().execute().value
+        let knownCode = inviteCode.isEmpty ? inviteCodeStore.code(accountID: viewerID, circleID: id) : inviteCode
+        let recoveredCode: String? = try await client.rpc(
+            "circle_invite_code",
+            params: CircleInviteCodeParams(circleID: id, knownCode: knownCode)
+        ).execute().value
+        inviteCodeStore.set(recoveredCode, accountID: viewerID, circleID: id)
         let membershipRows: [MembershipRow] = try await client
             .from("circle_members")
             .select()
@@ -717,7 +724,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return CircleGroup(
             id: row.id,
             name: row.name,
-            inviteCode: inviteCode,
+            inviteCode: recoveredCode ?? "",
             ownerID: row.ownerID,
             members: members,
             timeZoneIdentifier: row.timeZone,
@@ -951,6 +958,15 @@ private struct MembershipRow: Codable, Sendable {
         case joinedAt = "joined_at"
         case notifyOnCircleActivity = "notify_on_circle_activity"
         case notifyOnEndOfDay = "notify_on_end_of_day"
+    }
+}
+
+private struct CircleInviteCodeParams: Encodable, Sendable {
+    let circleID: UUID
+    let knownCode: String?
+    enum CodingKeys: String, CodingKey {
+        case circleID = "p_circle_id"
+        case knownCode = "p_known_code"
     }
 }
 

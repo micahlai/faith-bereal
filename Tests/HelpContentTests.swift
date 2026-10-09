@@ -48,6 +48,13 @@ final class HelpContentTests: XCTestCase {
         }
     }
 
+    func testCircleGuideExplainsStableCodesAndLegacyRecovery() {
+        let guide = HelpTopic.circles.steps.map(\.body).joined(separator: " ")
+        for concept in ["updates and relaunches", "only a leader's Regenerate", "saved join link", "regenerate once"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
+
     func testAccessibilityGuideExplainsAlternativesAndDoesNotOverclaimMediaSupport() {
         let guide = HelpTopic.accessibility.steps.map(\.body).joined(separator: " ")
         for concept in ["VoiceOver", "Voice Control", "List", "Reduce Motion", "Adjust photo", "start and end verse", "not yet available"] {
