@@ -17,7 +17,7 @@ begin
     insert into public.circle_members(circle_id,user_id,role,joined_at)
       values(v_circle.id,v_peer,'member',now()-interval '2 days'),(v_circle.id,v_second,'member',now()-interval '2 days');
     update public.daily_prompts set starts_at=now()-interval '1 minute',
-      ends_at=now()+case when v_kind='daily' then interval '9 minutes' else interval '299 minutes' end,state='open'
+      ends_at=now()+case when v_kind='daily' then interval '9 minutes' else interval '419 minutes' end,state='open'
       where circle_id=v_circle.id and kind::text=v_kind returning * into strict v_prompt;
     execute 'set local role authenticated';
     begin
@@ -44,7 +44,7 @@ begin
     assert not public.nudge_is_deliverable(v_event);
     update public.circle_members set removed_at=null where circle_id=v_circle.id and user_id=v_peer;
     -- Deadline checks cannot be bypassed by a sender's retained entry grant.
-    update public.daily_prompts set starts_at=now()-case when v_kind='daily' then interval '11 minutes' else interval '301 minutes' end,
+    update public.daily_prompts set starts_at=now()-case when v_kind='daily' then interval '11 minutes' else interval '421 minutes' end,
       ends_at=now()-interval '1 minute' where id=v_prompt.id;
     assert not public.nudge_is_deliverable(v_event);
     -- A newly joined recipient can post today outside the ordinary window,
@@ -64,10 +64,10 @@ begin
     if v_kind='daily' then assert public.nudge_is_deliverable(v_event);
     else assert not public.nudge_is_deliverable(v_event); end if;
     update public.daily_prompts set starts_at=now()+interval '1 minute',
-      ends_at=now()+case when v_kind='daily' then interval '11 minutes' else interval '301 minutes' end where id=v_prompt.id;
+      ends_at=now()+case when v_kind='daily' then interval '11 minutes' else interval '421 minutes' end where id=v_prompt.id;
     assert not public.nudge_is_deliverable(v_event);
     update public.daily_prompts set starts_at=now()-interval '1 minute',
-      ends_at=now()+case when v_kind='daily' then interval '9 minutes' else interval '299 minutes' end where id=v_prompt.id;
+      ends_at=now()+case when v_kind='daily' then interval '9 minutes' else interval '419 minutes' end where id=v_prompt.id;
     insert into public.daily_prompts(circle_id,local_date,starts_at,ends_at,response_window_minutes,kind,state)
       values(v_circle.id,v_prompt.local_date+1,now()-interval '30 seconds',now()+interval '570 seconds',10,'daily','open')
       returning id into v_next;

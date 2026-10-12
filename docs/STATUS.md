@@ -1,5 +1,10 @@
 # Project status
 
+## October 12 scheduled-start race
+
+- Welcome and evening entry use the authored notification start, not an elapsed scheduled target. Hosted prompt models preserve scheduled state; a delayed scheduler cannot open today's composer or prematurely close the welcome/evening prompt. First-day capture uses the same policy as timeline/server entry instead of an unconditional bypass.
+- Additional hosted/local regressions cover the scheduled-to-started transition. Customer Help explains that planned time and actual opening can differ.
+
 ## October 12 late Live Activity cutoff
 
 - Both local ActivityKit starts and remote start/update/end payloads use a circle-time-zone entry cutoff, with three-minute terminal dismissal. Server authorization rejects expired past-day entry even when an old Live Activity is still visible; existing capture grants remain valid.

@@ -239,6 +239,7 @@ final class AppModel {
               endOfDayPrompt.phase(at: date) == .open else { return false }
         if let prompt,
            prompt.kind == .daily,
+           prompt.notificationHasStarted != false,
            prompt.startsAt > endOfDayPrompt.startsAt,
            prompt.startsAt <= date {
             return false
@@ -251,9 +252,13 @@ final class AppModel {
         guard !isDebugPromptPreview else { return false }
 #endif
         guard let prompt, let circle, isCurrentPromptToday(at: date), !hasSubmittedToday else { return false }
-        if isFirstCircleDay(at: date) { return true }
+        if let member = circle.members.first(where: { $0.id == currentUser?.id }),
+           FirstDaySubmissionPolicy.isEligible(memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: date) {
+            return true
+        }
         let phase = prompt.phase(at: date)
-        return phase == .open || (phase == .closed && circle.allowsLateBlessings)
+        return phase == .open || (phase == .closed && circle.allowsLateBlessings
+            && prompt.occursOnCircleDay(at: date, timeZoneIdentifier: circle.timeZoneIdentifier))
     }
 
     var canSubmitCurrentPrompt: Bool {
@@ -1642,7 +1647,8 @@ final class AppModel {
                     timeZoneIdentifier: context.circle.timeZoneIdentifier
                 ) == true
 
-                if let prompt = context.prompt, currentPromptIsToday {
+                if let prompt = context.prompt, currentPromptIsToday,
+                   prompt.notificationHasStarted != false || prompt.startsAt > now {
                     let viewerHasSubmitted = circleLanes
                         .first(where: { $0.member.id == currentUser.id })?
                         .events

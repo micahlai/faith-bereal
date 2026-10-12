@@ -6,7 +6,9 @@ enum FirstDaySubmissionPolicy {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
         guard now >= memberJoinedAt, calendar.isDate(memberJoinedAt, inSameDayAs: now) else { return false }
-        if calendar.isDate(prompt.localDate, inSameDayAs: now) { return now >= prompt.startsAt }
+        if calendar.isDate(prompt.localDate, inSameDayAs: now) {
+            return prompt.notificationHasStarted != false && now >= prompt.startsAt
+        }
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
               calendar.isDate(prompt.localDate, inSameDayAs: yesterday),
               let cutoff = nextDailyStart ?? prompt.firstJoinEndsAt else { return false }
@@ -217,6 +219,8 @@ struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
     let endsAt: Date
     let kind: PromptKind
     var firstJoinEndsAt: Date? = nil
+    // Nil preserves date-driven local demos and older serialized data.
+    var notificationHasStarted: Bool? = nil
 
     init(
         id: UUID,
@@ -235,7 +239,7 @@ struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
     }
 
     func phase(at date: Date) -> PromptPhase {
-        if date < startsAt { return .scheduled }
+        if notificationHasStarted == false || date < startsAt { return .scheduled }
         if date < endsAt { return .open }
         return .closed
     }

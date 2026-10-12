@@ -20,6 +20,13 @@ begin
   assert public.prompt_accepts_entry(v_welcome,v_user,clock_timestamp());
   assert not public.prompt_accepts_entry(v_welcome,v_peer,clock_timestamp());
   assert not public.prompt_accepts_entry(v_today.id,v_user,clock_timestamp());
+  -- A scheduled target passing is not yet an authored notification start.
+  update public.daily_prompts set starts_at=v_start-interval '71 minutes',
+    ends_at=v_start-interval '61 minutes',state='scheduled' where id=v_today.id;
+  assert public.first_join_blessing_prompt(v_circle.id)=v_welcome;
+  assert public.prompt_accepts_entry(v_welcome,v_user,clock_timestamp());
+  assert not public.prompt_accepts_entry(v_today.id,v_user,clock_timestamp());
+  update public.daily_prompts set starts_at=v_start,ends_at=v_start+interval '10 minutes',state='open' where id=v_today.id;
   assert not public.prompt_accepts_entry(v_welcome,v_user,v_start);
   -- Join-day sharing opens for today's prompt only after its notification.
   assert public.prompt_accepts_entry(v_today.id,v_user,v_start+interval '11 minutes') =

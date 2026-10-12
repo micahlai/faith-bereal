@@ -940,7 +940,8 @@ private extension LocalBlessingRepository {
                let yesterday = circleCalendar.date(byAdding: .day, value: -1, to: circleCalendar.startOfDay(for: now)) {
                 var welcome = prompts.first { $0.circleID == circleID && $0.kind == .daily && circleCalendar.isDate($0.localDate, inSameDayAs: yesterday) }
                 if welcome == nil {
-                    let start = yesterday.addingTimeInterval(TimeInterval(circle.randomWindowStartMinutes * 60))
+                    let start = circleCalendar.date(bySettingHour: circle.randomWindowStartMinutes / 60,
+                        minute: circle.randomWindowStartMinutes % 60, second: 0, of: yesterday) ?? yesterday
                     welcome = DailyPrompt(id: UUID(), circleID: circleID, localDate: yesterday,
                         startsAt: start, endsAt: start.addingTimeInterval(circle.responseWindowDuration))
                     prompts.append(welcome!)

@@ -2,6 +2,18 @@ import XCTest
 @testable import BlessingCircle
 
 final class FirstJoinTimingTests: XCTestCase {
+    func testScheduledServerTargetDoesNotOpenFirstDayEarly() async throws {
+        let repo = LocalBlessingRepository(now: .now)
+        let bootstrap = try await repo.bootstrap()
+        let circle = try XCTUnwrap(bootstrap.circle)
+        var prompt = try XCTUnwrap(bootstrap.prompt)
+        prompt.notificationHasStarted = false
+        XCTAssertEqual(prompt.phase(at: prompt.endsAt.addingTimeInterval(1)), .scheduled)
+        XCTAssertFalse(FirstDaySubmissionPolicy.isEligible(memberJoinedAt: prompt.startsAt,
+            prompt: prompt, circle: circle, now: prompt.startsAt.addingTimeInterval(1)))
+        let decoded = try JSONDecoder().decode(DailyPrompt.self, from: JSONEncoder().encode(prompt))
+        XCTAssertEqual(decoded.notificationHasStarted, false)
+    }
     func testWelcomeTargetsYesterdayBeforeNotificationAndTodayAfterIt() async throws {
         let repo = LocalBlessingRepository(now: .now)
         let initial = try await repo.bootstrap()

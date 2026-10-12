@@ -791,11 +791,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
         if let welcomeID {
             let row: PromptRow = try await client.from("daily_prompts").select().eq("id", value: welcomeID).single().execute().value
             selectedDaily = prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
-            selectedDaily?.firstJoinEndsAt = dailyRow?.startsAt
+            selectedDaily?.firstJoinEndsAt = dailyRow?.state == "scheduled" ? .distantFuture : dailyRow?.startsAt
         }
         let scheduledEndRow = currentRows.first { $0.kind == .endOfDay }
         let activeEndRow = activeEndRows.first.flatMap { row -> PromptRow? in
             if let dailyRow,
+               dailyRow.state != "scheduled",
                dailyRow.startsAt > row.startsAt,
                dailyRow.startsAt <= now {
                 return nil
@@ -867,7 +868,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
     }
 
     private func prompt(from row: PromptRow, timeZoneIdentifier: String) -> DailyPrompt {
-        DailyPrompt(
+        var result = DailyPrompt(
             id: row.id,
             circleID: row.circleID,
             localDate: row.localDateValue(timeZoneIdentifier: timeZoneIdentifier),
@@ -875,6 +876,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             endsAt: row.endsAt,
             kind: row.kind
         )
+        result.notificationHasStarted = row.state.map { $0 != "scheduled" }
+        return result
     }
 
     private func member(from row: ProfileRow, joinedAt: Date) async throws -> Member {
@@ -1021,6 +1024,7 @@ private struct PromptRow: Codable, Sendable {
     let startsAt: Date
     let endsAt: Date
     let kind: PromptKind
+    let state: String?
 
     func localDateValue(timeZoneIdentifier: String) -> Date {
         CircleLocalDay.date(from: localDate, timeZoneIdentifier: timeZoneIdentifier) ?? startsAt
@@ -1032,7 +1036,7 @@ private struct PromptRow: Codable, Sendable {
         case localDate = "local_date"
         case startsAt = "starts_at"
         case endsAt = "ends_at"
-        case kind
+        case kind, state
     }
 }
 

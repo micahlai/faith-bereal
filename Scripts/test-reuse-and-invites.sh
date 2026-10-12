@@ -36,6 +36,7 @@ run_sql -f "$repo_root/supabase/migrations/202610070002_universal_circle_invites
   -f "$repo_root/supabase/migrations/202610120001_seven_hour_evening.sql" \
   -f "$repo_root/supabase/migrations/202610120002_first_join_and_daily_boundaries.sql" \
   -f "$repo_root/supabase/migrations/202610120003_live_activity_day_cutoff.sql" \
+  -f "$repo_root/supabase/migrations/202610120004_wait_for_dispatched_notification.sql" \
   -f "$repo_root/supabase/tests/reuse_blessing_media.sql" \
   -f "$repo_root/supabase/tests/durable_circle_invites.sql" \
   -f "$repo_root/supabase/tests/reuse_storage_visibility.sql" \

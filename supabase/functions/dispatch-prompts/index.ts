@@ -838,6 +838,7 @@ async function reconcileLateActivities(): Promise<void> {
     .select("circle_id, starts_at")
     .in("circle_id", circleIDs)
     .eq("kind", "daily")
+    .neq("state", "scheduled")
     .lte("starts_at", now.toISOString());
   if (startedPromptError) throw startedPromptError;
 

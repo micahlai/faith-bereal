@@ -85,6 +85,10 @@ begin
     v_circle.id, v_previous_date + 1, 'daily', v_at + interval '1 hour',
     v_at + interval '1 hour 10 minutes', 10
   ) returning * into v_next_daily;
+  if not public.prompt_accepts_entry(v_evening.id, v_peer, v_next_daily.starts_at) then
+    raise exception 'an unclaimed scheduled target must not close evening entry';
+  end if;
+  update public.daily_prompts set state='open' where id=v_next_daily.id;
   if public.prompt_accepts_entry(v_evening.id, v_peer, v_next_daily.starts_at) then
     raise exception 'next daily prompt must close evening entry early';
   end if;
