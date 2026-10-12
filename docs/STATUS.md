@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-12 verification and deployment
+
+- All 138 app/domain tests pass in the local simulator backend. Four focused simulator UI tests pass together: six-step setup/profile editing and Back navigation, Help navigation, text/voice-only photo attachment, and Today bottom-scroll stability. The first Help batch attached to a pre-existing onboarding instance; explicit termination/isolation fixed the test launch, and its standalone and combined reruns pass. This is not a full UI-suite or physical-device acceptance pass.
+- The hosted-configured Release device build succeeds. The app and widget/Live Activity extension have the same signed App Group. Automatic local signing uses development APNs and `get-task-allow=true`; this build is not a distribution-exported TestFlight IPA. No phone installation or TestFlight upload was performed.
+- Disposable PostgreSQL regressions, hosted rollback-only welcome/evening/nudge/reuse/invite/character-limit checks, both notification payload contracts, and dispatcher type checking pass. Hosted migrations `202610120001`–`202610120004` and `dispatch-prompts` version 20 are deployed; the once-per-minute scheduler remains active. Test users, posts, and notification events roll back.
+- `MEDIA_RETENTION_ENABLED` is still false (its metadata digest matches false); the media deletion queue is empty. Cleanup was not enabled. Physical microphone pause/resume, route changes, actual affected-device widgets, and APNs/Live Activity presentation remain release acceptance tasks for a new client build.
+
 ## October 12 scheduled-start race
 
 - Welcome and evening entry use the authored notification start, not an elapsed scheduled target. Hosted prompt models preserve scheduled state; a delayed scheduler cannot open today's composer or prematurely close the welcome/evening prompt. First-day capture uses the same policy as timeline/server entry instead of an unconditional bypass.
@@ -8,7 +15,7 @@
 ## October 12 late Live Activity cutoff
 
 - Both local ActivityKit starts and remote start/update/end payloads use a circle-time-zone entry cutoff, with three-minute terminal dismissal. Server authorization rejects expired past-day entry even when an old Live Activity is still visible; existing capture grants remain valid.
-- DST and cross-midnight deadline tests cover the cutoff. Migration and dispatcher deployment pending; real APNs/lock-screen lifecycle needs device confirmation.
+- DST and cross-midnight deadline tests cover the cutoff. Migration and dispatcher are deployed; real APNs/lock-screen lifecycle needs device confirmation.
 
 ## October 12 widget reliability
 
@@ -18,7 +25,7 @@
 
 ## 2026-10-12 notification-aware welcome blessing
 
-- The server materializes/selects yesterday's welcome prompt for same-day joiners before today's notification start; afterward the current-day prompt is used. Welcome entry respects the circle's calendar, ends at today's start or local midnight, and entry grants preserve the original day through later submission. Timeline includes an actual welcome post even when its prompt date precedes the membership marker. Migration prepared, not deployed yet.
+- The server materializes/selects yesterday's welcome prompt for same-day joiners before today's notification start; afterward the current-day prompt is used. Welcome entry respects the circle's calendar, ends at today's start or local midnight, and entry grants preserve the original day through later submission. Timeline includes an actual welcome post even when its prompt date precedes the membership marker. Migration deployed and verified with rollback-only hosted tests.
 - Ordinary daily late entry and nudges cannot bypass the circle-day boundary through a stale Live Activity link; timely capture grants remain valid. Tests cover calendar/DST, welcome date, and timeline preservation.
 
 ## 2026-10-12 segmented voice and build-27 crash
@@ -28,7 +35,7 @@
 
 ## 2026-10-12 seven-hour evening entry
 
-- Evening entry lasts seven hours after the server notification start, still closing at the next random blessing if earlier. Existing evening rows and all scheduling/settings/force paths are extended without sending reminders again; already granted compositions can still finish later. Migration prepared, not yet deployed.
+- Evening entry lasts seven hours after the server notification start, still closing at the next random blessing if earlier. Existing evening rows and all scheduling/settings/force paths are extended without sending reminders again; already granted compositions can still finish later. Migration deployed and verified with rollback-only hosted tests.
 
 ## 2026-10-12 account presentation
 
