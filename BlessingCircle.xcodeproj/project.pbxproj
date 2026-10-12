@@ -44,6 +44,7 @@
 		7132C0DDB1D8DBDADBCE56E9 /* AccessibilityContrastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99814B5F1C5233312C8DA5B6 /* AccessibilityContrastTests.swift */; };
 		75E13967995B0BFF55A18ED9 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E10C692366BEAE2B09BBC9 /* SignInView.swift */; };
 		76D913FC848A66CB5A1A94BB /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94735A84240AC2C5107135A1 /* RootView.swift */; };
+		7D0484D7771706EC58685B0B /* VoiceSegmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BCA4A0CE51E47E56D58A31 /* VoiceSegmentTests.swift */; };
 		7D1922CBB7AFE9B86E780EA9 /* CircleTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF399AB3F16CF08C2399F2DF /* CircleTimelineView.swift */; };
 		7E1765298C6CA709BA9137B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F427655A14AD33666A73755E /* Assets.xcassets */; };
 		821381643ABA5544F55B82B0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C99F6499C089B93C6E1D931 /* AppModel.swift */; };
@@ -81,6 +82,7 @@
 		EFCA7F88CB4A1A2EE39D4587 /* SavedBlessingButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D6E72576B35390AF97F762 /* SavedBlessingButton.swift */; };
 		EFE5536CCC884FDACDAAB6D4 /* BlessingCircleLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D367DB457633302CD1502DA5 /* BlessingCircleLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F58EC1B9E3233BD4F529E454 /* SupabaseBlessingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */; };
+		F851153545AC5BD0D9BB08F1 /* VoiceSegmentAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18988110A12F33A7D20CA01C /* VoiceSegmentAssembler.swift */; };
 		F9431471BF1E7B8237849A57 /* NotificationBrandPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73F45A4D730D17D2CC8CD2C /* NotificationBrandPreference.swift */; };
 		FE33A4AF6BA736FDEA701CAD /* BlessingCircleNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -139,6 +141,7 @@
 		0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleHomeWidget.swift; sourceTree = "<group>"; };
 		1264492C64A180326D793D6F /* BlessingCircleTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		16B2B67B866D8C3A3B56F2CC /* CaptureMediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureMediaStore.swift; sourceTree = "<group>"; };
+		18988110A12F33A7D20CA01C /* VoiceSegmentAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSegmentAssembler.swift; sourceTree = "<group>"; };
 		1FE1E96A8B750FE5D5288B08 /* NudgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NudgeTests.swift; sourceTree = "<group>"; };
 		218B05F8EA26894C0DB33863 /* MannaWordmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MannaWordmark.swift; sourceTree = "<group>"; };
 		234411076A53B6836F09CC17 /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
@@ -178,6 +181,7 @@
 		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		99814B5F1C5233312C8DA5B6 /* AccessibilityContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityContrastTests.swift; sourceTree = "<group>"; };
 		9B3E4874B243777BC76DCF12 /* BlessingCircleUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BlessingCircleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0BCA4A0CE51E47E56D58A31 /* VoiceSegmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSegmentTests.swift; sourceTree = "<group>"; };
 		A1EB26D27CEA4995251377D7 /* DebugPromptProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugPromptProviding.swift; sourceTree = "<group>"; };
 		A3B54FD856357048FCAA7C4C /* CircleInviteLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleInviteLink.swift; sourceTree = "<group>"; };
 		A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainRulesTests.swift; sourceTree = "<group>"; };
@@ -310,6 +314,7 @@
 				234411076A53B6836F09CC17 /* CaptureView.swift */,
 				0892DC6E7C01070219AD240A /* SpeechTranscriber.swift */,
 				7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */,
+				18988110A12F33A7D20CA01C /* VoiceSegmentAssembler.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -419,6 +424,7 @@
 				1FE1E96A8B750FE5D5288B08 /* NudgeTests.swift */,
 				07AEE8D99BCD1C8A2BD200BD /* ReuseAndTimelineTests.swift */,
 				FD439211361E73A41C0DBFC4 /* SavedBlessingStoreTests.swift */,
+				A0BCA4A0CE51E47E56D58A31 /* VoiceSegmentTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -736,6 +742,7 @@
 				4E665A7D8F1569A31C1301AC /* TimelineStatusPolicy.swift in Sources */,
 				13622CFB23BD69B5E99BEC74 /* TodayView.swift in Sources */,
 				8704FD748616E0FDC60A6B02 /* VideoCaptureView.swift in Sources */,
+				F851153545AC5BD0D9BB08F1 /* VoiceSegmentAssembler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -752,6 +759,7 @@
 				854A6BF83625BA54E0B2653E /* NudgeTests.swift in Sources */,
 				976F454EDCEFAAF053832CB1 /* ReuseAndTimelineTests.swift in Sources */,
 				12D1919663FA81AF93F1F266 /* SavedBlessingStoreTests.swift in Sources */,
+				7D0484D7771706EC58685B0B /* VoiceSegmentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

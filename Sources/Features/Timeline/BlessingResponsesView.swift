@@ -34,8 +34,7 @@ struct BlessingResponsesView: View {
         }
         .onChange(of: composerFocused) { _, isFocused in
             guard isFocused, transcriber.state != .listening else { return }
-            mode = .typed
-            if transcriber.recordingURL != nil { transcriber.reset() }
+            if transcriber.recordingURL == nil { mode = .typed }
         }
         .onDisappear { transcriber.stop() }
     }
@@ -63,7 +62,7 @@ struct BlessingResponsesView: View {
                     Button {
                         mode = .voice
                         composerFocused = false
-                        Task { await transcriber.toggle() }
+                        Task { await transcriber.toggle(existingTranscript: text) }
                     } label: {
                         Image(systemName: transcriber.state == .listening ? "stop.fill" : "waveform")
                             .font(.headline)
@@ -74,7 +73,8 @@ struct BlessingResponsesView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(transcriber.state == .listening ? "Stop voice response" : "Record voice response")
+                    .disabled(transcriber.state == .requestingPermission || transcriber.state == .finishing)
+                    .accessibilityLabel(transcriber.state == .listening ? "Pause voice response" : (transcriber.recordingURL == nil ? "Record voice response" : "Continue voice response"))
 
                     TextField("Response", text: $text, axis: .vertical)
                         .focused($composerFocused)
@@ -163,15 +163,16 @@ struct BlessingResponsesView: View {
 
     private var canSend: Bool {
         let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard transcriber.state != .finishing, transcriber.state != .requestingPermission else { return false }
         if mode == .typed { return hasText }
         return hasText && transcriber.recordingURL != nil && transcriber.state != .listening
     }
 
     private func send() {
-        transcriber.stop()
-        let audioURL = mode == .voice ? transcriber.recordingURL : nil
         isSending = true
         Task {
+            let recording = await transcriber.finishRecording()
+            let audioURL = mode == .voice ? recording : nil
             if let response = await model.submitResponse(
                 to: blessing,
                 mode: mode,

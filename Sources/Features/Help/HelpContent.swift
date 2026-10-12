@@ -53,6 +53,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
     var steps: [HelpStep] {
         switch self {
         case .sharing: [
+            .init("waveform", "Pause and continue", "Voice blessings and voice responses can be recorded in segments: pause, listen, then Continue recording to add more. Your existing words and audio are kept and combined before sending. Editing the transcript does not discard the audio. Start over on a blessing clears its recording. Wait for combining to finish before sending."),
             .init("bell", "Wait for your circle", "Your circle gets one random daily invitation within the time range and time zone its leader chooses. Everyone in that circle gets the same start time."),
             .init("door.left.hand.open", "Open before the deadline", "The timer controls when you can enter the composer, not when you must finish. Once inside, you can send afterward—even past midnight—and the blessing stays on the original day. On your first day in a circle, you can share the daily blessing anytime that day."),
             .init("mic", "Choose your format", "Type, record your voice, or take a video. Blessing text and voice/video transcripts allow up to 1,200 characters, including when editing. The counter includes the parts of combined emoji and accented characters. Responses still allow 600 characters. Text and voice can also include a photo. Check microphone, speech, and camera access in Settings if recording is unavailable."),

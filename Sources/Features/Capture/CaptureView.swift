@@ -343,16 +343,21 @@ struct CaptureView: View {
                         }
                 }
                 Button {
-                    Task { await transcriber.toggle() }
+                    Task { await transcriber.toggle(existingTranscript: text) }
                 } label: {
                     Label(
-                        transcriber.state == .listening ? "Stop listening" : "Start listening",
+                        transcriber.state == .listening ? "Pause recording" : (transcriber.recordingURL == nil ? "Start listening" : "Continue recording"),
                         systemImage: transcriber.state == .listening ? "stop.fill" : "waveform"
                     )
                     .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .disabled(transcriber.state == .requestingPermission || transcriber.state == .finishing)
+                if transcriber.recordingURL != nil {
+                    Button("Start over", role: .destructive) { transcriber.reset(); text = "" }
+                        .frame(minHeight: 44).disabled(transcriber.state == .finishing)
+                }
             }
         case .video:
             VStack(spacing: 18) {
@@ -443,6 +448,7 @@ struct CaptureView: View {
         switch transcriber.state {
         case .idle: "Tap Start listening, then speak naturally."
         case .requestingPermission: "Requesting microphone and speech access…"
+        case .finishing: "Combining your recording segments…"
         case .listening: "Listening… tap Stop listening when you’re done."
         case .denied: "Speech access is off. Enable it in Settings or choose Type."
         case let .failed(message): message
@@ -452,7 +458,7 @@ struct CaptureView: View {
     private var sendButton: some View {
         Button {
             Task {
-                transcriber.stop()
+                let audio = await transcriber.finishRecording()
                 let succeeded: Bool
                 if let repeatSource {
                     succeeded = await model.repeatBlessing(repeatSource)
@@ -460,7 +466,7 @@ struct CaptureView: View {
                     succeeded = await model.submit(
                         mode: mode,
                         body: text,
-                        audioURL: mode == .voice ? transcriber.recordingURL : nil,
+                        audioURL: mode == .voice ? audio : nil,
                         videoURL: videoURL,
                         photoURL: mode == .video ? nil : photoURL,
                         scriptureReference: scriptureReference
@@ -484,6 +490,7 @@ struct CaptureView: View {
         .tint(AppTheme.actionFill)
         .controlSize(.large)
         .disabled(model.isSubmitting || !canSubmit)
+        .disabled(transcriber.state == .finishing || transcriber.state == .requestingPermission)
     }
 
     private var canSubmit: Bool {

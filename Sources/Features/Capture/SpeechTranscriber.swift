@@ -59,6 +59,7 @@ final class SpeechTranscriber: NSObject {
         case idle
         case requestingPermission
         case listening
+        case finishing
         case denied
         case failed(String)
     }
@@ -67,7 +68,13 @@ final class SpeechTranscriber: NSObject {
     var state: State = .idle
     private(set) var recordingURL: URL?
 
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine = AVAudioEngine()
+    private static weak var activeRecorder: SpeechTranscriber?
+    private var segments: [URL] = []
+    private var transcriptPrefix = ""
+    private var permissionID: UUID?
+    private var assemblyTask: Task<Void, Never>?
+    private var assemblyID: UUID?
     private let recognizer = SFSpeechRecognizer(locale: .current)
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -77,15 +84,19 @@ final class SpeechTranscriber: NSObject {
     private var fileContinuation: CheckedContinuation<String?, Never>?
     private var recognitionSessionID: UUID?
 
-    func toggle() async {
+    func toggle(existingTranscript: String? = nil) async {
+        guard state != .requestingPermission, state != .finishing else { return }
         if state == .listening {
             stop()
         } else {
+            if let existingTranscript { transcript = existingTranscript }
             await requestPermissionAndStart()
         }
     }
 
     func stop() {
+        permissionID = nil
+        let wasListening = state == .listening
         let capturedURL = recordingURL
         let recordingWriteFailed = tapSink?.hasWriteFailure() == true
         recognitionSessionID = nil
@@ -101,18 +112,51 @@ final class SpeechTranscriber: NSObject {
         tapSink = nil
         recordedAudioFile = nil
         deactivateAudioSession()
+        if Self.activeRecorder === self { Self.activeRecorder = nil }
         if recordingWriteFailed || capturedURL.map(Self.isEmptyRecording) == true {
             recordingURL = nil
             state = .failed("The microphone started, but the recording could not be saved. Please try again.")
         } else {
-            state = .idle
+            if wasListening, let capturedURL { segments.append(capturedURL) }
+            if state != .finishing { state = .idle }
+            if wasListening, segments.count > 1 { assembleSegments() }
+        }
+    }
+
+    func finishRecording() async -> URL? {
+        stop()
+        await assemblyTask?.value
+        return recordingURL
+    }
+
+    private func assembleSegments() {
+        let id = UUID()
+        assemblyID = id
+        let input = segments
+        state = .finishing
+        assemblyTask = Task { [weak self] in
+            do {
+                let url = try await VoiceSegmentAssembler.combine(input)
+                guard let self, self.assemblyID == id, !Task.isCancelled else { return }
+                self.recordingURL = url
+                self.state = .idle
+            } catch {
+                guard let self, self.assemblyID == id, !Task.isCancelled else { return }
+                self.recordingURL = nil
+                self.state = .failed("Couldn’t combine your recording. Try again or start over.")
+            }
         }
     }
 
     func reset() {
         stop()
+        assemblyTask?.cancel()
+        assemblyID = nil
+        segments = []
+        transcriptPrefix = ""
         transcript = ""
         recordingURL = nil
+        state = .idle
     }
 
     func transcribeVideo(at url: URL) async -> String? {
@@ -139,9 +183,12 @@ final class SpeechTranscriber: NSObject {
     }
 
     private func requestPermissionAndStart() async {
+        let id = UUID()
+        permissionID = id
         state = .requestingPermission
         let speechStatus = await MediaAuthorization.requestSpeechRecognitionAccess()
         let microphoneAllowed = await AVAudioApplication.requestRecordPermission()
+        guard permissionID == id, state == .requestingPermission else { return }
         guard speechStatus == .authorized, microphoneAllowed else {
             state = .denied
             return
@@ -151,7 +198,12 @@ final class SpeechTranscriber: NSObject {
 
     private func start() async {
         stop()
-        transcript = ""
+        Self.activeRecorder?.stop()
+        Self.activeRecorder = self
+        transcriptPrefix = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A stopped engine can retain a poisoned hardware graph after route changes.
+        // Every segment owns a fresh engine and at most one input tap.
+        audioEngine = AVAudioEngine()
         guard let recognizer, recognizer.isAvailable else {
             state = .failed("Speech recognition is temporarily unavailable.")
             return
@@ -201,7 +253,7 @@ final class SpeechTranscriber: NSObject {
         input.installTap(
             onBus: 0,
             bufferSize: 1024,
-            format: format,
+            format: nil,
             block: SpeechCallbackFactory.makeAudioTap(sink: tapSink)
         )
         hasInputTap = true
@@ -233,7 +285,7 @@ final class SpeechTranscriber: NSObject {
                 guard let self else { return }
                 guard self.recognitionSessionID == sessionID else { return }
                 if let transcript {
-                    self.transcript = transcript
+                    self.transcript = [self.transcriptPrefix, transcript].filter { !$0.isEmpty }.joined(separator: " ")
                 }
                 if let errorMessage {
                     self.stop()

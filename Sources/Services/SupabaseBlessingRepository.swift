@@ -209,8 +209,9 @@ actor SupabaseBlessingRepository: BlessingRepository {
             userID: authorID
         )
         if let audioURL {
-            audioPath = "\(basePath)/voice-\(UUID().uuidString.lowercased()).caf"
-            try await upload(fileURL: audioURL, path: audioPath!, contentType: "audio/x-caf")
+            let fileExtension = audioURL.pathExtension.lowercased() == "m4a" ? "m4a" : "caf"
+            audioPath = "\(basePath)/voice-\(UUID().uuidString.lowercased()).\(fileExtension)"
+            try await upload(fileURL: audioURL, path: audioPath!, contentType: fileExtension == "m4a" ? "audio/mp4" : "audio/x-caf")
         }
         if let videoURL {
             videoPath = "\(basePath)/video-\(UUID().uuidString.lowercased()).mov"
@@ -611,8 +612,9 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 promptID: blessingRow.promptID,
                 userID: authorID
             )
-            audioPath = "\(basePath)/responses/\(blessingID.uuidString.lowercased())/\(UUID().uuidString.lowercased()).caf"
-            try await upload(fileURL: audioURL, path: audioPath!, contentType: "audio/x-caf")
+            let fileExtension = audioURL.pathExtension.lowercased() == "m4a" ? "m4a" : "caf"
+            audioPath = "\(basePath)/responses/\(blessingID.uuidString.lowercased())/\(UUID().uuidString.lowercased()).\(fileExtension)"
+            try await upload(fileURL: audioURL, path: audioPath!, contentType: fileExtension == "m4a" ? "audio/mp4" : "audio/x-caf")
         }
         let row: ResponseRow = try await client.rpc(
             "submit_blessing_response",

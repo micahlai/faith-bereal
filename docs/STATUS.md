@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-12 segmented voice and build-27 crash
+
+- The supplied build-27 crash aborts in AVAudioEngine InstallTapOnNode from SpeechTranscriber.start. Every segment now creates a fresh engine, uses the hardware tap format, guards pending permission requests, and serializes recorder ownership across blessing/response composers. Physical route-change verification remains required.
+- Pause/continue retains edited transcript and prior segments, merging into one M4A for playback/upload; CAF single segments remain compatible. Both upload paths send the matching audio MIME type. Sending is gated while merging; failed merges never silently send only the final segment. Synthetic different-sample-rate merge and reset regressions added.
+
 ## 2026-10-12 seven-hour evening entry
 
 - Evening entry lasts seven hours after the server notification start, still closing at the next random blessing if earlier. Existing evening rows and all scheduling/settings/force paths are extended without sending reminders again; already granted compositions can still finish later. Migration prepared, not yet deployed.
