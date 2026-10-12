@@ -147,16 +147,21 @@ final class BlessingCircleUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Step 1 of 5"].exists)
+        XCTAssertTrue(app.staticTexts["Step 1 of 6"].exists)
         XCTAssertTrue(app.staticTexts["circle"].exists)
         app.buttons["Continue"].tap()
 
-        XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Your profile"].waitForExistence(timeout: 3))
+        app.buttons["Edit name and photo"].tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].tap()
         XCTAssertTrue(app.buttons["Back"].exists)
         app.buttons["Back"].tap()
         XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 3))
 
         app.buttons["Continue"].tap()
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.navigationBars["App icon"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["onboarding-icon-automatic"].exists)

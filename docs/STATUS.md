@@ -2,6 +2,8 @@
 
 ## 2026-10-12 account presentation
 
+- New-account setup includes Your profile after Welcome, using the same native profile editor and square photo crop as User settings. Continue can keep the current profile; Apple does not provide a photo.
+
 - Sign-in uses the adaptive manna wordmark and lighter circle heading. Sign out is available only in User settings, including accounts without a circle. Customer Help follows the new location. Combined build/UI verification follows the remaining changes below.
 
 ## 2026-10-09 gentle circle nudges

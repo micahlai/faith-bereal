@@ -149,6 +149,7 @@ private struct AboutPageContent: View {
 
 private enum StartupOnboardingPage: Int, CaseIterable {
     case about
+    case profile
     case appearance
     case appIcon
     case saving
@@ -157,6 +158,7 @@ private enum StartupOnboardingPage: Int, CaseIterable {
     var title: String {
         switch self {
         case .about: "Welcome"
+        case .profile: "Your profile"
         case .appearance: "Appearance"
         case .appIcon: "App icon"
         case .saving: "Local saving"
@@ -171,6 +173,7 @@ private struct StartupOnboardingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: StartupOnboardingPage
+    @State private var showingProfileEditor = false
     let onFinished: () -> Void
 
     init(initialPage: StartupOnboardingPage, onFinished: @escaping () -> Void) {
@@ -200,6 +203,11 @@ private struct StartupOnboardingView: View {
             .navigationTitle(page.title)
             .navigationBarTitleDisplayMode(.inline)
         }
+        .sheet(isPresented: $showingProfileEditor) {
+            if let user = model.currentUser {
+                ProfileEditorView(user: user, isPresented: $showingProfileEditor)
+            }
+        }
     }
 
     @ViewBuilder
@@ -207,6 +215,20 @@ private struct StartupOnboardingView: View {
         switch page {
         case .about:
             AboutPageContent()
+        case .profile:
+            VStack(alignment: .leading, spacing: 24) {
+                onboardingHeading("Let your circle recognize you", "Review your name and choose an optional profile photo. You can change both later in User settings.")
+                if let user = model.currentUser {
+                    HStack(spacing: 16) {
+                        AvatarBadge(member: user, size: 80)
+                        Text(user.displayName).font(.title2)
+                    }
+                    Button("Edit name and photo") { showingProfileEditor = true }
+                        .buttonStyle(.bordered).frame(minHeight: 44)
+                }
+                Text("Sign in with Apple can supply your name, but does not supply a profile photo.")
+                    .font(.subheadline).foregroundStyle(AppTheme.secondaryInk)
+            }
         case .appearance:
             AppearanceOnboardingPage(selection: appearancePreference)
         case .appIcon:

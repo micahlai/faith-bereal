@@ -2,6 +2,11 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testProfileSetupGuideExplainsOptionalPhoto() {
+        let guide = HelpTopic.personalization.steps.map(\.body).joined(separator: " ")
+        XCTAssertTrue(guide.contains("Your profile step"))
+        XCTAssertTrue(guide.contains("Continue keeps your current profile"))
+    }
     func testAccountGuideLocatesSignOutOnlyInSettings() {
         let guide = HelpTopic.personalization.steps.map(\.body).joined(separator: " ")
         XCTAssertTrue(guide.contains("User settings"))
