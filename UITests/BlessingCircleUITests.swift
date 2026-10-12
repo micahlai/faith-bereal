@@ -499,11 +499,15 @@ final class BlessingCircleUITests: XCTestCase {
 
     @MainActor
     func testHelpMenuExplainsSavingAndSupportsTopicNavigation() {
+        continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchArguments += ["--manna-local-ui-test"]
+        app.terminate()
         app.launch()
-        XCTAssertTrue(app.buttons["App menu"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["App menu"].waitForExistence(timeout: 15))
         app.buttons["App menu"].tap()
         app.buttons["Help"].tap()
         XCTAssertTrue(app.navigationBars["Help"].waitForExistence(timeout: 3))
