@@ -43,6 +43,8 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### User settings
 
+- Sign-in uses the manna wordmark. Sign out is located only in User settings, not the global menu or Circle page.
+
 - First launch is a reversible five-step flow: About, Appearance, App Icon, Local Saving, and Widget. Every step after the first provides Back and Continue controls. App-icon choices use the real cream and midnight artwork in equal one-column cards, and the widget page briefly explains both prompt and rotating-blessing states plus Apple's Home Screen installation steps. Accounts which completed the older setup are asked only for the new local-saving choice and widget reminder.
 - A global hamburger menu opens user settings and circle management from every primary tab.
 - Bible translation is an account-wide preference in user settings, not a circle setting.

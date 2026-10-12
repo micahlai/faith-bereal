@@ -2,6 +2,11 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testAccountGuideLocatesSignOutOnlyInSettings() {
+        let guide = HelpTopic.personalization.steps.map(\.body).joined(separator: " ")
+        XCTAssertTrue(guide.contains("User settings"))
+        XCTAssertTrue(guide.contains("not in the app menu or Circle page"))
+    }
     func testEveryTopicHasDistinctTitleAndIllustratedPlainLanguageSteps() {
         XCTAssertEqual(Set(HelpTopic.allCases.map(\.title)).count, HelpTopic.allCases.count)
         for topic in HelpTopic.allCases {

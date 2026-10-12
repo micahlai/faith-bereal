@@ -185,13 +185,6 @@ struct CircleView: View {
                     .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
             }
             .buttonStyle(.bordered)
-            if model.usesAuthentication {
-                Button("Sign out", role: .destructive) {
-                    Task { await model.signOut() }
-                }
-                .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
-                .buttonStyle(.bordered)
-            }
         }
     }
 

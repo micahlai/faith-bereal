@@ -102,6 +102,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             .init("gearshape", "Control the experience", "Choose the widget refresh interval in User settings, default 30 minutes. iOS controls exact refresh and delivery timing. If alerts or Live Activities are missing, check their permissions in iPhone Settings."),
         ]
         case .personalization: [
+            .init("person.crop.circle.badge.checkmark", "Your account", "The sign-in screen shows the manna logo. To sign out, open User settings and scroll to Sign out; it is not in the app menu or Circle page."),
             .init("person.crop.circle", "Your profile", "Use User settings to change your name and profile photo. Profile and circle photos use a circular preview; pinch and drag together to crop, or use Adjust photo to zoom and move without gestures. VoiceOver also offers crop actions. The uploaded image is square."),
             .init("circle.lefthalf.filled", "Light, dark, or automatic", "Choose appearance in User settings. Automatic follows your device. Colors keep text readable in both appearances. Choose your app icon separately; the logo artwork is also used in manna's branded surfaces."),
             .init("line.3.horizontal", "Find your way back", "The hamburger menu keeps Help, About, User settings, and circle management within reach. You can revisit this guide whenever you need it."),

@@ -633,12 +633,6 @@ private struct GlobalAppToolbar: ToolbarContent {
                     Label("Manage circles", systemImage: "person.3")
                 }
 
-                if model.usesAuthentication {
-                    Divider()
-                    Button("Sign out", role: .destructive) {
-                        Task { await model.signOut() }
-                    }
-                }
             } label: {
                 Image(systemName: "line.3.horizontal")
                     .frame(minWidth: 44, minHeight: 44)
@@ -850,6 +844,18 @@ private struct UserSettingsView: View {
                     Text("Home Screen Widget")
                 } footer: {
                     Text("Blessings rotate at about this interval when no circle is waiting for your response. iOS may refresh less often to preserve battery life.")
+                }
+
+                if model.usesAuthentication {
+                    Section {
+                        Button("Sign out", role: .destructive) {
+                            Task {
+                                await model.signOut()
+                                if model.currentUser == nil { isPresented = false }
+                            }
+                        }
+                        .frame(minHeight: 44)
+                    }
                 }
 
             }

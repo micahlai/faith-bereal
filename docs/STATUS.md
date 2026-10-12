@@ -1,5 +1,9 @@
 # Project status
 
+## 2026-10-12 account presentation
+
+- Sign-in uses the adaptive manna wordmark and lighter circle heading. Sign out is available only in User settings, including accounts without a circle. Customer Help follows the new location. Combined build/UI verification follows the remaining changes below.
+
 ## 2026-10-09 gentle circle nudges
 
 - Today exposes named Nudge controls only after the viewer submits for that exact random/end-of-day prompt, for current members who have not shared and can still enter. First-day exceptions and retained entry grants never open nudges before the prompt starts or after the evening/no-late cutoff.
