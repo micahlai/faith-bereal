@@ -61,7 +61,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         ]
         case .evening: [
             .init("moon.stars", "A separate invitation", "The circle leader chooses the end-of-day time, default 10 p.m. in the circle's time zone. It cannot be earlier than the end of the random-time range."),
-            .init("plus", "Share from Today", "An end-of-day button appears above the feed, without a countdown or Live Activity. Entry closes after five hours or when the next day's random blessing starts, whichever comes first."),
+            .init("plus", "Share from Today", "An end-of-day button appears above the feed, without a countdown or Live Activity. Entry closes after seven hours or when the next day's random blessing starts, whichever comes first."),
             .init("lock.open", "Unlock evening stories", "You must send an end-of-day blessing to see others' evening blessings. Sending the random daily blessing does not unlock them. The two types share the feed, but have separate sharing gates."),
         ]
         case .circles: [

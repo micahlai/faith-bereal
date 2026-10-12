@@ -45,7 +45,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 - Sign-in uses the manna wordmark. Sign out is located only in User settings, not the global menu or Circle page.
 
-- First launch is a reversible five-step flow: About, Appearance, App Icon, Local Saving, and Widget. Every step after the first provides Back and Continue controls. App-icon choices use the real cream and midnight artwork in equal one-column cards, and the widget page briefly explains both prompt and rotating-blessing states plus Apple's Home Screen installation steps. Accounts which completed the older setup are asked only for the new local-saving choice and widget reminder.
+- First launch is a reversible six-step flow: About, Your Profile, Appearance, App Icon, Local Saving, and Widget. Every step after the first provides Back and Continue controls. App-icon choices use the real cream and midnight artwork in equal one-column cards, and the widget page briefly explains both prompt and rotating-blessing states plus Apple's Home Screen installation steps. Accounts which completed the older setup are asked only for the new local-saving choice and widget reminder.
 - A global hamburger menu opens user settings and circle management from every primary tab.
 - Bible translation is an account-wide preference in user settings, not a circle setting.
 - Appearance is an account-wide preference with system, light, and dark choices.
@@ -68,7 +68,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 - Every circle has a second, independent end-of-day prompt, defaulting to 22:00 in the circle time zone and never scheduled before the daily random range ends.
 - It sends one ordinary push notification to members who enabled that circle's end-of-day reminder. It never starts a Live Activity and Today presents no countdown.
-- Entry opens at the configured time and closes after five hours or when the next daily random prompt starts, whichever happens first. A member who enters while open retains the same server entry grant as the daily capture flow and may finish afterward.
+- Entry opens at the configured time and closes after seven hours or when the next daily random prompt starts, whichever happens first. A member who enters while open retains the same server entry grant as the daily capture flow and may finish afterward.
 - Its privacy gate is independent: submitting the random daily blessing does not reveal peer end-of-day blessings, and vice versa.
 - End-of-day blessings use the same capture, edit, scripture, media, response, and notification behavior as other blessings. Today mixes visible blessings by recency. Timeline renders the end-of-day event above the random event inside the same member/day cell.
 
@@ -86,7 +86,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Circle activity notifications
 
-- After submitting for a prompt, a current member may nudge another current member who has not shared for that exact prompt. Today exposes this only after the prompt starts, while entry is open or daily late sharing remains available. End-of-day nudges close at five hours or the next daily start. Entry grants and the first-day exception never extend nudge eligibility before start/after close.
+- After submitting for a prompt, a current member may nudge another current member who has not shared for that exact prompt. Today exposes this only after the prompt starts, while entry is open or daily late sharing remains available. End-of-day nudges close at seven hours or the next daily start. Entry grants and the first-day exception never extend nudge eligibility before start/after close.
 - A recipient gets at most one nudge per prompt across the entire circle, enforced transactionally. The ordinary circle activity switch controls nudges. The dispatcher rechecks sender/recipient membership, the entry window, recipient submission, and preferences before sending a regular notification (no Live Activity), with the sender's avatar and no blessing content/media. The notification routes to the exact prompt's Today composer.
 
 - A new blessing notifies enabled members other than its author. Before the recipient shares for that prompt, the body is exactly “`[name] has shared a blessing. share yours to see`” and routes to Today; afterward it is “`[name] - [blessing text/transcript]`” and routes to the blessing. A tagged scripture reference appears on the next line without scripture text.

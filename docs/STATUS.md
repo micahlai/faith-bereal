@@ -1,5 +1,9 @@
 # Project status
 
+## 2026-10-12 seven-hour evening entry
+
+- Evening entry lasts seven hours after the server notification start, still closing at the next random blessing if earlier. Existing evening rows and all scheduling/settings/force paths are extended without sending reminders again; already granted compositions can still finish later. Migration prepared, not yet deployed.
+
 ## 2026-10-12 account presentation
 
 - New-account setup includes Your profile after Welcome, using the same native profile editor and square photo crop as User settings. Continue can keep the current profile; Apple does not provide a photo.

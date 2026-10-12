@@ -72,7 +72,7 @@ actor LocalBlessingRepository: BlessingRepository {
             circleID: primaryCircle.id,
             localDate: startOfToday,
             startsAt: endOfDayStart,
-            endsAt: endOfDayStart.addingTimeInterval(5 * 3_600),
+            endsAt: endOfDayStart.addingTimeInterval(7 * 3_600),
             kind: .endOfDay
         )
         var seededPrompts = [current, currentEndOfDay]
@@ -208,7 +208,7 @@ actor LocalBlessingRepository: BlessingRepository {
                 circleID: prayerCircle.id,
                 localDate: startOfToday,
                 startsAt: endOfDayStart,
-                endsAt: endOfDayStart.addingTimeInterval(5 * 3_600),
+                endsAt: endOfDayStart.addingTimeInterval(7 * 3_600),
                 kind: .endOfDay
             )
         )
@@ -571,7 +571,7 @@ actor LocalBlessingRepository: BlessingRepository {
                 circleID: circle.id,
                 localDate: localDate,
                 startsAt: endOfDayStart,
-                endsAt: endOfDayStart.addingTimeInterval(5 * 3_600),
+                endsAt: endOfDayStart.addingTimeInterval(7 * 3_600),
                 kind: .endOfDay
             )
         )
@@ -651,7 +651,7 @@ actor LocalBlessingRepository: BlessingRepository {
                 circleID: existing.circleID,
                 localDate: localDate,
                 startsAt: start,
-                endsAt: start.addingTimeInterval(5 * 3_600),
+                endsAt: start.addingTimeInterval(7 * 3_600),
                 kind: .endOfDay
             )
         }

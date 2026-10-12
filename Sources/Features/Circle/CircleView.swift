@@ -460,7 +460,7 @@ private struct CircleCreationView: View {
                             Text("End-of-day blessing")
                         } footer: {
                             Text(
-                                "A second, untimed reflection opens at this time and remains available for up to five hours."
+                                "A second, untimed reflection opens at this time and remains available for up to seven hours."
                             )
                         }
                     }
@@ -898,7 +898,7 @@ private struct CircleSettingsView: View {
                     } header: {
                         Text("End-of-day blessing")
                     } footer: {
-                        Text("This opens a second reflection with no countdown. It closes after five hours or when the next daily blessing begins.")
+                        Text("This opens a second reflection with no countdown. It closes after seven hours or when the next daily blessing begins.")
                     }
 
                     Section {

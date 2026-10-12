@@ -2,6 +2,9 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testEveningGuideUsesSevenHourCutoff() {
+        XCTAssertTrue(HelpTopic.evening.steps.map(\.body).joined().contains("seven hours"))
+    }
     func testProfileSetupGuideExplainsOptionalPhoto() {
         let guide = HelpTopic.personalization.steps.map(\.body).joined(separator: " ")
         XCTAssertTrue(guide.contains("Your profile step"))
