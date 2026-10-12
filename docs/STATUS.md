@@ -1,5 +1,11 @@
 # Project status
 
+## October 12 widget reliability
+
+- Precompute the next 24 hours of sharing start/end boundaries and blessing rotations, rather than depending on one WidgetKit refresh being delivered on time.
+- Shared snapshots remain readable after first unlock; refresh requests coalesce, account changes fence off stale writes, and transient network failures do not erase the last usable data.
+- Boundary and customer-guide tests added. Individual affected devices still require installation and validation; this is not a guarantee of background refresh timing.
+
 ## 2026-10-12 notification-aware welcome blessing
 
 - The server materializes/selects yesterday's welcome prompt for same-day joiners before today's notification start; afterward the current-day prompt is used. Welcome entry respects the circle's calendar, ends at today's start or local midnight, and entry grants preserve the original day through later submission. Timeline includes an actual welcome post even when its prompt date precedes the membership marker. Migration prepared, not deployed yet.

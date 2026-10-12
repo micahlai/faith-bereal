@@ -35,16 +35,16 @@ struct BlessingWidgetProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<BlessingWidgetEntry>) -> Void) {
         let now = Date.now
         let snapshot = BlessingWidgetSnapshotStore.load()
-        let content = snapshot.content(
-            at: now,
-            recentlyShownIDs: BlessingWidgetSnapshotStore.recentlyShownIDs()
-        )
-        if case let .blessing(blessing) = content {
-            BlessingWidgetSnapshotStore.markShown(blessing.id)
+        var shown = BlessingWidgetSnapshotStore.recentlyShownIDs()
+        let entries = snapshot.timelineDates(after: now).map { date in
+            let content = snapshot.content(at: date, recentlyShownIDs: shown)
+            if case let .blessing(blessing) = content { shown.insert(blessing.id) }
+            return BlessingWidgetEntry(date: date, content: content)
         }
+        if case let .blessing(blessing) = entries.first?.content { BlessingWidgetSnapshotStore.markShown(blessing.id) }
         completion(
             Timeline(
-                entries: [BlessingWidgetEntry(date: now, content: content)],
+                entries: entries,
                 policy: .after(snapshot.nextRefreshDate(after: now))
             )
         )

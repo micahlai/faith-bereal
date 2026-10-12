@@ -22,6 +22,7 @@
 		34E50D922571FAB91FD69D39 /* MediaRetentionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B59FA0F4DDB92375588F2E3 /* MediaRetentionPolicy.swift */; };
 		3709D0A6A2F9A07A84C6A5F5 /* PromptActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B44EE3D5023D47D3A6EEB7F /* PromptActivityAttributes.swift */; };
 		393F22BB398884D9F713A08B /* BlessingMediaSaverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */; };
+		4A3E2B3AEF012FEA33B5F98A /* WidgetReliabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474CEEEE8512E0B5A1DF5164 /* WidgetReliabilityTests.swift */; };
 		4CFB5E6D1A6F3B7C3560DC32 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */; };
 		4E665A7D8F1569A31C1301AC /* TimelineStatusPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98827C7D657BC61C3A7B527B /* TimelineStatusPolicy.swift */; };
 		4FBFFAFAD04AB8B07EFE16FA /* BibleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089ABE93E076CC7C52EEA9F2 /* BibleModels.swift */; };
@@ -73,6 +74,7 @@
 		C9A1BB20ED433AB663626CD9 /* SaveBlessingMediaButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB07FA27407C6DC392249358 /* SaveBlessingMediaButton.swift */; };
 		CACCB05EEFF73ED373306CBD /* MediaPlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4764172E03B438F29A96BBE /* MediaPlaybackController.swift */; };
 		CED8F4825F464AFB5F2C7264 /* BlessingCircleHomeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ACF8A3068026347A06AD602 /* BlessingCircleHomeWidget.swift */; };
+		D160BDE5D2CC7443CDC44943 /* FirstJoinTimingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF36B93FCD863063200201CE /* FirstJoinTimingTests.swift */; };
 		D39F594EE10456032E8678DE /* AppComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA7C50B81BAFE4CCFCF4EE4 /* AppComposition.swift */; };
 		D3A39B6B7BB6AA5F14D2DED3 /* CircleLocalDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE0F1B2F2284E176C1CBAD8 /* CircleLocalDay.swift */; };
 		D3CC7E8AC45102C78A10248C /* BlessingTextPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E54F2B7D699AC2B25A4CE1 /* BlessingTextPolicyTests.swift */; };
@@ -152,6 +154,7 @@
 		33F70DDEC4822DB655376DC5 /* BlessingCircleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleApp.swift; sourceTree = "<group>"; };
 		37E5F09C30CBB428CD1E889A /* CircleInviteCodeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleInviteCodeStore.swift; sourceTree = "<group>"; };
 		440084DAEA3155F578F975C1 /* BlessingMediaSaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingMediaSaver.swift; sourceTree = "<group>"; };
+		474CEEEE8512E0B5A1DF5164 /* WidgetReliabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetReliabilityTests.swift; sourceTree = "<group>"; };
 		47D6E72576B35390AF97F762 /* SavedBlessingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedBlessingButton.swift; sourceTree = "<group>"; };
 		593AC44B1C0400D9F82A6CC7 /* NotificationLogoDark.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogoDark.png; sourceTree = "<group>"; };
 		5AA633448ED63CFD632146E3 /* NotificationLogo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotificationLogo.png; sourceTree = "<group>"; };
@@ -190,6 +193,7 @@
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
 		AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleLiveActivity.swift; sourceTree = "<group>"; };
+		AF36B93FCD863063200201CE /* FirstJoinTimingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstJoinTimingTests.swift; sourceTree = "<group>"; };
 		AF96D83DCB140C9B96F965AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B2E758C164EC8B3AADB88384 /* HelpContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpContentTests.swift; sourceTree = "<group>"; };
 		B4A1A874188E1541AB6AE199 /* AutomaticSavingSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomaticSavingSettings.swift; sourceTree = "<group>"; };
@@ -420,11 +424,13 @@
 				63E54F2B7D699AC2B25A4CE1 /* BlessingTextPolicyTests.swift */,
 				B5A2C582F8010468C26C9A21 /* CircleInviteCodeStoreTests.swift */,
 				A4BAB3E1BCFE1792BAC9899D /* DomainRulesTests.swift */,
+				AF36B93FCD863063200201CE /* FirstJoinTimingTests.swift */,
 				B2E758C164EC8B3AADB88384 /* HelpContentTests.swift */,
 				1FE1E96A8B750FE5D5288B08 /* NudgeTests.swift */,
 				07AEE8D99BCD1C8A2BD200BD /* ReuseAndTimelineTests.swift */,
 				FD439211361E73A41C0DBFC4 /* SavedBlessingStoreTests.swift */,
 				A0BCA4A0CE51E47E56D58A31 /* VoiceSegmentTests.swift */,
+				474CEEEE8512E0B5A1DF5164 /* WidgetReliabilityTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -755,11 +761,13 @@
 				D3CC7E8AC45102C78A10248C /* BlessingTextPolicyTests.swift in Sources */,
 				6F591B73DBACBD32CE23B5C8 /* CircleInviteCodeStoreTests.swift in Sources */,
 				10596D0F5F4625E0FD03005C /* DomainRulesTests.swift in Sources */,
+				D160BDE5D2CC7443CDC44943 /* FirstJoinTimingTests.swift in Sources */,
 				9264DE5ED568C50C15F09C70 /* HelpContentTests.swift in Sources */,
 				854A6BF83625BA54E0B2653E /* NudgeTests.swift in Sources */,
 				976F454EDCEFAAF053832CB1 /* ReuseAndTimelineTests.swift in Sources */,
 				12D1919663FA81AF93F1F266 /* SavedBlessingStoreTests.swift in Sources */,
 				7D0484D7771706EC58685B0B /* VoiceSegmentTests.swift in Sources */,
+				4A3E2B3AEF012FEA33B5F98A /* WidgetReliabilityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

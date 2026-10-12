@@ -37,6 +37,7 @@ final class AppModel {
     private let activityController = PromptActivityController()
     private var realtimeTask: Task<Void, Never>?
     private var widgetSnapshotTask: Task<Void, Never>?
+    private var widgetSnapshotPendingDate: Date?
     private var remoteServicesConfigured = false
     private var apnsToken: String?
     private var pushToStartToken: String?
@@ -1595,9 +1596,16 @@ final class AppModel {
     }
 
     private func scheduleWidgetSnapshotRefresh(now: Date = .now) {
-        widgetSnapshotTask?.cancel()
+        // Frequent realtime/scroll refreshes must not starve a multi-circle fetch.
+        widgetSnapshotPendingDate = now
+        guard widgetSnapshotTask == nil else { return }
         widgetSnapshotTask = Task { [weak self] in
-            await self?.writeWidgetSnapshot(now: now)
+            guard let self else { return }
+            while let requestedDate = self.widgetSnapshotPendingDate {
+                self.widgetSnapshotPendingDate = nil
+                await self.writeWidgetSnapshot(now: requestedDate)
+            }
+            self.widgetSnapshotTask = nil
         }
     }
 
@@ -1617,6 +1625,7 @@ final class AppModel {
 
         var promptSnapshots: [BlessingWidgetPrompt] = []
         var candidates: [Candidate] = []
+        var loadedCircles = 0
 
         for membership in circles {
             guard !Task.isCancelled else { return }
@@ -1627,6 +1636,7 @@ final class AppModel {
                     viewerID: currentUser.id,
                     now: now
                 )
+                loadedCircles += 1
                 let currentPromptIsToday = context.prompt?.occursOnCircleDay(
                     at: now,
                     timeZoneIdentifier: context.circle.timeZoneIdentifier
@@ -1672,6 +1682,8 @@ final class AppModel {
             }
         }
 
+        // A temporary connection failure must not replace usable widget data with nothing.
+        guard circles.isEmpty || loadedCircles > 0 else { return }
         var seenBlessingIDs = Set<UUID>()
         let uniqueCandidates = candidates
             .sorted { $0.blessing.submittedAt > $1.blessing.submittedAt }
@@ -1707,6 +1719,7 @@ final class AppModel {
             prompts: promptSnapshots,
             blessings: blessingSnapshots
         )
+        guard !Task.isCancelled, self.currentUser?.id == currentUser.id else { return }
         BlessingWidgetSnapshotStore.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
 
@@ -1724,7 +1737,7 @@ final class AppModel {
             }
             return results
         }
-        guard !Task.isCancelled, !loadedPassages.isEmpty else { return }
+        guard !Task.isCancelled, self.currentUser?.id == currentUser.id, !loadedPassages.isEmpty else { return }
         for index in snapshot.blessings.indices {
             snapshot.blessings[index].scriptureText = loadedPassages[snapshot.blessings[index].id]
         }

@@ -47,6 +47,18 @@ struct BlessingWidgetSnapshot: Codable, Hashable, Sendable {
         let boundaries = prompts.flatMap { [$0.startsAt, $0.endsAt] }.filter { $0 > date }
         return min(boundaries.min() ?? intervalDate, intervalDate)
     }
+
+    // Supply future entries up front: WidgetKit can display known prompt changes
+    // even when its background reload budget defers the next provider call.
+    func timelineDates(after date: Date, horizon: TimeInterval = 24 * 3_600) -> [Date] {
+        let end = date.addingTimeInterval(horizon)
+        var dates: Set<Date> = [date]
+        let interval = TimeInterval(max(15, refreshIntervalMinutes) * 60)
+        var next = date.addingTimeInterval(interval)
+        while next < end { dates.insert(next); next = next.addingTimeInterval(interval) }
+        prompts.flatMap { [$0.startsAt, $0.endsAt] }.filter { $0 > date && $0 < end }.forEach { dates.insert($0) }
+        return dates.sorted()
+    }
 }
 
 struct BlessingWidgetPrompt: Codable, Hashable, Sendable {
@@ -112,7 +124,7 @@ enum BlessingWidgetSnapshotStore {
     static func save(_ snapshot: BlessingWidgetSnapshot) {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         if let snapshotURL {
-            try? data.write(to: snapshotURL, options: .atomic)
+            try? data.write(to: snapshotURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         }
         defaults.set(data, forKey: snapshotKey)
     }

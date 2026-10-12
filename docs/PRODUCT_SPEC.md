@@ -124,6 +124,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - A widget shows “Time to share blessings for [circle name]” while any joined circle has an active prompt and deep-links to Today.
 - Outside share time, it rotates blessings across all joined circles at a user-configured interval, defaulting to 30 minutes.
 - Widget content includes scripture when present and uses transcripts for voice/video blessings. It prioritizes current-day, recent, and not-yet-shown blessings; before any prompt has fired today, it falls back to the most recent prior-day blessing.
+- Widget timelines preload 24 hours of known prompt boundaries and rotation entries. Shared data is readable after the first device unlock; refreshes coalesce rather than repeatedly cancel, and temporary fetch failures retain the last usable snapshot. New server data still needs an app refresh and iOS controls delivery timing.
 - Blessing widgets identify the member without a decorative capture/quotation glyph. In the compact 2×2 family, the circle name sits below the member name so both remain clear of the top-right manna logo.
 - Tapping displayed content deep-links to the corresponding blessing detail.
 
