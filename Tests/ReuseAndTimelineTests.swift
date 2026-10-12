@@ -76,6 +76,6 @@ final class ReuseAndTimelineTests: XCTestCase {
         circle.allowsLateBlessings = true
         XCTAssertEqual(status(at: prompt.endsAt, canEnter: true), .waiting)
         member.joinedAt = prompt.startsAt.addingTimeInterval(-30)
-        XCTAssertEqual(status(at: prompt.startsAt.addingTimeInterval(-1), canEnter: true), .waiting)
+        XCTAssertEqual(status(at: prompt.startsAt.addingTimeInterval(-1), canEnter: true), .scheduled)
     }
 }

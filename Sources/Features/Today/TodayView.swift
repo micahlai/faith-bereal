@@ -321,9 +321,9 @@ private struct PromptWindowView: View {
                         Image(systemName: "sun.horizon.fill")
                             .font(.title)
                             .foregroundStyle(AppTheme.candle)
-                        Text("Your first day")
+                        Text("Your first blessing")
                             .font(.headline)
-                        Text("Share anytime today")
+                        Text(prompt.firstJoinEndsAt == nil ? "Share until this day ends" : "For yesterday · until today’s notification")
                             .font(.caption)
                             .foregroundStyle(AppTheme.secondaryInk)
                     } else if phase == .open {

@@ -25,6 +25,7 @@ enum NudgePolicy {
             return now < prompt.endsAt && (nextDailyStart.map { now < $0 } ?? true)
         }
         return now < prompt.endsAt
-            || (circle.allowsLateBlessings && (nextDailyStart.map { now < $0 } ?? true))
+            || (circle.allowsLateBlessings && prompt.occursOnCircleDay(at: now, timeZoneIdentifier: circle.timeZoneIdentifier)
+                && (nextDailyStart.map { now < $0 } ?? true))
     }
 }

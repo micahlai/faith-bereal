@@ -979,7 +979,8 @@ final class DomainRulesTests: XCTestCase {
         XCTAssertEqual(created.responseWindowMinutes, 40)
         XCTAssertTrue(created.allowsLateBlessings)
         XCTAssertEqual(created.repeatWindowMinutes, 180)
-        XCTAssertTrue(circleCalendar.isDate(prompt.localDate, inSameDayAs: now))
+        let expectedDay = prompt.firstJoinEndsAt == nil ? now : try XCTUnwrap(circleCalendar.date(byAdding: .day, value: -1, to: now))
+        XCTAssertTrue(circleCalendar.isDate(prompt.localDate, inSameDayAs: expectedDay))
         XCTAssertEqual(prompt.endsAt.timeIntervalSince(prompt.startsAt), 40 * 60, accuracy: 0.001)
         XCTAssertEqual(owner.joinedAt.timeIntervalSince(now), 0, accuracy: 2)
 
@@ -991,7 +992,7 @@ final class DomainRulesTests: XCTestCase {
             audioURL: nil,
             videoURL: nil,
             scriptureReference: nil,
-            now: now
+            now: Date.now
         )
         XCTAssertEqual(blessing.circleID, created.id)
     }
@@ -1644,7 +1645,7 @@ final class DomainRulesTests: XCTestCase {
             startsAt: day.addingTimeInterval(18 * 3_600), endsAt: day.addingTimeInterval(18 * 3_600 + 600)
         )
 
-        XCTAssertTrue(FirstDaySubmissionPolicy.isEligible(
+        XCTAssertFalse(FirstDaySubmissionPolicy.isEligible(
             memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle,
             now: day.addingTimeInterval(10 * 3_600)
         ))

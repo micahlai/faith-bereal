@@ -126,9 +126,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
         return circle.members.map { member in
             var events = visiblePromptRows
-                .filter {
-                    $0.startsAt >= member.joinedAt
-                        || calendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
+                .filter { target in
+                    blessings.contains(where: { $0.promptID == target.id && $0.authorID == member.id })
+                        || target.startsAt >= member.joinedAt
+                        || calendar.isDate(target.startsAt, inSameDayAs: member.joinedAt)
                 }
                 .map { row -> TimelineEvent in
                     let prompt = prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
@@ -785,6 +786,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .execute()
             .value
         let dailyRow = currentRows.first { $0.kind == .daily }
+        let welcomeID: UUID? = try await client.rpc("first_join_blessing_prompt", params: ["p_circle_id": circle.id]).execute().value
+        var selectedDaily = dailyRow.map { prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier) }
+        if let welcomeID {
+            let row: PromptRow = try await client.from("daily_prompts").select().eq("id", value: welcomeID).single().execute().value
+            selectedDaily = prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
+            selectedDaily?.firstJoinEndsAt = dailyRow?.startsAt
+        }
         let scheduledEndRow = currentRows.first { $0.kind == .endOfDay }
         let activeEndRow = activeEndRows.first.flatMap { row -> PromptRow? in
             if let dailyRow,
@@ -796,7 +804,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         }
         let endRow = activeEndRow ?? scheduledEndRow
         return (
-            dailyRow.map { prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier) },
+            selectedDaily,
             endRow.map { prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier) }
         )
     }

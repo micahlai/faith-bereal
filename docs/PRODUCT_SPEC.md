@@ -56,7 +56,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 - One prompt per circle per local calendar day.
 - Random start time is selected server-side within a circle-configured window, default 12:00–22:00, with late blessings enabled by default.
-- Circle creation transactionally schedules the current local-day prompt from the owner's initial settings so the selected time range and response duration apply on day one. The join-day exception still lets the creator share at any time that local day.
+- Circle creation transactionally schedules the current local-day prompt from the owner's initial settings. On the circle-local day a member joins, a welcome blessing belongs to yesterday until today's notification starts; afterward it belongs to today and entry is allowed until that day ends. An entry grant preserves that original date when sending later.
 - The preselected random time is the dispatch target. When the server claims that prompt, it authors the shared `starts_at` from the actual dispatch and sets `ends_at = starts_at + response_window_minutes`, giving every member the complete configured entry window.
 - The response deadline controls entry into capture, not completion of a capture already opened. The server records an entry grant before presenting capture; that grant remains valid if composition or upload finishes after the deadline or after midnight.
 - A notification and Live Activity deep-link to today's capture screen.
@@ -111,7 +111,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Dates are viewport-anchored to the left of a continuous vertical divider with eight points of trailing padding. A full-height opaque strip hides body content beneath them, including the leading gutter and during horizontal overscroll. The date strip begins below the header, so it never masks profile photos or names. Body content cannot paint above the header's horizontal divider.
 - Each daily event has a dated dot, content preview, and time.
 - A missed day has a distinct hollow marker and text label; color is never the only cue.
-- Before the daily prompt starts, empty lanes say Waiting for notification, not You can still share or Missed; the first-day exception remains shareable. Future calendar-day prompts are omitted. Existing current-day peer blessings remain gated even when a member posted early under that exception.
+- Before the daily prompt starts, empty lanes say Waiting for notification, not You can still share or Missed. A first-day welcome blessing is attached to yesterday instead. Future calendar-day prompts are omitted. Current-day peer blessings remain gated until the viewer submits for that exact prompt.
 - Past days are visible to members regardless of today's submission.
 - Current-day peer content is replaced by a locked state until the viewer posts.
 - Previews show up to 15 lines of original text or transcript plus the reference when present. Every member cell for a given day shares the height of that day's longest preview.

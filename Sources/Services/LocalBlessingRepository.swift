@@ -301,9 +301,10 @@ actor LocalBlessingRepository: BlessingRepository {
 
         return circle.members.map { member in
             var events = circlePrompts
-                .filter {
-                    $0.startsAt >= member.joinedAt
-                        || circleCalendar.isDate($0.startsAt, inSameDayAs: member.joinedAt)
+                .filter { target in
+                    blessings.contains(where: { $0.promptID == target.id && $0.authorID == member.id })
+                        || target.startsAt >= member.joinedAt
+                        || circleCalendar.isDate(target.startsAt, inSameDayAs: member.joinedAt)
                 }
                 .map { prompt -> TimelineEvent in
                 let match = blessings.first { $0.promptID == prompt.id && $0.authorID == member.id }
@@ -486,7 +487,8 @@ actor LocalBlessingRepository: BlessingRepository {
                 memberJoinedAt: $0,
                 prompt: prompt,
                 circle: circle,
-                now: now
+                now: now,
+                nextDailyStart: resolvedNextPromptStart
             )
         } ?? false
         if prompt.kind == .endOfDay {
@@ -495,6 +497,7 @@ actor LocalBlessingRepository: BlessingRepository {
         }
         let isAcceptedLate = circle.allowsLateBlessings
             && now >= prompt.endsAt
+            && prompt.occursOnCircleDay(at: now, timeZoneIdentifier: circle.timeZoneIdentifier)
             && resolvedNextPromptStart.map { now < $0 } ?? true
         return prompt.phase(at: now) == .open || isAcceptedLate || isFirstDay
     }
@@ -931,6 +934,20 @@ private extension LocalBlessingRepository {
                 && $0.kind == .daily
                 && circleCalendar.isDate($0.localDate, inSameDayAs: now)
         }) {
+            if current.startsAt > now,
+               let member = circle.members.first(where: { $0.id == currentUser.id }),
+               circleCalendar.isDate(member.joinedAt, inSameDayAs: now),
+               let yesterday = circleCalendar.date(byAdding: .day, value: -1, to: circleCalendar.startOfDay(for: now)) {
+                var welcome = prompts.first { $0.circleID == circleID && $0.kind == .daily && circleCalendar.isDate($0.localDate, inSameDayAs: yesterday) }
+                if welcome == nil {
+                    let start = yesterday.addingTimeInterval(TimeInterval(circle.randomWindowStartMinutes * 60))
+                    welcome = DailyPrompt(id: UUID(), circleID: circleID, localDate: yesterday,
+                        startsAt: start, endsAt: start.addingTimeInterval(circle.responseWindowDuration))
+                    prompts.append(welcome!)
+                }
+                welcome?.firstJoinEndsAt = current.startsAt
+                return welcome
+            }
             return current
         }
         return prompts

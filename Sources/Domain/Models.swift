@@ -1,12 +1,16 @@
 import Foundation
 
 enum FirstDaySubmissionPolicy {
-    static func isEligible(memberJoinedAt: Date, prompt: DailyPrompt, circle: CircleGroup, now: Date) -> Bool {
+    static func isEligible(memberJoinedAt: Date, prompt: DailyPrompt, circle: CircleGroup, now: Date, nextDailyStart: Date? = nil) -> Bool {
         guard prompt.kind == .daily else { return false }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: circle.timeZoneIdentifier) ?? .current
-        return calendar.isDate(memberJoinedAt, inSameDayAs: prompt.startsAt)
-            && calendar.isDate(now, inSameDayAs: prompt.startsAt)
+        guard now >= memberJoinedAt, calendar.isDate(memberJoinedAt, inSameDayAs: now) else { return false }
+        if calendar.isDate(prompt.localDate, inSameDayAs: now) { return now >= prompt.startsAt }
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+              calendar.isDate(prompt.localDate, inSameDayAs: yesterday),
+              let cutoff = nextDailyStart ?? prompt.firstJoinEndsAt else { return false }
+        return now < cutoff
     }
 }
 
@@ -212,6 +216,7 @@ struct DailyPrompt: Identifiable, Codable, Hashable, Sendable {
     let startsAt: Date
     let endsAt: Date
     let kind: PromptKind
+    var firstJoinEndsAt: Date? = nil
 
     init(
         id: UUID,

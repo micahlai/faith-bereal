@@ -165,6 +165,7 @@ final class AppModel {
     func isCurrentPromptToday(at date: Date = .now) -> Bool {
         guard let prompt, let circle else { return false }
         return prompt.occursOnCircleDay(at: date, timeZoneIdentifier: circle.timeZoneIdentifier)
+            || (prompt.firstJoinEndsAt != nil && isFirstCircleDay(at: date))
     }
 
     func currentUserBlessing(at date: Date = .now) -> Blessing? {

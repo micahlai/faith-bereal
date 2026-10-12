@@ -2,6 +2,11 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testWelcomeGuideExplainsPreviousDayAndNotificationCutoff() {
+        let guide = HelpTopic.sharing.steps.map(\.body).joined()
+        XCTAssertTrue(guide.contains("welcome blessing belongs to yesterday"))
+        XCTAssertTrue(guide.contains("entry closes when today's notification starts"))
+    }
     func testVoiceGuideExplainsSegmentPreservation() {
         let guide = HelpTopic.sharing.steps.map(\.body).joined()
         XCTAssertTrue(guide.contains("Continue recording"))

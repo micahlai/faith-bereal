@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-10-12 notification-aware welcome blessing
+
+- The server materializes/selects yesterday's welcome prompt for same-day joiners before today's notification start; afterward the current-day prompt is used. Welcome entry respects the circle's calendar, ends at today's start or local midnight, and entry grants preserve the original day through later submission. Timeline includes an actual welcome post even when its prompt date precedes the membership marker. Migration prepared, not deployed yet.
+- Ordinary daily late entry and nudges cannot bypass the circle-day boundary through a stale Live Activity link; timely capture grants remain valid. Tests cover calendar/DST, welcome date, and timeline preservation.
+
 ## 2026-10-12 segmented voice and build-27 crash
 
 - The supplied build-27 crash aborts in AVAudioEngine InstallTapOnNode from SpeechTranscriber.start. Every segment now creates a fresh engine, uses the hardware tap format, guards pending permission requests, and serializes recorder ownership across blessing/response composers. Physical route-change verification remains required.
