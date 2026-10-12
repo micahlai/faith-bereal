@@ -77,7 +77,7 @@ final class PromptActivityController {
         }
         let attributes = PromptActivityAttributes(promptID: prompt.id, circleName: circle.name)
         let entryCutoff = PromptActivityDismissal.entryCutoff(
-            endsAt: prompt.endsAt, circleDay: prompt.startsAt,
+            endsAt: prompt.endsAt, circleDay: prompt.localDate,
             timeZoneIdentifier: circle.timeZoneIdentifier, allowsLateBlessings: circle.allowsLateBlessings
         )
         let state = PromptActivityAttributes.ContentState(
