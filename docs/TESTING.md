@@ -18,7 +18,7 @@ xcodebuild -project BlessingCircle.xcodeproj \
 ```
 
 Pass `SUPABASE_URL= SUPABASE_PUBLISHABLE_KEY=` as **xcodebuild build-setting arguments**, not just shell environment assignments, on simulator build/test commands to force the normal blank-configuration fallback even when the ignored Secrets.xcconfig is present. The UI test also launches with `BLESSING_CIRCLE_FORCE_LOCAL=1`, so it never authenticates with or reads from hosted Supabase. Do not blank these settings for Release builds.
-UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Appearance → App Icon → Local Saving → Widget → Join/Create first-run flow. Saving tests supply a unique `BLESSING_CIRCLE_SAVING_TEST_SESSION` in local Debug mode, isolating their temporary archives and preferences from normal simulator data.
+UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage remains deterministic; omit it to verify the About → Your Profile → Appearance → App Icon → Local Saving → Widget → Join/Create first-run flow. Saving tests supply a unique `BLESSING_CIRCLE_SAVING_TEST_SESSION` in local Debug mode, isolating their temporary archives and preferences from normal simulator data.
 
 ## TestFlight candidate
 
@@ -48,7 +48,7 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Unit tests
 
-- Nudges require the sender's submission for the exact prompt, two current distinct members, and an unsubmitted recipient. Scheduled, no-late deadline, five-hour evening deadline, next daily cutoff, same-prompt privacy, and one nudge per recipient/prompt are checked. Local mode never contacts APNs.
+- Nudges require the sender's submission for the exact prompt, two current distinct members, and an unsubmitted recipient. Scheduled, no-late deadline, seven-hour evening deadline, circle-local midnight, next daily cutoff, same-prompt privacy, and one nudge per recipient/prompt are checked. Local mode never contacts APNs.
 
 - Reuse preserves capture format, audio/photo/video/thumbnail and scripture; no responses are copied. Receiving-circle media respects the target privacy gate even for people outside the original circle.
 - Invite hints survive store recreation/app updates, remain account/circle-isolated, and are validated by the server. Active members recover stored codes; legacy backfill never rotates, stale hints never restore a rotated code, removed members/outsiders cannot read codes.
@@ -84,13 +84,13 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 - text and voice blessings accept an optional photo, while video blessings reject a separate photo attachment.
 - restarting a local debug prompt resets the current user's submission and reopens a server-shaped response window without changing peer history.
 - forcing a prompt requires the current circle owner and uses that circle's configured response length.
-- a member may submit before or after the response window on the local calendar day they join, but not on a later day unless ordinary late-sharing rules apply.
+- Before today's start, welcome entry targets yesterday and ends at today's start. After today's start, join-day entry targets today and ends at circle-local midnight. Retained entry grants preserve the original date when completing later; tests include a 25-hour DST day.
 - blessing edits accept the author before ten minutes, reject other users, and close at the exact ten-minute boundary.
 - circle photo changes require the current owner and remain isolated to the selected circle.
 - profile and circle photo crop output is always a square bounded JPEG, including zoom/offset rendering and invalid-viewport rejection; blessing photos retain their original aspect ratio.
 - circle activity notification preferences default on and change only the selected membership.
 - end-of-day time cannot precede the random range end, the join-day exception cannot open it early, and its visibility gate remains independent from the daily prompt.
-- end-of-day entry closes at exactly five hours or the next daily prompt; a timely entry grant still permits completion later, and notification deep links select the evening composer rather than the daily composer.
+- end-of-day entry closes at exactly seven hours or the next daily prompt; a timely entry grant still permits completion later, and notification deep links select the evening composer rather than the daily composer.
 
 The transactional database regression suite can run against the linked migrated project without retaining fixtures:
 
@@ -134,7 +134,7 @@ For isolated reuse/invite/nudge regressions run `bash Scripts/test-reuse-and-inv
 - automatic saving is offered in setup and Settings; disabling shows all four keep choices, supports selection and Cancel, and keeps the toggle on until a choice is committed;
 - automatic preference/account isolation, all/mine/none/selected filtering, conversion to manual, preserving pre-existing manual saves, cross-circle visibility locks, individual unsave exclusions, and atomic refresh failure;
 
-- first-run onboarding can move About → Appearance → App Icon → Local Saving → Widget, move backward without losing choices, and finish into the joined/no-circle app state;
+- first-run onboarding can move About → Your Profile → Appearance → App Icon → Local Saving → Widget, edit name/photo, move backward without losing choices, and finish into the joined/no-circle app state;
 - app-icon onboarding cards use the actual cream/midnight artwork in one column, and the widget guide remains readable at accessibility text sizes;
 - circle creation exposes all owner settings before the final create action;
 - circle creation exposes the optional photo picker, while Circle Settings confirms before discarding unsaved changes and saves from the top-right toolbar;
@@ -161,7 +161,7 @@ For isolated reuse/invite/nudge regressions run `bash Scripts/test-reuse-and-inv
 - lock-screen Live Activity circle name, prompt copy, `m:ss to respond` countdown, and immediate submitted state without changes to Dynamic Island;
 - lock-screen privacy settings;
 - full sender-profile-photo left artwork (logo fallback), circle-oriented title, photo/video-only right attachment, and locked/unlocked copy on a two-account physical-device circle; iOS's separate app-icon badge remains system-owned;
-- one opted-in end-of-day reminder arrives without starting a Live Activity, opted-out members receive none, and the window closes after five hours or the next daily prompt;
+- one opted-in end-of-day reminder arrives without starting a Live Activity, opted-out members receive none, and the window closes after seven hours or the next daily prompt;
 - background video upload interruption;
 - speech transcription latency and audio-session interruption.
 - voice capture produces a playable audio file after permission grant, interruption, stop, and relaunch;

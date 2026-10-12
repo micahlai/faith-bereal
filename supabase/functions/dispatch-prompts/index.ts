@@ -458,6 +458,15 @@ type DispatchOutcome = {
   memberCount: number;
 };
 
+async function dailyEntryCutoff(promptID: string): Promise<string> {
+  const { data, error } = await admin.rpc("daily_prompt_entry_cutoff", { p_prompt_id: promptID });
+  if (error) throw error;
+  if (typeof data !== "string" || !Number.isFinite(Date.parse(data))) {
+    throw new Error("Missing daily entry cutoff");
+  }
+  return data;
+}
+
 async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
   const { data: circle, error: circleError } = await admin
     .from("circles")
@@ -465,6 +474,8 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
     .eq("id", prompt.circle_id)
     .single();
   if (circleError) throw circleError;
+
+  const entryCutoff = prompt.kind === "daily" ? await dailyEntryCutoff(prompt.id) : prompt.ends_at;
 
   const { data: memberships, error: membershipError } = await admin
     .from("circle_members")
@@ -535,6 +546,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
             aps: {
               timestamp,
               event: "start",
+              "stale-date": unixSeconds(entryCutoff),
               "input-push-token": 1,
               "attributes-type": "PromptActivityAttributes",
               attributes: { promptID: prompt.id, circleName: circle.name },
@@ -543,7 +555,7 @@ async function dispatchPrompt(prompt: Prompt): Promise<DispatchOutcome> {
                 0,
                 false,
                 circle.allow_late_blessings,
-                circle.allow_late_blessings ? null : graceDate(prompt.ends_at),
+                graceDate(entryCutoff),
               ),
               alert: {
                 ...reminder.alert,
@@ -645,11 +657,12 @@ async function updateOpenActivities(): Promise<void> {
       ((blessings ?? []) as BlessingAuthor[]).map((row) => [row.author_id, row]),
     );
     const timestamp = unixSeconds(new Date());
+    const entryCutoff = await dailyEntryCutoff(prompt.id);
     const activityUpdates = (registrations as ActivityRegistration[]).map((registration) => {
         const blessing = blessingByAuthor.get(registration.user_id);
         const dismissesAt = blessing
           ? graceDate(blessing.submitted_at)
-          : circle.allow_late_blessings ? null : graceDate(prompt.ends_at);
+          : graceDate(entryCutoff);
         return {
           registrationID: registration.id,
           shouldEnd: blessing !== undefined,
@@ -721,12 +734,14 @@ async function closeExpiredPrompts(): Promise<void> {
       ((blessings ?? []) as BlessingAuthor[]).map((row) => [row.author_id, row]),
     );
     const timestamp = unixSeconds(now);
+    const entryCutoff = await dailyEntryCutoff(prompt.id);
     const activityUpdates = ((registrations ?? []) as ActivityRegistration[]).map((registration) => {
         const blessing = blessingByAuthor.get(registration.user_id);
-        const remainsOpen = circle.allow_late_blessings && blessing === undefined;
+        const remainsOpen = circle.allow_late_blessings && blessing === undefined
+          && now.getTime() < Date.parse(entryCutoff);
         const dismissesAt = blessing
           ? graceDate(blessing.submitted_at)
-          : remainsOpen ? null : graceDate(prompt.ends_at);
+          : graceDate(entryCutoff);
         return {
           registrationID: registration.id,
           shouldEnd: !remainsOpen,
@@ -837,6 +852,7 @@ async function reconcileLateActivities(): Promise<void> {
   for (const prompt of latePrompts) {
     const promptRegistrations = registrationsByPrompt.get(prompt.id) ?? [];
     if (promptRegistrations.length === 0) continue;
+    const entryCutoff = await dailyEntryCutoff(prompt.id);
     const authorCount = (blessings ?? []).filter((blessing) => blessing.prompt_id === prompt.id).length;
     const replacementStart = (startedPrompts ?? [])
       .filter((candidate) =>
@@ -849,8 +865,10 @@ async function reconcileLateActivities(): Promise<void> {
       const blessing = blessingByPromptAndAuthor.get(`${prompt.id}:${registration.user_id}`);
       const dismissesAt = blessing
         ? graceDate(blessing.submitted_at)
-        : replacementStart ? graceDate(replacementStart) : null;
-      const shouldEnd = dismissesAt !== null;
+        : graceDate(replacementStart && Date.parse(replacementStart) < Date.parse(entryCutoff)
+          ? replacementStart : entryCutoff);
+      const shouldEnd = blessing !== undefined || replacementStart !== undefined
+        || now.getTime() >= Date.parse(entryCutoff);
       return {
         registrationID: registration.id,
         shouldEnd,

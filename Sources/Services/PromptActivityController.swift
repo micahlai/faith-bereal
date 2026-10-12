@@ -76,21 +76,23 @@ final class PromptActivityController {
             return .alreadyRunning
         }
         let attributes = PromptActivityAttributes(promptID: prompt.id, circleName: circle.name)
+        let entryCutoff = PromptActivityDismissal.entryCutoff(
+            endsAt: prompt.endsAt, circleDay: prompt.startsAt,
+            timeZoneIdentifier: circle.timeZoneIdentifier, allowsLateBlessings: circle.allowsLateBlessings
+        )
         let state = PromptActivityAttributes.ContentState(
             endsAt: prompt.endsAt,
             responseCount: 0,
             hasSubmitted: false,
             allowsLateBlessings: circle.allowsLateBlessings,
-            dismissesAt: circle.allowsLateBlessings
-                ? nil
-                : PromptActivityDismissal.date(after: prompt.endsAt)
+            dismissesAt: PromptActivityDismissal.date(after: entryCutoff)
         )
         do {
             let newActivity = try Activity.request(
                 attributes: attributes,
                 content: ActivityContent(
                     state: state,
-                    staleDate: circle.allowsLateBlessings ? nil : prompt.endsAt
+                    staleDate: entryCutoff
                 ),
                 pushType: requestsPushUpdates ? .token : nil
             )

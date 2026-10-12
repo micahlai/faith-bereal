@@ -10,6 +10,15 @@ enum PromptActivityCountdown {
 enum PromptActivityDismissal {
     static let gracePeriod: TimeInterval = 3 * 60
 
+    static func entryCutoff(endsAt: Date, circleDay: Date, timeZoneIdentifier: String, allowsLateBlessings: Bool) -> Date {
+        guard allowsLateBlessings else { return endsAt }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .gmt
+        let midnight = calendar.startOfDay(for: circleDay)
+        let nextMidnight = calendar.date(byAdding: .day, value: 1, to: midnight) ?? endsAt
+        return max(endsAt, nextMidnight)
+    }
+
     static func date(after eventDate: Date) -> Date {
         eventDate.addingTimeInterval(gracePeriod)
     }

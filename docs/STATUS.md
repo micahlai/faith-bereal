@@ -1,5 +1,10 @@
 # Project status
 
+## October 12 late Live Activity cutoff
+
+- Both local ActivityKit starts and remote start/update/end payloads use a circle-time-zone entry cutoff, with three-minute terminal dismissal. Server authorization rejects expired past-day entry even when an old Live Activity is still visible; existing capture grants remain valid.
+- DST and cross-midnight deadline tests cover the cutoff. Migration and dispatcher deployment pending; real APNs/lock-screen lifecycle needs device confirmation.
+
 ## October 12 widget reliability
 
 - Precompute the next 24 hours of sharing start/end boundaries and blessing rotations, rather than depending on one WidgetKit refresh being delivered on time.

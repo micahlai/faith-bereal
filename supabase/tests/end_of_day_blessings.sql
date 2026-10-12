@@ -34,8 +34,8 @@ begin
   where circle_id = v_circle.id and kind = 'daily';
   select * into strict v_evening from public.daily_prompts
   where circle_id = v_circle.id and kind = 'end_of_day';
-  if v_evening.ends_at - v_evening.starts_at <> interval '5 hours' then
-    raise exception 'end-of-day must last five hours';
+  if v_evening.ends_at - v_evening.starts_at <> interval '7 hours' then
+    raise exception 'end-of-day must last seven hours';
   end if;
 
   insert into public.circle_members (circle_id, user_id, role)
@@ -46,7 +46,7 @@ begin
   -- An active previous-day evening prompt remains gated after midnight.
   update public.daily_prompts
   set local_date = v_previous_date, starts_at = v_at - interval '2 hours',
-      ends_at = v_at + interval '3 hours', state = 'open'
+      ends_at = v_at + interval '5 hours', state = 'open'
   where id = v_evening.id returning * into v_evening;
   update public.daily_prompts
   set local_date = v_previous_date, starts_at = v_at - interval '3 hours',
@@ -88,8 +88,8 @@ begin
   if public.prompt_accepts_entry(v_evening.id, v_peer, v_next_daily.starts_at) then
     raise exception 'next daily prompt must close evening entry early';
   end if;
-  if not public.prompt_accepts_entry(v_daily.id, v_peer, v_at) then
-    raise exception 'evening start must not terminate late daily entry';
+  if public.prompt_accepts_entry(v_daily.id, v_peer, v_at) then
+    raise exception 'late sharing must not reopen a past circle day';
   end if;
 
   perform public.update_end_of_day_notifications(v_circle.id, false);

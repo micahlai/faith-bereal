@@ -30,6 +30,14 @@ begin
   assert not public.prompt_accepts_entry(v_today.id,v_user,(v_today.local_date+1)::timestamptz+interval '1 day');
   assert (select ends_at-starts_at=interval '7 hours' and response_window_minutes=420 from public.daily_prompts where circle_id=v_circle.id and kind='end_of_day');
   assert not has_function_privilege('anon','public.first_join_blessing_prompt(uuid)','execute');
+  assert not has_function_privilege('anon','public.daily_prompt_entry_cutoff(uuid)','execute');
+  assert not has_function_privilege('authenticated','public.daily_prompt_entry_cutoff(uuid)','execute');
+  update public.circles set time_zone='America/New_York' where id=v_circle.id;
+  update public.daily_prompts set local_date=date '2026-11-01', starts_at=timestamptz '2026-11-01 16:50:00Z',
+    ends_at=timestamptz '2026-11-01 17:00:00Z' where id=v_today.id;
+  assert public.daily_prompt_entry_cutoff(v_today.id)=timestamptz '2026-11-02 05:00:00Z';
+  update public.circles set allow_late_blessings=false where id=v_circle.id;
+  assert public.daily_prompt_entry_cutoff(v_today.id)=timestamptz '2026-11-01 17:00:00Z';
 end;
 $$;
 rollback;

@@ -62,7 +62,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - A notification and Live Activity deep-link to today's capture screen.
 - Daily and end-of-day reminders show the circle's custom photo as an optional right-hand attachment; the default circle image is not attached. Peer blessing notifications retain attached-photo/video thumbnails.
 - The lock-screen Live Activity shows the circle name, “What has blessed you today”, and a smaller live “`m:ss to respond`” countdown. After the viewer submits, it changes immediately to “Blessing submitted”. Dynamic Island presentation remains distinct and unchanged.
-- After a member submits, the Live Activity remains visible for three minutes. Without late sharing it remains for three minutes after the entry deadline; with late sharing it stays available until that member submits or a newer circle prompt replaces it.
+- After a member submits, the Live Activity remains visible for three minutes. Without late sharing it remains for three minutes after the entry deadline. Late sharing ends at the circle's next midnight (or the regular deadline if that is later); the server ends the activity with the same three-minute grace period. A stale activity never grants entry to a closed past day. The Dynamic Island layout is unchanged.
 
 ### End-of-day prompt
 
