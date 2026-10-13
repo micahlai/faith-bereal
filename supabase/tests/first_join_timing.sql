@@ -1,5 +1,6 @@
 -- Rollback-only; no remote notifications or Storage operations.
 begin;
+set local time zone 'UTC';
 set local plpgsql.check_asserts=on;
 do $$
 declare v_user uuid:=gen_random_uuid(); v_peer uuid:=gen_random_uuid(); v_circle public.circles;

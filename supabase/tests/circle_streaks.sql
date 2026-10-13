@@ -1,5 +1,6 @@
 -- Rollback-only metadata/authorization check. No notifications or Storage API.
 begin;
+set local time zone 'UTC';
 set local plpgsql.check_asserts=on;
 do $$
 declare v_user uuid:=gen_random_uuid(); v_new uuid:=gen_random_uuid(); v_outsider uuid:=gen_random_uuid();

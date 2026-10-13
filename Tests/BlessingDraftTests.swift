@@ -28,6 +28,9 @@ final class BlessingDraftTests: XCTestCase {
         do { _ = try await recreated.save(broken, now: now); XCTFail("Missing media must reject checkpoint") } catch {}
         let intact = try await recreated.load(authorID: draft.authorID, now: now)
         XCTAssertEqual(intact.first?.text, "Kept")
+        let editingCopy = try await recreated.copyForEditing(XCTUnwrap(intact.first))
+        let editingURLs = editingCopy.audioSegments + [editingCopy.photoURL, editingCopy.videoURL].compactMap { $0 }
+        defer { for url in editingURLs { try? FileManager.default.removeItem(at: url) } }
         try await recreated.markSent(authorID: draft.authorID, circleID: draft.circleID, promptID: draft.promptID)
         let delayedCheckpoint = try await recreated.save(draft, now: now)
         XCTAssertNil(delayedCheckpoint)
@@ -35,6 +38,10 @@ final class BlessingDraftTests: XCTestCase {
         _ = try await recreated.save(draft, now: now)
         let expired = try await recreated.load(authorID: draft.authorID, now: draft.expiresAt)
         XCTAssertTrue(expired.isEmpty)
+        // Midnight removes recovery copies, never the media in an already-open, valid composer.
+        for url in editingURLs {
+            XCTAssertEqual(try Data(contentsOf: url), Data(repeating: 7, count: 1_000))
+        }
         XCTAssertTrue(HelpTopic.sharing.steps.map(\.body).joined().contains("draft never extends the entry deadline"))
     }
 

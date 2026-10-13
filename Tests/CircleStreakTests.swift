@@ -2,6 +2,28 @@ import XCTest
 @testable import BlessingCircle
 
 final class CircleStreakTests: XCTestCase {
+    func testEachCircleUsesItsOwnCalendarAcrossDaylightSaving() async throws {
+        let bootstrap = try await LocalBlessingRepository().bootstrap()
+        var circle = try XCTUnwrap(bootstrap.circle)
+        circle.timeZoneIdentifier = "America/New_York"
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: circle.timeZoneIdentifier)
+        let now = ISO8601DateFormatter().date(from: "2026-11-02T04:30:00Z")!
+        let today = calendar.startOfDay(for: now)
+        var member = bootstrap.currentUser
+        member.joinedAt = calendar.date(byAdding: .day, value: -10, to: today)!
+        circle.members = [member]
+        let posts = (0...2).map { offset in
+            StreakDay(circleID: circle.id, memberID: member.id,
+                day: calendar.date(byAdding: .day, value: -offset, to: today)!, onTime: false)
+        }
+        XCTAssertEqual(CircleStreakPolicy.summaries(circle: circle, posts: posts, now: now)[member.id]?.days, 3)
+        // This instant is November 1 in this circle, after the fall-back clock change.
+        XCTAssertEqual(calendar.component(.day, from: today), 1)
+        let otherCircleID = UUID()
+        let elsewhere = posts.map { StreakDay(circleID: otherCircleID, memberID: $0.memberID, day: $0.day, onTime: $0.onTime) }
+        XCTAssertEqual(CircleStreakPolicy.summaries(circle: circle, posts: elsewhere, now: now)[member.id]?.days, 0)
+    }
+
     func testTimelyEntryEarnsRecognitionEvenWhenSendingAfterDeadline() async throws {
         let repo = LocalBlessingRepository(now: .now)
         let data = try await repo.bootstrap()
