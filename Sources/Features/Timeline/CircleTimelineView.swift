@@ -203,6 +203,16 @@ private struct TimelineDateLabel: View {
                     .font(.caption2)
                     .foregroundStyle(AppTheme.primary)
             }
+            ForEach(TimelinePresentation.notificationTimes(row.eventsByMemberID.values.flatMap { $0 })) { stamp in
+                HStack(spacing: 2) {
+                    Image(systemName: stamp.kind == .daily ? "sun.max" : "moon")
+                        .accessibilityHidden(true)
+                    Text(timeLabel(stamp.date))
+                }
+                .font(.caption2)
+                .foregroundStyle(AppTheme.secondaryInk)
+                .accessibilityLabel("\(stamp.kind == .daily ? "Daily" : "Evening") notification, \(timeLabel(stamp.date))")
+            }
         }
         .padding(.trailing, 8)
         .padding(.top, 3)
@@ -213,6 +223,12 @@ private struct TimelineDateLabel: View {
         var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
         style.timeZone = calendar.timeZone
         return row.day.formatted(style)
+    }
+
+    private func timeLabel(_ date: Date) -> String {
+        var style = Date.FormatStyle.dateTime.hour().minute()
+        style.timeZone = calendar.timeZone
+        return date.formatted(style)
     }
 }
 

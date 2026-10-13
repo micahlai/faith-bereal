@@ -1,6 +1,12 @@
 import Foundation
 
 enum TimelinePresentation {
+    static func notificationTimes(_ events: [TimelineEvent]) -> [TimelineNotificationStamp] {
+        Array(Set(events.compactMap { event -> TimelineNotificationStamp? in
+            guard !event.isWelcome, let date = event.notificationStartedAt, let kind = event.promptKind else { return nil }
+            return TimelineNotificationStamp(kind: kind, date: date)
+        })).sorted { $0.date < $1.date }
+    }
     static func listEntries(_ lanes: [TimelineLane]) -> [TimelineListEntry] {
         lanes.flatMap { lane in
             lane.events.compactMap { event -> TimelineListEntry? in
@@ -24,6 +30,12 @@ enum TimelinePresentation {
             })
         }
     }
+}
+
+struct TimelineNotificationStamp: Identifiable, Hashable {
+    let kind: PromptKind
+    let date: Date
+    var id: String { "\(kind.rawValue)-\(date.timeIntervalSince1970)" }
 }
 
 struct TimelineListEntry: Identifiable {

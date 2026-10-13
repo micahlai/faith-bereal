@@ -2,6 +2,15 @@ import XCTest
 @testable import BlessingCircle
 
 final class TimelinePresentationTests: XCTestCase {
+    func testNotificationTimesDeduplicateAcrossMembersAndExcludeWelcome() {
+        let time = Date(timeIntervalSince1970: 100)
+        let event = TimelineEvent(memberID: UUID(), date: time, status: .missed,
+            promptKind: .daily, notificationStartedAt: time)
+        let welcome = TimelineEvent(memberID: UUID(), date: time, status: .waiting,
+            promptKind: .daily, isWelcome: true, notificationStartedAt: time.addingTimeInterval(-10))
+        XCTAssertEqual(TimelinePresentation.notificationTimes([event, event, welcome]).map(\.date), [time])
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("actual daily and evening notification times"))
+    }
     func testUnstartedPromptsHaveNoTimelinePlaceholder() {
         let member = Member(id: UUID(), displayName: "A", initials: "A", tintSeed: 1)
         let scheduled = TimelineEvent(memberID: member.id, date: .now, status: .scheduled, promptKind: .daily)

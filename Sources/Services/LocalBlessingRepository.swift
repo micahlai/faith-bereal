@@ -338,7 +338,8 @@ actor LocalBlessingRepository: BlessingRepository {
                     memberID: member.id,
                     date: prompt.localDate,
                     status: status,
-                    promptKind: prompt.kind
+                    promptKind: prompt.kind,
+                    notificationStartedAt: prompt.phase(at: now) == .scheduled ? nil : prompt.startsAt
                 )
             }
             events.append(
