@@ -515,7 +515,7 @@ final class BlessingCircleUITests: XCTestCase {
         for _ in 0..<3 where !saving.isHittable { app.swipeUp() }
         saving.tap()
         XCTAssertTrue(app.navigationBars["Saving & media expiry"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["1. 30 days for hosted media"].exists)
+        XCTAssertTrue(app.staticTexts["2. 30 days for hosted media"].exists)
         let guide = XCTAttachment(screenshot: app.screenshot())
         guide.name = "Saving help topic"
         guide.lifetime = .keepAlways

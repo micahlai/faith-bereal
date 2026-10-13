@@ -2,6 +2,11 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testSavingGuideExplainsManualChoiceWhenAutomaticSavingIsOff() {
+        let text = HelpTopic.saving.steps.map(\.body).joined()
+        XCTAssertTrue(text.contains("If this is off, you can still choose individual blessings"))
+        XCTAssertTrue(text.contains("Text, Bible references, and photos remain"))
+    }
     func testWelcomeGuideExplainsPreviousDayAndNotificationCutoff() {
         let guide = HelpTopic.sharing.steps.map(\.body).joined()
         XCTAssertTrue(guide.contains("welcome blessing belongs to yesterday"))

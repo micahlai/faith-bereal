@@ -15,7 +15,7 @@ struct AutomaticSavingSettings: View {
         .accessibilityIdentifier("saving.automaticToggle")
         .disabled(model.isChangingAutomaticSaving || model.isChoosingAutomaticSaving)
         .sheet(isPresented: $showingKeepChoices) { AutomaticSaveKeepView() }
-        Text("Keep private copies of visible blessings from all your circles while manna is open. Audio/video expire on the server after 30 days. Copies use this device’s storage, don’t sync, and are lost if you uninstall the app.")
+        Text("Audio and video are deleted from the server after 30 days. Want to enjoy them afterward? Automatically save private copies on this device while manna is open. If this is off, you can still choose individual blessings and tap Save. Text, Bible references, and attached photos remain in circle history. Local copies don’t sync and are lost if you uninstall the app.")
             .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
         if let error = model.automaticSavingError {
             Label(error, systemImage: "exclamationmark.triangle")

@@ -235,7 +235,7 @@ private struct StartupOnboardingView: View {
             AppIconOnboardingPage()
         case .saving:
             VStack(alignment: .leading, spacing: 24) {
-                onboardingHeading("Keep blessings close", "Choose whether manna should keep private copies automatically. You can change this later in User settings.")
+                onboardingHeading("Keep blessings after 30 days", "Audio and video are deleted from the server after 30 days. Still want to enjoy them? Save them locally. Even with automatic saving off, you can choose individual blessings to save.")
                 VStack(alignment: .leading, spacing: 16) {
                     AutomaticSavingSettings()
                 }.blessingCard()
