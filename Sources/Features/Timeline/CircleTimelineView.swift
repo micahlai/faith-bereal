@@ -1,6 +1,17 @@
 import AVKit
 import SwiftUI
 
+private struct TimelineColumnWidthKey: EnvironmentKey {
+    static let defaultValue: CGFloat = TimelineSizing.defaultWidth
+}
+
+private extension EnvironmentValues {
+    var timelineColumnWidth: CGFloat {
+        get { self[TimelineColumnWidthKey.self] }
+        set { self[TimelineColumnWidthKey.self] = newValue }
+    }
+}
+
 struct CircleTimelineView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -11,6 +22,10 @@ struct CircleTimelineView: View {
     @State private var presentedLanes: [TimelineLane] = []
     @State private var rows: [TimelineRow] = []
     @State private var listEntries: [TimelineListEntry] = []
+    @AppStorage("timeline.columnWidth") private var storedWidth = TimelineSizing.defaultWidth
+    @GestureState private var pinchScale = 1.0
+
+    private var columnWidth: CGFloat { TimelineSizing.clamped(storedWidth * pinchScale) }
 
     private var showsList: Bool { prefersList ?? (dynamicTypeSize.isAccessibilitySize || voiceOverEnabled) }
 
@@ -61,6 +76,9 @@ struct CircleTimelineView: View {
                             TimelineFrozenDates(rows: rows, anchors: anchors, calendar: circleCalendar)
                         }
                         .scrollIndicators(.visible)
+                        .simultaneousGesture(MagnifyGesture()
+                            .updating($pinchScale) { value, scale, _ in scale = value.magnification }
+                            .onEnded { value in storedWidth = TimelineSizing.clamped(storedWidth * value.magnification) })
                         .clipped()
                     }
                 }
@@ -77,6 +95,17 @@ struct CircleTimelineView: View {
                         Text("Threads").tag(false)
                         Text("List").tag(true)
                     }
+                    if !showsList {
+                        Section("Timeline size") {
+                            Button("Smaller", systemImage: "minus.magnifyingglass") {
+                                storedWidth = TimelineSizing.clamped(storedWidth - 24)
+                            }.disabled(storedWidth <= 168)
+                            Button("Larger", systemImage: "plus.magnifyingglass") {
+                                storedWidth = TimelineSizing.clamped(storedWidth + 24)
+                            }.disabled(storedWidth >= 360)
+                            Button("Reset size") { storedWidth = TimelineSizing.defaultWidth }
+                        }
+                    }
                 } label: {
                     Image(systemName: "list.bullet")
                         .frame(minWidth: 44, minHeight: 44)
@@ -86,6 +115,7 @@ struct CircleTimelineView: View {
             }
         }
         .refreshable { await model.refreshCurrentCircle() }
+        .environment(\.timelineColumnWidth, columnWidth)
         .onChange(of: model.lanes, initial: true) { _, _ in rebuildPresentation() }
         .onChange(of: model.circle?.timeZoneIdentifier) { _, _ in rebuildPresentation() }
         .sheet(item: $selection) { selection in
@@ -142,7 +172,6 @@ struct CircleTimelineView: View {
 
 private enum TimelineLayout {
     static let dayColumnWidth: CGFloat = 62
-    static let memberColumnWidth: CGFloat = 238
     static let columnSpacing: CGFloat = 10
     static let leadingPadding: CGFloat = 6
 }
@@ -242,6 +271,7 @@ private struct BlessingSelection: Identifiable {
 }
 
 private struct TimelineMemberHeader: View {
+    @Environment(\.timelineColumnWidth) private var columnWidth
     let lanes: [TimelineLane]
     let currentUserID: UUID?
     let horizontalOffset: CGFloat
@@ -255,13 +285,13 @@ private struct TimelineMemberHeader: View {
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
                     VStack(spacing: 4) {
-                        AvatarBadge(member: lane.member, size: 48).accessibilityHidden(true)
+                        AvatarBadge(member: lane.member, size: 40).accessibilityHidden(true)
                         Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
                             .font(.headline)
                             .foregroundStyle(AppTheme.ink)
                             .lineLimit(1)
                     }
-                    .frame(width: TimelineLayout.memberColumnWidth)
+                    .frame(width: columnWidth)
                 }
             }
             .padding(.leading, TimelineLayout.leadingPadding)
@@ -271,7 +301,7 @@ private struct TimelineMemberHeader: View {
             .offset(x: -horizontalOffset)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
-        .frame(height: 60 + nameLineHeight)
+        .frame(height: 52 + nameLineHeight)
         .background(AppTheme.canvas)
         .clipped()
         .overlay(alignment: .bottom) { Divider() }
@@ -326,6 +356,7 @@ private struct TimelineRow: Identifiable {
 }
 
 private struct TimelineDayRow: View {
+    @Environment(\.timelineColumnWidth) private var columnWidth
     let row: TimelineRow
     let lanes: [TimelineLane]
     let calendar: Calendar
@@ -352,13 +383,13 @@ private struct TimelineDayRow: View {
                             )
                         }
                     }
-                    .frame(width: TimelineLayout.memberColumnWidth)
+                    .frame(width: columnWidth)
                     .frame(maxHeight: .infinity, alignment: .top)
                 } else {
                     TimelineConnectorView(
                         isVisible: row.day >= calendar.startOfDay(for: lane.member.joinedAt)
                     )
-                    .frame(width: TimelineLayout.memberColumnWidth)
+                    .frame(width: columnWidth)
                     .frame(minHeight: 42, maxHeight: .infinity, alignment: .top)
                 }
             }
@@ -507,7 +538,7 @@ private struct TimelineEventView: View {
                     TruncationAwareText(
                         text: blessing.body ?? "",
                         lineLimit: 15,
-                        font: .system(.body, design: .serif),
+                        font: .system(.subheadline, design: .serif),
                         isTruncated: $isBodyTruncated
                     )
                     .foregroundStyle(AppTheme.ink)
@@ -528,7 +559,7 @@ private struct TimelineEventView: View {
                     }
                     TimelineResponderAvatars(blessing: blessing)
                 }
-                .padding(14)
+                .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(alignment: .topTrailing) {

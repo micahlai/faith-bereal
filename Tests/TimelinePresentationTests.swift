@@ -2,6 +2,12 @@ import XCTest
 @testable import BlessingCircle
 
 final class TimelinePresentationTests: XCTestCase {
+    func testTimelineZoomHasReadableBoundsAndReset() {
+        XCTAssertEqual(TimelineSizing.clamped(0), 168)
+        XCTAssertEqual(TimelineSizing.clamped(1_000), 360)
+        XCTAssertEqual(TimelineSizing.clamped(.nan), 204)
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("Smaller, Larger, and Reset size"))
+    }
     func testNotificationTimesDeduplicateAcrossMembersAndExcludeWelcome() {
         let time = Date(timeIntervalSince1970: 100)
         let event = TimelineEvent(memberID: UUID(), date: time, status: .missed,
