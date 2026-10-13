@@ -106,41 +106,24 @@ struct CircleTimelineView: View {
 
     private func accessibleTimeline(rows: [TimelineRow]) -> some View {
         List {
-            ForEach(rows) { row in
-                Section {
-                    ForEach(presentedLanes) { lane in
-                        if let events = row.eventsByMemberID[lane.member.id] {
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack {
-                                    AvatarBadge(member: lane.member, size: 36).accessibilityHidden(true)
-                                    Text(lane.member.id == model.currentUser?.id ? "You" : lane.member.displayName)
-                                        .font(.headline)
-                                }
-                                .accessibilityAddTraits(.isHeader)
-                                ForEach(events.sorted { $0.promptKind == .endOfDay && $1.promptKind != .endOfDay }) {
-                                    event in
-                                    TimelineEventView(
-                                        event: event, member: lane.member, currentUserID: model.currentUser?.id
-                                    ) { blessing in
-                                        selection = BlessingSelection(member: lane.member, blessing: blessing)
-                                    }
-                                }
-                            }
-                            .listRowBackground(AppTheme.canvas)
-                            .listRowSeparator(.hidden)
-                        }
+            ForEach(TimelinePresentation.listEntries(presentedLanes)) { item in
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(accessibleDate(item.sortDate))
+                        .font(.caption).foregroundStyle(AppTheme.secondaryInk)
+                    HStack {
+                        AvatarBadge(member: item.member, size: 36).accessibilityHidden(true)
+                        Text(item.member.id == model.currentUser?.id ? "You" : item.member.displayName)
+                            .font(.headline)
                     }
-                } header: {
-                    Text(accessibleDate(row.day))
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(AppTheme.ink)
-                        .textCase(nil)
-                        .accessibilityAddTraits(.isHeader)
+                    .accessibilityAddTraits(.isHeader)
+                    TimelineEventView(event: item.event, member: item.member, currentUserID: model.currentUser?.id) { blessing in
+                        selection = BlessingSelection(member: item.member, blessing: blessing)
+                    }
                 }
+                .listRowBackground(AppTheme.canvas)
+                .listRowSeparator(.hidden)
             }
         }
-        // Grouped headers scroll with their section rather than pinning a large
-        // date over the content at accessibility text sizes.
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .accessibilityIdentifier("timeline.accessibleList")

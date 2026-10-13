@@ -2,6 +2,15 @@ import XCTest
 @testable import BlessingCircle
 
 final class TimelinePresentationTests: XCTestCase {
+    func testListContainsOnlyActualEventsInNewestFirstOrder() {
+        let member = Member(id: UUID(), displayName: "A", initials: "A", tintSeed: 1)
+        let joined = TimelineEvent(memberID: member.id, date: Date(timeIntervalSince1970: 100), status: .joinedCircle)
+        let missed = TimelineEvent(memberID: member.id, date: Date(timeIntervalSince1970: 300), status: .missed, promptKind: .daily)
+        let other = TimelineEvent(memberID: UUID(), date: Date(timeIntervalSince1970: 200), status: .joinedCircle)
+        let entries = TimelinePresentation.listEntries([TimelineLane(member: member, events: [joined, missed, other])])
+        XCTAssertEqual(entries.map(\.id), [other.id, joined.id])
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("List does not include missed days"))
+    }
     func testWelcomeDisplayMovesWithoutChangingPromptOrCollidingWithRegularEvent() throws {
         let calendar = Calendar(identifier: .gregorian)
         let day = calendar.startOfDay(for: .now)
