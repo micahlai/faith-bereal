@@ -223,12 +223,13 @@ actor LocalBlessingRepository: BlessingRepository {
         let memberCircles = circles.filter { circle in
             circle.members.contains(where: { $0.id == currentUser.id })
         }
+        let memberCirclesWithStreaks = memberCircles.map { withStreaks($0) }
         let selectedCircleID = memberCircles.first?.id
         let prompt = selectedCircleID.flatMap { id in currentDailyPrompt(circleID: id, now: .now) }
         let endOfDayPrompt = selectedCircleID.flatMap { id in currentEndOfDayPrompt(circleID: id, now: .now) }
         return AppBootstrap(
             currentUser: currentUser,
-            circles: memberCircles,
+            circles: memberCirclesWithStreaks,
             selectedCircleID: selectedCircleID,
             prompt: prompt,
             endOfDayPrompt: endOfDayPrompt
@@ -242,7 +243,7 @@ actor LocalBlessingRepository: BlessingRepository {
             throw BlessingError.circleNotFound
         }
         return CircleContext(
-            circle: circle,
+            circle: withStreaks(circle),
             prompt: currentDailyPrompt(circleID: circleID, now: .now),
             endOfDayPrompt: currentEndOfDayPrompt(circleID: circleID, now: .now)
         )
@@ -257,7 +258,7 @@ actor LocalBlessingRepository: BlessingRepository {
             throw BlessingError.circleNotFound
         }
         return CircleContext(
-            circle: circle,
+            circle: withStreaks(circle),
             prompt: prompt.kind == .daily ? prompt : currentDailyPrompt(circleID: circle.id, now: .now),
             endOfDayPrompt: prompt.kind == .endOfDay ? prompt : currentEndOfDayPrompt(circleID: circle.id, now: .now)
         )
@@ -265,6 +266,17 @@ actor LocalBlessingRepository: BlessingRepository {
 
     func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void> {
         AsyncStream { $0.finish() }
+    }
+
+    private func withStreaks(_ circle: CircleGroup, now: Date = .now) -> CircleGroup {
+        var result = circle
+        let circlePrompts = Dictionary(uniqueKeysWithValues: prompts.filter { $0.circleID == circle.id }.map { ($0.id, $0) })
+        let posts = blessings.compactMap { blessing -> StreakDay? in
+            guard let prompt = circlePrompts[blessing.promptID] else { return nil }
+            return StreakDay(circleID: circle.id, memberID: blessing.authorID, day: prompt.localDate, onTime: !blessing.isLate)
+        }
+        result.streaks = CircleStreakPolicy.summaries(circle: circle, posts: posts, now: now)
+        return result
     }
 
     func registerDevice(

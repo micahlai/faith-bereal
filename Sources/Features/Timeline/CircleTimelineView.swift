@@ -148,6 +148,7 @@ struct CircleTimelineView: View {
                         AvatarBadge(member: item.member, size: 36).accessibilityHidden(true)
                         Text(item.member.id == model.currentUser?.id ? "You" : item.member.displayName)
                             .font(.headline)
+                        ProfileStreakBadge(memberID: item.member.id)
                     }
                     .accessibilityAddTraits(.isHeader)
                     TimelineEventView(event: item.event, member: item.member, currentUserID: model.currentUser?.id) { blessing in
@@ -304,7 +305,10 @@ private struct TimelineMemberHeader: View {
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
                     VStack(spacing: 4) {
-                        AvatarBadge(member: lane.member, size: 40).accessibilityHidden(true)
+                        HStack(spacing: 6) {
+                            AvatarBadge(member: lane.member, size: 40).accessibilityHidden(true)
+                            ProfileStreakBadge(memberID: lane.member.id)
+                        }
                         Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
                             .font(.headline)
                             .foregroundStyle(AppTheme.ink)
@@ -565,10 +569,14 @@ private struct TimelineEventView: View {
                         Text(blessing.submittedAt, style: .time)
                             .font(.caption2)
                             .foregroundStyle(AppTheme.secondaryInk)
-                        if blessing.isLate {
+                        if blessing.isLate && !event.isWelcome {
                             Label("Late", systemImage: "clock.badge.exclamationmark")
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(AppTheme.candle)
+                        } else if !event.isWelcome {
+                            Label("On time", systemImage: "checkmark.seal")
+                                .font(.caption2)
+                                .foregroundStyle(AppTheme.dawn)
                         }
                     }
                     if let reference = blessing.scriptureReference {

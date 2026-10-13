@@ -757,7 +757,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
             guard let profile = profiles.first(where: { $0.id == membership.userID }) else { continue }
             members.append(try await member(from: profile, joinedAt: membership.joinedAt))
         }
-        return CircleGroup(
+        let streakRows: [CircleStreak] = try await client.rpc("circle_streaks", params: ["p_circle_id": id]).execute().value
+        var result = CircleGroup(
             id: row.id,
             name: row.name,
             inviteCode: recoveredCode ?? "",
@@ -778,6 +779,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 .first(where: { $0.userID == viewerID })?
                 .notifyOnEndOfDay ?? true
         )
+        result.streaks = Dictionary(uniqueKeysWithValues: streakRows.map { ($0.memberID, $0) })
+        return result
     }
 
     private func circlePhotoSignedURL(path: String?) async throws -> URL? {

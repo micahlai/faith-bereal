@@ -145,6 +145,7 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     var photoURL: URL? = nil
     var circleActivityNotificationsEnabled: Bool = true
     var endOfDayNotificationsEnabled: Bool = true
+    var streaks: [UUID: CircleStreak]? = nil
 
     var responseWindowDuration: TimeInterval {
         TimeInterval(responseWindowMinutes * 60)

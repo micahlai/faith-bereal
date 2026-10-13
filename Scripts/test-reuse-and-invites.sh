@@ -37,9 +37,11 @@ run_sql -f "$repo_root/supabase/migrations/202610070002_universal_circle_invites
   -f "$repo_root/supabase/migrations/202610120002_first_join_and_daily_boundaries.sql" \
   -f "$repo_root/supabase/migrations/202610120003_live_activity_day_cutoff.sql" \
   -f "$repo_root/supabase/migrations/202610120004_wait_for_dispatched_notification.sql" \
+  -f "$repo_root/supabase/migrations/202610130001_circle_streaks.sql" \
   -f "$repo_root/supabase/tests/reuse_blessing_media.sql" \
   -f "$repo_root/supabase/tests/durable_circle_invites.sql" \
   -f "$repo_root/supabase/tests/reuse_storage_visibility.sql" \
   -f "$repo_root/supabase/tests/circle_nudges.sql" \
-  -f "$repo_root/supabase/tests/first_join_timing.sql"
+  -f "$repo_root/supabase/tests/first_join_timing.sql" \
+  -f "$repo_root/supabase/tests/circle_streaks.sql"
 echo 'Reuse media, invite recovery, private Storage visibility, and nudge checks passed locally.'

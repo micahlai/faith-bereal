@@ -229,6 +229,7 @@ private struct TodayBlessingCard: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 12) {
                 AvatarBadge(member: item.member, size: 46)
+                ProfileStreakBadge(memberID: item.member.id)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.member.displayName)
                         .font(.headline)
