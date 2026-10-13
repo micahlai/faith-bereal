@@ -88,7 +88,7 @@ final class HelpContentTests: XCTestCase {
 
     func testTimelineGuideDistinguishesScheduledAndShareableStates() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined(separator: " ")
-        for concept in ["Waiting for notification", "has not started", "You can still share", "first-day exception", "Future days"] {
+        for concept in ["Unstarted prompts are hidden", "has started", "You can still share", "first-day exception", "Future days"] {
             XCTAssertTrue(guide.contains(concept))
         }
     }

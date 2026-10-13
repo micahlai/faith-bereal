@@ -13,7 +13,7 @@ enum TimelinePresentation {
     }
     static func lanes(_ source: [TimelineLane], calendar: Calendar) -> [TimelineLane] {
         source.map { lane in
-            TimelineLane(member: lane.member, events: lane.events.map { event in
+            TimelineLane(member: lane.member, events: lane.events.filter { $0.status != .scheduled }.map { event in
                 guard event.promptKind == .daily, case let .blessing(blessing) = event.status,
                       calendar.startOfDay(for: event.date) < calendar.startOfDay(for: lane.member.joinedAt),
                       blessing.submittedAt >= lane.member.joinedAt,

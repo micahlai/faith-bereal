@@ -552,10 +552,7 @@ private struct TimelineEventView: View {
                 .foregroundStyle(AppTheme.dawn)
                 .padding(.vertical, 10)
         case .scheduled:
-            Label("Waiting for notification", systemImage: "bell.badge")
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.secondaryInk)
-                .padding(.vertical, 10)
+            EmptyView()
         case .joinedCircle:
             VStack(alignment: .leading, spacing: 4) {
                 Text("Joined circle")

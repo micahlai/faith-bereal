@@ -2,6 +2,11 @@ import XCTest
 @testable import BlessingCircle
 
 final class TimelinePresentationTests: XCTestCase {
+    func testUnstartedPromptsHaveNoTimelinePlaceholder() {
+        let member = Member(id: UUID(), displayName: "A", initials: "A", tintSeed: 1)
+        let scheduled = TimelineEvent(memberID: member.id, date: .now, status: .scheduled, promptKind: .daily)
+        XCTAssertTrue(TimelinePresentation.lanes([TimelineLane(member: member, events: [scheduled])], calendar: .current)[0].events.isEmpty)
+    }
     func testListContainsOnlyActualEventsInNewestFirstOrder() {
         let member = Member(id: UUID(), displayName: "A", initials: "A", tintSeed: 1)
         let joined = TimelineEvent(memberID: member.id, date: Date(timeIntervalSince1970: 100), status: .joinedCircle)
