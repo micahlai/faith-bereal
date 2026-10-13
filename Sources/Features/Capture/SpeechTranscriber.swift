@@ -132,6 +132,21 @@ final class SpeechTranscriber: NSObject {
         return recordingURL
     }
 
+    var draftAudioSegments: [URL] {
+        var result = segments
+        if state == .listening, let recordingURL, !result.contains(recordingURL) { result.append(recordingURL) }
+        if result.isEmpty, let recordingURL { result.append(recordingURL) }
+        return result.filter { !Self.isEmptyRecording($0) }
+    }
+
+    func restoreDraftAudio(_ urls: [URL], text: String) {
+        reset()
+        transcript = text
+        segments = urls.filter { FileManager.default.fileExists(atPath: $0.path) }
+        if segments.count == 1 { recordingURL = segments[0] }
+        else if segments.count > 1 { assembleSegments() }
+    }
+
     private func assembleSegments() {
         let id = UUID()
         assemblyID = id

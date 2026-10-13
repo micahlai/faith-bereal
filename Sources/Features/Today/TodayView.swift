@@ -32,6 +32,17 @@ struct TodayView: View {
     @ViewBuilder
     private func todayContent(at date: Date) -> some View {
         VStack(alignment: .leading, spacing: 28) {
+            ForEach(model.resumableDrafts(at: date)) { draft in
+                Button {
+                    Task { await model.continueDraft(draft) }
+                } label: {
+                    Label(draft.promptID == model.endOfDayPrompt?.id ? "Continue evening blessing" : "Continue blessing",
+                        systemImage: "pencil.and.outline")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.buttonStyle(MannaPrimaryButtonStyle())
+                .disabled(model.isPreparingCapture || model.isSwitchingCircle)
+                .accessibilityIdentifier("draft.continue.\(draft.promptID.uuidString)")
+            }
             if let endOfDayPrompt = model.endOfDayPrompt,
                model.canEnterEndOfDayPrompt(at: date) {
                 EndOfDayPromptCard(
@@ -66,6 +77,9 @@ struct TodayView: View {
                     WaitingForPromptView(circleName: model.circle?.name)
                 }
             }
+        }
+        .task(id: CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier).startOfDay(for: date)) {
+            await model.reloadDrafts(now: date)
         }
     }
 

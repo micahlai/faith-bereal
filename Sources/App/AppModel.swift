@@ -19,6 +19,10 @@ final class AppModel {
     private let bibleService: any BibleTextProviding
     private let authentication: (any AuthenticationProviding)?
     private let savedBlessingStore: SavedBlessingStore
+    private let draftStore: BlessingDraftStore
+    private(set) var savedDrafts: [BlessingDraft] = []
+    private(set) var captureDraftToRestore: BlessingDraft?
+    private(set) var draftSaveError: String?
     private(set) var savedBlessings: [UUID: SavedBlessingRecord] = [:]
     private(set) var savingBlessingIDs: Set<UUID> = []
     private(set) var responseMediaDates: [UUID: [Date]] = [:]
@@ -61,6 +65,7 @@ final class AppModel {
         didSet {
             if !isCapturePresented && !isSubmitting {
                 capturePrompt = nil
+                captureDraftToRestore = nil
             }
         }
     }
@@ -108,12 +113,14 @@ final class AppModel {
         repository: any BlessingRepository,
         bibleService: any BibleTextProviding = BibleAPIService(),
         authentication: (any AuthenticationProviding)? = nil,
-        savedBlessingStore: SavedBlessingStore = SavedBlessingStore()
+        savedBlessingStore: SavedBlessingStore = SavedBlessingStore(),
+        draftStore: BlessingDraftStore = BlessingDraftStore()
     ) {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
         self.savedBlessingStore = savedBlessingStore
+        self.draftStore = draftStore
         self.pendingInviteCode = UserDefaults.standard.string(forKey: Self.pendingInviteCodeKey)
             .flatMap(CircleInviteLink.normalize(code:))
         let skipsOnboarding = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
@@ -284,6 +291,8 @@ final class AppModel {
                 now: now
             )
             capturePrompt = targetPrompt
+            await draftStore.beginEditing(authorID: currentUser.id, circleID: targetPrompt.circleID, promptID: targetPrompt.id)
+            captureDraftToRestore = savedDrafts.first { $0.promptID == targetPrompt.id && $0.expiresAt > now }
             isCapturePresented = true
             return true
         } catch {
@@ -308,6 +317,9 @@ final class AppModel {
         loadState = .loading
         if let authentication, await !authentication.hasSession() {
             loadState = .signedOut
+            savedDrafts = []
+            captureDraftToRestore = nil
+            draftSaveError = nil
             return
         }
         do {
@@ -415,8 +427,73 @@ final class AppModel {
         let page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: now, before: nil)
         guard self.circle?.id == circle.id, self.currentUser?.id == currentUser.id else { return }
         installTimelinePage(page, circleID: circle.id)
+        await reloadDrafts(now: now)
         scheduleWidgetSnapshotRefresh(now: now)
         scheduleAutomaticSaving()
+    }
+
+    func reloadDrafts(now: Date = .now) async {
+        guard let userID = currentUser?.id else { savedDrafts = []; return }
+        do {
+            let loaded = try await draftStore.load(authorID: userID, now: now)
+            guard currentUser?.id == userID else { return }
+            let sent = Set(lanes.flatMap(\.events).compactMap { event -> UUID? in
+                if case let .blessing(blessing) = event.status, blessing.authorID == userID { return blessing.promptID }
+                return nil
+            })
+            for draft in loaded where sent.contains(draft.promptID) {
+                try? await draftStore.markSent(authorID: userID, circleID: draft.circleID, promptID: draft.promptID)
+            }
+            savedDrafts = loaded.filter { !sent.contains($0.promptID) }
+        } catch { draftSaveError = "Local drafts couldn’t be read. Your current composer is unchanged." }
+    }
+
+    func resumableDrafts(at now: Date) -> [BlessingDraft] {
+        guard let circle, let userID = currentUser?.id else { return [] }
+        return savedDrafts.filter { draft in
+            guard let target = [prompt, endOfDayPrompt].compactMap({ $0 }).first(where: { $0.id == draft.promptID }),
+                  currentUserBlessing(for: target) == nil else { return false }
+            return BlessingDraftPolicy.canResume(draft, authorID: userID, prompt: target, circle: circle,
+                now: now, nextDailyPrompt: prompt)
+        }
+    }
+
+    func continueDraft(_ draft: BlessingDraft) async {
+        await refreshCurrentCircle()
+        guard resumableDrafts(at: .now).contains(where: { $0.id == draft.id }),
+              let target = [prompt, endOfDayPrompt].compactMap({ $0 }).first(where: { $0.id == draft.promptID }) else {
+            message = "This draft’s entry window has closed. A saved draft does not extend the deadline."
+            return
+        }
+        // begin_blessing_entry rechecks server time even if an older grant exists.
+        _ = await openCapture(for: target)
+    }
+
+    func persistDraft(_ draft: BlessingDraft) async -> Bool {
+        guard currentUser?.id == draft.authorID else { return false }
+        do {
+            let saved = try await draftStore.save(draft)
+            guard currentUser?.id == draft.authorID else { return false }
+            guard !Task.isCancelled else { return true }
+            savedDrafts.removeAll { $0.promptID == draft.promptID && $0.circleID == draft.circleID }
+            if let saved { savedDrafts.append(saved) }
+            draftSaveError = nil
+            return true
+        } catch {
+            draftSaveError = "Couldn’t save this draft on your device. Free some storage and try again before sending."
+            return false
+        }
+    }
+
+    func prepareDraftForEditing(_ draft: BlessingDraft) async throws -> BlessingDraft {
+        guard currentUser?.id == draft.authorID else { throw BlessingMediaSaveError.unavailable }
+        return try await draftStore.copyForEditing(draft)
+    }
+
+    private func clearSentDraft(promptID: UUID, circleID: UUID, authorID: UUID) async {
+        try? await draftStore.markSent(authorID: authorID, circleID: circleID, promptID: promptID)
+        guard currentUser?.id == authorID else { return }
+        savedDrafts.removeAll { $0.promptID == promptID && $0.circleID == circleID }
     }
 
     private func installTimelinePage(_ page: TimelinePage, circleID: UUID, reset: Bool = false) {
@@ -480,6 +557,7 @@ final class AppModel {
 #endif
             submittedBlessing = nil
             installTimelinePage(targetLanes, circleID: circleID, reset: true)
+            await reloadDrafts()
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
                 circles[index] = resolvedCircle
             }
@@ -534,6 +612,7 @@ final class AppModel {
         prompt = context.prompt
         endOfDayPrompt = context.endOfDayPrompt
         installTimelinePage(refreshedLanes, circleID: selectedCircleID)
+        await reloadDrafts(now: now)
         upsertCircle(refreshedCircle)
         scheduleWidgetSnapshotRefresh(now: now)
 
@@ -576,6 +655,7 @@ final class AppModel {
                 submittedBlessing = nil
             }
             installTimelinePage(refreshedLanes, circleID: resolvedCircle.id, reset: previousCircleID != resolvedCircle.id)
+            await reloadDrafts(now: now)
             upsertCircle(resolvedCircle)
             Self.persistedCircleID = resolvedCircle.id
             scheduleWidgetSnapshotRefresh(now: now)
@@ -635,6 +715,7 @@ final class AppModel {
                 now: .now
             )
             submittedBlessing = savedBlessing
+            await clearSentDraft(promptID: targetPrompt.id, circleID: savedBlessing.circleID, authorID: currentUser.id)
             if targetPrompt.kind == .daily {
                 let knownBlessingIDs = Set(
                     currentPromptBlessings(at: .now)
@@ -1084,6 +1165,7 @@ final class AppModel {
                 now: now
             )
             submittedBlessing = savedBlessing
+            await clearSentDraft(promptID: targetPrompt.id, circleID: savedBlessing.circleID, authorID: currentUser.id)
             if targetPrompt.kind == .daily {
                 let knownBlessingIDs = Set(
                     currentPromptBlessings(at: now)

@@ -2,6 +2,38 @@ import XCTest
 
 final class BlessingCircleUITests: XCTestCase {
     @MainActor
+    func testDraftSurvivesRelaunchAndDisappearsAfterSending() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchArguments += ["--manna-local-ui-test"]
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 15))
+        app.buttons["Share a blessing"].tap()
+        let editor = app.textViews["Write your blessing"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap()
+        editor.typeText("Draft preserved across relaunch")
+        app.buttons["Close"].tap()
+        XCTAssertTrue(app.buttons["Continue blessing"].waitForExistence(timeout: 10))
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.buttons["Continue blessing"].waitForExistence(timeout: 10))
+        app.buttons["Continue blessing"].tap()
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        XCTAssertEqual(editor.value as? String, "Draft preserved across relaunch")
+        let send = app.buttons["Send blessing"]
+        for _ in 0..<6 where !send.isHittable { app.swipeUp() }
+        send.tap()
+        let alert = app.alerts["manna circle"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        alert.buttons["OK"].tap()
+        XCTAssertFalse(app.buttons["Continue blessing"].exists)
+    }
+    @MainActor
     func testNudgeAppearsOnlyAfterSharingAndCannotBeRepeated() {
         continueAfterFailure = false
         let app = XCUIApplication()

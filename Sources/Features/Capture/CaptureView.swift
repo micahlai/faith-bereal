@@ -23,6 +23,16 @@ struct CaptureView: View {
     @State private var transcriber = SpeechTranscriber()
     @State private var repeatCandidates: [Blessing] = []
     @State private var repeatSource: Blessing?
+    @State private var draftTarget: DailyPrompt?
+    @State private var draftAuthorID: UUID?
+    @State private var draftCreatedAt = Date.now
+    @State private var draftExpiresAt: Date?
+    @State private var draftInitialized = false
+    @State private var isCheckpointingForSend = false
+    @State private var wasSent = false
+    @State private var checkpointTask: Task<Void, Never>?
+    @State private var pendingRepeatRestoreID: UUID?
+    @State private var restorationWarning: String?
     @FocusState private var editorFocused: Bool
 
     var body: some View {
@@ -42,6 +52,11 @@ struct CaptureView: View {
                             repeatedBlessingPreview
                         }
                         sendButton
+                        if let error = model.draftSaveError {
+                            Label(error, systemImage: "exclamationmark.triangle")
+                                .font(.footnote).foregroundStyle(AppTheme.missed)
+                        }
+                        if let restorationWarning { Text(restorationWarning).font(.footnote).foregroundStyle(AppTheme.missed) }
                     }
                     .frame(maxWidth: 680)
                     .padding(AppTheme.pagePadding)
@@ -50,11 +65,13 @@ struct CaptureView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("Your blessing")
+            .disabled(model.isSubmitting || isCheckpointingForSend)
+            .interactiveDismissDisabled(model.isSubmitting || isCheckpointingForSend)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
-                        .disabled(model.isSubmitting)
+                        .disabled(model.isSubmitting || isCheckpointingForSend)
                 }
             }
             .fullScreenCover(isPresented: $showCamera) {
@@ -104,14 +121,67 @@ struct CaptureView: View {
                 Task { await loadPhoto(item) }
             }
             .onDisappear {
+                checkpointTask?.cancel()
                 transcriber.stop()
+                if !wasSent { Task { _ = await saveDraftCheckpoint() } }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .background { transcriber.stop() }
+                if phase == .background {
+                    transcriber.stop()
+                    Task { _ = await saveDraftCheckpoint() }
+                }
             }
-            .task {
-                repeatCandidates = await model.repeatBlessingCandidates()
+            .background { checkpointObserver }
+            .task { await runDraftSession() }
+        }
+    }
+
+    private var checkpointObserver: some View {
+        Color.clear
+            .onChange(of: text) { _, _ in scheduleCheckpoint() }
+            .onChange(of: mode) { _, _ in scheduleCheckpoint() }
+            .onChange(of: photoURL) { _, _ in scheduleCheckpoint() }
+            .onChange(of: videoURL) { _, _ in scheduleCheckpoint() }
+            .onChange(of: scriptureReference) { _, _ in scheduleCheckpoint() }
+            .onChange(of: transcriber.recordingURL) { _, _ in scheduleCheckpoint() }
+            .onChange(of: transcriber.state) { _, _ in scheduleCheckpoint() }
+    }
+
+    private func runDraftSession() async {
+        let restored = model.captureDraftToRestore
+        if !draftInitialized {
+            draftTarget = model.capturePrompt ?? model.prompt
+            draftAuthorID = model.currentUser?.id
+            draftCreatedAt = restored?.createdAt ?? Date.now
+            draftExpiresAt = restored?.expiresAt ?? BlessingDraftPolicy.expiry(createdAt: draftCreatedAt,
+                timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
+            if let restored {
+                mode = restored.mode
+                text = restored.text
+                scriptureReference = restored.scriptureReference
+                pendingRepeatRestoreID = restored.repeatSourceID
+                do {
+                    // A live composer must survive deletion of its draft at midnight.
+                    let editable = try await model.prepareDraftForEditing(restored)
+                    guard !Task.isCancelled else { return }
+                    photoURL = editable.photoURL
+                    videoURL = editable.videoURL
+                    transcriber.restoreDraftAudio(editable.audioSegments, text: restored.text)
+                } catch {
+                    restorationWarning = "Some draft media couldn’t be restored. Your text and Bible tag are kept; choose or record the missing media again."
+                }
             }
+            draftInitialized = true
+        }
+        repeatCandidates = await model.repeatBlessingCandidates()
+        if let sourceID = pendingRepeatRestoreID {
+            repeatSource = repeatCandidates.first { $0.id == sourceID }
+            if repeatSource == nil { mode = .typed }
+            pendingRepeatRestoreID = nil
+        }
+        while !Task.isCancelled {
+            do { try await Task.sleep(for: .seconds(2)) } catch { break }
+            _ = await saveDraftCheckpoint()
         }
     }
 
@@ -462,7 +532,11 @@ struct CaptureView: View {
     private var sendButton: some View {
         Button {
             Task {
+                isCheckpointingForSend = true
+                checkpointTask?.cancel()
+                defer { isCheckpointingForSend = false }
                 let audio = await transcriber.finishRecording()
+                guard await saveDraftCheckpoint(evenWhileSending: true) else { return }
                 let succeeded: Bool
                 if let repeatSource {
                     succeeded = await model.repeatBlessing(repeatSource)
@@ -477,6 +551,7 @@ struct CaptureView: View {
                     )
                 }
                 if succeeded {
+                    wasSent = true
                     dismiss()
                 }
             }
@@ -493,8 +568,32 @@ struct CaptureView: View {
         .buttonStyle(MannaPrimaryButtonStyle())
         .tint(AppTheme.actionFill)
         .controlSize(.large)
-        .disabled(model.isSubmitting || !canSubmit)
+        .disabled(model.isSubmitting || isCheckpointingForSend || !draftInitialized || !canSubmit)
         .disabled(transcriber.state == .finishing || transcriber.state == .requestingPermission)
+    }
+
+    private func scheduleCheckpoint() {
+        guard draftInitialized, !wasSent, !isCheckpointingForSend, !model.isSubmitting else { return }
+        checkpointTask?.cancel()
+        checkpointTask = Task {
+            do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+            _ = await saveDraftCheckpoint()
+        }
+    }
+
+    private func saveDraftCheckpoint(evenWhileSending: Bool = false) async -> Bool {
+        guard draftInitialized, !wasSent,
+              evenWhileSending || (!model.isSubmitting && !isCheckpointingForSend),
+              let target = draftTarget, let authorID = draftAuthorID, let expiry = draftExpiresAt else { return true }
+        let draft = BlessingDraft(authorID: authorID, circleID: target.circleID, promptID: target.id,
+            createdAt: draftCreatedAt, expiresAt: expiry, updatedAt: .now, mode: mode, text: text,
+            audioSegments: mode == .voice && repeatSource == nil ? transcriber.draftAudioSegments : [],
+            videoURL: mode == .video && repeatSource == nil ? videoURL : nil,
+            photoURL: mode != .video && repeatSource == nil ? photoURL : nil,
+            scriptureReference: scriptureReference, repeatSourceID: repeatSource?.id)
+        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Save blessing draft")
+        defer { if backgroundTask != .invalid { UIApplication.shared.endBackgroundTask(backgroundTask) } }
+        return await model.persistDraft(draft)
     }
 
     private var canSubmit: Bool {

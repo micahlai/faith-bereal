@@ -19,6 +19,12 @@ enum CaptureMediaStore {
         return destinationURL
     }
 
+    static func persistDraftMedia(from sourceURL: URL) throws -> URL {
+        let destination = try newRecordingURL(pathExtension: sourceURL.pathExtension)
+        try FileManager.default.copyItem(at: sourceURL, to: destination)
+        return destination
+    }
+
     static func persistVideoThumbnail(
         from videoURL: URL,
         maximumPixelSize: CGFloat = 1_024
