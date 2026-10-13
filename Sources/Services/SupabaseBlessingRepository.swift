@@ -85,15 +85,40 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
         let circle = try await fetchCircle(id: circleID, inviteCode: "")
+        return try await timeline(circle: circle, viewerID: viewerID, now: now, from: nil, before: nil)
+    }
+
+    func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
+        let circle = try await fetchCircle(id: circleID, inviteCode: "")
+        let calendar = circleCalendar(circle)
+        let upper = before.map { calendar.startOfDay(for: $0) }
+            ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+        let lower = calendar.date(byAdding: .day, value: -TimelinePaging.daysPerPage, to: upper)!
+        let lanes = try await timeline(circle: circle, viewerID: viewerID, now: now, from: lower, before: upper)
+        let firstJoin = circle.members.map { calendar.startOfDay(for: $0.joinedAt) }.min() ?? lower
+        let hasMore = lower > firstJoin
+        return TimelinePage(lanes: lanes.map { lane in
+            TimelineLane(member: lane.member, events: lane.events.filter { event in
+                event.status != .joinedCircle || (!hasMore || calendar.startOfDay(for: event.date) >= lower)
+                    && calendar.startOfDay(for: event.date) < upper
+            })
+        }, nextBeforeDate: hasMore ? lower : nil)
+    }
+
+    private func timeline(circle: CircleGroup, viewerID: UUID, now: Date, from lower: Date?, before upper: Date?) async throws -> [TimelineLane] {
+        let circleID = circle.id
         let currentLocalDate = Self.localDateString(
             at: now,
             timeZoneIdentifier: circle.timeZoneIdentifier
         )
-        let promptRows: [PromptRow] = try await client
+        var query = client
             .from("daily_prompts")
             .select()
             .eq("circle_id", value: circleID)
             .lte("local_date", value: currentLocalDate)
+        if let lower { query = query.gte("local_date", value: Self.localDateString(at: lower, timeZoneIdentifier: circle.timeZoneIdentifier)) }
+        if let upper { query = query.lt("local_date", value: Self.localDateString(at: upper, timeZoneIdentifier: circle.timeZoneIdentifier)) }
+        let promptRows: [PromptRow] = try await query
             .order("local_date", ascending: false)
             .execute()
             .value

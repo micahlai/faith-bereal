@@ -61,6 +61,7 @@ struct CircleTimelineView: View {
                                         }
                                     )
                                 }
+                                olderDaysButton
                             }
                             .padding(.leading, TimelineLayout.leadingPadding)
                             .padding(.trailing, AppTheme.pagePadding)
@@ -156,6 +157,7 @@ struct CircleTimelineView: View {
                 .listRowBackground(AppTheme.canvas)
                 .listRowSeparator(.hidden)
             }
+            olderDaysButton.listRowBackground(AppTheme.canvas)
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -167,6 +169,23 @@ struct CircleTimelineView: View {
         var style = Date.FormatStyle.dateTime.month(.wide).day().year()
         style.timeZone = circleCalendar.timeZone
         return day.formatted(style)
+    }
+
+    @ViewBuilder private var olderDaysButton: some View {
+        if model.timelineNextBeforeDate != nil {
+            VStack(alignment: .leading, spacing: 8) {
+                Button {
+                    Task { await model.loadMoreTimeline() }
+                } label: {
+                    HStack {
+                        if model.isLoadingMoreTimeline { ProgressView() }
+                        Text(model.isLoadingMoreTimeline ? "Loading older days…" : "Load older days")
+                    }.frame(minHeight: 44)
+                }.disabled(model.isLoadingMoreTimeline)
+                .accessibilityIdentifier("timeline.loadOlder")
+                if let error = model.timelineLoadError { Text(error).font(.footnote) }
+            }
+        }
     }
 }
 

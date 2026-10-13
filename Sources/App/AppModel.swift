@@ -51,6 +51,11 @@ final class AppModel {
     var endOfDayPrompt: DailyPrompt?
     private(set) var capturePrompt: DailyPrompt?
     var lanes: [TimelineLane] = []
+    private(set) var timelineNextBeforeDate: Date?
+    private(set) var isLoadingMoreTimeline = false
+    private(set) var timelineLoadError: String?
+    private var timelinePagingCircleID: UUID?
+    private var timelineHasLoadedMore = false
     var selectedTab = 0
     var isCapturePresented = false {
         didSet {
@@ -407,9 +412,38 @@ final class AppModel {
 
     func refreshTimeline(now: Date = .now) async throws {
         guard let circle, let currentUser else { return }
-        lanes = try await repository.timeline(circleID: circle.id, viewerID: currentUser.id, now: now)
+        let page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: now, before: nil)
+        guard self.circle?.id == circle.id, self.currentUser?.id == currentUser.id else { return }
+        installTimelinePage(page, circleID: circle.id)
         scheduleWidgetSnapshotRefresh(now: now)
         scheduleAutomaticSaving()
+    }
+
+    private func installTimelinePage(_ page: TimelinePage, circleID: UUID, reset: Bool = false) {
+        if reset || timelinePagingCircleID != circleID {
+            timelineHasLoadedMore = false
+            timelinePagingCircleID = circleID
+            lanes = page.lanes
+        } else { lanes = TimelinePaging.merge(lanes, with: page.lanes) }
+        if !timelineHasLoadedMore { timelineNextBeforeDate = page.nextBeforeDate }
+        timelineLoadError = nil
+    }
+
+    func loadMoreTimeline() async {
+        guard !isLoadingMoreTimeline, let cursor = timelineNextBeforeDate, let circle, let currentUser else { return }
+        isLoadingMoreTimeline = true
+        defer { isLoadingMoreTimeline = false }
+        do {
+            let page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: .now, before: cursor)
+            guard self.circle?.id == circle.id, self.currentUser?.id == currentUser.id else { return }
+            lanes = TimelinePaging.merge(lanes, with: page.lanes)
+            timelineNextBeforeDate = page.nextBeforeDate
+            timelineHasLoadedMore = true
+            timelineLoadError = nil
+        } catch {
+            guard !Self.isCancellation(error) else { return }
+            timelineLoadError = "Couldn’t load older days. Try again."
+        }
     }
 
     func refreshCurrentCircle(now: Date = .now) async {
@@ -445,7 +479,7 @@ final class AppModel {
             isDebugPromptPreview = false
 #endif
             submittedBlessing = nil
-            lanes = targetLanes
+            installTimelinePage(targetLanes, circleID: circleID, reset: true)
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
                 circles[index] = resolvedCircle
             }
@@ -467,12 +501,12 @@ final class AppModel {
     private func loadCircleSwitchData(
         circleID: UUID,
         viewerID: UUID
-    ) async throws -> (CircleContext, [TimelineLane]) {
+    ) async throws -> (CircleContext, TimelinePage) {
         var lastCancellation: Error?
         for attempt in 0..<3 {
             do {
                 let context = try await repository.circleContext(circleID: circleID)
-                let lanes = try await repository.timeline(circleID: circleID, viewerID: viewerID, now: .now)
+                let lanes = try await repository.timelinePage(circleID: circleID, viewerID: viewerID, now: .now, before: nil)
                 return (context, lanes)
             } catch {
                 guard Self.isCancellation(error), !Task.isCancelled else { throw error }
@@ -487,10 +521,10 @@ final class AppModel {
     private func reloadCurrentCircle(now: Date) async throws {
         guard let selectedCircleID = circle?.id, let currentUser else { return }
         let context = try await repository.circleContext(circleID: selectedCircleID)
-        let refreshedLanes = try await repository.timeline(
+        let refreshedLanes = try await repository.timelinePage(
             circleID: selectedCircleID,
             viewerID: currentUser.id,
-            now: now
+            now: now, before: nil
         )
         guard circle?.id == selectedCircleID else { return }
 
@@ -499,7 +533,7 @@ final class AppModel {
         circle = refreshedCircle
         prompt = context.prompt
         endOfDayPrompt = context.endOfDayPrompt
-        lanes = refreshedLanes
+        installTimelinePage(refreshedLanes, circleID: selectedCircleID)
         upsertCircle(refreshedCircle)
         scheduleWidgetSnapshotRefresh(now: now)
 
@@ -525,10 +559,10 @@ final class AppModel {
                 realtimeTask = nil
                 needsRealtimeRestart = true
             }
-            let refreshedLanes = try await repository.timeline(
+            let refreshedLanes = try await repository.timelinePage(
                 circleID: context.circle.id,
                 viewerID: currentUser.id,
-                now: now
+                now: now, before: nil
             )
             let knownInviteCode = circles.first(where: { $0.id == context.circle.id })?.inviteCode
             let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
@@ -541,7 +575,7 @@ final class AppModel {
                 self.capturePrompt = nil
                 submittedBlessing = nil
             }
-            lanes = refreshedLanes
+            installTimelinePage(refreshedLanes, circleID: resolvedCircle.id, reset: previousCircleID != resolvedCircle.id)
             upsertCircle(resolvedCircle)
             Self.persistedCircleID = resolvedCircle.id
             scheduleWidgetSnapshotRefresh(now: now)
