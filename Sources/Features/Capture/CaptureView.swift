@@ -6,6 +6,7 @@ import PhotosUI
 struct CaptureView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var mode: CaptureMode = .typed
     @State private var text = ""
@@ -104,6 +105,9 @@ struct CaptureView: View {
             }
             .onDisappear {
                 transcriber.stop()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background { transcriber.stop() }
             }
             .task {
                 repeatCandidates = await model.repeatBlessingCandidates()

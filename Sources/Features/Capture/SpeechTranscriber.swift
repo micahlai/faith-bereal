@@ -65,7 +65,10 @@ final class SpeechTranscriber: NSObject {
     }
 
     var transcript = ""
-    var state: State = .idle
+    var state: State = .idle {
+        didSet { VoiceRecordingWakeLock.setRecording(state == .listening, owner: wakeLockID) }
+    }
+    private let wakeLockID = UUID()
     private(set) var recordingURL: URL?
 
     private var audioEngine = AVAudioEngine()

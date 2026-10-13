@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BlessingResponsesView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
     let blessing: Blessing
     let allowsResponding: Bool
     var showsHeading = true
@@ -37,6 +38,9 @@ struct BlessingResponsesView: View {
             if transcriber.recordingURL == nil { mode = .typed }
         }
         .onDisappear { transcriber.stop() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { transcriber.stop() }
+        }
     }
 
     private var responseContent: some View {
