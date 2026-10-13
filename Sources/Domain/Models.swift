@@ -379,12 +379,17 @@ struct TimelineEvent: Identifiable, Hashable, Sendable {
     let date: Date
     let status: TimelineStatus
     let promptKind: PromptKind?
+    let isWelcome: Bool
+    let notificationStartedAt: Date?
 
-    init(memberID: UUID, date: Date, status: TimelineStatus, promptKind: PromptKind? = nil) {
-        self.id = "\(memberID.uuidString)-\(date.timeIntervalSince1970)-\(promptKind?.rawValue ?? "membership")"
+    init(memberID: UUID, date: Date, status: TimelineStatus, promptKind: PromptKind? = nil,
+         isWelcome: Bool = false, notificationStartedAt: Date? = nil, id: String? = nil) {
+        self.id = id ?? "\(memberID.uuidString)-\(date.timeIntervalSince1970)-\(promptKind?.rawValue ?? "membership")"
         self.date = date
         self.status = status
         self.promptKind = promptKind
+        self.isWelcome = isWelcome
+        self.notificationStartedAt = notificationStartedAt
     }
 }
 

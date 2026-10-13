@@ -21,7 +21,7 @@ struct CircleTimelineView: View {
                     description: Text("Your circle’s blessings will gather here.")
                 )
             } else {
-                let rows = TimelineRow.rows(for: model.lanes, calendar: circleCalendar)
+                let rows = TimelineRow.rows(for: presentedLanes, calendar: circleCalendar)
                 VStack(spacing: 0) {
                     if showsList {
                         accessibleTimeline(rows: rows)
@@ -39,7 +39,7 @@ struct CircleTimelineView: View {
                                 ForEach(rows) { row in
                                     TimelineDayRow(
                                         row: row,
-                                        lanes: model.lanes,
+                                        lanes: presentedLanes,
                                         calendar: circleCalendar,
                                         currentUserID: model.currentUser?.id,
                                         onSelect: { member, blessing in
@@ -100,11 +100,15 @@ struct CircleTimelineView: View {
         CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
     }
 
+    private var presentedLanes: [TimelineLane] {
+        TimelinePresentation.lanes(model.lanes, calendar: circleCalendar)
+    }
+
     private func accessibleTimeline(rows: [TimelineRow]) -> some View {
         List {
             ForEach(rows) { row in
                 Section {
-                    ForEach(model.lanes) { lane in
+                    ForEach(presentedLanes) { lane in
                         if let events = row.eventsByMemberID[lane.member.id] {
                             VStack(alignment: .leading, spacing: 10) {
                                 HStack {
@@ -405,6 +409,14 @@ private struct TimelineEventView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
+                if event.isWelcome {
+                    Label("Welcome blessing", systemImage: "hand.wave")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.iris)
+                    Text("Sent on this day; separate from the regular blessing.")
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.secondaryInk)
+                }
                 if event.promptKind == .endOfDay {
                     Label("End of day", systemImage: "moon.stars.fill")
                         .font(.caption.weight(.semibold))

@@ -76,6 +76,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             .init("person.badge.key", "Lead or leave", "Leaders can rename the circle, change its photo and schedule, allow late sharing, regenerate codes, remove members, or transfer leadership. Circle settings also lets you leave. If a leader leaves, leadership passes to a remaining member; an empty circle is deleted."),
         ]
         case .timeline: [
+            .init("hand.wave", "Your welcome blessing", "An early welcome blessing appears on the day you actually sent it, above Joined circle, labeled Welcome blessing. This changes only its display: it remains separate from that day's regular blessing, which you can still share when the notification starts."),
             .init("sun.max", "Today is a shared feed", "After you share, visible blessings fill Today in newest-first order, with photos, audio/video, Bible verses, and responses. Peer blessings for a prompt stay locked until you share for that prompt."),
             .init("point.3.connected.trianglepath.dotted", "Follow each person's story", "Timeline has a lane per person. Scroll vertically for days and horizontally for people; the date strip and profile row stay in place. Each lane ends at Joined circle—no missed days are added before membership."),
             .init("hand.tap", "Open the whole blessing", "Tap a card for its full content. Preview text is limited to 15 lines; Bible previews to five lines, with an expand option. Evening blessings sit above the random blessing in the same day row."),
