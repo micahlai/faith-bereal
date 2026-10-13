@@ -52,7 +52,10 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 - Reuse preserves capture format, audio/photo/video/thumbnail and scripture; no responses are copied. Receiving-circle media respects the target privacy gate even for people outside the original circle.
 - Invite hints survive store recreation/app updates, remain account/circle-isolated, and are validated by the server. Active members recover stored codes; legacy backfill never rotates, stale hints never restore a rotated code, removed members/outsiders cannot read codes.
-- Timeline scheduled prompts show Waiting for notification; open/late and first-day entry remain shareable, future days remain excluded, and early peer posts stay locked.
+- Timeline presentation omits unstarted/future prompts; underlying scheduled status never becomes open/missed just because a scheduled target elapsed. Early peer content stays gated. Welcome posts project to actual sent dates without changing prompt identity; List orders actual events and has no placeholder rows.
+- Circle streaks cover distinct days, regular/evening deduplication, late counting, timely-entry recognition despite a late send, gaps, per-circle/member isolation, local calendars/DST, and welcome exclusion. Hosted metadata RPC tests reject outsiders/anonymous callers and do not expose blessing content.
+- Timeline pages preserve complete days, membership markers, merged event identity, circle/account/time-zone scopes, and bounded zoom. Latest refreshes retain loaded older pages; old widget links fetch a single permitted detail when outside the loaded pages.
+- Draft tests cover atomic media checkpoints, store recreation, account isolation, failed media-copy preservation, expiration, delayed checkpoints after sending, and independent working-media survival after saved-draft expiry. Resume rejects closed no-late windows even with an existing entry grant. Voice wake-lock leases restore normal sleep after the last recorder stops.
 
 - Blessing text/transcript and edits accept 600/601/1,199/1,200 and reject 1,201; Unicode-scalar counters match PostgreSQL, and truncation preserves complete combined emoji/accents. All three local capture modes share this policy. Response limits remain 600.
 - media-retention boundaries at 28/30 days, account-isolated archive save/reload/unsave, response timestamps, atomic partial-download failure, and media restored through local Timeline playback;
@@ -108,6 +111,8 @@ After deployment, `npx --no-install supabase db query --linked --file supabase/t
 
 For isolated reuse/invite/nudge regressions run `bash Scripts/test-reuse-and-invites.sh`. It applies the real feature migrations and existing media-retention/length/outbox migrations against a disposable PostgreSQL fixture, loading the actual creation/join/rotation/visibility/entry functions. It verifies typed/voice/video media reuse, active-member code recovery and explicit rotation, the actual Storage SELECT policy, and nudge queue/dispatch authorization and timing. Submission timing is a minimal fixture, not full hosted entry-grant coverage. Never run the schema fixture or the Storage fixture against hosted Supabase. `reuse_blessing_media.sql`, `durable_circle_invites.sql`, and `circle_nudges.sql` are separate transaction/rollback RPC tests suitable for an already migrated linked project; they leave no users/circles/posts/notification events behind and never invoke Storage or a dispatcher.
 
+The same disposable suite loads `202610130001_circle_streaks.sql` and its regression. After that migration is deployed, `npx --no-install supabase db query --linked --file supabase/tests/circle_streaks.sql` runs the actual metadata RPC under authenticated roles with temporary fixtures and rolls everything back. Deploy the streak migration before releasing the client which calls this RPC.
+
 - create and join circle with two accounts;
 - switch between multiple memberships and verify prompt/timeline isolation;
 - leave as a member, leave as an owner with successors, and delete an owner-only circle;
@@ -122,6 +127,7 @@ For isolated reuse/invite/nudge regressions run `bash Scripts/test-reuse-and-inv
 
 ## UI and accessibility checks
 
+- A typed draft survives closing/relaunching the app, resumes from Today with its contents intact, and disappears after successful sending. Use one unique local test session across both launches.
 - Blessing composer accepts 1,200 characters, clamps a 1,201-character input, displays the new counter, and sends successfully in local demo mode.
 - Native automated accessibility audits check hit regions and descriptions in Today and Timeline List, with a repeat after scrolling. Rendered contrast remains a manual acceptance requirement: the small-phone native contrast audit still flags the Share button despite its numerically passing solid foreground/background pair (see the audit document). The audit test explicitly terminates any existing instance and supplies a Debug-only `--manna-local-ui-test` argument as an additional local-backend fence.
 - Timeline defaults to a single-column List with VoiceOver or accessibility text sizes; its toolbar can switch back to Threads without increasing pinned-header spacing.
@@ -149,6 +155,7 @@ For isolated reuse/invite/nudge regressions run `bash Scripts/test-reuse-and-inv
 
 ## Device-only checks
 
+- Voice recording prevents sleep in both blessing and response capture, then restores it on pause/stop/backgrounding. Checkpoint recovery must retain playable audio segments, photo/video, transcript, and scripture after forced termination or upload failure. Verify midnight cleanup cannot remove media from an already-authorized open composer.
 - A nudge arrives only for an opted-in unsubmitted recipient, uses sender artwork with no content/media, opens the exact random/evening prompt, and does not start a Live Activity. Closed/completed/removed-member queue events are skipped; offline nudges are not stored for later APNs delivery.
 
 - Save photo/video to Photos handles add-only permission, denied access, and playable exports;
