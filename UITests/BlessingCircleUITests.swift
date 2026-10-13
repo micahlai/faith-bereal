@@ -2,6 +2,38 @@ import XCTest
 
 final class BlessingCircleUITests: XCTestCase {
     @MainActor
+    func testTimelineSizeMenuAndEventOnlyList() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchArguments += ["--manna-local-ui-test"]
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Timeline"].tap()
+        app.buttons["Timeline layout"].tap()
+        app.buttons["Reset size"].tap()
+        let member = app.staticTexts["You"].firstMatch
+        XCTAssertTrue(member.waitForExistence(timeout: 5))
+        let initialX = member.frame.midX
+        app.buttons["Timeline layout"].tap()
+        app.buttons["Larger"].tap()
+        XCTAssertGreaterThan(member.frame.midX, initialX + 5)
+        app.buttons["Timeline layout"].tap()
+        app.buttons["Reset size"].tap()
+        XCTAssertEqual(member.frame.midX, initialX, accuracy: 2)
+        app.buttons["Timeline layout"].tap()
+        app.buttons["List"].tap()
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "timeline.accessibleList").firstMatch.waitForExistence(timeout: 5))
+        for _ in 0..<3 {
+            XCTAssertFalse(app.staticTexts["Missed this day"].exists)
+            XCTAssertFalse(app.staticTexts["Waiting for notification"].exists)
+            app.swipeUp()
+        }
+    }
+
+    @MainActor
     func testDraftSurvivesRelaunchAndDisappearsAfterSending() {
         continueAfterFailure = false
         let app = XCUIApplication()
