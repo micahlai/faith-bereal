@@ -13,7 +13,7 @@ struct ProfileStreakBadge: View {
             }
             .font(.caption.weight(.semibold))
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(streak.days) day streak in \(model.circle?.name ?? "this circle"). \(streak.onTimeDays) on-time days.\(streak.onTimeToday ? " On time today." : "")")
+            .accessibilityLabel("\(streak.days) day streak in \(model.circle?.name ?? "this circle"). \(streak.onTimeDays) timely-entry days.\(streak.onTimeToday ? " Entered in time today." : "")")
         }
     }
 }

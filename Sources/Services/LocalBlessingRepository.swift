@@ -13,6 +13,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var blessings: [Blessing]
     private var blessingResponses: [BlessingResponse]
     private var entryGrants: Set<BlessingEntryGrantKey> = []
+    private var entryTimes: [BlessingEntryGrantKey: Date] = [:]
     private var nudgedMembers: Set<NudgeKey> = []
 
     init(now: Date = .now, endOfDayStartsAt: Date? = nil) {
@@ -282,7 +283,10 @@ actor LocalBlessingRepository: BlessingRepository {
         let circlePrompts = Dictionary(uniqueKeysWithValues: prompts.filter { $0.circleID == circle.id }.map { ($0.id, $0) })
         let posts = blessings.compactMap { blessing -> StreakDay? in
             guard let prompt = circlePrompts[blessing.promptID] else { return nil }
-            return StreakDay(circleID: circle.id, memberID: blessing.authorID, day: prompt.localDate, onTime: !blessing.isLate)
+            let key = BlessingEntryGrantKey(promptID: prompt.id, memberID: blessing.authorID)
+            let entered = entryGrants.contains(key) ? entryTimes[key] : nil
+            let onTime = entered.map { $0 >= prompt.startsAt && $0 < prompt.endsAt } ?? !blessing.isLate
+            return StreakDay(circleID: circle.id, memberID: blessing.authorID, day: prompt.localDate, onTime: onTime)
         }
         result.streaks = CircleStreakPolicy.summaries(circle: circle, posts: posts, now: now)
         return result
@@ -381,7 +385,9 @@ actor LocalBlessingRepository: BlessingRepository {
         guard acceptsEntry(prompt: prompt, circle: circle, memberID: memberID, now: now) else {
             throw BlessingError.outsideResponseWindow
         }
-        entryGrants.insert(BlessingEntryGrantKey(promptID: promptID, memberID: memberID))
+        let key = BlessingEntryGrantKey(promptID: promptID, memberID: memberID)
+        if !entryGrants.contains(key) { entryTimes[key] = now }
+        entryGrants.insert(key)
     }
 
     func submit(

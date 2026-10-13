@@ -2,6 +2,20 @@ import XCTest
 @testable import BlessingCircle
 
 final class CircleStreakTests: XCTestCase {
+    func testTimelyEntryEarnsRecognitionEvenWhenSendingAfterDeadline() async throws {
+        let repo = LocalBlessingRepository(now: .now)
+        let data = try await repo.bootstrap()
+        let circle = try XCTUnwrap(data.circle)
+        let prompt = try XCTUnwrap(data.prompt)
+        try await repo.beginBlessingEntry(promptID: prompt.id, memberID: data.currentUser.id, now: prompt.startsAt)
+        let blessing = try await repo.submit(promptID: prompt.id, authorID: data.currentUser.id,
+            mode: .typed, body: "Finished after the timer", audioURL: nil, videoURL: nil,
+            scriptureReference: nil, now: prompt.endsAt.addingTimeInterval(1))
+        XCTAssertTrue(blessing.isLate)
+        let refreshed = try await repo.circleContext(circleID: circle.id)
+        XCTAssertEqual(refreshed.circle.streaks?[data.currentUser.id]?.onTimeToday, true)
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("sending afterward does not lose it"))
+    }
     func testDistinctDaysLateSharingGapsAndCircleIsolation() async throws {
         let bootstrap = try await LocalBlessingRepository().bootstrap()
         var circle = try XCTUnwrap(bootstrap.circle)

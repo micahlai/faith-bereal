@@ -10,10 +10,12 @@ begin
   select (clock_timestamp() at time zone time_zone)::date into v_today from public.circles where id=p_circle_id;
   return query
   with shared_days as (
-    select b.author_id, p.local_date, bool_or(not b.is_late) as timely
+    select b.author_id, p.local_date, bool_or(case when g.entered_at is not null then
+      g.entered_at>=p.starts_at and g.entered_at<p.ends_at else not b.is_late end) as timely
     from public.blessings b join public.daily_prompts p on p.id=b.prompt_id
     join public.circles c on c.id=p.circle_id
     join public.circle_members cm on cm.circle_id=p.circle_id and cm.user_id=b.author_id and cm.removed_at is null
+    left join public.blessing_entry_grants g on g.prompt_id=p.id and g.user_id=b.author_id
     where p.circle_id=p_circle_id and p.local_date<=v_today
       and p.local_date>=(cm.joined_at at time zone c.time_zone)::date
     group by b.author_id,p.local_date

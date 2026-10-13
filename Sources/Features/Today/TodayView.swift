@@ -78,8 +78,8 @@ struct TodayView: View {
                 }
             }
         }
-        .task(id: CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier).startOfDay(for: date)) {
-            await model.reloadDrafts(now: date)
+        .onChange(of: CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier).startOfDay(for: date)) { _, _ in
+            Task { await model.refreshCurrentCircle(now: date) }
         }
     }
 

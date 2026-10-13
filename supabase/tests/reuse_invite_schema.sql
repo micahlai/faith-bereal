@@ -49,6 +49,10 @@ create table public.blessings (
     or (capture_mode = 'video' and video_path is not null and audio_path is null and photo_path is null)
   )
 );
+create table public.blessing_entry_grants (
+  prompt_id uuid references public.daily_prompts, user_id uuid references public.profiles,
+  entered_at timestamptz, primary key(prompt_id,user_id)
+);
 create table public.blessing_responses (
   id uuid primary key default gen_random_uuid(), blessing_id uuid references public.blessings,
   mode public.response_mode, body text, audio_path text, submitted_at timestamptz default now(),
