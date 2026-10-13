@@ -83,7 +83,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         case .responses: [
             .init("text.bubble", "Reply simply", "Use the small response box, microphone, and send button on Today. A current-day blessing opened from Timeline can also accept a response. Historical blessings are read-only."),
             .init("waveform", "Text or voice", "Voice responses include both recorded audio and a transcript. You can listen before sending. Responses do not support photos or video."),
-            .init("person.crop.circle", "See who replied", "Timeline cards show responder profile icons. Open a blessing to read responses or listen to saved/available audio."),
+            .init("person.crop.circle", "See who replied", "Timeline cards show responder profile icons. Response rows show the person's profile photo beside their name. Open a blessing to read responses or listen to saved/available audio."),
         ]
         case .saving: [
             .init("questionmark.circle", "Should I turn automatic saving on?", "Audio and video are deleted from the server after 30 days. Automatically save locally keeps private copies while manna is open so you can enjoy them later. If this is off, you can still choose individual blessings and tap Save. Text, Bible references, and photos remain in circle history."),

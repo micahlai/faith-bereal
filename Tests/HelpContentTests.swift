@@ -2,6 +2,9 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testResponseGuideDescribesProfilePhotos() {
+        XCTAssertTrue(HelpTopic.responses.steps.map(\.body).joined().contains("profile photo beside their name"))
+    }
     func testSavingGuideExplainsManualChoiceWhenAutomaticSavingIsOff() {
         let text = HelpTopic.saving.steps.map(\.body).joined()
         XCTAssertTrue(text.contains("If this is off, you can still choose individual blessings"))

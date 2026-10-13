@@ -137,6 +137,10 @@ struct BlessingResponsesView: View {
     private func responseRow(_ response: BlessingResponse) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
+                if let member = model.circle?.members.first(where: { $0.id == response.authorID }) {
+                    AvatarBadge(member: member, size: 32)
+                        .accessibilityHidden(true)
+                }
                 Text(displayName(for: response.authorID))
                     .font(.subheadline.weight(.semibold))
                 Spacer()
