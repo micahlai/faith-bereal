@@ -422,6 +422,7 @@ private struct TimelineDayRow: View {
     private func sorted(_ events: [TimelineEvent]) -> [TimelineEvent] {
         events.sorted { lhs, rhs in
             if lhs.promptKind != rhs.promptKind { return lhs.promptKind == .endOfDay }
+            if lhs.isWelcome != rhs.isWelcome { return !lhs.isWelcome }
             return lhs.id < rhs.id
         }
     }

@@ -173,6 +173,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                     }
                     let newerDailyHasStarted = visiblePromptRows.contains {
                         $0.kind == .daily
+                            && $0.state != "scheduled"
                             && $0.startsAt > prompt.startsAt
                             && $0.startsAt <= now
                     }

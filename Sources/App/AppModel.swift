@@ -58,7 +58,7 @@ final class AppModel {
     private(set) var timelineNextBeforeDate: Date?
     private(set) var isLoadingMoreTimeline = false
     private(set) var timelineLoadError: String?
-    private var timelinePagingCircleID: UUID?
+    private var timelinePagingScope: String?
     private var timelineHasLoadedMore = false
     var selectedTab = 0
     var isCapturePresented = false {
@@ -497,9 +497,12 @@ final class AppModel {
     }
 
     private func installTimelinePage(_ page: TimelinePage, circleID: UUID, reset: Bool = false) {
-        if reset || timelinePagingCircleID != circleID {
+        guard let userID = currentUser?.id else { return }
+        let scope = TimelinePaging.scope(circleID: circleID, viewerID: userID,
+            timeZoneIdentifier: circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
+        if reset || timelinePagingScope != scope {
             timelineHasLoadedMore = false
-            timelinePagingCircleID = circleID
+            timelinePagingScope = scope
             lanes = page.lanes
         } else { lanes = TimelinePaging.merge(lanes, with: page.lanes) }
         if !timelineHasLoadedMore { timelineNextBeforeDate = page.nextBeforeDate }
@@ -512,7 +515,8 @@ final class AppModel {
         defer { isLoadingMoreTimeline = false }
         do {
             let page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: .now, before: cursor)
-            guard self.circle?.id == circle.id, self.currentUser?.id == currentUser.id else { return }
+            guard self.circle?.id == circle.id, self.circle?.timeZoneIdentifier == circle.timeZoneIdentifier,
+                  self.currentUser?.id == currentUser.id, timelineNextBeforeDate == cursor else { return }
             lanes = TimelinePaging.merge(lanes, with: page.lanes)
             timelineNextBeforeDate = page.nextBeforeDate
             timelineHasLoadedMore = true

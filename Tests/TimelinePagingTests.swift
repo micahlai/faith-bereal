@@ -2,6 +2,14 @@ import XCTest
 @testable import BlessingCircle
 
 final class TimelinePagingTests: XCTestCase {
+    func testPagingScopeChangesForAccountCircleAndTimeZone() {
+        let circle = UUID(), viewer = UUID()
+        let first = TimelinePaging.scope(circleID: circle, viewerID: viewer, timeZoneIdentifier: "UTC")
+        XCTAssertNotEqual(first, TimelinePaging.scope(circleID: circle, viewerID: UUID(), timeZoneIdentifier: "UTC"))
+        XCTAssertNotEqual(first, TimelinePaging.scope(circleID: UUID(), viewerID: viewer, timeZoneIdentifier: "UTC"))
+        XCTAssertNotEqual(first, TimelinePaging.scope(circleID: circle, viewerID: viewer, timeZoneIdentifier: "America/New_York"))
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("Changing accounts or the circle's time zone resets paging"))
+    }
     func testPagesPreserveWholeDaysAndMergeWithoutDuplicates() throws {
         let cal = Calendar(identifier: .gregorian)
         let today = cal.startOfDay(for: .now)

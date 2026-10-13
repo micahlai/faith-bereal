@@ -7,6 +7,9 @@ struct TimelinePage: Sendable {
 
 enum TimelinePaging {
     static let daysPerPage = 14
+    static func scope(circleID: UUID, viewerID: UUID, timeZoneIdentifier: String) -> String {
+        "\(circleID)|\(viewerID)|\(timeZoneIdentifier)"
+    }
 
     static func page(_ lanes: [TimelineLane], before: Date?, calendar: Calendar, limit: Int = daysPerPage) -> TimelinePage {
         let limit = max(1, limit)
