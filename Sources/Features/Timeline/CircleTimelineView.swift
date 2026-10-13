@@ -256,10 +256,12 @@ private struct TimelineDateLabel: View {
                     .foregroundStyle(AppTheme.primary)
             }
             ForEach(TimelinePresentation.notificationTimes(row.eventsByMemberID.values.flatMap { $0 })) { stamp in
-                HStack(spacing: 2) {
+                VStack(alignment: .trailing, spacing: 1) {
                     Image(systemName: stamp.kind == .daily ? "sun.max" : "moon")
                         .accessibilityHidden(true)
                     Text(timeLabel(stamp.date))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .font(.caption2)
                 .foregroundStyle(AppTheme.secondaryInk)
@@ -566,19 +568,10 @@ private struct TimelineEventView: View {
                         isTruncated: $isBodyTruncated
                     )
                     .foregroundStyle(AppTheme.ink)
-                    HStack(spacing: 8) {
-                        Text(blessing.submittedAt, style: .time)
-                            .font(.caption2)
-                            .foregroundStyle(AppTheme.secondaryInk)
-                        if blessing.isLate && !event.isWelcome {
-                            Label("Late", systemImage: "clock.badge.exclamationmark")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(AppTheme.candle)
-                        } else if !event.isWelcome {
-                            Label("On time", systemImage: "checkmark.seal")
-                                .font(.caption2)
-                                .foregroundStyle(AppTheme.dawn)
-                        }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) { submissionMetadata(blessing) }
+                            .fixedSize(horizontal: true, vertical: false)
+                        VStack(alignment: .leading, spacing: 4) { submissionMetadata(blessing) }
                     }
                     if let reference = blessing.scriptureReference {
                         Label(reference.displayName, systemImage: "book.closed")
@@ -640,6 +633,27 @@ private struct TimelineEventView: View {
                     .foregroundStyle(AppTheme.secondaryInk)
             }
             .padding(.vertical, 10)
+        }
+    }
+
+    @ViewBuilder
+    private func submissionMetadata(_ blessing: Blessing) -> some View {
+        Text(blessing.submittedAt, style: .time)
+            .font(.caption2)
+            .foregroundStyle(AppTheme.secondaryInk)
+            .fixedSize()
+        if blessing.isLate && !event.isWelcome {
+            Label("Late", systemImage: "clock.badge.exclamationmark")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(AppTheme.candle)
+                .labelStyle(.titleAndIcon)
+                .fixedSize()
+        } else if !event.isWelcome {
+            Label("On time", systemImage: "checkmark.seal")
+                .font(.caption2)
+                .foregroundStyle(AppTheme.dawn)
+                .labelStyle(.titleAndIcon)
+                .fixedSize()
         }
     }
 }
