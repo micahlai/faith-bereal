@@ -2,6 +2,9 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testTimelineGuideDescribesLazyRendering() {
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("draws cards as they come into view"))
+    }
     func testResponseGuideDescribesProfilePhotos() {
         XCTAssertTrue(HelpTopic.responses.steps.map(\.body).joined().contains("profile photo beside their name"))
     }

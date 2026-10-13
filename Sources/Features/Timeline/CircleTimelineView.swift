@@ -8,6 +8,9 @@ struct CircleTimelineView: View {
     @State private var selection: BlessingSelection?
     @State private var horizontalOffset: CGFloat = 0
     @State private var prefersList: Bool?
+    @State private var presentedLanes: [TimelineLane] = []
+    @State private var rows: [TimelineRow] = []
+    @State private var listEntries: [TimelineListEntry] = []
 
     private var showsList: Bool { prefersList ?? (dynamicTypeSize.isAccessibilitySize || voiceOverEnabled) }
 
@@ -21,7 +24,6 @@ struct CircleTimelineView: View {
                     description: Text("Your circle’s blessings will gather here.")
                 )
             } else {
-                let rows = TimelineRow.rows(for: presentedLanes, calendar: circleCalendar)
                 VStack(spacing: 0) {
                     if showsList {
                         accessibleTimeline(rows: rows)
@@ -32,10 +34,7 @@ struct CircleTimelineView: View {
                             horizontalOffset: horizontalOffset
                         )
                         ScrollView([.horizontal, .vertical]) {
-                            Grid(
-                                alignment: .topLeading, horizontalSpacing: TimelineLayout.columnSpacing,
-                                verticalSpacing: 0
-                            ) {
+                            LazyVStack(alignment: .leading, spacing: 0) {
                                 ForEach(rows) { row in
                                     TimelineDayRow(
                                         row: row,
@@ -87,6 +86,8 @@ struct CircleTimelineView: View {
             }
         }
         .refreshable { await model.refreshCurrentCircle() }
+        .onChange(of: model.lanes, initial: true) { _, _ in rebuildPresentation() }
+        .onChange(of: model.circle?.timeZoneIdentifier) { _, _ in rebuildPresentation() }
         .sheet(item: $selection) { selection in
             BlessingDetailView(
                 member: selection.member,
@@ -100,13 +101,15 @@ struct CircleTimelineView: View {
         CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
     }
 
-    private var presentedLanes: [TimelineLane] {
-        TimelinePresentation.lanes(model.lanes, calendar: circleCalendar)
+    private func rebuildPresentation() {
+        presentedLanes = TimelinePresentation.lanes(model.lanes, calendar: circleCalendar)
+        rows = TimelineRow.rows(for: presentedLanes, calendar: circleCalendar)
+        listEntries = TimelinePresentation.listEntries(presentedLanes)
     }
 
     private func accessibleTimeline(rows: [TimelineRow]) -> some View {
         List {
-            ForEach(TimelinePresentation.listEntries(presentedLanes)) { item in
+            ForEach(listEntries) { item in
                 VStack(alignment: .leading, spacing: 10) {
                     Text(accessibleDate(item.sortDate))
                         .font(.caption).foregroundStyle(AppTheme.secondaryInk)
@@ -166,7 +169,7 @@ private struct TimelineFrozenDates: View {
                 AppTheme.canvas
                     .frame(width: TimelineLayout.leadingPadding + TimelineLayout.dayColumnWidth)
                     .accessibilityHidden(true)
-                ForEach(rows) { row in
+                ForEach(rows.filter { anchors[$0.id] != nil }) { row in
                     if let anchor = anchors[row.id] {
                         let rect = geometry[anchor]
                         TimelineDateLabel(row: row, calendar: calendar)
@@ -330,7 +333,7 @@ private struct TimelineDayRow: View {
     let onSelect: (Member, Blessing) -> Void
 
     var body: some View {
-        GridRow(alignment: .top) {
+        HStack(alignment: .top, spacing: TimelineLayout.columnSpacing) {
             TimelineDateLabel(row: row, calendar: calendar)
                 .hidden()
                 .frame(maxHeight: .infinity)
