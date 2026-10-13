@@ -1555,8 +1555,21 @@ final class AppModel {
                 _ = await openCapture(for: targetPrompt)
             }
         case "blessing":
-            guard let blessingID = url.pathComponents.dropFirst().first.flatMap(UUID.init(uuidString:)),
-                  let item = blessingFeedItem(id: blessingID) else { return }
+            guard let blessingID = url.pathComponents.dropFirst().first.flatMap(UUID.init(uuidString:)) else { return }
+            var item = blessingFeedItem(id: blessingID)
+            if item == nil, let userID = currentUser?.id {
+                do {
+                    if let blessing = try await repository.blessing(id: blessingID, viewerID: userID),
+                       currentUser?.id == userID, blessing.circleID == circle?.id,
+                       let member = circle?.members.first(where: { $0.id == blessing.authorID }) {
+                        item = BlessingFeedItem(member: member, blessing: resolvedBlessing(blessing))
+                    }
+                } catch {
+                    guard !Self.isCancellation(error) else { return }
+                    message = "This blessing couldn’t be opened. Try again."
+                }
+            }
+            guard let item else { return }
             selectedTab = 1
             deepLinkedBlessing = item
         default:

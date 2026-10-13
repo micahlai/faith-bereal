@@ -96,13 +96,21 @@ actor SupabaseBlessingRepository: BlessingRepository {
         let lower = calendar.date(byAdding: .day, value: -TimelinePaging.daysPerPage, to: upper)!
         let lanes = try await timeline(circle: circle, viewerID: viewerID, now: now, from: lower, before: upper)
         let firstJoin = circle.members.map { calendar.startOfDay(for: $0.joinedAt) }.min() ?? lower
-        let hasMore = lower > firstJoin
+        let firstWelcomeDay = calendar.date(byAdding: .day, value: -1, to: firstJoin)!
+        let hasMore = lower > firstWelcomeDay
         return TimelinePage(lanes: lanes.map { lane in
             TimelineLane(member: lane.member, events: lane.events.filter { event in
                 event.status != .joinedCircle || (!hasMore || calendar.startOfDay(for: event.date) >= lower)
                     && calendar.startOfDay(for: event.date) < upper
             })
         }, nextBeforeDate: hasMore ? lower : nil)
+    }
+
+    func blessing(id: UUID, viewerID: UUID) async throws -> Blessing? {
+        let rows: [BlessingRow] = try await client.from("blessings").select().eq("id", value: id).limit(1).execute().value
+        guard let row = rows.first else { return nil }
+        let prompt: PromptRow = try await client.from("daily_prompts").select().eq("id", value: row.promptID).single().execute().value
+        return try await blessing(from: row, circleID: prompt.circleID)
     }
 
     private func timeline(circle: CircleGroup, viewerID: UUID, now: Date, from lower: Date?, before upper: Date?) async throws -> [TimelineLane] {

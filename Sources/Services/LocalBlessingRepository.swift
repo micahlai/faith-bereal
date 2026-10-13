@@ -268,6 +268,15 @@ actor LocalBlessingRepository: BlessingRepository {
         AsyncStream { $0.finish() }
     }
 
+    func blessing(id: UUID, viewerID: UUID) async throws -> Blessing? {
+        guard let candidate = blessings.first(where: { $0.id == id }) else { return nil }
+        let lanes = try await timeline(circleID: candidate.circleID, viewerID: viewerID, now: .now)
+        return lanes.flatMap(\.events).compactMap { event -> Blessing? in
+            if case let .blessing(blessing) = event.status, blessing.id == id { return blessing }
+            return nil
+        }.first
+    }
+
     private func withStreaks(_ circle: CircleGroup, now: Date = .now) -> CircleGroup {
         var result = circle
         let circlePrompts = Dictionary(uniqueKeysWithValues: prompts.filter { $0.circleID == circle.id }.map { ($0.id, $0) })

@@ -6,6 +6,7 @@ protocol BlessingRepository: Sendable {
     func circleContext(promptID: UUID) async throws -> CircleContext
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane]
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage
+    func blessing(id: UUID, viewerID: UUID) async throws -> Blessing?
     func beginBlessingEntry(promptID: UUID, memberID: UUID, now: Date) async throws
     func submit(
         promptID: UUID,
@@ -83,6 +84,7 @@ protocol BlessingRepository: Sendable {
 }
 
 extension BlessingRepository {
+    func blessing(id: UUID, viewerID: UUID) async throws -> Blessing? { nil }
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
         let circle = try await circleContext(circleID: circleID).circle
         return TimelinePaging.page(try await timeline(circleID: circleID, viewerID: viewerID, now: now),
