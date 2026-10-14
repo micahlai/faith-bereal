@@ -46,6 +46,10 @@ xcodebuild \
   -only-testing:BlessingCircleTests \
   test
 
+# Release unit tests leave an app host running without the UI launch environment.
+# End that host before UI tests supply their isolated local-demo launch settings.
+xcrun simctl terminate "$simulator_name" app.manna-circle.ios >/dev/null 2>&1 || true
+
 xcodebuild \
   -project BlessingCircle.xcodeproj \
   -scheme BlessingCircle \

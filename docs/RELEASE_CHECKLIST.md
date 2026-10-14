@@ -12,6 +12,15 @@ This checklist separates work that can be proven locally from work that needs pr
 - [ ] Match App Store Connect privacy answers to the account-linked performance/diagnostic collection before wider distribution.
 - [ ] Run physical multi-account media, privacy, notification, and failure-reproduction acceptance using [the field-testing instructions](TESTFLIGHT_FIELD_TESTING.md).
 
+## v0.2.2 (32) follow-up
+
+- [x] Implement single smaller red/blue streak flames, photo enlargement/zoom, and fixed-horizontal Today.
+- [x] Default new field-test account/device queues to on, preserving saved opt-outs and disclosing the setting.
+- [x] Pass 215 Debug and 211 Release domain tests, including default-policy, early startup session-failure, streak, and Help regressions.
+- [x] Complete final Release and nine distinct focused changed-flow UI cases/screenshots, with final accessibility-tree verification.
+- [x] Export and validate a distinct hosted-configured v0.2.2 (32) IPA with the default-on flag at `build/TestFlight-0.2.2-32/manna circle.ipa`.
+- [ ] Upload/process and assign build 32 to the intended TestFlight cohort; reproduce failures after collection is enabled.
+
 ## Locally verifiable
 
 - [x] App and widget compile with blank Supabase configuration.

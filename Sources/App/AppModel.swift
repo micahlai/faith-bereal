@@ -341,6 +341,12 @@ final class AppModel {
         var measuredReady = false
         defer { if !measuredReady { span?.finish(Task.isCancelled ? .cancelled : .failure) } }
         loadState = .loading
+        if let accountID = await authentication?.cachedUserID() {
+            await diagnosticCollection.activate(accountID: accountID)
+        }
+        // Cached identity restores collection before a session refresh can fail.
+        // It never grants content access; the repository still authorizes every read.
+        span = BackendDiagnostics.shared.begin(.bootstrapVisible)
         if let authentication, await !authentication.hasSession() {
             loadState = .signedOut
             savedDrafts = []
@@ -351,8 +357,6 @@ final class AppModel {
         if let accountID = await authentication?.currentUserID() {
             await diagnosticCollection.activate(accountID: accountID)
         }
-        // Restored opt-in must be installed before the startup span captures its sink.
-        span = BackendDiagnostics.shared.begin(.bootstrapVisible)
         do {
             let bootstrap = try await repository.bootstrap()
             if currentUser?.id != bootstrap.currentUser.id {
@@ -407,6 +411,7 @@ final class AppModel {
 
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async {
         guard let authentication else { return }
+        diagnosticCollection.deactivate()
         loadState = .loading
         do {
             try await authentication.signInWithApple(

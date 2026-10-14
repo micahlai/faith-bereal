@@ -26,7 +26,8 @@ private struct CircleHeaderIdentity: View {
         .frame(width: size, height: size)
         .background(AppTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))
-        .accessibilityHidden(true)
+        .photoEnlargement(url: circle.photoURL, title: "\(circle.name) circle photo")
+        .accessibilityHidden(circle.photoURL == nil)
     }
 
     private var fallback: some View {
@@ -149,6 +150,8 @@ struct CircleView: View {
             ForEach(model.circle?.members ?? []) { member in
                 HStack(spacing: 12) {
                     AvatarBadge(member: member, size: 42)
+                        .photoEnlargement(url: member.avatarURL,
+                            title: "\(member.displayName) profile photo", hitSlop: 1)
                     Text(member.id == model.currentUser?.id ? "\(member.displayName) (you)" : member.displayName)
                         .foregroundStyle(AppTheme.ink)
                     Spacer()

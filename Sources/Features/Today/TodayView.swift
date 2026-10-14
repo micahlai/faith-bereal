@@ -6,23 +6,25 @@ struct TodayView: View {
     var body: some View {
         ZStack {
             AppTheme.canvas.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    header
-                    // Keep the scroll container outside the clock's invalidation
-                    // boundary, while still updating prompt/deadline transitions.
-                    SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
-                        todayContent(at: context.date)
+            GeometryReader { viewport in
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 28) {
+                        header
+                        // Keep the scroll container outside the clock's invalidation
+                        // boundary, while still updating prompt/deadline transitions.
+                        SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
+                            todayContent(at: context.date)
+                        }
                     }
+                    .frame(width: max(0, min(680, viewport.size.width - 2 * AppTheme.pagePadding)))
+                    .padding(.vertical, 18)
+                    .padding(.bottom, 100)
+                    .frame(width: viewport.size.width)
                 }
-                .frame(maxWidth: 680)
-                .padding(.horizontal, AppTheme.pagePadding)
-                .padding(.vertical, 18)
-                .padding(.bottom, 100)
-                .frame(maxWidth: .infinity)
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                .accessibilityIdentifier("today.scrollView")
+                .refreshable { await model.refreshCurrentCircle() }
             }
-            .accessibilityIdentifier("today.scrollView")
-            .refreshable { await model.refreshCurrentCircle() }
         }
         .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
@@ -236,7 +238,7 @@ private struct TodayBlessingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 12) {
-                ProfileStreakAvatar(member: item.member, size: 46)
+                ProfileStreakAvatar(member: item.member, size: 46, enlargesPhoto: true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.member.displayName)
                         .font(.headline)
@@ -260,7 +262,7 @@ private struct TodayBlessingCard: View {
                         .foregroundStyle(AppTheme.candle)
                 }
             }
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: item.member.avatarURL == nil ? .combine : .contain)
 
             BlessingContentView(blessing: item.blessing, usesCard: false)
                 .id(item.blessing.id)

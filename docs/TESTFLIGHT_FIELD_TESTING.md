@@ -1,14 +1,14 @@
-# v0.2.2 (31) field testing
+# v0.2.2 field testing
 
-Build 30 was v0.2.1. This candidate combines request reduction, multi-user diagnostic collection, blue streak pills, Circle People streaks, random-only Timeline notification times, and one draft-aware sharing button.
+Build 30 was v0.2.1. Build 31 added request reduction, multi-user diagnostic collection, Circle People streaks, random-only Timeline notification times, and one draft-aware sharing button. Build 32 adds one smaller red/blue flame (blue for timely entry on every day in the current run), full-screen photo enlargement/zoom, fixed-horizontal Today, and field-build default-on collection.
 
 ## Tester setup
 
-1. Install v0.2.2 (31) from TestFlight when available and sign in normally.
-2. Open the app menu → User settings → Field testing and enable **Share diagnostic data**. It defaults off per account/device. No Xcode environment variable is needed for TestFlight.
+1. Install v0.2.2 (32) from TestFlight when available and sign in normally.
+2. Open the app menu → User settings → Field testing and check **Share diagnostic data**. Build 32 defaults on for a new account/device. Explicit choices and legacy saved off settings remain unchanged, so enable it manually if it is off and you want to participate. You can disable it at any time. No Xcode environment variable is needed for TestFlight.
 3. Reproduce startup, circle switching, Timeline, and typed/photo/voice/video sending with ordinary bounded interactions. Note the exact visible error code and UTC timestamp when an error occurs.
 4. Leave manna open, or choose **Send diagnostics now** in User settings. One batch sends at most 100 records. Automatic uploads run about every five minutes while active and try on foreground return. A failed send keeps the same batch for retry. It does not change sharing or show scrolling alerts.
-5. Confirm Last sent updates. Relaunch after opting in to capture restored-session startup. Sign-in before restoring consent is outside the collector's scope. Toggle off when finished; this stops collection, cancels uploads where possible, and drops unsent records. An already accepted/in-flight request may still finish.
+5. Confirm Last sent updates. Relaunch with collection enabled to capture restored-session startup, including the initial auth session validation/refresh. First sign-in without a cached account remains outside the collector's scope. Earlier failures before enabling collection cannot be recovered retroactively. Toggle off when finished; this stops collection, cancels uploads where possible, and drops unsent records. An already accepted/in-flight request may still finish.
 
 Reports contain a random session code, app build, UTC timings, SDK-operation categories/outcomes, available payload/returned-data sizes, available success HTTP status, and numeric URL transport codes. The server links reports to the signed-in account for access control and per-account limits. Reports exclude blessing text, recordings, photos, names, media paths, signed URLs, credentials, and error descriptions. They are **not anonymous** and cannot be read by other circle members.
 
@@ -36,9 +36,9 @@ npx --no-install supabase db query --linked --file supabase/tests/backend_diagno
 
 Expect migration/RLS/member_ingest true; anon_ingest/member_prune/member_private_schema false; one active hourly cleanup job. `report_count` should increase after real opted-in testers send. Security verification creates transaction-scoped test accounts/reports and rolls them back.
 
-Use failed UTC minutes to correlate with Supabase Auth, Storage, API/pool, locks, connection counts, and query logs. SDK-operation durations include adaptation/retries and do not count physical HTTP attempts. Upload payload size is the source size, not proven bytes transferred. Many SDK errors hide HTTP status, so request the exact visible service code separately. Startup spans begin after cached-session lookup and restoring consent and end when the model is ready; they are not first-frame/full cold-launch latency. Realtime sockets, automatic auth refresh, playback, scripture reads, and archive downloads are outside operation counting.
+Use failed UTC minutes to correlate with Supabase Auth, Storage, API/pool, locks, connection counts, and query logs. SDK-operation durations include adaptation/retries and do not count physical HTTP attempts. Upload payload size is the source size, not proven bytes transferred. Many SDK errors hide HTTP status, so request the exact visible service code separately. In build 32, startup spans begin after reading local cached identity and restoring the collection setting, before initial session validation/refresh, and end when the model is ready; they are not first-frame/full cold-launch latency. Realtime sockets, automatic background auth refresh, playback, scripture reads, archive downloads, and local Apple Speech/audio errors are outside operation counting. A voice-panel error and a concurrent backend alert may have different sources. The payload reports failures, not exact Postgres/API messages or service codes.
 
-## Candidate release
+## Verified build 31 release
 
 Verified on 2026-10-14: all 206 Debug and 202 Release domain tests, the full 23-test simulator UI suite, both final normal/largest-text screenshot checks, hosted SQL security checks, APNs payload contracts, and privacy manifest validation pass. Screenshots were visually reviewed.
 
@@ -47,3 +47,11 @@ The hosted-configured archive is `build/Manna-0.2.2-31.xcarchive`; the validated
 The privacy manifest declares account-linked performance/diagnostic data for functionality and analytics; update corresponding App Store Connect privacy answers before wider distribution. See [Apple privacy manifest guidance](https://developer.apple.com/documentation/technotes/tn3184-adding-data-collection-details-to-your-privacy-manifest).
 
 An exported IPA is not an App Store Connect upload or a processed TestFlight build. Confirm processing and assign the candidate to the intended small cohort before wider distribution. Physical microphone/video recovery, real multi-user media/privacy/APNs acceptance, and compression comparisons remain device work. No media compression or cleanup-retention setting was changed by this candidate.
+
+## Build 32 follow-up
+
+Verified on October 14: 215 Debug and 211 Release domain tests, nine distinct focused UI cases across final batches/reruns, a 29-test focused domain check after accessibility changes, and normal/largest-text screenshot and accessibility-tree review all pass. The hosted-configured archive is `build/Manna-0.2.2-32.xcarchive`; the validated distribution IPA is `build/TestFlight-0.2.2-32/manna circle.ipa`. The app and both extensions are v0.2.2 (32). Distribution validation confirms production APNs and no debugging entitlement. SHA-256: `98095747dd53be2e8134220d91fce9968290d90aaeb8611bca6a4fb56f02c2a8`. No App Store Connect upload has been performed.
+
+The exported app Info.plist sets `MANNA_DIAGNOSTICS_DEFAULT_ENABLED=true`; this controls the new-account default while stored choices remain authoritative. Testers can turn sharing off in User settings. Build 32 adds default-policy/session-persistence and early-auth-failure regressions plus photo/streak/scroll UI checks. Build-31 artifacts remain unchanged. Upload/process and assign build 32 to the intended cohort before device acceptance.
+
+Collection receipt confirmed on October 14: the latest read-only check shows build 31 sent three batches/243 records from one account, last received at 2:48:12 p.m. Eastern, with no recorded backend failures. This proves ingestion for opted-in use, not reproduction or resolution of the reported connection error.

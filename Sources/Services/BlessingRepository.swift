@@ -103,6 +103,8 @@ extension BlessingRepository {
 }
 
 protocol AuthenticationProviding: Sendable {
+    /// Local identity only, without refreshing or authorizing a server request.
+    func cachedUserID() async -> UUID?
     func hasSession() async -> Bool
     func currentUserID() async -> UUID?
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async throws
@@ -110,5 +112,6 @@ protocol AuthenticationProviding: Sendable {
 }
 
 extension AuthenticationProviding {
+    func cachedUserID() async -> UUID? { nil }
     func currentUserID() async -> UUID? { nil }
 }

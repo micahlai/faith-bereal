@@ -12,7 +12,7 @@ final class DiagnosticCollectionUITests: XCTestCase {
     }
 
     @MainActor
-    func testDiagnosticConsentIsOffByDefaultAndPersistsAcrossRelaunch() {
+    func testFieldBuildDefaultsOnAndRemembersOptOutAcrossRelaunch() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
@@ -24,6 +24,14 @@ final class DiagnosticCollectionUITests: XCTestCase {
 
         openDiagnostics(app)
         let consent = app.switches["diagnostics.consent"]
+        XCTAssertEqual(consent.value as? String, "1")
+        XCTAssertTrue(app.buttons["diagnostics.sendNow"].exists)
+        XCTAssertFalse(app.buttons["diagnostics.sendNow"].isEnabled, "Local demo has no remote uploader")
+        changeConsent(consent, to: "0")
+
+        app.terminate()
+        app.launch()
+        openDiagnostics(app)
         XCTAssertEqual(consent.value as? String, "0")
         XCTAssertFalse(app.buttons["diagnostics.sendNow"].exists)
         changeConsent(consent, to: "1")
@@ -33,11 +41,6 @@ final class DiagnosticCollectionUITests: XCTestCase {
         openDiagnostics(app)
         XCTAssertEqual(consent.value as? String, "1")
         changeConsent(consent, to: "0")
-
-        app.terminate()
-        app.launch()
-        openDiagnostics(app)
-        XCTAssertEqual(consent.value as? String, "0")
         XCTAssertFalse(app.buttons["diagnostics.sendNow"].exists)
     }
 
@@ -123,7 +126,7 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.tabBars.buttons["Today"].tap()
         openDiagnostics(app)
         attachScreen(app, name: "Diagnostic collection opt-in Form", largestText: largestText)
-        XCTAssertEqual(app.switches["diagnostics.consent"].value as? String, "0")
+        XCTAssertEqual(app.switches["diagnostics.consent"].value as? String, "1")
     }
 
     @MainActor

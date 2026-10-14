@@ -239,7 +239,6 @@ private struct StartupOnboardingView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     AutomaticSavingSettings()
                 }.blessingCard()
-                Label("Saved copies keep their audio/video after the server’s 30-day limit.", systemImage: "bookmark")
                 Label("Only content you’re allowed to see is saved. Opening manna lets new copies download; it cannot guarantee saving while the app is closed.", systemImage: "iphone")
                     .foregroundStyle(AppTheme.secondaryInk)
             }

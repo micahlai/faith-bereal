@@ -8,8 +8,18 @@ actor SupabaseAuthenticationService: AuthenticationProviding {
         self.client = client
     }
 
+    func cachedUserID() async -> UUID? { client.auth.currentUser?.id }
+
     func hasSession() async -> Bool {
-        (try? await client.auth.session) != nil
+        let span = BackendDiagnostics.shared.beginRequest(.auth)
+        do {
+            _ = try await client.auth.session
+            span.finish()
+            return true
+        } catch {
+            span.finish(error: error)
+            return false
+        }
     }
 
     func currentUserID() async -> UUID? { try? await client.auth.session.user.id }

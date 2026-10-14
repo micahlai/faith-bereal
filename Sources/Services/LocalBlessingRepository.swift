@@ -16,7 +16,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var entryTimes: [BlessingEntryGrantKey: Date] = [:]
     private var nudgedMembers: Set<NudgeKey> = []
 
-    init(now: Date = .now, endOfDayStartsAt: Date? = nil) {
+    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -27,14 +27,16 @@ actor LocalBlessingRepository: BlessingRepository {
             displayName: "Micah",
             initials: "ML",
             tintSeed: 1,
-            joinedAt: calendar.date(byAdding: .day, value: -14, to: startOfToday)!
+            joinedAt: calendar.date(byAdding: .day, value: -14, to: startOfToday)!,
+            avatarURL: seedPhotoURL
         )
         let ava = Member(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000002")!,
             displayName: "Ava",
             initials: "AV",
             tintSeed: 2,
-            joinedAt: calendar.date(byAdding: .day, value: -3, to: startOfToday)!.addingTimeInterval(9 * 3_600)
+            joinedAt: calendar.date(byAdding: .day, value: -3, to: startOfToday)!.addingTimeInterval(9 * 3_600),
+            avatarURL: seedPhotoURL
         )
         let ben = Member(
             id: UUID(uuidString: "A0000000-0000-0000-0000-000000000003")!,
@@ -56,7 +58,8 @@ actor LocalBlessingRepository: BlessingRepository {
             randomWindowEndMinutes: 20 * 60,
             responseWindowMinutes: 10,
             allowsLateBlessings: true,
-            repeatWindowMinutes: 120
+            repeatWindowMinutes: 120,
+            photoURL: seedPhotoURL
         )
 
         let currentStart = now.addingTimeInterval(-60)
@@ -95,7 +98,8 @@ actor LocalBlessingRepository: BlessingRepository {
                     chapter: 4,
                     verseStart: 6,
                     verseEnd: 7
-                )
+                ),
+                photoURL: seedPhotoURL
             )
         ]
 

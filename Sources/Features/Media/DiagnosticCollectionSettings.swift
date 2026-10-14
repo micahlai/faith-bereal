@@ -38,7 +38,10 @@ struct DiagnosticCollectionSettings: View {
                 Text(status).foregroundStyle(.secondary).accessibilityIdentifier("diagnostics.status")
             }
         } header: { Text("Field testing") } footer: {
-            Text("Optional. Share timings, transfer sizes, failure categories, app build, and a random session code with manna’s developer. Reports are linked to your signed-in account and retained for 14 days, with scheduled cleanup. Blessing text, recordings, photos, names, links, and credentials are excluded. Records send in small batches while manna is open. Turning this off discards unsent records; an upload already underway may finish.")
+            Text((collection.startsEnabledByDefault
+                ? "This field-test build enables sharing by default for new accounts on this device. Your saved choice is kept, and you can turn sharing off at any time. "
+                : "Optional. ")
+                + "Share timings, transfer sizes, failure categories, app build, and a random session code with manna’s developer. Reports are linked to your signed-in account and retained for 14 days, with scheduled cleanup. Blessing text, recordings, photos, names, links, and credentials are excluded. Records send in small batches while manna is open. Turning this off discards unsent records; an upload already underway may finish.")
         }
         .task {
             await collection.refreshSummary()

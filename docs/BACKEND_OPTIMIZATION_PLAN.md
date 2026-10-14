@@ -1,12 +1,14 @@
 # Backend optimization — measurement and request reduction started
 
-Updated October 13, 2026. The owner authorized starting this plan and delegated regression/simulator verification. The reported “too many connections issued to the database” error affects startup/sign-in, circle switching/Timeline, and media sending; a failing timestamp and exact service code remain unavailable. Measurement and request reduction are underway. Modest media compression still requires reviewed comparison tests.
+Updated October 14, 2026. The owner authorized starting this plan and delegated regression/simulator verification. The reported “too many connections issued to the database” error affects startup/sign-in, circle switching/Timeline, and media sending; an exact failing timestamp/service code remains unavailable. Measurement and request reduction are underway. Modest media compression still requires reviewed comparison tests.
 
 ## TestFlight field collection — v0.2.2 (31)
 
 The October 14 continuation adds a default-off persistent in-app switch, a bounded private queue, and authenticated multi-user batch ingestion. The collector migration is deployed and its security/concurrency/hosted rollback regressions pass. App build 31 follows the owner's confirmed v0.2.1/build 30. UI adjustments and a unified draft-aware share action are included before final candidate export. See [the tester/operator runbook](TESTFLIGHT_FIELD_TESTING.md) for opt-in, retention, privacy, summary queries, and release status; STATUS carries current verification results.
 
 The environment variable remains for optional local OSLog capture only. TestFlight field sharing uses the in-app switch and pins queued reports to their original account/session/build. No real phone field error or latency improvement is claimed until the new build is installed and opted-in reports arrive.
+
+Build 31 collection is now confirmed on a real account: two batches/143 records were received at 2:35:46 and 2:40:54 p.m. Eastern on October 14, with no recorded failures in the checked batches. Earlier reported errors occurred while sharing was off and cannot be recovered retroactively. Build 32 defaults collection on for new account/device queues while preserving saved choices, and restores the local cached account's setting before measuring the initial auth session validation/refresh. Exact API/Postgres service codes and local Apple Speech/audio errors remain outside the payload. A voice-recording failure can therefore have a different source from a concurrent backend alert. This is receipt/coverage evidence, not a connection-error diagnosis or fix.
 
 ## First implementation slice
 

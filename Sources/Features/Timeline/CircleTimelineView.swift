@@ -145,7 +145,7 @@ struct CircleTimelineView: View {
                     Text(accessibleDate(item.sortDate))
                         .font(.caption).foregroundStyle(AppTheme.secondaryInk)
                     HStack {
-                        ProfileStreakAvatar(member: item.member, size: 36)
+                        ProfileStreakAvatar(member: item.member, size: 36, enlargesPhoto: true)
                         Text(item.member.id == model.currentUser?.id ? "You" : item.member.displayName)
                             .font(.headline)
                     }
@@ -306,7 +306,7 @@ private struct TimelineMemberHeader: View {
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
                     VStack(spacing: 4) {
-                        ProfileStreakAvatar(member: lane.member, size: 40)
+                        ProfileStreakAvatar(member: lane.member, size: 40, enlargesPhoto: true)
                         Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
                             .font(.headline)
                             .foregroundStyle(AppTheme.ink)
@@ -642,9 +642,9 @@ private struct TimelineEventView: View {
                 .labelStyle(.titleAndIcon)
                 .fixedSize()
         } else if !event.isWelcome {
-            Label("On time", systemImage: "checkmark.seal")
+            Label("On time", systemImage: "flame.fill")
                 .font(.caption2)
-                .foregroundStyle(AppTheme.dawn)
+                .foregroundStyle(AppTheme.streakBlue)
                 .labelStyle(.titleAndIcon)
                 .fixedSize()
         }
@@ -766,6 +766,7 @@ struct BlessingDetailView: View {
     private var header: some View {
         HStack(spacing: 12) {
             AvatarBadge(member: member, size: 46)
+                .photoEnlargement(url: member.avatarURL, title: "\(member.displayName) profile photo")
             VStack(alignment: .leading, spacing: 3) {
                 Text(member.displayName)
                     .font(.headline)
@@ -950,40 +951,6 @@ struct BlessingContentView: View {
                 }
             }
         }
-    }
-}
-
-private struct BlessingPhotoView: View {
-    let url: URL
-
-    var body: some View {
-        Group {
-            if url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image): image.resizable().scaledToFit()
-                    case .failure:
-                        ContentUnavailableView("Photo unavailable", systemImage: "photo.badge.exclamationmark")
-                    case .empty:
-                        ZStack {
-                            AppTheme.canvas
-                            ProgressView().accessibilityLabel("Loading photo")
-                        }
-                        .frame(height: 220)
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(maxHeight: 520)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityLabel("Blessing photo")
     }
 }
 

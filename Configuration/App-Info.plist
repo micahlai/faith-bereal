@@ -33,6 +33,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>MANNA_DIAGNOSTICS_DEFAULT_ENABLED</key>
+	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>manna circle uses the camera when you choose to take a photo or record a video blessing.</string>
 	<key>NSMicrophoneUsageDescription</key>

@@ -6,6 +6,8 @@ struct CircleStreak: Codable, Hashable, Sendable {
     let onTimeDays: Int
     let onTimeToday: Bool
 
+    var hasOnlyTimelyEntries: Bool { days > 0 && onTimeDays == days }
+
     enum CodingKeys: String, CodingKey {
         case memberID = "member_id", days, onTimeDays = "on_time_days", onTimeToday = "on_time_today"
     }

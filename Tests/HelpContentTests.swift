@@ -2,16 +2,27 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testPhotoAndTodayGuideExplainsZoomControlsAndVerticalOnlyFeed() {
+        let guide = HelpTopic.timeline.steps.map(\.body).joined()
+        for concept in ["enlarge it", "Pinch to zoom", "Zoom in", "Zoom out", "movement controls",
+                        "Tap Close photo", "crop editor", "fixed side to side"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+    }
+
     func testDiagnosticGuideExplainsConsentAccountAssociationAndLimits() {
         let guide = HelpTopic.personalization.steps.map(\.body).joined()
-        for concept in ["Share diagnostic data", "stays off", "TestFlight", "linked to your signed-in account",
+        for concept in ["Share diagnostic data", "starts with sharing on", "turn it off", "saved off setting remains off", "TestFlight", "linked to your signed-in account",
                         "14 days", "cannot read", "discards unsent", "1,000", "13 days", "Local demo"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
     }
-    func testStreakGuideDescribesBluePhotoOverlayAndCirclePanel() {
+    func testStreakGuideDescribesSingleFlameColorPhotoOverlayAndCirclePanel() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
-        XCTAssertTrue(guide.contains("blue flame pill"))
+        XCTAssertTrue(guide.contains("One flame pill"))
+        XCTAssertTrue(guide.contains("blue when every day"))
+        XCTAssertTrue(guide.contains("red when it includes a late entry"))
+        XCTAssertTrue(guide.contains("no verification badge"))
         XCTAssertTrue(guide.contains("without moving the name"))
         XCTAssertTrue(guide.contains("Circle People panel"))
     }

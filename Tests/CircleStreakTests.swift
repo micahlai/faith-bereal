@@ -2,6 +2,32 @@ import XCTest
 @testable import BlessingCircle
 
 final class CircleStreakTests: XCTestCase {
+    func testSingleFlameUsesTimelyEntryAcrossTheEntireCurrentStreak() async throws {
+        let bootstrap = try await LocalBlessingRepository().bootstrap()
+        var circle = try XCTUnwrap(bootstrap.circle)
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: circle.timeZoneIdentifier)
+        let now = Date()
+        let today = calendar.startOfDay(for: now)
+        var member = bootstrap.currentUser
+        member.joinedAt = calendar.date(byAdding: .day, value: -10, to: today)!
+        circle.members = [member]
+        var posts = (0...2).map { offset in
+            StreakDay(circleID: circle.id, memberID: member.id,
+                day: calendar.date(byAdding: .day, value: -offset, to: today)!, onTime: true)
+        }
+        let allTimely = try XCTUnwrap(CircleStreakPolicy.summaries(circle: circle, posts: posts, now: now)[member.id])
+        XCTAssertEqual(allTimely.days, 3)
+        XCTAssertTrue(allTimely.hasOnlyTimelyEntries)
+        posts[1] = StreakDay(circleID: circle.id, memberID: member.id,
+            day: posts[1].day, onTime: false)
+        let mixed = try XCTUnwrap(CircleStreakPolicy.summaries(circle: circle, posts: posts, now: now)[member.id])
+        XCTAssertEqual(mixed.days, 3)
+        XCTAssertTrue(mixed.onTimeToday)
+        XCTAssertFalse(mixed.hasOnlyTimelyEntries)
+        let empty = try XCTUnwrap(CircleStreakPolicy.summaries(circle: circle, posts: [], now: now)[member.id])
+        XCTAssertFalse(empty.hasOnlyTimelyEntries)
+    }
+
     func testEachCircleUsesItsOwnCalendarAcrossDaylightSaving() async throws {
         let bootstrap = try await LocalBlessingRepository().bootstrap()
         var circle = try XCTUnwrap(bootstrap.circle)

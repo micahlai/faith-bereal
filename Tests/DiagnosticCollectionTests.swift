@@ -2,6 +2,127 @@ import XCTest
 @testable import BlessingCircle
 
 final class DiagnosticCollectionTests: XCTestCase {
+    func testFieldBuildDefaultOnIsPersistedAndRestored() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let account = UUID()
+        let store = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        let initial = try await store.load(accountID: account)
+        XCTAssertTrue(initial.isEnabled)
+        let file = root.appendingPathComponent(account.uuidString).appendingPathExtension("json")
+        let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        XCTAssertEqual(state["isEnabled"] as? Bool, true)
+        XCTAssertEqual(state["consentWasChosen"] as? Bool, false)
+        let recreated = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        let restored = try await recreated.beginSession(accountID: account)
+        XCTAssertTrue(restored.isEnabled)
+        XCTAssertNotNil(restored.sessionID)
+    }
+
+    func testExplicitOptOutSurvivesFieldBuildRelaunchAndOtherAccountsDefaultOn() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let account = UUID(), other = UUID()
+        let store = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        _ = try await store.beginSession(accountID: account)
+        _ = try await store.setConsent(accountID: account, enabled: false)
+        let recreated = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        let restored = try await recreated.beginSession(accountID: account)
+        let isolated = try await recreated.beginSession(accountID: other)
+        XCTAssertFalse(restored.isEnabled)
+        XCTAssertTrue(isolated.isEnabled)
+        _ = try await recreated.endSession(accountID: account, sessionID: XCTUnwrap(restored.sessionID))
+        let returned = try await recreated.beginSession(accountID: account)
+        XCTAssertFalse(returned.isEnabled)
+    }
+
+    func testTrackedImplicitPreferenceAdoptsNewBuildPolicyAndExplicitChoiceWins() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let implicitAccount = UUID(), explicitAccount = UUID()
+        let ordinaryBuild = BackendDiagnosticStore(root: root)
+        _ = try await ordinaryBuild.beginSession(accountID: implicitAccount)
+        _ = try await ordinaryBuild.setConsent(accountID: explicitAccount, enabled: false)
+        let fieldBuild = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        let implicit = try await fieldBuild.load(accountID: implicitAccount)
+        let explicit = try await fieldBuild.load(accountID: explicitAccount)
+        XCTAssertTrue(implicit.isEnabled)
+        XCTAssertFalse(explicit.isEnabled)
+        _ = try await fieldBuild.setConsent(accountID: implicitAccount, enabled: true)
+        let laterOrdinaryBuild = BackendDiagnosticStore(root: root)
+        let chosen = try await laterOrdinaryBuild.load(accountID: implicitAccount)
+        XCTAssertTrue(chosen.isEnabled, "Changing the build default cannot override a chosen preference")
+    }
+
+    func testLegacyFilesKeepStoredPreferencesWhenChosenMarkerIsMissing() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let disabledAccount = UUID(), enabledAccount = UUID()
+        for (account, enabled) in [(disabledAccount, false), (enabledAccount, true)] {
+            let legacy: [String: Any] = ["isEnabled": enabled, "pending": [Any]()]
+            let file = root.appendingPathComponent(account.uuidString).appendingPathExtension("json")
+            try JSONSerialization.data(withJSONObject: legacy).write(to: file)
+        }
+        let fieldBuild = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        let preservedOff = try await fieldBuild.beginSession(accountID: disabledAccount)
+        XCTAssertFalse(preservedOff.isEnabled, "Legacy false could be an opt-out and must be preserved")
+        let ordinaryBuild = BackendDiagnosticStore(root: root)
+        let preservedOn = try await ordinaryBuild.beginSession(accountID: enabledAccount)
+        XCTAssertTrue(preservedOn.isEnabled)
+    }
+
+    @MainActor
+    func testFailedDefaultOnSeedNeverInstallsCaptureAndCanRecover() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("blocked directory".utf8).write(to: root)
+        let account = UUID()
+        let store = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        let diagnostics = BackendDiagnostics(enabled: false)
+        let controller = DiagnosticCollectionController(store: store, diagnostics: diagnostics, buildNumber: 32)
+        defer { controller.deactivate() }
+        await controller.activate(accountID: account)
+        XCTAssertFalse(controller.isEnabled)
+        XCTAssertFalse(diagnostics.enabled)
+        XCTAssertNotNil(controller.status)
+        try FileManager.default.removeItem(at: root)
+        controller.deactivate()
+        await controller.activate(accountID: account)
+        XCTAssertTrue(controller.isEnabled)
+        XCTAssertTrue(diagnostics.enabled)
+    }
+
+    @MainActor
+    func testFailedSessionActivationStaysPausedThroughRefreshUntilExplicitRetry() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let account = UUID()
+        let store = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        let previous = try await store.beginSession(accountID: account)
+        let file = root.appendingPathComponent(account.uuidString).appendingPathExtension("json")
+        try FileManager.default.removeItem(at: file)
+        try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+        let diagnostics = BackendDiagnostics(enabled: false)
+        let controller = DiagnosticCollectionController(store: store, diagnostics: diagnostics, buildNumber: 32)
+        defer { controller.deactivate() }
+
+        await controller.activate(accountID: account)
+        await controller.refreshSummary()
+        XCTAssertFalse(controller.isEnabled)
+        XCTAssertFalse(diagnostics.enabled)
+        XCTAssertTrue(controller.status?.contains("paused") == true)
+        let afterFailure = try await store.load(accountID: account)
+        XCTAssertEqual(afterFailure.sessionID, previous.sessionID, "A failed session write cannot commit the proposed new session")
+
+        try FileManager.default.removeItem(at: file)
+        await controller.setEnabled(true)
+        await controller.refreshSummary()
+        XCTAssertTrue(controller.isEnabled)
+        XCTAssertTrue(diagnostics.enabled)
+        XCTAssertNil(controller.status)
+    }
+
     func testCollectionDefaultsOffAndConsentSurvivesStoreRecreation() async throws {
         let root = temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }

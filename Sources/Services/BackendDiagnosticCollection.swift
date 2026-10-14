@@ -28,16 +28,21 @@ actor BackendDiagnosticStore {
     }
     private struct State: Codable {
         var isEnabled = false
+        // Optional for build-31 files, whose stored false cannot distinguish a
+        // previous opt-out from the original default. Preserve those choices.
+        var consentWasChosen: Bool? = false
         var sessionID: UUID?
         var pending: [Captured] = []
         var report: BackendDiagnosticReport?
         var lastUploadedAt: Date?
     }
     private let root: URL
+    nonisolated let defaultsToEnabled: Bool
     private var states: [UUID: State] = [:]
     private var checkpointTask: Task<Void, Never>?
 
-    init(root: URL? = nil) {
+    init(root: URL? = nil, defaultEnabled: Bool = false) {
+        defaultsToEnabled = defaultEnabled
 #if DEBUG
         if root == nil, let session = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SAVING_TEST_SESSION"],
            let id = UUID(uuidString: session) {
@@ -52,8 +57,20 @@ actor BackendDiagnosticStore {
     func load(accountID: UUID, now: Date = .now) throws -> DiagnosticCollectionSnapshot {
         if states[accountID] == nil {
             if FileManager.default.fileExists(atPath: file(accountID).path) {
-                states[accountID] = try Self.decoder().decode(State.self, from: Data(contentsOf: file(accountID)))
-            } else { states[accountID] = State() }
+                var state = try Self.decoder().decode(State.self, from: Data(contentsOf: file(accountID)))
+                if state.consentWasChosen == false, state.isEnabled != defaultsToEnabled {
+                    state.isEnabled = defaultsToEnabled
+                    if !defaultsToEnabled { state.pending = []; state.report = nil }
+                    try persist(accountID, state: state)
+                }
+                states[accountID] = state
+            } else {
+                var state = State()
+                state.isEnabled = defaultsToEnabled
+                // Default-on must be durable before capture can observe it.
+                if defaultsToEnabled { try persist(accountID, state: state) }
+                states[accountID] = state
+            }
         }
         prune(accountID, now: now)
         return snapshot(accountID)
@@ -61,8 +78,10 @@ actor BackendDiagnosticStore {
 
     func beginSession(accountID: UUID, now: Date = .now) throws -> DiagnosticCollectionSnapshot {
         _ = try load(accountID: accountID, now: now)
-        states[accountID]?.sessionID = UUID()
-        try persist(accountID)
+        var state = states[accountID] ?? State()
+        state.sessionID = UUID()
+        try persist(accountID, state: state)
+        states[accountID] = state
         return snapshot(accountID)
     }
 
@@ -76,6 +95,7 @@ actor BackendDiagnosticStore {
         _ = try load(accountID: accountID, now: now)
         var state = states[accountID] ?? State()
         state.isEnabled = enabled
+        state.consentWasChosen = true
         state.sessionID = UUID()
         if !enabled {
             state.pending = []
@@ -220,6 +240,7 @@ final class DiagnosticCollectionController {
     private(set) var lastUploadedAt: Date?
     private(set) var status: String?
     var uploadsRemotely: Bool { uploader != nil }
+    var startsEnabledByDefault: Bool { store.defaultsToEnabled }
 
     init(store: BackendDiagnosticStore = BackendDiagnosticStore(), uploader: (any BackendDiagnosticUploading)? = nil,
          diagnostics: BackendDiagnostics = .shared,
@@ -237,7 +258,13 @@ final class DiagnosticCollectionController {
             guard generation == scope else { return }
             apply(snapshot)
             installCapture(snapshot)
-        } catch { if generation == scope { status = "Diagnostic storage couldn’t open. Try again later." } }
+        } catch {
+            if generation == scope {
+                storagePaused = true
+                isEnabled = false
+                status = "Diagnostic storage couldn’t open. Collection is paused; try enabling sharing again."
+            }
+        }
     }
 
     func deactivate() {
