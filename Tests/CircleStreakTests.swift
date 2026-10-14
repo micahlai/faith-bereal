@@ -28,6 +28,56 @@ final class CircleStreakTests: XCTestCase {
         XCTAssertFalse(empty.hasOnlyTimelyEntries)
     }
 
+    func testTimelyRunIsConsecutiveAndIndependentOfNormalStreak() async throws {
+        let bootstrap = try await LocalBlessingRepository().bootstrap()
+        var circle = try XCTUnwrap(bootstrap.circle)
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: circle.timeZoneIdentifier)
+        let today = calendar.startOfDay(for: .now)
+        var member = bootstrap.currentUser
+        member.joinedAt = calendar.date(byAdding: .day, value: -30, to: today)!
+        circle.members = [member]
+        func post(_ offset: Int, timely: Bool) -> StreakDay {
+            StreakDay(circleID: circle.id, memberID: member.id,
+                day: calendar.date(byAdding: .day, value: offset, to: today)!, onTime: timely)
+        }
+        let posts = [post(0, timely: true), post(-1, timely: true), post(-2, timely: false),
+            post(-3, timely: true), post(-4, timely: true)]
+        let mixed = try XCTUnwrap(CircleStreakPolicy.summaries(circle: circle, posts: posts, now: today)[member.id])
+        XCTAssertEqual(mixed.days, 5)
+        XCTAssertEqual(mixed.onTimeDays, 4)
+        XCTAssertEqual(mixed.onTimeStreakDays, 2)
+        XCTAssertFalse(mixed.hasOnlyTimelyEntries)
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+        let grace = try XCTUnwrap(CircleStreakPolicy.summaries(circle: circle, posts: posts, now: tomorrow)[member.id])
+        XCTAssertEqual(grace.days, 5)
+        XCTAssertEqual(grace.onTimeStreakDays, 2)
+        let lateToday = posts + [post(1, timely: false)]
+        let reset = try XCTUnwrap(CircleStreakPolicy.summaries(circle: circle, posts: lateToday, now: tomorrow)[member.id])
+        XCTAssertEqual(reset.days, 6)
+        XCTAssertEqual(reset.onTimeStreakDays, 0)
+        let timelySameDay = lateToday + [post(1, timely: true)]
+        XCTAssertEqual(CircleStreakPolicy.summaries(circle: circle, posts: timelySameDay, now: tomorrow)[member.id]?.onTimeStreakDays, 3)
+        let afterGap = calendar.date(byAdding: .day, value: 2, to: today)!
+        XCTAssertEqual(CircleStreakPolicy.summaries(circle: circle, posts: posts, now: afterGap)[member.id]?.onTimeStreakDays, 0)
+    }
+
+    func testTimelyRunDecoderHandlesOldAndNewRPCShapes() throws {
+        let memberID = UUID()
+        func decode(days: Int, timely: Int, consecutive: Int? = nil) throws -> CircleStreak {
+            var json: [String: Any] = ["member_id": memberID.uuidString, "days": days,
+                "on_time_days": timely, "on_time_today": true]
+            if let consecutive { json["on_time_streak_days"] = consecutive }
+            return try JSONDecoder().decode(CircleStreak.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        XCTAssertEqual(try decode(days: 5, timely: 5).onTimeStreakDays, 5)
+        XCTAssertEqual(try decode(days: 5, timely: 4).onTimeStreakDays, 0)
+        let explicit = try decode(days: 5, timely: 4, consecutive: 2)
+        XCTAssertEqual(explicit.onTimeStreakDays, 2)
+        XCTAssertEqual(explicit.onTimeDays, 4)
+        let roundTrip = try JSONDecoder().decode(CircleStreak.self, from: JSONEncoder().encode(explicit))
+        XCTAssertEqual(roundTrip, explicit)
+    }
+
     func testEachCircleUsesItsOwnCalendarAcrossDaylightSaving() async throws {
         let bootstrap = try await LocalBlessingRepository().bootstrap()
         var circle = try XCTUnwrap(bootstrap.circle)

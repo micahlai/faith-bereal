@@ -12,23 +12,19 @@ final class PhotoViewerUITests: XCTestCase {
     }
 
     @MainActor
-    func testCircleAndMemberPhotosOpenWithoutReplacingSettingsActions() {
+    func testProfileAndCirclePhotosDoNotEnlargeAndStreakHasAnchoredDetails() {
         let app = launchPhotoFixture()
         app.tabBars.buttons["Circle"].tap()
         XCTAssertTrue(app.navigationBars["Circle"].waitForExistence(timeout: 5))
-        let circlePhoto = app.buttons["Sunday Table circle photo"]
-        XCTAssertTrue(circlePhoto.waitForExistence(timeout: 5))
-        circlePhoto.tap()
-        checkViewer(app)
-        app.buttons["photo.close"].tap()
-        XCTAssertTrue(app.buttons["circle-settings-button"].isHittable)
-        let avatar = app.buttons["Ava profile photo"]
-        for _ in 0..<8 where !avatar.isHittable { app.swipeUp() }
-        XCTAssertTrue(avatar.isHittable)
-        avatar.tap()
-        checkViewer(app)
-        app.buttons["photo.close"].tap()
-        XCTAssertTrue(app.navigationBars["Circle"].exists)
+        XCTAssertFalse(app.buttons["Sunday Table circle photo"].exists)
+        XCTAssertFalse(app.buttons["Ava profile photo"].exists)
+        let streak = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "streak.details.")).firstMatch
+        for _ in 0..<8 where !streak.isHittable { app.swipeUp() }
+        XCTAssertTrue(streak.isHittable)
+        streak.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", " on time days in a row")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", "[0-9]+ days in a row")).firstMatch.exists)
+        attachScreen(app, name: "Streak popup anchored to flame")
     }
 
     @MainActor
@@ -38,11 +34,10 @@ final class PhotoViewerUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments += ["--manna-local-ui-test", "--manna-photo-ui-test"]
-        if largestText {
-            app.launchArguments += ["-AppleInterfaceStyle", "Dark", "-UIPreferredContentSizeCategoryName",
-                "UICTContentSizeCategoryAccessibilityXXXL"]
-        }
+        app.launchArguments += ["--manna-local-ui-test", "--manna-photo-ui-test",
+            "-user.appearancePreference", largestText ? "dark" : "light",
+            "-UIPreferredContentSizeCategoryName",
+            largestText ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.terminate()
         app.launch()
         XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
@@ -70,12 +65,19 @@ final class PhotoViewerUITests: XCTestCase {
         editor.tap()
         editor.typeText("Photo viewer acceptance")
         let send = app.buttons["Send blessing"]
-        for _ in 0..<15 where !send.isHittable {
+        // XCTest may call the button hittable while the software keyboard covers it.
+        // Scroll until the whole target is above the keyboard before tapping.
+        func sendIsVisible() -> Bool {
+            let keyboard = app.keyboards.firstMatch
+            let visibleBottom = keyboard.exists ? keyboard.frame.minY : app.frame.maxY
+            return send.isHittable && send.frame.maxY <= visibleBottom
+        }
+        for _ in 0..<15 where !sendIsVisible() {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.55))
                 .press(forDuration: 0.05, thenDragTo:
                     app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.2)))
         }
-        XCTAssertTrue(send.isHittable)
+        XCTAssertTrue(sendIsVisible())
         send.tap()
         let alert = app.alerts["manna circle"]
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
@@ -83,6 +85,7 @@ final class PhotoViewerUITests: XCTestCase {
         let photo = app.descendants(matching: .any).matching(identifier: "blessing.photo").firstMatch
         for _ in 0..<15 where !photo.isHittable { scroll.swipeUp() }
         XCTAssertTrue(photo.isHittable)
+        XCTAssertFalse(app.buttons["Ava profile photo"].exists)
         photo.tap()
         checkViewer(app)
         let image = app.descendants(matching: .any).matching(identifier: "photo.zoomImage").firstMatch

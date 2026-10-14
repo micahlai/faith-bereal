@@ -238,7 +238,7 @@ private struct TodayBlessingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 12) {
-                ProfileStreakAvatar(member: item.member, size: 46, enlargesPhoto: true)
+                ProfileStreakAvatar(member: item.member, size: 46)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.member.displayName)
                         .font(.headline)
@@ -262,7 +262,7 @@ private struct TodayBlessingCard: View {
                         .foregroundStyle(AppTheme.candle)
                 }
             }
-            .accessibilityElement(children: item.member.avatarURL == nil ? .combine : .contain)
+            .accessibilityElement(children: .contain)
 
             BlessingContentView(blessing: item.blessing, usesCard: false)
                 .id(item.blessing.id)

@@ -13,7 +13,9 @@ enum AppComposition {
         if ProcessInfo.processInfo.arguments.contains("--manna-local-ui-test") {
             let photoURL = ProcessInfo.processInfo.arguments.contains("--manna-photo-ui-test")
                 ? PhotoViewerUITestFixture.makePhoto() : nil
-            return AppModel(repository: LocalBlessingRepository(seedPhotoURL: photoURL), diagnosticCollection: localCollection)
+            let settingsRole = ProcessInfo.processInfo.environment["MANNA_CIRCLE_SETTINGS_TEST_ROLE"]
+            return AppModel(repository: LocalBlessingRepository(seedPhotoURL: photoURL,
+                settingsTestRole: settingsRole), diagnosticCollection: localCollection)
         }
 #endif
         if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {

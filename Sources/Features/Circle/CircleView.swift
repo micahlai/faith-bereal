@@ -26,8 +26,7 @@ private struct CircleHeaderIdentity: View {
         .frame(width: size, height: size)
         .background(AppTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))
-        .photoEnlargement(url: circle.photoURL, title: "\(circle.name) circle photo")
-        .accessibilityHidden(circle.photoURL == nil)
+        .accessibilityHidden(true)
     }
 
     private var fallback: some View {
@@ -150,8 +149,6 @@ struct CircleView: View {
             ForEach(model.circle?.members ?? []) { member in
                 HStack(spacing: 12) {
                     AvatarBadge(member: member, size: 42)
-                        .photoEnlargement(url: member.avatarURL,
-                            title: "\(member.displayName) profile photo", hitSlop: 1)
                     Text(member.id == model.currentUser?.id ? "\(member.displayName) (you)" : member.displayName)
                         .foregroundStyle(AppTheme.ink)
                     Spacer()
@@ -673,6 +670,7 @@ private struct CircleSettingsView: View {
     @State private var randomWindowEnd: Date
     @State private var endOfDayTime: Date
     @State private var isSaving = false
+    @State private var isUpdatingMemberChanges = false
     @State private var isLeaving = false
     @State private var showingLeaveConfirmation = false
     @State private var showingForcePromptConfirmation = false
@@ -716,9 +714,24 @@ private struct CircleSettingsView: View {
             && randomWindowEndMinutes > randomWindowStartMinutes
             && endOfDayMinutes >= randomWindowEndMinutes
     }
-    private var isOwner: Bool { model.circle?.ownerID == model.currentUser?.id }
+    private var currentCircle: CircleGroup? {
+        model.circle?.id == circle.id ? model.circle : nil
+    }
+    private var isOwner: Bool {
+        guard let currentCircle, let userID = model.currentUser?.id else { return false }
+        return currentCircle.ownerID == userID
+    }
+    private var canEditSettings: Bool {
+        guard let currentCircle, let userID = model.currentUser?.id else { return false }
+        return currentCircle.canManageSettings(memberID: userID)
+    }
+    private var removableMembers: [Member] {
+        (currentCircle?.members ?? []).filter {
+            $0.id != model.currentUser?.id && $0.id != currentCircle?.ownerID
+        }
+    }
     private var hasUnsavedChanges: Bool {
-        guard isOwner else { return false }
+        guard canEditSettings else { return false }
         return name != circle.name
             || timeZoneIdentifier != circle.timeZoneIdentifier
             || randomWindowStartMinutes != circle.randomWindowStartMinutes
@@ -734,6 +747,31 @@ private struct CircleSettingsView: View {
         NavigationStack {
             Form {
                 if isOwner {
+                    Section {
+                        Toggle("Anyone can make circle changes", isOn: Binding(
+                            get: { currentCircle?.allowMemberCircleChanges ?? false },
+                            set: { allowed in
+                                guard isOwner, !isUpdatingMemberChanges else { return }
+                                isUpdatingMemberChanges = true
+                                Task {
+                                    _ = await model.setCircleMemberChanges(allowed)
+                                    isUpdatingMemberChanges = false
+                                }
+                            }
+                        ))
+                        .frame(minHeight: 44)
+                        .disabled(isUpdatingMemberChanges || isSaving)
+                        .accessibilityIdentifier("circle-settings-member-changes")
+                        if isUpdatingMemberChanges {
+                            ProgressView("Updating circle permissions…")
+                        }
+                    } header: {
+                        Text("Circle permissions")
+                    } footer: {
+                        Text("When on, all members can change circle settings, manage invitations and members, and force a blessing notification. Only you can change this permission or transfer ownership. Changes to this permission save immediately.")
+                    }
+                }
+                if canEditSettings {
                     Section {
                         HStack(spacing: 16) {
                             CircleAvatarBadge(circle: photoPreviewCircle, size: 72)
@@ -770,6 +808,7 @@ private struct CircleSettingsView: View {
                     Section("Circle") {
                         TextField("Circle name", text: $name)
                             .textContentType(.organizationName)
+                            .accessibilityIdentifier("circle-settings-name")
                         NavigationLink {
                             CircleTimeZonePicker(selection: $timeZoneIdentifier)
                         } label: {
@@ -821,7 +860,7 @@ private struct CircleSettingsView: View {
                         .accessibilityIdentifier("force-blessing-notification")
                         .disabled(isSaving || model.isForcingCirclePrompt)
                     } header: {
-                        Text("Owner testing")
+                        Text("Notification testing")
                     } footer: {
                         if model.usesAuthentication {
                             Text("Immediately opens today’s response window and sends a real notification and Live Activity request to every registered member device. Use sparingly.")
@@ -917,21 +956,24 @@ private struct CircleSettingsView: View {
                         Text("A member can reuse their own blessing from another circle only within this much time of when they originally sent it.")
                     }
 
-                    if circle.members.count > 1 {
+                    if isOwner && (currentCircle?.members.count ?? 0) > 1 {
                         Section {
                             Button {
                                 showingOwnershipTransfer = true
                             } label: {
                                 Label("Transfer circle ownership", systemImage: "person.2.arrow.trianglehead.counterclockwise")
                             }
+                            .accessibilityIdentifier("circle-settings-transfer-ownership")
                         } header: {
                             Text("Ownership")
                         } footer: {
-                            Text("The new owner can change circle settings and transfer ownership again. You will remain a member.")
+                            Text("The new owner controls who can make circle changes and can transfer ownership again. You will remain a member.")
                         }
+                    }
 
+                    if !removableMembers.isEmpty {
                         Section("Manage members") {
-                            ForEach((model.circle?.members ?? circle.members).filter { $0.id != model.currentUser?.id }) { member in
+                            ForEach(removableMembers) { member in
                                 HStack(spacing: 12) {
                                     AvatarBadge(member: member, size: 36)
                                     Text(member.displayName)
@@ -940,6 +982,8 @@ private struct CircleSettingsView: View {
                                         memberToRemove = member
                                     }
                                     .disabled(isRemovingMember)
+                                    .accessibilityLabel("Remove \(member.displayName)")
+                                    .accessibilityIdentifier("circle-settings-remove-\(member.id.uuidString)")
                                 }
                                 .frame(minHeight: 44)
                             }
@@ -957,13 +1001,17 @@ private struct CircleSettingsView: View {
                         LabeledContent("Reuse window", value: Self.durationLabel(repeatWindowMinutes))
                         LabeledContent("End-of-day blessing", value: endOfDayTime.formatted(date: .omitted, time: .shortened))
                     }
+                    Section {
+                        Text("Only the circle owner can change these settings unless they turn on Anyone can make circle changes.")
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
                 }
 
                 Section {
                     Button("Leave circle", role: .destructive) {
                         showingLeaveConfirmation = true
                     }
-                    .disabled(isLeaving)
+                    .disabled(isLeaving || isUpdatingMemberChanges)
                 } footer: {
                     if isOwner {
                         Text(circle.members.count == 1
@@ -985,15 +1033,16 @@ private struct CircleSettingsView: View {
                             isPresented = false
                         }
                     }
-                    .disabled(isSaving)
+                    .disabled(isSaving || isUpdatingMemberChanges)
                 }
-                if isOwner {
+                if canEditSettings {
                     ToolbarItem(placement: .confirmationAction) {
                         Button(isSaving ? "Saving…" : "Save") {
                             Task { await saveChanges() }
                         }
                         .disabled(
                             isSaving
+                                || isUpdatingMemberChanges
                                 || isPreparingCirclePhoto
                                 || !settingsAreValid
                                 || !hasUnsavedChanges
@@ -1003,7 +1052,7 @@ private struct CircleSettingsView: View {
             }
         }
         .presentationDetents([.large])
-        .interactiveDismissDisabled(isSaving || hasUnsavedChanges)
+        .interactiveDismissDisabled(isSaving || isUpdatingMemberChanges || hasUnsavedChanges)
         .task(id: selectedCirclePhoto) {
             guard let selectedCirclePhoto else { return }
             isPreparingCirclePhoto = true
@@ -1124,6 +1173,7 @@ private struct CircleSettingsView: View {
     }
 
     private func saveChanges() async {
+        guard canEditSettings else { return }
         isSaving = true
         defer { isSaving = false }
         let settingsSaved = await model.updateCircleSettings(
@@ -1238,7 +1288,7 @@ private struct OwnershipTransferView: View {
             }
             Button("Cancel", role: .cancel) { candidate = nil }
         } message: {
-            Text("You will remain in the circle, but only the new owner will be able to change its settings.")
+            Text("You will remain in the circle. The new owner controls who can make circle changes and can transfer ownership again.")
         }
     }
 }

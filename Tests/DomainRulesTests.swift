@@ -543,7 +543,7 @@ final class DomainRulesTests: XCTestCase {
             )
             XCTFail("Expected a non-owner force attempt to fail")
         } catch let error as BlessingError {
-            XCTAssertEqual(error, .notCircleOwner)
+            XCTAssertEqual(error, .circleChangesNotAllowed)
         }
     }
 
@@ -1089,7 +1089,7 @@ final class DomainRulesTests: XCTestCase {
             )
             XCTFail("Expected a non-owner circle photo update to fail")
         } catch let error as BlessingError {
-            XCTAssertEqual(error, .notCircleOwner)
+            XCTAssertEqual(error, .circleChangesNotAllowed)
         }
     }
 
@@ -1147,7 +1147,7 @@ final class DomainRulesTests: XCTestCase {
             )
             XCTFail("Expected a non-owner rotation to fail")
         } catch let error as BlessingError {
-            XCTAssertEqual(error, .notCircleOwner)
+            XCTAssertEqual(error, .circleChangesNotAllowed)
         }
     }
 

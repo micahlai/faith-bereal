@@ -30,6 +30,7 @@ protocol BlessingRepository: Sendable {
     ) async throws -> Blessing
     func joinCircle(code: String, memberID: UUID) async throws -> CircleGroup
     func createCircle(configuration: CircleConfiguration, member: Member) async throws -> CircleGroup
+    func setCircleMemberChanges(circleID: UUID, ownerID: UUID, allowed: Bool) async throws -> CircleGroup
     func regenerateInviteCode(circleID: UUID, ownerID: UUID) async throws -> CircleGroup
     func updateCircleSettings(
         circleID: UUID,
@@ -86,6 +87,9 @@ protocol BlessingRepository: Sendable {
 }
 
 extension BlessingRepository {
+    func setCircleMemberChanges(circleID: UUID, ownerID: UUID, allowed: Bool) async throws -> CircleGroup {
+        throw BlessingError.notCircleOwner
+    }
     // Only pass metadata fetched as part of the same load. Content is still read
     // afresh under server authorization; this is not a cross-refresh cache.
     func timeline(circle: CircleGroup, viewerID: UUID, now: Date) async throws -> [TimelineLane] {

@@ -377,6 +377,17 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return try await fetchCircle(id: row.id, inviteCode: code)
     }
 
+    func setCircleMemberChanges(circleID: UUID, ownerID _: UUID, allowed: Bool) async throws -> CircleGroup {
+        let row: CircleRow = try await client.rpc(
+            "set_circle_member_changes",
+            params: SetCircleMemberChangesParams(circleID: circleID, allowed: allowed)
+        )
+        .single()
+        .measuredExecute(.rpc)
+        .value
+        return try await fetchCircle(id: row.id, inviteCode: "")
+    }
+
     func regenerateInviteCode(circleID: UUID, ownerID: UUID) async throws -> CircleGroup {
         let code = Self.inviteCode()
         let row: CircleRow = try await client.rpc(
@@ -822,6 +833,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 .first(where: { $0.userID == viewerID })?
                 .notifyOnEndOfDay ?? true
         )
+        result.allowMemberCircleChanges = row.allowMemberCircleChanges ?? false
         result.streaks = Dictionary(uniqueKeysWithValues: streakRows.map { ($0.memberID, $0) })
         return result
     }
@@ -1087,6 +1099,7 @@ private struct CircleRow: Codable, Sendable {
     let repeatWindowMinutes: Int
     let endOfDayTime: String
     let photoPath: String?
+    let allowMemberCircleChanges: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, name
@@ -1099,6 +1112,7 @@ private struct CircleRow: Codable, Sendable {
         case repeatWindowMinutes = "repeat_window_minutes"
         case endOfDayTime = "end_of_day_time"
         case photoPath = "photo_path"
+        case allowMemberCircleChanges = "allow_member_circle_changes"
     }
 }
 
@@ -1267,6 +1281,15 @@ private struct RegenerateInviteCodeParams: Encodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case circleID = "p_circle_id"
         case inviteCode = "p_invite_code"
+    }
+}
+
+private struct SetCircleMemberChangesParams: Encodable, Sendable {
+    let circleID: UUID
+    let allowed: Bool
+    enum CodingKeys: String, CodingKey {
+        case circleID = "p_circle_id"
+        case allowed = "p_allowed"
     }
 }
 

@@ -143,9 +143,7 @@ struct BlessingResponsesView: View {
             HStack {
                 if let member = model.circle?.members.first(where: { $0.id == response.authorID }) {
                     AvatarBadge(member: member, size: 32)
-                        .photoEnlargement(url: member.avatarURL,
-                            title: "\(member.displayName) profile photo", hitSlop: 6)
-                        .accessibilityHidden(member.avatarURL == nil)
+                        .accessibilityHidden(true)
                 }
                 Text(displayName(for: response.authorID))
                     .font(.subheadline.weight(.semibold))

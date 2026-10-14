@@ -4,8 +4,15 @@ import XCTest
 final class HelpContentTests: XCTestCase {
     func testPhotoAndTodayGuideExplainsZoomControlsAndVerticalOnlyFeed() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
-        for concept in ["enlarge it", "Pinch to zoom", "Zoom in", "Zoom out", "movement controls",
+        for concept in ["enlarge it", "Profile and circle photos do not", "Pinch to zoom", "Zoom in", "Zoom out", "movement controls",
                         "Tap Close photo", "crop editor", "fixed side to side"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+    }
+
+    func testCircleGuideExplainsSharedChangesAndLeaderOnlyExceptions() {
+        let guide = HelpTopic.circles.steps.map(\.body).joined()
+        for concept in ["Anyone can make circle changes", "starts off", "current members", "leader-only", "cannot remove the leader", "Leave circle"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
     }
@@ -23,6 +30,8 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(guide.contains("blue when every day"))
         XCTAssertTrue(guide.contains("red when it includes a late entry"))
         XCTAssertTrue(guide.contains("no verification badge"))
+        XCTAssertTrue(guide.contains("small animated popup"))
+        XCTAssertTrue(guide.contains("A late entry breaks the blue run"))
         XCTAssertTrue(guide.contains("without moving the name"))
         XCTAssertTrue(guide.contains("Circle People panel"))
     }
@@ -118,7 +127,7 @@ final class HelpContentTests: XCTestCase {
 
     func testCircleGuideExplainsStableCodesAndLegacyRecovery() {
         let guide = HelpTopic.circles.steps.map(\.body).joined(separator: " ")
-        for concept in ["updates and relaunches", "only a leader's Regenerate", "saved join link", "regenerate once"] {
+        for concept in ["updates and relaunches", "only an authorized Regenerate", "saved join link", "regenerate once"] {
             XCTAssertTrue(guide.contains(concept))
         }
     }

@@ -72,6 +72,8 @@ For a previously signed-in account, visible-startup timing begins after reading 
 
 ## Domain coverage
 
+- Shared circle settings default off, retain legacy snapshots as leader-only, and authorize edits against fresh membership/permission state. Test off/on/off settings, invite rotation, photos, force notification, ordinary-member removal, outsider denial, leader-only permission/transfer, protected leader/self removal, and revoked permissions despite stale client metadata. `Scripts/test-shared-circle-settings.sh` runs disposable SQL/Storage checks and a concurrent revocation case; it does not deploy the pending migration.
+- Streak explanations display the normal and independent consecutive timely-entry runs. Timely entry, late-entry breaks, gaps, daily/evening deduplication, and today's unfinished-day grace are covered. Focused UI checks verify the flame's anchored popup and attached-photo-only enlargement.
 - Nudges require the sender's submission for the exact prompt, two current distinct members, and an unsubmitted recipient. Scheduled, no-late deadline, seven-hour evening deadline, circle-local midnight, next daily cutoff, same-prompt privacy, and one nudge per recipient/prompt are checked. Local mode never contacts APNs.
 
 - Reuse preserves capture format, audio/photo/video/thumbnail and scripture; no responses are copied. Receiving-circle media respects the target privacy gate even for people outside the original circle.

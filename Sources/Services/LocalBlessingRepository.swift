@@ -16,7 +16,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var entryTimes: [BlessingEntryGrantKey: Date] = [:]
     private var nudgedMembers: Set<NudgeKey> = []
 
-    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil) {
+    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -47,7 +47,7 @@ actor LocalBlessingRepository: BlessingRepository {
         )
 
         currentUser = user
-        let primaryCircle = CircleGroup(
+        var primaryCircle = CircleGroup(
             id: UUID(uuidString: "B0000000-0000-0000-0000-000000000001")!,
             name: "Sunday Table",
             inviteCode: "LIGHT7",
@@ -218,6 +218,12 @@ actor LocalBlessingRepository: BlessingRepository {
             )
         )
 
+#if DEBUG
+        if settingsTestRole == "member" || settingsTestRole == "member_shared" {
+            primaryCircle.ownerID = ava.id
+            primaryCircle.allowMemberCircleChanges = settingsTestRole == "member_shared"
+        }
+#endif
         circles = [primaryCircle, prayerCircle]
         prompts = seededPrompts
         blessings = seededBlessings
@@ -613,11 +619,23 @@ actor LocalBlessingRepository: BlessingRepository {
         return circle
     }
 
+    func setCircleMemberChanges(circleID: UUID, ownerID: UUID, allowed: Bool) async throws -> CircleGroup {
+        guard let index = circles.firstIndex(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circles[index].ownerID == ownerID,
+              circles[index].members.contains(where: { $0.id == ownerID }) else {
+            throw BlessingError.notCircleOwner
+        }
+        circles[index].allowMemberCircleChanges = allowed
+        return circles[index]
+    }
+
     func regenerateInviteCode(circleID: UUID, ownerID: UUID) async throws -> CircleGroup {
         guard let index = circles.firstIndex(where: { $0.id == circleID }) else {
             throw BlessingError.circleNotFound
         }
-        guard circles[index].ownerID == ownerID else { throw BlessingError.notCircleOwner }
+        guard circles[index].canManageSettings(memberID: ownerID) else { throw BlessingError.circleChangesNotAllowed }
         circles[index].inviteCode = uniqueInviteCode()
         return circles[index]
     }
@@ -634,9 +652,11 @@ actor LocalBlessingRepository: BlessingRepository {
         repeatWindowMinutes: Int,
         endOfDayMinutes: Int
     ) async throws -> CircleGroup {
-        guard let index = circles.firstIndex(where: { $0.id == circleID }),
-              circles[index].ownerID == ownerID else {
-            throw BlessingError.invalidInviteCode
+        guard let index = circles.firstIndex(where: { $0.id == circleID }) else {
+            throw BlessingError.circleNotFound
+        }
+        guard circles[index].canManageSettings(memberID: ownerID) else {
+            throw BlessingError.circleChangesNotAllowed
         }
         guard ResponseWindowOptions.minutes.contains(responseWindowMinutes) else {
             throw BlessingError.outsideResponseWindow
@@ -710,8 +730,8 @@ actor LocalBlessingRepository: BlessingRepository {
         guard let circle = circles.first(where: { $0.id == circleID }) else {
             throw BlessingError.circleNotFound
         }
-        guard circle.ownerID == ownerID else {
-            throw BlessingError.notCircleOwner
+        guard circle.canManageSettings(memberID: ownerID) else {
+            throw BlessingError.circleChangesNotAllowed
         }
 
         let forcedPrompt = try beginLocalPrompt(circle: circle, now: now)
@@ -760,7 +780,7 @@ actor LocalBlessingRepository: BlessingRepository {
         guard let index = circles.firstIndex(where: { $0.id == circleID }) else {
             throw BlessingError.circleNotFound
         }
-        guard circles[index].ownerID == ownerID else { throw BlessingError.notCircleOwner }
+        guard circles[index].canManageSettings(memberID: ownerID) else { throw BlessingError.circleChangesNotAllowed }
         circles[index].photoURL = photoURL
         return circles[index]
     }
@@ -809,10 +829,10 @@ actor LocalBlessingRepository: BlessingRepository {
         guard let circleIndex = circles.firstIndex(where: { $0.id == circleID }) else {
             throw BlessingError.circleNotFound
         }
-        guard circles[circleIndex].ownerID == ownerID else {
-            throw BlessingError.notCircleOwner
+        guard circles[circleIndex].canManageSettings(memberID: ownerID) else {
+            throw BlessingError.circleChangesNotAllowed
         }
-        guard memberID != ownerID,
+        guard memberID != ownerID, memberID != circles[circleIndex].ownerID,
               let memberIndex = circles[circleIndex].members.firstIndex(where: { $0.id == memberID }) else {
             throw BlessingError.invalidMemberRemoval
         }

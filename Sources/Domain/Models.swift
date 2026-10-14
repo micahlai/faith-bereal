@@ -146,6 +146,12 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
     var circleActivityNotificationsEnabled: Bool = true
     var endOfDayNotificationsEnabled: Bool = true
     var streaks: [UUID: CircleStreak]? = nil
+    var allowMemberCircleChanges: Bool = false
+
+    func canManageSettings(memberID: UUID) -> Bool {
+        members.contains { $0.id == memberID }
+            && (ownerID == memberID || allowMemberCircleChanges)
+    }
 
     var responseWindowDuration: TimeInterval {
         TimeInterval(responseWindowMinutes * 60)
@@ -158,6 +164,31 @@ struct CircleGroup: Identifiable, Codable, Hashable, Sendable {
         var resolved = self
         resolved.inviteCode = knownCode
         return resolved
+    }
+}
+
+// Legacy on-device snapshots predate the shared-settings flag. Missing flags
+// remain owner-only; decoding never grants new permissions by implication.
+extension CircleGroup {
+    init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        name = try values.decode(String.self, forKey: .name)
+        inviteCode = try values.decode(String.self, forKey: .inviteCode)
+        ownerID = try values.decode(UUID.self, forKey: .ownerID)
+        members = try values.decode([Member].self, forKey: .members)
+        timeZoneIdentifier = try values.decode(String.self, forKey: .timeZoneIdentifier)
+        randomWindowStartMinutes = try values.decode(Int.self, forKey: .randomWindowStartMinutes)
+        randomWindowEndMinutes = try values.decode(Int.self, forKey: .randomWindowEndMinutes)
+        responseWindowMinutes = try values.decode(Int.self, forKey: .responseWindowMinutes)
+        allowsLateBlessings = try values.decode(Bool.self, forKey: .allowsLateBlessings)
+        repeatWindowMinutes = try values.decode(Int.self, forKey: .repeatWindowMinutes)
+        endOfDayMinutes = try values.decodeIfPresent(Int.self, forKey: .endOfDayMinutes) ?? 22 * 60
+        photoURL = try values.decodeIfPresent(URL.self, forKey: .photoURL)
+        circleActivityNotificationsEnabled = try values.decodeIfPresent(Bool.self, forKey: .circleActivityNotificationsEnabled) ?? true
+        endOfDayNotificationsEnabled = try values.decodeIfPresent(Bool.self, forKey: .endOfDayNotificationsEnabled) ?? true
+        streaks = try values.decodeIfPresent([UUID: CircleStreak].self, forKey: .streaks)
+        allowMemberCircleChanges = try values.decodeIfPresent(Bool.self, forKey: .allowMemberCircleChanges) ?? false
     }
 }
 
@@ -421,6 +452,7 @@ enum BlessingError: LocalizedError, Equatable {
     case cameraUnavailable
     case circleNotFound
     case notCircleOwner
+    case circleChangesNotAllowed
     case invalidOwnerTransfer
     case invalidMemberRemoval
     case profileSaveTimedOut
@@ -437,7 +469,8 @@ enum BlessingError: LocalizedError, Equatable {
         case .alreadySubmitted: "You already shared a blessing for this prompt."
         case .cameraUnavailable: "The camera is not available on this device."
         case .circleNotFound: "That circle is no longer available. Choose another circle."
-        case .notCircleOwner: "Only the current circle owner can make that change."
+        case .notCircleOwner: "Only the current circle leader can make that change."
+        case .circleChangesNotAllowed: "Circle changes are limited to the leader unless shared changes are enabled."
         case .invalidOwnerTransfer: "Choose another current member to become the circle owner."
         case .invalidMemberRemoval: "Choose another current member to remove from the circle."
         case .profileSaveTimedOut: "The profile photo upload timed out. Check your connection and try again."

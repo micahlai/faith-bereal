@@ -145,7 +145,7 @@ struct CircleTimelineView: View {
                     Text(accessibleDate(item.sortDate))
                         .font(.caption).foregroundStyle(AppTheme.secondaryInk)
                     HStack {
-                        ProfileStreakAvatar(member: item.member, size: 36, enlargesPhoto: true)
+                        ProfileStreakAvatar(member: item.member, size: 36)
                         Text(item.member.id == model.currentUser?.id ? "You" : item.member.displayName)
                             .font(.headline)
                     }
@@ -306,7 +306,7 @@ private struct TimelineMemberHeader: View {
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
                     VStack(spacing: 4) {
-                        ProfileStreakAvatar(member: lane.member, size: 40, enlargesPhoto: true)
+                        ProfileStreakAvatar(member: lane.member, size: 40)
                         Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
                             .font(.headline)
                             .foregroundStyle(AppTheme.ink)
@@ -766,7 +766,6 @@ struct BlessingDetailView: View {
     private var header: some View {
         HStack(spacing: 12) {
             AvatarBadge(member: member, size: 46)
-                .photoEnlargement(url: member.avatarURL, title: "\(member.displayName) profile photo")
             VStack(alignment: .leading, spacing: 3) {
                 Text(member.displayName)
                     .font(.headline)

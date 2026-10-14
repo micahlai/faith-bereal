@@ -916,22 +916,57 @@ final class AppModel {
         }
     }
 
-    func regenerateCurrentCircleInviteCode() async -> Bool {
-        guard let circle, let currentUser else { return false }
-        guard circle.ownerID == currentUser.id else {
+    private func isCurrentCircleMutation(circleID: UUID, userID: UUID, generation: UUID) -> Bool {
+        !Task.isCancelled && !isSwitchingCircle && dataScopeGeneration == generation
+            && circle?.id == circleID && currentUser?.id == userID
+    }
+
+    func setCircleMemberChanges(_ allowed: Bool) async -> Bool {
+        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard circle.ownerID == currentUser.id,
+              circle.members.contains(where: { $0.id == currentUser.id }) else {
             message = BlessingError.notCircleOwner.localizedDescription
             return false
         }
+        let generation = dataScopeGeneration
+        do {
+            let updatedCircle = try await repository.setCircleMemberChanges(
+                circleID: circle.id, ownerID: currentUser.id, allowed: allowed
+            )
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
+            let resolvedCircle = updatedCircle.preservingInviteCode(circle.inviteCode)
+            self.circle = resolvedCircle
+            upsertCircle(resolvedCircle)
+            return true
+        } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation),
+                  !Self.isCancellation(error) else { return false }
+            message = error.localizedDescription
+            return false
+        }
+    }
+
+    func regenerateCurrentCircleInviteCode() async -> Bool {
+        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard circle.canManageSettings(memberID: currentUser.id) else {
+            message = BlessingError.circleChangesNotAllowed.localizedDescription
+            return false
+        }
+        let generation = dataScopeGeneration
         do {
             let updatedCircle = try await repository.regenerateInviteCode(
                 circleID: circle.id,
                 ownerID: currentUser.id
             )
-            self.circle = updatedCircle
-            upsertCircle(updatedCircle)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
+            let resolvedCircle = updatedCircle.preservingInviteCode(circle.inviteCode)
+            self.circle = resolvedCircle
+            upsertCircle(resolvedCircle)
             message = "A new circle code is ready. The previous code no longer works."
             return true
         } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation),
+                  !Self.isCancellation(error) else { return false }
             message = error.localizedDescription
             return false
         }
@@ -947,7 +982,12 @@ final class AppModel {
         repeatWindowMinutes: Int,
         endOfDayMinutes: Int
     ) async -> Bool {
-        guard let circle, let currentUser else { return false }
+        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard circle.canManageSettings(memberID: currentUser.id) else {
+            message = BlessingError.circleChangesNotAllowed.localizedDescription
+            return false
+        }
+        var generation = dataScopeGeneration
         do {
             let updatedCircle = try await repository.updateCircleSettings(
                 circleID: circle.id,
@@ -961,19 +1001,30 @@ final class AppModel {
                 repeatWindowMinutes: repeatWindowMinutes,
                 endOfDayMinutes: endOfDayMinutes
             )
-            self.circle = updatedCircle
-            upsertCircle(updatedCircle)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
+            let resolvedCircle = updatedCircle.preservingInviteCode(circle.inviteCode)
+            self.circle = resolvedCircle
+            upsertCircle(resolvedCircle)
+            generation = dataScopeGeneration
             try await reloadCurrentCircle(now: .now)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
             message = "Circle settings saved. The response length applies to future prompts."
             return true
         } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation),
+                  !Self.isCancellation(error) else { return false }
             message = error.localizedDescription
             return false
         }
     }
 
     func updateCirclePhoto(_ photoURL: URL?) async -> Bool {
-        guard let circle, let currentUser else { return false }
+        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard circle.canManageSettings(memberID: currentUser.id) else {
+            message = BlessingError.circleChangesNotAllowed.localizedDescription
+            return false
+        }
+        let generation = dataScopeGeneration
         do {
             let updatedCircle = try await repository.updateCirclePhoto(
                 circleID: circle.id,
@@ -981,12 +1032,15 @@ final class AppModel {
                 photoURL: photoURL
             )
             let resolvedCircle = updatedCircle.preservingInviteCode(circle.inviteCode)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
             self.circle = resolvedCircle
             upsertCircle(resolvedCircle)
             scheduleWidgetSnapshotRefresh()
             message = photoURL == nil ? "Circle photo removed." : "Circle photo saved."
             return true
         } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation),
+                  !Self.isCancellation(error) else { return false }
             message = error.localizedDescription
             return false
         }
@@ -1033,9 +1087,9 @@ final class AppModel {
     }
 
     func forceCurrentCirclePrompt(now: Date = .now) async -> Bool {
-        guard let circle, let currentUser else { return false }
-        guard circle.ownerID == currentUser.id else {
-            message = BlessingError.notCircleOwner.localizedDescription
+        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard circle.canManageSettings(memberID: currentUser.id) else {
+            message = BlessingError.circleChangesNotAllowed.localizedDescription
             return false
         }
         guard !isForcingCirclePrompt else { return false }
@@ -1043,13 +1097,16 @@ final class AppModel {
         isForcingCirclePrompt = true
         defer { isForcingCirclePrompt = false }
 
+        let generation = dataScopeGeneration
         do {
             let outcome = try await repository.forceCirclePrompt(
                 circleID: circle.id,
                 ownerID: currentUser.id,
                 now: now
             )
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
             await activityController.end()
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
             prompt = outcome.prompt
             submittedBlessing = nil
             isCapturePresented = false
@@ -1059,6 +1116,7 @@ final class AppModel {
             isDebugPromptPreview = false
 #endif
             try await refreshTimeline(now: now)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
 
             if !usesAuthentication {
                 let activityResult = await activityController.startIfNeeded(
@@ -1066,6 +1124,7 @@ final class AppModel {
                     circle: circle,
                     requestsPushUpdates: false
                 )
+                guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
                 message = "Local blessing test started for \(outcome.memberCount) members. \(activityResult.debugMessage)"
             } else if outcome.registeredDevices == 0 {
                 message = "The blessing window is open, but no member devices are registered for notifications yet."
@@ -1074,6 +1133,8 @@ final class AppModel {
             }
             return true
         } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation),
+                  !Self.isCancellation(error) else { return false }
             message = "Couldn’t force the blessing notification: \(error.localizedDescription)"
             return false
         }
@@ -1140,15 +1201,22 @@ final class AppModel {
     }
 
     func transferCurrentCircleOwnership(to newOwnerID: UUID) async -> Bool {
-        guard let circle, let currentUser else { return false }
+        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard circle.ownerID == currentUser.id && circle.members.contains(where: { $0.id == currentUser.id }) else {
+            message = BlessingError.notCircleOwner.localizedDescription
+            return false
+        }
+        let generation = dataScopeGeneration
         do {
             let updatedCircle = try await repository.transferCircleOwnership(
                 circleID: circle.id,
                 ownerID: currentUser.id,
                 newOwnerID: newOwnerID
             )
-            self.circle = updatedCircle
-            upsertCircle(updatedCircle)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
+            let resolvedCircle = updatedCircle.preservingInviteCode(circle.inviteCode)
+            self.circle = resolvedCircle
+            upsertCircle(resolvedCircle)
             scheduleWidgetSnapshotRefresh()
             let newOwnerName = updatedCircle.members
                 .first(where: { $0.id == newOwnerID })?
@@ -1156,26 +1224,42 @@ final class AppModel {
             message = "Ownership transferred to \(newOwnerName)."
             return true
         } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation),
+                  !Self.isCancellation(error) else { return false }
             message = error.localizedDescription
             return false
         }
     }
 
     func removeMemberFromCurrentCircle(_ memberID: UUID) async -> Bool {
-        guard let circle, let currentUser else { return false }
+        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard circle.canManageSettings(memberID: currentUser.id) else {
+            message = BlessingError.circleChangesNotAllowed.localizedDescription
+            return false
+        }
+        guard memberID != circle.ownerID, memberID != currentUser.id else {
+            message = BlessingError.invalidMemberRemoval.localizedDescription
+            return false
+        }
+        let generation = dataScopeGeneration
         do {
             let updatedCircle = try await repository.removeCircleMember(
                 circleID: circle.id,
                 ownerID: currentUser.id,
                 memberID: memberID
             )
-            self.circle = updatedCircle
-            upsertCircle(updatedCircle)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
+            let resolvedCircle = updatedCircle.preservingInviteCode(circle.inviteCode)
+            self.circle = resolvedCircle
+            upsertCircle(resolvedCircle)
             try await refreshTimeline(now: .now)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
             scheduleWidgetSnapshotRefresh()
             message = "Member removed from \(updatedCircle.name)."
             return true
         } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation),
+                  !Self.isCancellation(error) else { return false }
             message = error.localizedDescription
             return false
         }
