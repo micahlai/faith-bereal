@@ -18,6 +18,7 @@ final class AppModel {
     private let repository: any BlessingRepository
     private let bibleService: any BibleTextProviding
     private let authentication: (any AuthenticationProviding)?
+    let diagnosticCollection: DiagnosticCollectionController
     private let savedBlessingStore: SavedBlessingStore
     private let draftStore: BlessingDraftStore
     private(set) var savedDrafts: [BlessingDraft] = []
@@ -48,9 +49,23 @@ final class AppModel {
     private var pendingDeepLink: URL?
 
     var loadState: LoadState = .idle
-    var currentUser: Member?
+    private var dataScopeGeneration = UUID()
+    var currentUser: Member? {
+        didSet {
+            if currentUser?.id != oldValue?.id {
+                dataScopeGeneration = UUID()
+                if oldValue != nil { diagnosticCollection.deactivate() }
+            }
+        }
+    }
     var circles: [CircleGroup] = []
-    var circle: CircleGroup?
+    var circle: CircleGroup? {
+        didSet {
+            if circle?.id != oldValue?.id || circle?.timeZoneIdentifier != oldValue?.timeZoneIdentifier {
+                dataScopeGeneration = UUID()
+            }
+        }
+    }
     var prompt: DailyPrompt?
     var endOfDayPrompt: DailyPrompt?
     private(set) var capturePrompt: DailyPrompt?
@@ -114,11 +129,13 @@ final class AppModel {
         bibleService: any BibleTextProviding = BibleAPIService(),
         authentication: (any AuthenticationProviding)? = nil,
         savedBlessingStore: SavedBlessingStore = SavedBlessingStore(),
-        draftStore: BlessingDraftStore = BlessingDraftStore()
+        draftStore: BlessingDraftStore = BlessingDraftStore(),
+        diagnosticCollection: DiagnosticCollectionController = DiagnosticCollectionController()
     ) {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
+        self.diagnosticCollection = diagnosticCollection
         self.savedBlessingStore = savedBlessingStore
         self.draftStore = draftStore
         self.pendingInviteCode = UserDefaults.standard.string(forKey: Self.pendingInviteCodeKey)
@@ -278,24 +295,30 @@ final class AppModel {
     }
 
     func openCapture(for targetPrompt: DailyPrompt? = nil, now: Date = .now) async -> Bool {
-        guard !isPreparingCapture, let targetPrompt = targetPrompt ?? prompt, let currentUser else {
+        guard !isPreparingCapture, !isSwitchingCircle,
+              let targetPrompt = targetPrompt ?? prompt, let currentUser,
+              circle?.id == targetPrompt.circleID else {
             message = BlessingError.outsideResponseWindow.localizedDescription
             return false
         }
         isPreparingCapture = true
         defer { isPreparingCapture = false }
+        let generation = dataScopeGeneration
         do {
             try await repository.beginBlessingEntry(
                 promptID: targetPrompt.id,
                 memberID: currentUser.id,
                 now: now
             )
-            capturePrompt = targetPrompt
+            guard !Task.isCancelled, dataScopeGeneration == generation else { return false }
             await draftStore.beginEditing(authorID: currentUser.id, circleID: targetPrompt.circleID, promptID: targetPrompt.id)
-            captureDraftToRestore = savedDrafts.first { $0.promptID == targetPrompt.id && $0.expiresAt > now }
+            guard !Task.isCancelled, dataScopeGeneration == generation else { return false }
+            capturePrompt = targetPrompt
+            captureDraftToRestore = resumableDraft(for: targetPrompt, at: now)
             isCapturePresented = true
             return true
         } catch {
+            guard dataScopeGeneration == generation, !Task.isCancelled else { return false }
             message = error.localizedDescription
             return false
         }
@@ -314,6 +337,9 @@ final class AppModel {
 
     func bootstrap() async {
         guard loadState == .idle else { return }
+        var span: BackendDiagnostics.Span?
+        var measuredReady = false
+        defer { if !measuredReady { span?.finish(Task.isCancelled ? .cancelled : .failure) } }
         loadState = .loading
         if let authentication, await !authentication.hasSession() {
             loadState = .signedOut
@@ -322,6 +348,11 @@ final class AppModel {
             draftSaveError = nil
             return
         }
+        if let accountID = await authentication?.currentUserID() {
+            await diagnosticCollection.activate(accountID: accountID)
+        }
+        // Restored opt-in must be installed before the startup span captures its sink.
+        span = BackendDiagnostics.shared.begin(.bootstrapVisible)
         do {
             let bootstrap = try await repository.bootstrap()
             if currentUser?.id != bootstrap.currentUser.id {
@@ -329,6 +360,7 @@ final class AppModel {
                 nudgedMembers = []
             }
             self.currentUser = bootstrap.currentUser
+            await diagnosticCollection.activate(accountID: bootstrap.currentUser.id)
             savedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
             do {
                 localSavingPreferences = try await savedBlessingStore.loadPreferences(userID: bootstrap.currentUser.id)
@@ -355,8 +387,10 @@ final class AppModel {
             }
             Self.persistedCircleID = self.circle?.id
             if self.circle == nil { selectedTab = 2 }
-            try await refreshTimeline()
+            try await refreshTimeline(freshCircle: self.circle)
             loadState = .ready
+            span?.finish(.success)
+            measuredReady = true
             if pendingInviteCode != nil { selectedTab = 2 }
             startRealtimeUpdates()
             await configureRemoteServices()
@@ -390,6 +424,7 @@ final class AppModel {
 
     func signOut() async {
         guard let authentication else { return }
+        diagnosticCollection.deactivate()
         do {
             try await authentication.signOut()
             automaticSaveTask?.cancel()
@@ -418,18 +453,30 @@ final class AppModel {
             BlessingWidgetSnapshotStore.save(.empty)
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
+            if let accountID = currentUser?.id { await diagnosticCollection.activate(accountID: accountID) }
             message = error.localizedDescription
         }
     }
 
-    func refreshTimeline(now: Date = .now) async throws {
+    func refreshTimeline(now: Date = .now, freshCircle: CircleGroup? = nil) async throws {
         guard let circle, let currentUser else { return }
-        let page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: now, before: nil)
-        guard self.circle?.id == circle.id, self.currentUser?.id == currentUser.id else { return }
+        let span = BackendDiagnostics.shared.begin(.timelineRefresh)
+        var outcome = BackendOutcome.failure
+        defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
+        let generation = dataScopeGeneration
+        let page: TimelinePage
+        if let freshCircle, freshCircle.id == circle.id {
+            page = try await repository.timelinePage(circle: freshCircle, viewerID: currentUser.id, now: now, before: nil)
+        } else {
+            page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: now, before: nil)
+        }
+        guard !Task.isCancelled, dataScopeGeneration == generation,
+              self.circle?.id == circle.id, self.currentUser?.id == currentUser.id else { return }
         installTimelinePage(page, circleID: circle.id)
         await reloadDrafts(now: now)
         scheduleWidgetSnapshotRefresh(now: now)
         scheduleAutomaticSaving()
+        outcome = .success
     }
 
     func reloadDrafts(now: Date = .now) async {
@@ -458,15 +505,8 @@ final class AppModel {
         }
     }
 
-    func continueDraft(_ draft: BlessingDraft) async {
-        await refreshCurrentCircle()
-        guard resumableDrafts(at: .now).contains(where: { $0.id == draft.id }),
-              let target = [prompt, endOfDayPrompt].compactMap({ $0 }).first(where: { $0.id == draft.promptID }) else {
-            message = "This draft’s entry window has closed. A saved draft does not extend the deadline."
-            return
-        }
-        // begin_blessing_entry rechecks server time even if an older grant exists.
-        _ = await openCapture(for: target)
+    func resumableDraft(for target: DailyPrompt, at now: Date) -> BlessingDraft? {
+        resumableDrafts(at: now).first { $0.promptID == target.id && $0.circleID == target.circleID }
     }
 
     func persistDraft(_ draft: BlessingDraft) async -> Bool {
@@ -513,25 +553,28 @@ final class AppModel {
         guard !isLoadingMoreTimeline, let cursor = timelineNextBeforeDate, let circle, let currentUser else { return }
         isLoadingMoreTimeline = true
         defer { isLoadingMoreTimeline = false }
+        let generation = dataScopeGeneration
         do {
             let page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: .now, before: cursor)
-            guard self.circle?.id == circle.id, self.circle?.timeZoneIdentifier == circle.timeZoneIdentifier,
+            guard !Task.isCancelled, dataScopeGeneration == generation,
+                  self.circle?.id == circle.id, self.circle?.timeZoneIdentifier == circle.timeZoneIdentifier,
                   self.currentUser?.id == currentUser.id, timelineNextBeforeDate == cursor else { return }
             lanes = TimelinePaging.merge(lanes, with: page.lanes)
             timelineNextBeforeDate = page.nextBeforeDate
             timelineHasLoadedMore = true
             timelineLoadError = nil
         } catch {
-            guard !Self.isCancellation(error) else { return }
+            guard dataScopeGeneration == generation, !Task.isCancelled, !Self.isCancellation(error) else { return }
             timelineLoadError = "Couldn’t load older days. Try again."
         }
     }
 
     func refreshCurrentCircle(now: Date = .now) async {
+        let generation = dataScopeGeneration
         do {
             try await reloadCurrentCircle(now: now)
         } catch {
-            guard !Task.isCancelled, !Self.isCancellation(error) else { return }
+            guard dataScopeGeneration == generation, !Task.isCancelled, !Self.isCancellation(error) else { return }
             message = "Couldn’t refresh your circle: \(error.localizedDescription)"
         }
     }
@@ -541,8 +584,13 @@ final class AppModel {
               circle?.id != circleID,
               circles.contains(where: { $0.id == circleID }),
               let currentUser else { return }
+        let span = BackendDiagnostics.shared.begin(.circleSwitch)
+        var outcome = BackendOutcome.failure
+        defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
         isSwitchingCircle = true
         defer { isSwitchingCircle = false }
+        dataScopeGeneration = UUID()
+        let generation = dataScopeGeneration
         realtimeTask?.cancel()
         realtimeTask = nil
         do {
@@ -550,6 +598,11 @@ final class AppModel {
                 circleID: circleID,
                 viewerID: currentUser.id
             )
+            guard !Task.isCancelled, dataScopeGeneration == generation,
+                  self.currentUser?.id == currentUser.id else {
+                if realtimeTask == nil, self.currentUser != nil { startRealtimeUpdates() }
+                return
+            }
             let knownInviteCode = circles.first(where: { $0.id == circleID })?.inviteCode
             let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
             circle = resolvedCircle
@@ -561,7 +614,7 @@ final class AppModel {
 #endif
             submittedBlessing = nil
             installTimelinePage(targetLanes, circleID: circleID, reset: true)
-            await reloadDrafts()
+            outcome = .success
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
                 circles[index] = resolvedCircle
             }
@@ -571,9 +624,12 @@ final class AppModel {
             if let prompt = context.prompt, prompt.phase(at: .now) == .open {
                 await startLiveActivity(for: prompt, circle: resolvedCircle)
             }
+            await reloadDrafts()
         } catch {
-            startRealtimeUpdates()
-            guard !Task.isCancelled else { return }
+            if dataScopeGeneration == generation, self.currentUser?.id == currentUser.id,
+               realtimeTask == nil { startRealtimeUpdates() }
+            guard dataScopeGeneration == generation, self.currentUser?.id == currentUser.id,
+                  !Task.isCancelled else { return }
             message = Self.isCancellation(error)
                 ? "The circle switch was interrupted. Please try again."
                 : "Couldn’t switch circles: \(error.localizedDescription)"
@@ -588,7 +644,7 @@ final class AppModel {
         for attempt in 0..<3 {
             do {
                 let context = try await repository.circleContext(circleID: circleID)
-                let lanes = try await repository.timelinePage(circleID: circleID, viewerID: viewerID, now: .now, before: nil)
+                let lanes = try await repository.timelinePage(circle: context.circle, viewerID: viewerID, now: .now, before: nil)
                 return (context, lanes)
             } catch {
                 guard Self.isCancellation(error), !Task.isCancelled else { throw error }
@@ -602,13 +658,18 @@ final class AppModel {
 
     private func reloadCurrentCircle(now: Date) async throws {
         guard let selectedCircleID = circle?.id, let currentUser else { return }
+        let span = BackendDiagnostics.shared.begin(.circleRefresh)
+        var outcome = BackendOutcome.failure
+        defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
+        let generation = dataScopeGeneration
         let context = try await repository.circleContext(circleID: selectedCircleID)
         let refreshedLanes = try await repository.timelinePage(
-            circleID: selectedCircleID,
+            circle: context.circle,
             viewerID: currentUser.id,
             now: now, before: nil
         )
-        guard circle?.id == selectedCircleID else { return }
+        guard !Task.isCancelled, dataScopeGeneration == generation,
+              circle?.id == selectedCircleID, self.currentUser?.id == currentUser.id else { return }
 
         let knownInviteCode = circles.first(where: { $0.id == selectedCircleID })?.inviteCode
         let refreshedCircle = context.circle.preservingInviteCode(knownInviteCode)
@@ -616,13 +677,14 @@ final class AppModel {
         prompt = context.prompt
         endOfDayPrompt = context.endOfDayPrompt
         installTimelinePage(refreshedLanes, circleID: selectedCircleID)
-        await reloadDrafts(now: now)
+        outcome = .success
         upsertCircle(refreshedCircle)
         scheduleWidgetSnapshotRefresh(now: now)
 
         if let prompt = context.prompt, prompt.phase(at: now) == .open {
             await startLiveActivity(for: prompt, circle: refreshedCircle)
         }
+        await reloadDrafts(now: now)
     }
 
     private func activatePrompt(promptID: UUID, now: Date = .now) async -> Bool {
@@ -630,10 +692,15 @@ final class AppModel {
         isSwitchingCircle = true
         defer { isSwitchingCircle = false }
 
+        dataScopeGeneration = UUID()
+        let generation = dataScopeGeneration
+
         let previousCircleID = circle?.id
         var needsRealtimeRestart = false
         do {
             let context = try await repository.circleContext(promptID: promptID)
+            guard !Task.isCancelled, dataScopeGeneration == generation,
+                  self.currentUser?.id == currentUser.id else { return false }
             guard circles.contains(where: { $0.id == context.circle.id }) else {
                 throw BlessingError.circleNotFound
             }
@@ -643,10 +710,15 @@ final class AppModel {
                 needsRealtimeRestart = true
             }
             let refreshedLanes = try await repository.timelinePage(
-                circleID: context.circle.id,
+                circle: context.circle,
                 viewerID: currentUser.id,
                 now: now, before: nil
             )
+            guard !Task.isCancelled, dataScopeGeneration == generation,
+                  self.currentUser?.id == currentUser.id else {
+                if needsRealtimeRestart, realtimeTask == nil, self.currentUser != nil { startRealtimeUpdates() }
+                return false
+            }
             let knownInviteCode = circles.first(where: { $0.id == context.circle.id })?.inviteCode
             let resolvedCircle = context.circle.preservingInviteCode(knownInviteCode)
             circle = resolvedCircle
@@ -659,7 +731,6 @@ final class AppModel {
                 submittedBlessing = nil
             }
             installTimelinePage(refreshedLanes, circleID: resolvedCircle.id, reset: previousCircleID != resolvedCircle.id)
-            await reloadDrafts(now: now)
             upsertCircle(resolvedCircle)
             Self.persistedCircleID = resolvedCircle.id
             scheduleWidgetSnapshotRefresh(now: now)
@@ -670,12 +741,15 @@ final class AppModel {
             if let prompt = context.prompt, prompt.phase(at: now) == .open {
                 await startLiveActivity(for: prompt, circle: resolvedCircle)
             }
+            await reloadDrafts(now: now)
             return true
         } catch {
-            if needsRealtimeRestart {
+            if needsRealtimeRestart, dataScopeGeneration == generation,
+               self.currentUser?.id == currentUser.id, realtimeTask == nil {
                 startRealtimeUpdates()
             }
-            guard !Task.isCancelled, !Self.isCancellation(error) else { return false }
+            guard dataScopeGeneration == generation, self.currentUser?.id == currentUser.id,
+                  !Task.isCancelled, !Self.isCancellation(error) else { return false }
             message = error.localizedDescription
             return false
         }
@@ -706,6 +780,9 @@ final class AppModel {
         }
         isSubmitting = true
         defer { isSubmitting = false }
+        let span = BackendDiagnostics.shared.begin(.submit)
+        var outcome = BackendOutcome.failure
+        defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
         do {
             let savedBlessing = try await repository.submit(
                 promptID: targetPrompt.id,
@@ -719,6 +796,7 @@ final class AppModel {
                 now: .now
             )
             submittedBlessing = savedBlessing
+            outcome = .success
             await clearSentDraft(promptID: targetPrompt.id, circleID: savedBlessing.circleID, authorID: currentUser.id)
             if targetPrompt.kind == .daily {
                 let knownBlessingIDs = Set(
@@ -1425,6 +1503,9 @@ final class AppModel {
     // from the main screen's loading lifecycle and never surface scrolling alerts.
     func saveVisibleBlessingsAutomatically() async {
         guard let userID = currentUser?.id, automaticallySavesLocally, !isChoosingAutomaticSaving else { return }
+        let span = BackendDiagnostics.shared.begin(.automaticSaving)
+        var outcome = BackendOutcome.failure
+        defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
         let memberships = circles
         var failures = 0
         for membership in memberships {
@@ -1479,6 +1560,7 @@ final class AppModel {
         if currentUser?.id == userID {
             automaticSavingError = failures == 0 ? nil
                 : "Some blessings couldn’t be saved. Available copies will retry next time the app refreshes."
+            outcome = failures == 0 ? .success : .failure
         }
     }
 
@@ -1754,6 +1836,10 @@ final class AppModel {
             return
         }
 
+        let span = BackendDiagnostics.shared.begin(.widgetRefresh)
+        var outcome = BackendOutcome.failure
+        defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
+
         struct Candidate {
             let circle: CircleGroup
             let member: Member
@@ -1770,7 +1856,7 @@ final class AppModel {
             do {
                 let context = try await repository.circleContext(circleID: membership.id)
                 let circleLanes = try await repository.timeline(
-                    circleID: membership.id,
+                    circle: context.circle,
                     viewerID: currentUser.id,
                     now: now
                 )
@@ -1861,6 +1947,8 @@ final class AppModel {
         guard !Task.isCancelled, self.currentUser?.id == currentUser.id else { return }
         BlessingWidgetSnapshotStore.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
+
+        outcome = loadedCircles == circles.count ? .success : .failure
 
         let versionID = selectedBibleTranslation.id
         let loadedPassages = await withTaskGroup(of: (UUID, String?).self) { group in

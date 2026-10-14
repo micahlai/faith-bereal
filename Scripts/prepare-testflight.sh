@@ -26,11 +26,13 @@ xcodegen generate
 node Scripts/test-live-activity-payload.mjs
 node Scripts/test-notification-payload.mjs
 
-SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY='' xcodebuild \
+xcodebuild \
   -project BlessingCircle.xcodeproj \
   -scheme BlessingCircle \
   -configuration Debug \
   -destination "platform=iOS Simulator,name=$simulator_name" \
+  -parallel-testing-enabled NO \
+  SUPABASE_URL= SUPABASE_PUBLISHABLE_KEY= \
   -only-testing:BlessingCircleTests \
   test
 
@@ -39,15 +41,18 @@ xcodebuild \
   -scheme BlessingCircle \
   -configuration Release \
   -destination "platform=iOS Simulator,name=$simulator_name" \
+  -parallel-testing-enabled NO \
   ENABLE_TESTABILITY=YES \
   -only-testing:BlessingCircleTests \
   test
 
-SUPABASE_URL='' SUPABASE_PUBLISHABLE_KEY='' xcodebuild \
+xcodebuild \
   -project BlessingCircle.xcodeproj \
   -scheme BlessingCircle \
   -configuration Debug \
   -destination "platform=iOS Simulator,name=$simulator_name" \
+  -parallel-testing-enabled NO \
+  SUPABASE_URL= SUPABASE_PUBLISHABLE_KEY= \
   -only-testing:BlessingCircleUITests \
   test
 

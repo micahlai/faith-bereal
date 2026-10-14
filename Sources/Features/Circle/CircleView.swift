@@ -157,6 +157,7 @@ struct CircleView: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppTheme.secondaryInk)
                     }
+                    ProfileStreakBadge(memberID: member.id)
                 }
                 .frame(minHeight: 44)
             }

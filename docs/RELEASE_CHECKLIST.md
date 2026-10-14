@@ -2,6 +2,16 @@
 
 This checklist separates work that can be proven locally from work that needs production Apple or Supabase access.
 
+## v0.2.2 (31) field-testing candidate
+
+- [x] Deploy the private authenticated diagnostics collector and verify its account isolation, validation, quotas, retry idempotency, and cleanup.
+- [x] Verify default-off consent persistence and the single draft-aware Continue action in the full 23-test simulator UI suite.
+- [x] Complete final Debug/Release suites (206/202 tests) and inspect both rebuilt normal/largest-text screenshot checks.
+- [x] Export and validate the hosted-configured v0.2.2 (31) distribution IPA at `build/TestFlight-0.2.2-31/manna circle.ipa`.
+- [ ] Upload/process in App Store Connect and assign the intended TestFlight cohort.
+- [ ] Match App Store Connect privacy answers to the account-linked performance/diagnostic collection before wider distribution.
+- [ ] Run physical multi-account media, privacy, notification, and failure-reproduction acceptance using [the field-testing instructions](TESTFLIGHT_FIELD_TESTING.md).
+
 ## Locally verifiable
 
 - [x] App and widget compile with blank Supabase configuration.

@@ -5,6 +5,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testTimelineSizeMenuAndEventOnlyList() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchArguments += ["--manna-local-ui-test"]
@@ -37,6 +38,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testDraftSurvivesRelaunchAndDisappearsAfterSending() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
@@ -50,11 +52,14 @@ final class BlessingCircleUITests: XCTestCase {
         editor.tap()
         editor.typeText("Draft preserved across relaunch")
         app.buttons["Close"].tap()
-        XCTAssertTrue(app.buttons["Continue blessing"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Continue blessing"].exists)
+        XCTAssertFalse(app.buttons["Share a blessing"].exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "Continue").count, 1)
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.buttons["Continue blessing"].waitForExistence(timeout: 10))
-        app.buttons["Continue blessing"].tap()
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
+        app.buttons["Continue"].tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         XCTAssertEqual(editor.value as? String, "Draft preserved across relaunch")
         let send = app.buttons["Send blessing"]
@@ -63,12 +68,13 @@ final class BlessingCircleUITests: XCTestCase {
         let alert = app.alerts["manna circle"]
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
         alert.buttons["OK"].tap()
-        XCTAssertFalse(app.buttons["Continue blessing"].exists)
+        XCTAssertFalse(app.buttons["Continue"].exists)
     }
     @MainActor
     func testNudgeAppearsOnlyAfterSharingAndCannotBeRepeated() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchArguments += ["--manna-local-ui-test"]
@@ -100,6 +106,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testBlessingComposerAcceptsDoubledLimitAndClampsOverflow() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchArguments += ["--manna-local-ui-test"]
@@ -116,7 +123,11 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [limited], timeout: 5), .completed)
         XCTAssertTrue(app.staticTexts["1200 of 1200 characters"].exists)
         let send = app.buttons["Send blessing"]
-        for _ in 0..<6 where !send.isHittable { app.swipeUp() }
+        for _ in 0..<12 where !send.isHittable {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.55))
+                .press(forDuration: 0.05, thenDragTo:
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.2)))
+        }
         XCTAssertTrue(send.isHittable)
         XCTAssertTrue(send.isEnabled)
         send.tap()
@@ -131,6 +142,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testAccessibleTimelineListAndNativeAudit() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
@@ -177,6 +189,7 @@ final class BlessingCircleUITests: XCTestCase {
     @MainActor
     func testTimelineAutomaticallyUsesListAtLargestText() {
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
@@ -202,6 +215,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testStartupOnboardingSupportsBackNavigationAndWidgetGuide() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += [
@@ -266,6 +280,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testAutomaticSavingSettingsOffersKeepChoicesAndCancellation() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
@@ -308,6 +323,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testLocalSavingSetupAtLargestTextInDarkAndLandscape() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += [
@@ -349,6 +365,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testTodayAndPinnedTimelineHeaderInLocalDemo() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
@@ -396,6 +413,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testTodayBottomRemainsStableAcrossClockTicksAndRepeatedScrolling() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
@@ -443,6 +461,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testTodayAtLargestTextInDarkMode() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchArguments += [
@@ -460,6 +479,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testPhotoAttachmentIsAvailableForTextAndVoiceButNotVideo() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
@@ -482,6 +502,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testCircleOwnerCanForceLocalBlessingFromCircleSettings() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
@@ -514,6 +535,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testCircleCreationCollectsSettingsBeforeSubmitting() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
@@ -565,6 +587,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testHelpMenuExplainsSavingAndSupportsTopicNavigation() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
@@ -593,6 +616,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testFirstSaveExplainsPrivateStorageAndCanUnsaveFromDetail() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchArguments += ["-saving.explained.A0000000-0000-0000-0000-000000000001", "NO"]
@@ -620,6 +644,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testCircleOwnerCanRegenerateInviteCode() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()
@@ -648,6 +673,7 @@ final class BlessingCircleUITests: XCTestCase {
     func testCircleSettingsConfirmsBeforeDiscardingChanges() {
         continueAfterFailure = false
         let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launch()

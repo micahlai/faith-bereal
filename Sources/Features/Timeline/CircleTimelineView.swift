@@ -145,10 +145,9 @@ struct CircleTimelineView: View {
                     Text(accessibleDate(item.sortDate))
                         .font(.caption).foregroundStyle(AppTheme.secondaryInk)
                     HStack {
-                        AvatarBadge(member: item.member, size: 36).accessibilityHidden(true)
+                        ProfileStreakAvatar(member: item.member, size: 36)
                         Text(item.member.id == model.currentUser?.id ? "You" : item.member.displayName)
                             .font(.headline)
-                        ProfileStreakBadge(memberID: item.member.id)
                     }
                     .accessibilityAddTraits(.isHeader)
                     TimelineEventView(event: item.event, member: item.member, currentUserID: model.currentUser?.id) { blessing in
@@ -307,10 +306,7 @@ private struct TimelineMemberHeader: View {
                     .accessibilityHidden(true)
                 ForEach(lanes) { lane in
                     VStack(spacing: 4) {
-                        HStack(spacing: 6) {
-                            AvatarBadge(member: lane.member, size: 40).accessibilityHidden(true)
-                            ProfileStreakBadge(memberID: lane.member.id)
-                        }
+                        ProfileStreakAvatar(member: lane.member, size: 40)
                         Text(lane.member.id == currentUserID ? "You" : lane.member.displayName)
                             .font(.headline)
                             .foregroundStyle(AppTheme.ink)
@@ -472,9 +468,6 @@ private struct TimelineEventView: View {
                     Label("Welcome blessing", systemImage: "hand.wave")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(AppTheme.iris)
-                    Text("Sent on this day; separate from the regular blessing.")
-                        .font(.caption2)
-                        .foregroundStyle(AppTheme.secondaryInk)
                 }
                 if event.promptKind == .endOfDay {
                     Label("End of day", systemImage: "moon.stars.fill")

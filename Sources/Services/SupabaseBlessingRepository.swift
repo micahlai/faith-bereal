@@ -23,7 +23,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .eq("user_id", value: userID)
             .is("removed_at", value: nil)
             .order("joined_at", ascending: false)
-            .execute()
+            .measuredExecute(.members)
             .value
         guard let selectedMembership = memberships.first else {
             return AppBootstrap(
@@ -70,7 +70,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .select()
             .eq("id", value: promptID)
             .limit(1)
-            .execute()
+            .measuredExecute(.prompts)
             .value
         guard let row = rows.first else { throw BlessingError.circleNotFound }
         let circle = try await fetchCircle(id: row.circleID, inviteCode: "")
@@ -85,11 +85,19 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
         let circle = try await fetchCircle(id: circleID, inviteCode: "")
+        return try await timeline(circle: circle, viewerID: viewerID, now: now)
+    }
+
+    func timeline(circle: CircleGroup, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
         return try await timeline(circle: circle, viewerID: viewerID, now: now, from: nil, before: nil)
     }
 
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
         let circle = try await fetchCircle(id: circleID, inviteCode: "")
+        return try await timelinePage(circle: circle, viewerID: viewerID, now: now, before: before)
+    }
+
+    func timelinePage(circle: CircleGroup, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
         let calendar = circleCalendar(circle)
         let upper = before.map { calendar.startOfDay(for: $0) }
             ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
@@ -107,9 +115,9 @@ actor SupabaseBlessingRepository: BlessingRepository {
     }
 
     func blessing(id: UUID, viewerID: UUID) async throws -> Blessing? {
-        let rows: [BlessingRow] = try await client.from("blessings").select().eq("id", value: id).limit(1).execute().value
+        let rows: [BlessingRow] = try await client.from("blessings").select().eq("id", value: id).limit(1).measuredExecute(.blessings).value
         guard let row = rows.first else { return nil }
-        let prompt: PromptRow = try await client.from("daily_prompts").select().eq("id", value: row.promptID).single().execute().value
+        let prompt: PromptRow = try await client.from("daily_prompts").select().eq("id", value: row.promptID).single().measuredExecute(.prompts).value
         return try await blessing(from: row, circleID: prompt.circleID)
     }
 
@@ -128,7 +136,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         if let upper { query = query.lt("local_date", value: Self.localDateString(at: upper, timeZoneIdentifier: circle.timeZoneIdentifier)) }
         let promptRows: [PromptRow] = try await query
             .order("local_date", ascending: false)
-            .execute()
+            .measuredExecute(.prompts)
             .value
         let visiblePromptRows = promptRows.filter { $0.kind == .daily || $0.startsAt <= now }
         guard !visiblePromptRows.isEmpty else {
@@ -144,7 +152,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .from("blessings")
             .select()
             .in("prompt_id", values: visiblePromptRows.map(\.id))
-            .execute()
+            .measuredExecute(.blessings)
             .value
         var blessings: [Blessing] = []
         for row in blessingRows {
@@ -212,7 +220,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         _ = try await client.rpc(
             "begin_blessing_entry",
             params: BeginBlessingEntryParams(promptID: promptID)
-        ).execute()
+        ).measuredExecute(.rpc)
     }
 
     func submit(
@@ -228,14 +236,19 @@ actor SupabaseBlessingRepository: BlessingRepository {
     ) async throws -> Blessing {
         if mode == .video, photoURL != nil { throw BlessingError.emptyBlessing }
         let cleanBody = try BlessingTextPolicy.validated(body)
+        let prepareSpan = BackendDiagnostics.shared.begin(.submissionPrepare)
+        var prepared = false
+        defer { if !prepared { prepareSpan.finish(Task.isCancelled ? .cancelled : .failure) } }
         let promptRow: PromptRow = try await client
             .from("daily_prompts")
             .select()
             .eq("id", value: promptID)
             .single()
-            .execute()
+            .measuredExecute(.prompts)
             .value
         var audioPath: String?
+        prepareSpan.finish(.success)
+        prepared = true
         var videoPath: String?
         var thumbnailPath: String?
         var photoPath: String?
@@ -252,9 +265,17 @@ actor SupabaseBlessingRepository: BlessingRepository {
         if let videoURL {
             videoPath = "\(basePath)/video-\(UUID().uuidString.lowercased()).mov"
             try await upload(fileURL: videoURL, path: videoPath!, contentType: "video/quicktime")
-            let thumbnailURL = try await CaptureMediaStore.persistVideoThumbnail(from: videoURL)
+            let thumbnailSpan = BackendDiagnostics.shared.begin(.thumbnail)
+            let thumbnailURL: URL
+            do {
+                thumbnailURL = try await CaptureMediaStore.persistVideoThumbnail(from: videoURL)
+                thumbnailSpan.finish(.success)
+            } catch {
+                thumbnailSpan.finish(Task.isCancelled ? .cancelled : .failure)
+                throw error
+            }
             thumbnailPath = "\(basePath)/thumbnail-\(UUID().uuidString.lowercased()).jpg"
-            try await upload(fileURL: thumbnailURL, path: thumbnailPath!, contentType: "image/jpeg")
+            try await upload(fileURL: thumbnailURL, path: thumbnailPath!, contentType: "image/jpeg", stage: .uploadThumbnail)
         }
         if let photoURL {
             photoPath = "\(basePath)/photo-\(UUID().uuidString.lowercased()).jpg"
@@ -262,6 +283,9 @@ actor SupabaseBlessingRepository: BlessingRepository {
         }
 
         let row: BlessingRow
+        let finalizeSpan = BackendDiagnostics.shared.begin(.finalize)
+        var finalized = false
+        defer { if !finalized { finalizeSpan.finish(Task.isCancelled ? .cancelled : .failure) } }
         if mode == .video {
             row = try await client.rpc(
                 "finalize_video_blessing",
@@ -274,7 +298,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 )
             )
             .single()
-            .execute()
+            .measuredExecute(.rpc)
             .value
         } else {
             row = try await client.rpc(
@@ -289,9 +313,11 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 )
             )
             .single()
-            .execute()
+            .measuredExecute(.rpc)
             .value
         }
+        finalizeSpan.finish(.success)
+        finalized = true
         return try await blessing(from: row, circleID: promptRow.circleID)
     }
 
@@ -312,7 +338,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             )
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         let relationship = try await fetchBlessing(id: blessingID)
         return try await blessing(from: row, circleID: relationship.circleID)
@@ -324,7 +350,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             params: ["p_invite_code": code]
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await fetchCircle(id: row.id, inviteCode: code.uppercased())
     }
@@ -346,7 +372,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             )
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await fetchCircle(id: row.id, inviteCode: code)
     }
@@ -358,7 +384,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             params: RegenerateInviteCodeParams(circleID: circleID, inviteCode: code)
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await fetchCircle(id: row.id, inviteCode: code)
     }
@@ -390,7 +416,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             )
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await fetchCircle(id: row.id, inviteCode: "")
     }
@@ -409,10 +435,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
             params: UpdateCirclePhotoParams(circleID: circleID, photoPath: photoPath)
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         if photoPath == nil {
-            _ = try? await client.storage.from(circlePhotoBucket).remove(
+            _ = try? await client.storage.from(circlePhotoBucket).measuredRemove(
                 paths: ["\(circleID.uuidString.lowercased())/circle.jpg"]
             )
         }
@@ -427,7 +453,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         _ = try await client.rpc(
             "update_circle_activity_notifications",
             params: UpdateCircleActivityNotificationsParams(circleID: circleID, enabled: enabled)
-        ).execute()
+        ).measuredExecute(.rpc)
     }
 
     func updateEndOfDayNotifications(
@@ -438,7 +464,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         _ = try await client.rpc(
             "update_end_of_day_notifications",
             params: UpdateEndOfDayNotificationsParams(circleID: circleID, enabled: enabled)
-        ).execute()
+        ).measuredExecute(.rpc)
     }
 
     func forceCirclePrompt(
@@ -446,12 +472,20 @@ actor SupabaseBlessingRepository: BlessingRepository {
         ownerID: UUID,
         now: Date
     ) async throws -> CirclePromptDispatch {
-        let response: ForcePromptResponse = try await client.functions.invoke(
-            "dispatch-prompts",
-            options: FunctionInvokeOptions(
-                body: ForcePromptRequest(action: "force", circleID: circleID)
+        let span = BackendDiagnostics.shared.beginRequest(.function)
+        let response: ForcePromptResponse
+        do {
+            response = try await client.functions.invoke(
+                "dispatch-prompts",
+                options: FunctionInvokeOptions(
+                    body: ForcePromptRequest(action: "force", circleID: circleID)
+                )
             )
-        )
+            span.finish()
+        } catch {
+            span.finish(error: error)
+            throw error
+        }
         let context = try await circleContext(circleID: circleID)
         guard let prompt = context.prompt, prompt.id == response.promptID else {
             throw BlessingError.circleNotFound
@@ -471,7 +505,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             params: ["p_version_id": versionID]
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await member(from: row, joinedAt: .distantPast)
     }
@@ -488,11 +522,11 @@ actor SupabaseBlessingRepository: BlessingRepository {
         if let avatarPath {
             row = try await client.from("profiles")
                 .update(ProfileUpdate(displayName: cleaned, avatarPath: avatarPath))
-                .eq("id", value: memberID).select().single().execute().value
+                .eq("id", value: memberID).select().single().measuredExecute(.profiles).value
         } else {
             row = try await client.from("profiles")
                 .update(ProfileNameUpdate(displayName: cleaned))
-                .eq("id", value: memberID).select().single().execute().value
+                .eq("id", value: memberID).select().single().measuredExecute(.profiles).value
         }
         return try await member(from: row, joinedAt: .distantPast)
     }
@@ -503,7 +537,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
-                _ = try await client.storage.from(avatarBucket).upload(
+                _ = try await client.storage.from(avatarBucket).measuredUpload(
                     path,
                     data: data,
                     options: FileOptions(contentType: "image/jpeg", upsert: true)
@@ -520,7 +554,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     private func uploadCirclePhoto(fileURL: URL, path: String) async throws {
         let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
-        _ = try await client.storage.from(circlePhotoBucket).upload(
+        _ = try await client.storage.from(circlePhotoBucket).measuredUpload(
             path,
             data: data,
             options: FileOptions(contentType: "image/jpeg", upsert: true)
@@ -540,7 +574,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             ]
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await fetchCircle(id: row.id, inviteCode: "")
     }
@@ -554,7 +588,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             ]
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await fetchCircle(id: row.id, inviteCode: "")
     }
@@ -566,7 +600,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .eq("author_id", value: authorID)
             .gte("submitted_at", value: ISO8601DateFormatter().string(from: submittedAfter))
             .order("submitted_at", ascending: false)
-            .execute()
+            .measuredExecute(.blessings)
             .value
         var result: [Blessing] = []
         for row in rows {
@@ -587,7 +621,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .select()
             .eq("id", value: targetPromptID)
             .single()
-            .execute()
+            .measuredExecute(.prompts)
             .value
         let row: BlessingRow = try await client.rpc(
             "repeat_blessing",
@@ -597,7 +631,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             ]
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await blessing(from: row, circleID: promptRow.circleID)
     }
@@ -606,13 +640,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
         _ = try await client.rpc(
             "leave_circle",
             params: ["p_circle_id": circleID]
-        ).execute()
+        ).measuredExecute(.rpc)
     }
 
     func nudgeMember(promptID: UUID, recipientID: UUID, senderID _: UUID, now _: Date) async throws -> Bool {
         try await client.rpc("nudge_circle_member", params: [
             "p_prompt_id": promptID, "p_recipient_id": recipientID,
-        ]).execute().value
+        ]).measuredExecute(.rpc).value
     }
 
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
@@ -622,7 +656,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .select()
             .eq("blessing_id", value: blessingID)
             .order("submitted_at")
-            .execute()
+            .measuredExecute(.responses)
             .value
         var result: [BlessingResponse] = []
         for row in rows {
@@ -662,7 +696,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             )
         )
         .single()
-        .execute()
+        .measuredExecute(.rpc)
         .value
         return try await response(from: row, circleID: circleID)
     }
@@ -713,7 +747,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 pushToStartToken: pushToStartToken,
                 environment: environment
             )
-        ).execute()
+        ).measuredExecute(.rpc)
     }
 
     func registerActivity(
@@ -730,21 +764,21 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 pushToken: pushToken,
                 environment: environment
             )
-        ).execute()
+        ).measuredExecute(.rpc)
     }
 
     private func fetchProfile(userID: UUID) async throws -> ProfileRow {
-        try await client.from("profiles").select().eq("id", value: userID).single().execute().value
+        try await client.from("profiles").select().eq("id", value: userID).single().measuredExecute(.profiles).value
     }
 
     private func fetchCircle(id: UUID, inviteCode: String) async throws -> CircleGroup {
         let viewerID = try await client.auth.session.user.id
-        let row: CircleRow = try await client.from("circles").select().eq("id", value: id).single().execute().value
+        let row: CircleRow = try await client.from("circles").select().eq("id", value: id).single().measuredExecute(.circles).value
         let knownCode = inviteCode.isEmpty ? inviteCodeStore.code(accountID: viewerID, circleID: id) : inviteCode
         let recoveredCode: String? = try await client.rpc(
             "circle_invite_code",
             params: CircleInviteCodeParams(circleID: id, knownCode: knownCode)
-        ).execute().value
+        ).measuredExecute(.rpc).value
         inviteCodeStore.set(recoveredCode, accountID: viewerID, circleID: id)
         let membershipRows: [MembershipRow] = try await client
             .from("circle_members")
@@ -752,21 +786,21 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .eq("circle_id", value: id)
             .is("removed_at", value: nil)
             .order("joined_at")
-            .execute()
+            .measuredExecute(.members)
             .value
         let ids: [any PostgrestFilterValue] = membershipRows.map(\.userID)
         let profiles: [ProfileRow] = ids.isEmpty ? [] : try await client
             .from("profiles")
             .select()
             .in("id", values: ids)
-            .execute()
+            .measuredExecute(.profiles)
             .value
         var members: [Member] = []
         for membership in membershipRows {
             guard let profile = profiles.first(where: { $0.id == membership.userID }) else { continue }
             members.append(try await member(from: profile, joinedAt: membership.joinedAt))
         }
-        let streakRows: [CircleStreak] = try await client.rpc("circle_streaks", params: ["p_circle_id": id]).execute().value
+        let streakRows: [CircleStreak] = try await client.rpc("circle_streaks", params: ["p_circle_id": id]).measuredExecute(.rpc).value
         var result = CircleGroup(
             id: row.id,
             name: row.name,
@@ -794,7 +828,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     private func circlePhotoSignedURL(path: String?) async throws -> URL? {
         guard let path else { return nil }
-        return try await client.storage.from(circlePhotoBucket).createSignedURL(path: path, expiresIn: 86_400)
+        return try await client.storage.from(circlePhotoBucket).measuredSignedURL(path: path, expiresIn: 86_400)
     }
 
     private func fetchCurrentPrompts(
@@ -810,7 +844,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .select()
             .eq("circle_id", value: circle.id)
             .eq("local_date", value: localDate)
-            .execute()
+            .measuredExecute(.prompts)
             .value
         let activeEndRows: [PromptRow] = try await client
             .from("daily_prompts")
@@ -821,13 +855,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .gt("ends_at", value: now)
             .order("starts_at", ascending: false)
             .limit(1)
-            .execute()
+            .measuredExecute(.prompts)
             .value
         let dailyRow = currentRows.first { $0.kind == .daily }
-        let welcomeID: UUID? = try await client.rpc("first_join_blessing_prompt", params: ["p_circle_id": circle.id]).execute().value
+        let welcomeID: UUID? = try await client.rpc("first_join_blessing_prompt", params: ["p_circle_id": circle.id]).measuredExecute(.rpc).value
         var selectedDaily = dailyRow.map { prompt(from: $0, timeZoneIdentifier: circle.timeZoneIdentifier) }
         if let welcomeID {
-            let row: PromptRow = try await client.from("daily_prompts").select().eq("id", value: welcomeID).single().execute().value
+            let row: PromptRow = try await client.from("daily_prompts").select().eq("id", value: welcomeID).single().measuredExecute(.prompts).value
             selectedDaily = prompt(from: row, timeZoneIdentifier: circle.timeZoneIdentifier)
             selectedDaily?.firstJoinEndsAt = dailyRow?.state == "scheduled" ? .distantFuture : dailyRow?.startsAt
         }
@@ -854,7 +888,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             .select("*, daily_prompts!inner(circle_id)")
             .eq("id", value: id)
             .single()
-            .execute()
+            .measuredExecute(.blessings)
             .value
     }
 
@@ -892,17 +926,30 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     private func signedURL(path: String?) async throws -> URL? {
         guard let path else { return nil }
-        return try await client.storage.from(mediaBucket).createSignedURL(path: path, expiresIn: 3_600)
+        let span = BackendDiagnostics.shared.begin(.mediaSigning)
+        do {
+            let url = try await client.storage.from(mediaBucket).measuredSignedURL(path: path, expiresIn: 3_600)
+            span.finish(.success)
+            return url
+        } catch {
+            span.finish(Task.isCancelled ? .cancelled : .failure)
+            throw error
+        }
     }
 
-    private func upload(fileURL: URL, path: String, contentType: String) async throws {
+    private func upload(fileURL: URL, path: String, contentType: String, stage: BackendStage? = nil) async throws {
+        let span = BackendDiagnostics.shared.begin(stage ?? (contentType.hasPrefix("video/") ? .uploadVideo
+            : contentType.hasPrefix("audio/") ? .uploadAudio : .uploadPhoto))
+        var outcome = BackendOutcome.failure
+        defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
         let options = FileOptions(contentType: contentType, upsert: false)
         if contentType.hasPrefix("video/") {
-            _ = try await client.storage.from(mediaBucket).upload(path, fileURL: fileURL, options: options)
+            _ = try await client.storage.from(mediaBucket).measuredUpload(path, fileURL: fileURL, options: options)
         } else {
             let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
-            _ = try await client.storage.from(mediaBucket).upload(path, data: data, options: options)
+            _ = try await client.storage.from(mediaBucket).measuredUpload(path, data: data, options: options)
         }
+        outcome = .success
     }
 
     private func prompt(from row: PromptRow, timeZoneIdentifier: String) -> DailyPrompt {
@@ -934,7 +981,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     private func avatarSignedURL(path: String?) async throws -> URL? {
         guard let path else { return nil }
-        return try await client.storage.from(avatarBucket).createSignedURL(path: path, expiresIn: 86_400)
+        return try await client.storage.from(avatarBucket).measuredSignedURL(path: path, expiresIn: 86_400)
     }
 
     private func circleCalendar(_ circle: CircleGroup) -> Calendar {

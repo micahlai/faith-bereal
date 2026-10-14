@@ -25,7 +25,7 @@ UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage 
 Use an integer build number greater than the latest App Store Connect build:
 
 ```sh
-TESTFLIGHT_BUILD_NUMBER=2 Scripts/prepare-testflight.sh
+TESTFLIGHT_BUILD_NUMBER=31 Scripts/prepare-testflight.sh
 ```
 
 The workflow regenerates the project, runs the complete local-demo unit and UI suites as separate Xcode test phases on the reliable small-phone default, archives the hosted Release configuration, exports an App Store Connect IPA, and validates production APNs, `get-task-allow = false`, Sign in with Apple, the shared App Group, both embedded extension signatures, and the notification-logo resource. Separate phases avoid an Xcode worker handoff stall after ActivityKit unit coverage. Override the test device with `TESTFLIGHT_SIMULATOR_NAME='another installed simulator'` when needed. Release builds fail immediately when the hosted Supabase URL/key or production APNs setting is missing; Debug and simulator development retain the local-demo fallback.
@@ -47,6 +47,30 @@ Launch with `BLESSING_CIRCLE_FORCE_LOCAL=1` for the complete simulator flow. Rea
 Use an available simulator name from `xcrun simctl list devices available` if the example device is unavailable.
 
 ## Unit tests
+
+- Backend optimization fixtures inject an isolated HTTP transport/auth store and synthetic data. They compare metadata/page request counts, re-read content to unlock peers, propagate denied reads, and preserve local repository fallback behavior. They do not emulate server RLS or establish hosted latency improvement.
+- Scope tests suspend reads and change account/circle/time zone away and back before delivery; stale results must never install. Interrupted switching restores the original realtime subscription. Diagnostics tests check a closed payload vocabulary, opt-in behavior, HTTP failure/cancellation classification, and exclusion of private URLs, headers, bodies, and error descriptions.
+
+## Backend diagnostics capture
+
+For v0.2.2 (31) TestFlight users, use User settings → Field testing → Share diagnostic data. This remembers consent without an Xcode environment variable, collects a bounded private queue, and uploads authenticated batches while active. Opt-out clears unsent metrics. See [tester setup, operator summaries, retention, and limits](TESTFLIGHT_FIELD_TESTING.md).
+
+Add `MANNA_BACKEND_DIAGNOSTICS=1` to the Xcode Run scheme's environment variables only for optional local OSLog capture. Leave it absent for normal runs. This enables local OSLog events under subsystem `app.manna-circle.ios`, category `BackendPerformance`, prefix `backend_metric`. Use Console with the attached phone selected and filter to that category; retain only those event lines when preparing a performance comparison. The environment variable alone does not opt into remote collection or persist to TestFlight; the in-app switch controls remote sharing separately.
+
+For local simulator stage capture after installation:
+
+```sh
+SIMCTL_CHILD_BLESSING_CIRCLE_FORCE_LOCAL=1 SIMCTL_CHILD_MANNA_BACKEND_DIAGNOSTICS=1 \
+  xcrun simctl launch booted app.manna-circle.ios
+xcrun simctl spawn booted log show --last 10m --style compact --info \
+  --predicate 'subsystem == "app.manna-circle.ios" AND category == "BackendPerformance"'
+```
+
+Local mode has stage timings but no Supabase HTTP traffic. To reproduce the reported service error, use the hosted-configured measurement build on a phone. Record cold/warm startup, several sequential switches, and representative typed/photo/voice/video sends with UTC action/error timestamps. Use ordinary bounded interactions. Compare stage median/tail durations, SDK-operation category counts, payload/returned-data sizes, outcome/error counts, and widget/archive overlap under the same account/circle/media conditions. Stage spans can overlap; Operation records have no account/action identifier, so timestamp overlap is a correlation aid rather than exact attribution. Available success HTTP status/numeric transport codes do not include Postgres/API error bodies; obtain the exact service error separately before diagnosing pool exhaustion.
+
+Visible-startup timing begins after cached-session lookup and restoring diagnostics consent, and ends when the model marks the screen ready; it is not first-frame/full cold-launch/permission/capture latency. Upload-preparation timing covers the prompt read; encoding/compression comparisons and peak memory remain physical-device work. Operation durations include SDK retries and auth adaptation; counts are logical SDK calls rather than physical HTTP attempts. Upload payload size is the original file/data size, not bytes proven to have transferred; database returned-data size excludes transport headers. The SDK consumes many error HTTP responses, so their status is unavailable; Auth/Storage/functions do not expose success status through these wrappers. Automatic auth refresh, cached session lookup, realtime socket traffic, scripture fetching, playback, and archive downloads are outside the operation counter. Media encodings are unchanged, and these logs do not demonstrate a fix for database connection exhaustion.
+
+## Domain coverage
 
 - Nudges require the sender's submission for the exact prompt, two current distinct members, and an unsubmitted recipient. Scheduled, no-late deadline, seven-hour evening deadline, circle-local midnight, next daily cutoff, same-prompt privacy, and one nudge per recipient/prompt are checked. Local mode never contacts APNs.
 
@@ -127,7 +151,7 @@ The same disposable suite loads `202610130001_circle_streaks.sql` and its regres
 
 ## UI and accessibility checks
 
-- A typed draft survives closing/relaunching the app, resumes from Today with its contents intact, and disappears after successful sending. Use one unique local test session across both launches.
+- A typed draft survives closing/relaunching the app, resumes through the single primary Continue action on Today with its contents intact, and disappears after successful sending. Use one unique local test session across both launches.
 - Blessing composer accepts 1,200 characters, clamps a 1,201-character input, displays the new counter, and sends successfully in local demo mode.
 - Native automated accessibility audits check hit regions and descriptions in Today and Timeline List, with a repeat after scrolling. Rendered contrast remains a manual acceptance requirement: the small-phone native contrast audit still flags the Share button despite its numerically passing solid foreground/background pair (see the audit document). The audit test explicitly terminates any existing instance and supplies a Debug-only `--manna-local-ui-test` argument as an additional local-backend fence.
 - Timeline defaults to a single-column List with VoiceOver or accessibility text sizes; its toolbar can switch back to Threads without increasing pinned-header spacing.

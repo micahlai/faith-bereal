@@ -1,6 +1,23 @@
-# Backend optimization proposal — awaiting approval
+# Backend optimization — measurement and request reduction started
 
-Updated October 13, 2026. The owner reports slow photo/voice/video sending, slow startup and circle switching, and an error described as “too many connections issued to the database.” Modest media compression is acceptable only after comparison tests. Broader optimization has not been authorized to start.
+Updated October 13, 2026. The owner authorized starting this plan and delegated regression/simulator verification. The reported “too many connections issued to the database” error affects startup/sign-in, circle switching/Timeline, and media sending; a failing timestamp and exact service code remain unavailable. Measurement and request reduction are underway. Modest media compression still requires reviewed comparison tests.
+
+## TestFlight field collection — v0.2.2 (31)
+
+The October 14 continuation adds a default-off persistent in-app switch, a bounded private queue, and authenticated multi-user batch ingestion. The collector migration is deployed and its security/concurrency/hosted rollback regressions pass. App build 31 follows the owner's confirmed v0.2.1/build 30. UI adjustments and a unified draft-aware share action are included before final candidate export. See [the tester/operator runbook](TESTFLIGHT_FIELD_TESTING.md) for opt-in, retention, privacy, summary queries, and release status; STATUS carries current verification results.
+
+The environment variable remains for optional local OSLog capture only. TestFlight field sharing uses the in-app switch and pins queued reports to their original account/session/build. No real phone field error or latency improvement is claimed until the new build is installed and opted-in reports arrive.
+
+## First implementation slice
+
+- Add opt-in local diagnostics using `MANNA_BACKEND_DIAGNOSTICS=1`. Stage records cover visible startup, switching, refresh, sending, upload preparation, thumbnail creation, uploads, finalization, signing, widget work, and automatic saving. Supabase operation records contain a closed category, UTC timestamp, elapsed duration, optional upload payload size/returned data size, available success HTTP status, and numeric URL transport error. One record counts one SDK operation; automatic retries are included in its duration. These are not physical HTTP attempt/wire-byte counts. No URLs, IDs, filters, content, credentials, or error descriptions are emitted. Diagnostics are disabled by default and have no telemetry exporter.
+- Reuse circle metadata only within the same load after bootstrap/context lookup. Timeline still reads prompts and blessings from the server on every call. This removes the immediate duplicate circle/member/profile/invite/streak lookup in startup, switching, circle refresh, prompt links, and widget loading, without introducing a persistent authorization/content cache.
+- Fence delayed UI results by account/circle/time-zone generation, including leaving and returning to the same scope. Interrupted switches keep their previous selection and restore its realtime subscription.
+- Offline hosted-adapter fixtures compare seven page requests with two after metadata reuse, excluding media-signing requests. This is a request-count comparison on synthetic data, not a hosted latency benchmark or a reproduction of connection exhaustion. Fixture tests also cover fresh peer unlocking and propagated content-read failures. Separate simulator tests cover actual navigation and submission.
+
+Field reproduction remains necessary. Permission/capture latency, physical-device memory, representative media comparisons, real two-account RLS acceptance, and correlated service/pool/database traces have not yet been measured. No connection/pool/compute/index/retention or media-encoding setting changes are part of this slice.
+
+Validation: the final simulator build and all 181 app/domain tests pass. All five focused simulator UI cases pass together on the final build, covering switching/share/privacy, draft relaunch, onboarding, and Timeline behavior. The request-count fixture confirms the seven-to-two page-call reduction; real localhost transfers validate operation logging for reads, uploads, signing, failure, and cancellation. Actual local-mode app launch emitted stage records. This validates the collector and initial client change, not field latency or the cause of the reported service error.
 
 ## Evidence and uncertainty
 
@@ -14,12 +31,12 @@ Updated October 13, 2026. The owner reports slow photo/voice/video sending, slow
 1. **Measure the failing paths.** Capture per-stage timings and request counts for cold/warm startup, repeated circle switching, and representative media submissions. Separate permission/capture/encoding/upload/finalize/refresh time. Correlate a timestamped connection error with Auth, Storage, API/pool, database activity, locks, and query durations. Use test fixtures and bounded traffic, never a production stress test. Logs must exclude content, tokens, signed URLs, and personal information.
 2. **Reduce duplicate work.** Based on measurements, coalesce overlapping circle refreshes, cap concurrent requests, cache account-scoped metadata with explicit invalidation, and batch/cache authorized media signing where supported. Defer nonessential widget/archive work until the visible screen is ready. Bound automatic-saving history traversal without omitting eligible media. Preserve prompt freshness, privacy gates, circle/account cancellation isolation, and submission idempotency.
 3. **Compare media options.** Use the same representative photos, speech, and video clips to compare current versus modest JPEG resizing/quality, AAC speech encoding, and a bounded video export. Report bytes, encoding time, upload time, total send time, visual/speech quality, and peak memory on a physical phone. Preserve aspect ratio, orientation, transcript, audio/video sync, and originals until successful submission. Compression is adopted only after the comparisons are reviewed; smaller files alone do not establish a fix for connection exhaustion.
-4. **Tune proven database bottlenecks.** Only if traces and safe query plans justify it, propose specific indexes, query/RLS changes, or appropriate pooling changes. Inspect existing pool allocations and compute capacity before recommending paid capacity. Do not blindly raise connection limits, kill sessions, change compute, or introduce schema/index changes under this unapproved proposal.
+4. **Tune proven database bottlenecks.** Only if traces and safe query plans justify it, propose specific indexes, query/RLS changes, or appropriate pooling changes. Inspect existing pool allocations and compute capacity before recommending paid capacity. Do not blindly raise connection limits, kill sessions, or change compute. Infrastructure changes require a concrete evidence-based proposal.
 5. **Validate and stage the rollout.** Compare median/tail startup, switch, and send times against baseline, with request counts, bytes, memory, and error rates. Test two-account privacy, retries, offline recovery, drafts, media reuse, local saves, and fresh notification boundaries. Commit changes separately; release through a small TestFlight cohort before wider rollout.
 
 ## Decisions needed
 
-- Approve the measurement and request-reduction phases first. Compression remains gated on comparison results, as requested.
-- Identify where the connection error appeared (startup/sign-in, circle switch, Timeline, or upload), its approximate time/time zone, and exact error code if available. Work can begin with measurements while gathering this evidence.
+- Measurement and request reduction are approved and started. Compression remains gated on comparison results, as requested.
+- The owner confirms the error across startup/sign-in, circle switching/Timeline, and uploads. Record its approximate time/time zone and exact service error code when reproducing it. Local measurements can continue while gathering this evidence.
 
-No broader optimization code or infrastructure change is included in this proposal. The requested client Timeline improvements and streak-support migration are tracked separately in STATUS.
+The requested client Timeline improvements and streak-support migration are tracked separately in STATUS. See [testing instructions](TESTING.md) for local diagnostics capture and the remaining field acceptance work.

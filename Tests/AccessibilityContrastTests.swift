@@ -13,7 +13,7 @@ final class AccessibilityContrastTests: XCTestCase {
                     mutableTraits.accessibilityContrast = contrast
                 }
                 for background in ["Canvas", "Surface"] {
-                    for foreground in ["Ink", "SecondaryInk", "MannaInk", "Iris", "Dawn", "Candle", "Missed"] {
+                    for foreground in ["Ink", "SecondaryInk", "MannaInk", "Iris", "Dawn", "Candle", "Missed", "StreakBlue"] {
                         let ratio = try contrastRatio(foreground, background, traits: traits)
                         XCTAssertGreaterThanOrEqual(
                             ratio, 4.5, "\(foreground)/\(background), \(style), \(contrast): \(ratio)")

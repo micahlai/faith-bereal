@@ -2,6 +2,26 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testDiagnosticGuideExplainsConsentAccountAssociationAndLimits() {
+        let guide = HelpTopic.personalization.steps.map(\.body).joined()
+        for concept in ["Share diagnostic data", "stays off", "TestFlight", "linked to your signed-in account",
+                        "14 days", "cannot read", "discards unsent", "1,000", "13 days", "Local demo"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+    }
+    func testStreakGuideDescribesBluePhotoOverlayAndCirclePanel() {
+        let guide = HelpTopic.timeline.steps.map(\.body).joined()
+        XCTAssertTrue(guide.contains("blue flame pill"))
+        XCTAssertTrue(guide.contains("without moving the name"))
+        XCTAssertTrue(guide.contains("Circle People panel"))
+    }
+
+    func testCircleGuideExplainsInterruptedSwitchRecovery() {
+        let guide = HelpTopic.circles.steps.map(\.body).joined()
+        XCTAssertTrue(guide.contains("finish loading before sharing"))
+        XCTAssertTrue(guide.contains("previous circle stays selected"))
+        XCTAssertTrue(guide.contains("try again"))
+    }
     func testOlderWidgetLinksDoNotRequireLoadingTimelineHistory() {
         XCTAssertTrue(HelpTopic.notifications.steps.map(\.body).joined().contains("Older blessings open without first loading"))
     }

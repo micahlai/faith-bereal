@@ -31,7 +31,9 @@ enum AppComposition {
         )
         return AppModel(
             repository: SupabaseBlessingRepository(client: client),
-            authentication: SupabaseAuthenticationService(client: client)
+            authentication: SupabaseAuthenticationService(client: client),
+            diagnosticCollection: DiagnosticCollectionController(uploader:
+                SupabaseDiagnosticUploader(client: client, configuration: configuration))
         )
     }
 }

@@ -11,6 +11,7 @@ enum AppTheme {
     static let iris = Color("Iris", bundle: nil)
     static let dawn = Color("Dawn", bundle: nil)
     static let candle = Color("Candle", bundle: nil)
+    static let streakBlue = Color("StreakBlue", bundle: nil)
     static let missed = Color("Missed", bundle: nil)
     static let divider = Color("Divider", bundle: nil)
 

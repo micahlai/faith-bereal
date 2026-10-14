@@ -5,7 +5,9 @@ protocol BlessingRepository: Sendable {
     func circleContext(circleID: UUID) async throws -> CircleContext
     func circleContext(promptID: UUID) async throws -> CircleContext
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane]
+    func timeline(circle: CircleGroup, viewerID: UUID, now: Date) async throws -> [TimelineLane]
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage
+    func timelinePage(circle: CircleGroup, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage
     func blessing(id: UUID, viewerID: UUID) async throws -> Blessing?
     func beginBlessingEntry(promptID: UUID, memberID: UUID, now: Date) async throws
     func submit(
@@ -84,6 +86,14 @@ protocol BlessingRepository: Sendable {
 }
 
 extension BlessingRepository {
+    // Only pass metadata fetched as part of the same load. Content is still read
+    // afresh under server authorization; this is not a cross-refresh cache.
+    func timeline(circle: CircleGroup, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
+        try await timeline(circleID: circle.id, viewerID: viewerID, now: now)
+    }
+    func timelinePage(circle: CircleGroup, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
+        try await timelinePage(circleID: circle.id, viewerID: viewerID, now: now, before: before)
+    }
     func blessing(id: UUID, viewerID: UUID) async throws -> Blessing? { nil }
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
         let circle = try await circleContext(circleID: circleID).circle
@@ -94,6 +104,11 @@ extension BlessingRepository {
 
 protocol AuthenticationProviding: Sendable {
     func hasSession() async -> Bool
+    func currentUserID() async -> UUID?
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async throws
     func signOut() async throws
+}
+
+extension AuthenticationProviding {
+    func currentUserID() async -> UUID? { nil }
 }

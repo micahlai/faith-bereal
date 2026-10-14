@@ -855,6 +855,8 @@ private struct UserSettingsView: View {
                     Text("Saved blessings")
                 }
 
+                DiagnosticCollectionSettings()
+
                 Section {
                     Picker("Refresh interval", selection: $model.widgetRefreshMinutes) {
                         ForEach(AppModel.widgetRefreshOptions, id: \.self) { minutes in

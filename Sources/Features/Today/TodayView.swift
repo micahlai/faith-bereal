@@ -32,21 +32,11 @@ struct TodayView: View {
     @ViewBuilder
     private func todayContent(at date: Date) -> some View {
         VStack(alignment: .leading, spacing: 28) {
-            ForEach(model.resumableDrafts(at: date)) { draft in
-                Button {
-                    Task { await model.continueDraft(draft) }
-                } label: {
-                    Label(draft.promptID == model.endOfDayPrompt?.id ? "Continue evening blessing" : "Continue blessing",
-                        systemImage: "pencil.and.outline")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }.buttonStyle(MannaPrimaryButtonStyle())
-                .disabled(model.isPreparingCapture || model.isSwitchingCircle)
-                .accessibilityIdentifier("draft.continue.\(draft.promptID.uuidString)")
-            }
             if let endOfDayPrompt = model.endOfDayPrompt,
                model.canEnterEndOfDayPrompt(at: date) {
                 EndOfDayPromptCard(
-                    isPreparingCapture: model.isPreparingCapture,
+                    isPreparingCapture: model.isPreparingCapture || model.isSwitchingCircle,
+                    hasDraft: model.resumableDraft(for: endOfDayPrompt, at: date) != nil,
                     shareAction: { Task { await model.openCapture(for: endOfDayPrompt) } }
                 )
             }
@@ -70,7 +60,8 @@ struct TodayView: View {
                         allowsLateBlessings: model.circle?.allowsLateBlessings == true,
                         isFirstCircleDay: model.isFirstCircleDay(at: date),
                         allowsSharing: allowsSharing,
-                        isPreparingCapture: model.isPreparingCapture,
+                        isPreparingCapture: model.isPreparingCapture || model.isSwitchingCircle,
+                        hasDraft: model.resumableDraft(for: prompt, at: date) != nil,
                         shareAction: { Task { await model.openCapture() } }
                     )
                 } else if items.isEmpty {
@@ -149,6 +140,7 @@ private struct TodayNudgePanel: View {
 
 private struct EndOfDayPromptCard: View {
     let isPreparingCapture: Bool
+    let hasDraft: Bool
     let shareAction: () -> Void
 
     var body: some View {
@@ -164,7 +156,8 @@ private struct EndOfDayPromptCard: View {
                     if isPreparingCapture {
                         ProgressView()
                     } else {
-                        Label("Share end-of-day blessing", systemImage: "plus")
+                        Label(hasDraft ? "Continue" : "Share end-of-day blessing",
+                              systemImage: hasDraft ? "pencil.and.outline" : "plus")
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
@@ -172,6 +165,7 @@ private struct EndOfDayPromptCard: View {
             .buttonStyle(MannaPrimaryButtonStyle())
             .tint(AppTheme.actionFill)
             .disabled(isPreparingCapture)
+            .accessibilityHint(hasDraft ? "Resume your saved end-of-day blessing on this device" : "")
         }
         .blessingCard()
     }
@@ -242,8 +236,7 @@ private struct TodayBlessingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 12) {
-                AvatarBadge(member: item.member, size: 46)
-                ProfileStreakBadge(memberID: item.member.id)
+                ProfileStreakAvatar(member: item.member, size: 46)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.member.displayName)
                         .font(.headline)
@@ -301,6 +294,7 @@ private struct PromptWindowView: View {
     let isFirstCircleDay: Bool
     let allowsSharing: Bool
     let isPreparingCapture: Bool
+    let hasDraft: Bool
     let shareAction: () -> Void
 
     var body: some View {
@@ -338,9 +332,6 @@ private struct PromptWindowView: View {
                             .foregroundStyle(AppTheme.candle)
                         Text("Your first blessing")
                             .font(.headline)
-                        Text(prompt.firstJoinEndsAt == nil ? "Share until this day ends" : "For yesterday · until today’s notification")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.secondaryInk)
                     } else if phase == .open {
                         Text(durationString(remaining))
                             .font(.system(.title, design: .rounded, weight: .bold).monospacedDigit())
@@ -375,7 +366,8 @@ private struct PromptWindowView: View {
                     if isPreparingCapture {
                         ProgressView()
                     } else {
-                        Label(allowsSharing ? "Share a blessing" : "Hosted preview only", systemImage: allowsSharing ? "plus" : "eye")
+                        Label(allowsSharing ? (hasDraft ? "Continue" : "Share a blessing") : "Hosted preview only",
+                              systemImage: allowsSharing ? (hasDraft ? "pencil.and.outline" : "plus") : "eye")
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: AppTheme.controlHeight)
@@ -383,6 +375,7 @@ private struct PromptWindowView: View {
             .buttonStyle(MannaPrimaryButtonStyle())
             .tint(AppTheme.actionFill)
             .controlSize(.large)
+            .accessibilityHint(hasDraft ? "Resume your saved daily blessing on this device" : "")
             .disabled(
                 isPreparingCapture || !allowsSharing ||
                     (!isFirstCircleDay && phase != .open && !(phase == .closed && allowsLateBlessings))

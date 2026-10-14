@@ -8,14 +8,17 @@ final class TimelinePresentationTests: XCTestCase {
         XCTAssertEqual(TimelineSizing.clamped(.nan), 204)
         XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("Smaller, Larger, and Reset size"))
     }
-    func testNotificationTimesDeduplicateAcrossMembersAndExcludeWelcome() {
+    func testNotificationTimesDeduplicateAcrossMembersAndExcludeWelcomeAndEvening() {
         let time = Date(timeIntervalSince1970: 100)
         let event = TimelineEvent(memberID: UUID(), date: time, status: .missed,
             promptKind: .daily, notificationStartedAt: time)
         let welcome = TimelineEvent(memberID: UUID(), date: time, status: .waiting,
             promptKind: .daily, isWelcome: true, notificationStartedAt: time.addingTimeInterval(-10))
-        XCTAssertEqual(TimelinePresentation.notificationTimes([event, event, welcome]).map(\.date), [time])
-        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("actual daily and evening notification times"))
+        let evening = TimelineEvent(memberID: UUID(), date: time, status: .missed,
+            promptKind: .endOfDay, notificationStartedAt: time.addingTimeInterval(200))
+        XCTAssertEqual(TimelinePresentation.notificationTimes([event, event, welcome, evening]).map(\.date), [time])
+        XCTAssertTrue(TimelinePresentation.notificationTimes([evening]).isEmpty)
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("only the actual random blessing notification time"))
     }
     func testUnstartedPromptsHaveNoTimelinePlaceholder() {
         let member = Member(id: UUID(), displayName: "A", initials: "A", tintSeed: 1)

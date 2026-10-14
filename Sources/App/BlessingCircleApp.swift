@@ -30,8 +30,12 @@ struct BlessingCircleApp: App {
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    model.diagnosticCollection.setForeground(phase == .active)
                     guard phase == .active else { return }
-                    Task { await model.refreshCurrentCircle() }
+                    Task {
+                        await model.refreshCurrentCircle()
+                        await model.diagnosticCollection.sendNow(automatic: true)
+                    }
                 }
         }
     }

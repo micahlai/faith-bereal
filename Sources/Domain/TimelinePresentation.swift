@@ -3,8 +3,8 @@ import Foundation
 enum TimelinePresentation {
     static func notificationTimes(_ events: [TimelineEvent]) -> [TimelineNotificationStamp] {
         Array(Set(events.compactMap { event -> TimelineNotificationStamp? in
-            guard !event.isWelcome, let date = event.notificationStartedAt, let kind = event.promptKind else { return nil }
-            return TimelineNotificationStamp(kind: kind, date: date)
+            guard !event.isWelcome, event.promptKind == .daily, let date = event.notificationStartedAt else { return nil }
+            return TimelineNotificationStamp(kind: .daily, date: date)
         })).sorted { $0.date < $1.date }
     }
     static func listEntries(_ lanes: [TimelineLane]) -> [TimelineListEntry] {
