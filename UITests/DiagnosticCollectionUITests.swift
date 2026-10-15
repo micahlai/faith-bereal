@@ -18,29 +18,31 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments += ["--manna-local-ui-test"]
+        app.launchArguments += ["--manna-local-ui-test", "-user.appearancePreference", "light",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.terminate()
         app.launch()
 
         openDiagnostics(app)
         let consent = app.switches["diagnostics.consent"]
         XCTAssertEqual(consent.value as? String, "1")
+        reveal(app.buttons["diagnostics.sendNow"], in: app, requiresHittable: false)
         XCTAssertTrue(app.buttons["diagnostics.sendNow"].exists)
         XCTAssertFalse(app.buttons["diagnostics.sendNow"].isEnabled, "Local demo has no remote uploader")
-        changeConsent(consent, to: "0")
+        changeConsent(consent, in: app, to: "0")
 
         app.terminate()
         app.launch()
         openDiagnostics(app)
         XCTAssertEqual(consent.value as? String, "0")
         XCTAssertFalse(app.buttons["diagnostics.sendNow"].exists)
-        changeConsent(consent, to: "1")
+        changeConsent(consent, in: app, to: "1")
 
         app.terminate()
         app.launch()
         openDiagnostics(app)
         XCTAssertEqual(consent.value as? String, "1")
-        changeConsent(consent, to: "0")
+        changeConsent(consent, in: app, to: "0")
         XCTAssertFalse(app.buttons["diagnostics.sendNow"].exists)
     }
 
@@ -51,12 +53,12 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.buttons["User settings"].tap()
         XCTAssertTrue(app.navigationBars["User settings"].waitForExistence(timeout: 5))
         let consent = app.switches["diagnostics.consent"]
-        for _ in 0..<10 where !consent.isHittable { app.swipeUp() }
-        XCTAssertTrue(consent.isHittable)
+        reveal(consent, in: app)
     }
 
     @MainActor
-    private func changeConsent(_ element: XCUIElement, to expected: String) {
+    private func changeConsent(_ element: XCUIElement, in app: XCUIApplication, to expected: String) {
+        reveal(element, in: app)
         // A SwiftUI Form exposes its whole row as a switch; hit its trailing control.
         element.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         let changed = XCTNSPredicateExpectation(
@@ -71,10 +73,9 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments += ["--manna-local-ui-test"]
-        if largestText {
-            app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
-        }
+        app.launchArguments += ["--manna-local-ui-test", "-user.appearancePreference", largestText ? "dark" : "light",
+            "-UIPreferredContentSizeCategoryName",
+            largestText ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.terminate()
         app.launch()
         XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
@@ -86,13 +87,25 @@ final class DiagnosticCollectionUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         editor.tap()
         editor.typeText("Grateful for a quiet moment together.")
-        let send = app.buttons["Send blessing"]
-        for _ in 0..<12 where !send.isHittable {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.55))
+        // Dismiss the keyboard through the composer's interactive scroll before
+        // moving to Send. The outermost screen edge can miss a presented sheet.
+        if app.keyboards.firstMatch.exists {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.42))
                 .press(forDuration: 0.05, thenDragTo:
-                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.2)))
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.82)))
         }
-        XCTAssertTrue(send.isHittable)
+        let send = app.buttons["Send blessing"]
+        func sendIsVisible() -> Bool {
+            let keyboard = app.keyboards.firstMatch
+            let visibleBottom = keyboard.exists ? keyboard.frame.minY : app.frame.maxY
+            return send.isHittable && send.frame.maxY <= visibleBottom
+        }
+        for _ in 0..<15 where !sendIsVisible() {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.47))
+                .press(forDuration: 0.05, thenDragTo:
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.2)))
+        }
+        XCTAssertTrue(sendIsVisible(), "The whole Send target must be above the software keyboard")
         send.tap()
         let alert = app.alerts["manna circle"]
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
@@ -127,6 +140,35 @@ final class DiagnosticCollectionUITests: XCTestCase {
         openDiagnostics(app)
         attachScreen(app, name: "Diagnostic collection opt-in Form", largestText: largestText)
         XCTAssertEqual(app.switches["diagnostics.consent"].value as? String, "1")
+        reveal(app.buttons["diagnostics.sendNow"], in: app, requiresHittable: false)
+        XCTAssertFalse(app.buttons["diagnostics.sendNow"].isEnabled, "Local fixtures must never upload diagnostics")
+        attachScreen(app, name: "Diagnostic collection send controls", largestText: largestText)
+    }
+
+    @MainActor
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication, requiresHittable: Bool = true) {
+        let navigationBottom = app.navigationBars["User settings"].frame.maxY
+        let visibleBottom = app.frame.maxY - 24
+        func isVisible() -> Bool {
+            element.exists && (!requiresHittable || element.isHittable)
+                && element.frame.minY >= navigationBottom && element.frame.maxY <= visibleBottom
+        }
+        for _ in 0..<30 {
+            if isVisible() { return }
+            if element.exists {
+                let delta = element.frame.midY - (navigationBottom + visibleBottom) / 2
+                let needsDownwardScroll = delta < 0
+                let travel = min(0.28, max(0.06, abs(delta) / app.frame.height * 0.6))
+                let start = needsDownwardScroll ? 0.35 : 0.7
+                // Use the Form's content, away from its scroll indicator and
+                // trailing switches. Long text rows span several viewports.
+                app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: start))
+                    .press(forDuration: 0.05, thenDragTo:
+                        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: start + (needsDownwardScroll ? travel : -travel))),
+                        withVelocity: .slow, thenHoldForDuration: 0.2)
+            } else { app.swipeUp() }
+        }
+        XCTAssertTrue(isVisible(), "Expected the whole control to be visible: \(element.identifier), frame \(element.frame), nav bottom \(navigationBottom), visible bottom \(visibleBottom), hittable \(element.isHittable)")
     }
 
     @MainActor

@@ -41,7 +41,7 @@ struct DiagnosticCollectionSettings: View {
             Text((collection.startsEnabledByDefault
                 ? "This field-test build enables sharing by default for new accounts on this device. Your saved choice is kept, and you can turn sharing off at any time. "
                 : "Optional. ")
-                + "Share timings, transfer sizes, failure categories, app build, and a random session code with manna’s developer. Reports are linked to your signed-in account and retained for 14 days, with scheduled cleanup. Blessing text, recordings, photos, names, links, and credentials are excluded. Records send in small batches while manna is open. Turning this off discards unsent records; an upload already underway may finish.")
+                + "Share timings, transfer sizes, failure sources, short error codes and categories, app build, and a random session code with manna’s developer. This includes network, speech, recording, and diagnostic-upload failures. Error messages are checked on this device for connection limits; the messages themselves are not sent. Reports are linked to your signed-in account and retained for 14 days, with scheduled cleanup. Blessing text, recordings, photos, names, links, and credentials are excluded. Records send in small batches while manna is open. Turning this off discards unsent records; an upload already underway may finish.")
         }
         .task {
             await collection.refreshSummary()

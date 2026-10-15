@@ -14,6 +14,7 @@ struct DiagnosticCollectionSnapshot: Sendable {
     let sessionID: UUID?
     let queuedCount: Int
     let lastUploadedAt: Date?
+    var failureCount: Int = 0
 }
 
 /// Serialized, account-isolated, bounded disk queue. No media/content enters these types.
@@ -111,7 +112,11 @@ actor BackendDiagnosticStore {
               buildNumber > 0, Self.accepts(event, now: now) else { return }
         state.pending.append(Captured(sessionID: sessionID, buildNumber: buildNumber, event: event))
         let allowance = Self.maximumEvents - (state.report?.events.count ?? 0)
-        if state.pending.count > allowance { state.pending.removeFirst(state.pending.count - allowance) }
+        while state.pending.count > allowance {
+            // Keep actionable failures ahead of routine signing/read samples.
+            let index = state.pending.firstIndex { $0.event.outcome != .failure } ?? 0
+            state.pending.remove(at: index)
+        }
         states[accountID] = state
         // Writes coalesce; a force quit may lose the last two seconds of metrics.
         if checkpointTask == nil {
@@ -131,13 +136,17 @@ actor BackendDiagnosticStore {
         _ = try load(accountID: accountID, now: now)
         guard var state = states[accountID], state.isEnabled else { return nil }
         if let report = state.report { try persist(accountID); return report }
-        guard let first = state.pending.first else { return nil }
-        let items = Array(state.pending.prefix(Self.batchSize).prefix {
-            $0.sessionID == first.sessionID && $0.buildNumber == first.buildNumber
-        })
+        guard let first = state.pending.first(where: { $0.event.outcome == .failure }) ?? state.pending.first else { return nil }
+        let eligible = state.pending.indices.filter {
+            state.pending[$0].sessionID == first.sessionID && state.pending[$0].buildNumber == first.buildNumber
+        }
+        let prioritized = eligible.filter { state.pending[$0].event.outcome == .failure }
+            + eligible.filter { state.pending[$0].event.outcome != .failure }
+        let indices = Array(prioritized.prefix(Self.batchSize))
+        let items = indices.map { state.pending[$0] }
         let report = BackendDiagnosticReport(reportID: UUID(), sessionID: first.sessionID,
             buildNumber: first.buildNumber, events: items.map(\.event))
-        state.pending.removeFirst(items.count)
+        for index in indices.sorted(by: >) { state.pending.remove(at: index) }
         state.report = report
         states[accountID] = state
         try persist(accountID) // Stable payload/ID survives failed uploads and relaunch.
@@ -156,7 +165,9 @@ actor BackendDiagnosticStore {
     private func snapshot(_ accountID: UUID) -> DiagnosticCollectionSnapshot {
         let state = states[accountID] ?? State()
         return DiagnosticCollectionSnapshot(isEnabled: state.isEnabled, sessionID: state.sessionID,
-            queuedCount: state.pending.count + (state.report?.events.count ?? 0), lastUploadedAt: state.lastUploadedAt)
+            queuedCount: state.pending.count + (state.report?.events.count ?? 0), lastUploadedAt: state.lastUploadedAt,
+            failureCount: state.pending.filter { $0.event.outcome == .failure }.count
+                + (state.report?.events.filter { $0.outcome == .failure }.count ?? 0))
     }
     private func prune(_ accountID: UUID, now: Date) {
         guard var state = states[accountID] else { return }
@@ -173,6 +184,11 @@ actor BackendDiagnosticStore {
         } else { guard event.requestKind != nil, event.stage == nil else { return false } }
         if let status = event.httpStatus, !(100...599).contains(status) { return false }
         if let code = event.transportErrorCode, !(-200000...0).contains(code) { return false }
+        if event.errorSource != nil || event.errorCode != nil || event.errorCategory != nil {
+            guard event.kind == .request, event.outcome == .failure, event.errorSource != nil else { return false }
+            if let code = event.errorCode,
+               code.range(of: "^[A-Za-z0-9_-]{1,16}$", options: .regularExpression) == nil { return false }
+        }
         return [event.payloadBytes, event.receivedBytes].allSatisfy { $0.map { (0...1_073_741_824).contains($0) } ?? true }
     }
     private func file(_ accountID: UUID) -> URL { root.appendingPathComponent(accountID.uuidString).appendingPathExtension("json") }
@@ -234,6 +250,8 @@ final class DiagnosticCollectionController {
     private var lastAttempt: Date?
     private var isForeground = true
     private var storagePaused = false
+    private var pendingFailureCount = 0
+    private var recordedUploadFailure: String?
     private(set) var isEnabled = false
     private(set) var isSending = false
     private(set) var queuedCount = 0
@@ -274,6 +292,7 @@ final class DiagnosticCollectionController {
         if let accountID, let sessionID { Task { try? await store.endSession(accountID: accountID, sessionID: sessionID) } }
         generation = UUID(); accountID = nil; lastAttempt = nil
         sessionID = nil; storagePaused = false
+        pendingFailureCount = 0; recordedUploadFailure = nil
         isEnabled = false; isSending = false; queuedCount = 0; lastUploadedAt = nil; status = nil
     }
 
@@ -309,7 +328,7 @@ final class DiagnosticCollectionController {
 
     func sendNow(now: Date = .now, automatic: Bool = false) async {
         guard isEnabled, isForeground, !isSending, let accountID, let uploader else { return }
-        let spacing: TimeInterval = automatic ? 300 : 60
+        let spacing: TimeInterval = automatic && queuedCount <= BackendDiagnosticStore.batchSize && pendingFailureCount == 0 ? 300 : 60
         if let lastAttempt, now.timeIntervalSince(lastAttempt) < spacing {
             if !automatic { status = "Please wait a minute before sending another batch." }
             return
@@ -331,24 +350,56 @@ final class DiagnosticCollectionController {
             let snapshot = try await store.acknowledge(accountID: accountID, reportID: report.reportID, now: now)
             guard scope == generation, isEnabled else { return }
             apply(snapshot)
+            recordedUploadFailure = nil
             status = "Diagnostic batch sent."
         } catch {
             guard scope == generation else { return }
-            status = "Diagnostics couldn’t send. Queued records will retry while manna is open."
+            let failure = BackendDiagnosticFailure.capture(error: error)
+            let signature = "\(failure.source.rawValue):\(failure.code ?? ""):\(failure.category.rawValue)"
+            let ns = error as NSError
+            let cancelled = error is CancellationError || (ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCancelled)
+            if !cancelled, signature != recordedUploadFailure,
+               let sessionID, isEnabled, isForeground, !Task.isCancelled {
+                // Store one failure directly, never instrument the uploader's own
+                // request: repeated outage retries cannot recursively grow reports.
+                let event = BackendDiagnostics.Event(kind: .request, startedAt: now, durationMilliseconds: 0,
+                    stage: nil, requestKind: .diagnosticsUpload, outcome: .failure, httpStatus: nil,
+                    transportErrorCode: nil, payloadBytes: nil, receivedBytes: nil,
+                    errorSource: failure.source, errorCode: failure.code, errorCategory: failure.category)
+                try? await store.append(accountID: accountID, sessionID: sessionID, buildNumber: buildNumber, event: event, now: now)
+                guard scope == generation, isEnabled else { return }
+                recordedUploadFailure = signature
+                await refreshSummary()
+            }
+            guard scope == generation else { return }
+            status = "Diagnostics couldn’t send (\(failure.source.rawValue)\(failure.code.map { ": \($0)" } ?? "")). Queued records will retry while manna is open."
         }
     }
 
     private func apply(_ snapshot: DiagnosticCollectionSnapshot) {
         isEnabled = snapshot.isEnabled; sessionID = snapshot.sessionID
         queuedCount = snapshot.queuedCount; lastUploadedAt = snapshot.lastUploadedAt
+        pendingFailureCount = snapshot.failureCount
     }
     private func installCapture(_ snapshot: DiagnosticCollectionSnapshot) {
         guard snapshot.isEnabled, let accountID, let sessionID = snapshot.sessionID else { return }
         let store = store; let buildNumber = buildNumber
         diagnostics.setCollectionSink { event in
-            Task { try? await store.append(accountID: accountID, sessionID: sessionID, buildNumber: buildNumber, event: event) }
+            Task { [weak self] in
+                try? await store.append(accountID: accountID, sessionID: sessionID, buildNumber: buildNumber, event: event)
+                if event.outcome == .failure {
+                    await self?.sendPendingFailure(accountID: accountID, sessionID: sessionID)
+                }
+            }
         }
         startWorker()
+    }
+
+    private func sendPendingFailure(accountID: UUID, sessionID: UUID) async {
+        guard self.accountID == accountID, self.sessionID == sessionID, isEnabled else { return }
+        await refreshSummary()
+        guard self.accountID == accountID, self.sessionID == sessionID, isEnabled else { return }
+        await sendNow(automatic: true)
     }
 
     func setForeground(_ active: Bool) {
@@ -362,9 +413,10 @@ final class DiagnosticCollectionController {
         guard isForeground else { return }
         worker = Task { [weak self] in
             while !Task.isCancelled {
-                do { try await Task.sleep(for: .seconds(300)) } catch { return }
+                await self?.refreshSummary()
+                await self?.sendNow(automatic: true)
+                do { try await Task.sleep(for: .seconds(60)) } catch { return }
                 guard let self, self.isEnabled else { return }
-                await self.sendNow(automatic: true)
             }
         }
     }

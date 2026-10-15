@@ -24,6 +24,14 @@ final class HelpContentTests: XCTestCase {
             XCTAssertTrue(guide.contains(concept), concept)
         }
     }
+    func testDiagnosticGuideExplainsSanitizedCaptureFailuresAndPriority() {
+        let guide = HelpTopic.personalization.steps.map(\.body).joined()
+        for concept in ["failure sources", "short error codes", "speech", "recording", "diagnostic-upload",
+                        "connection limits", "messages themselves are not sent", "ahead of routine timing",
+                        "original batch unchanged", "only one error record", "routine records first"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+    }
     func testStreakGuideDescribesSingleFlameColorPhotoOverlayAndCirclePanel() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
         XCTAssertTrue(guide.contains("One flame pill"))
@@ -36,10 +44,19 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(guide.contains("Circle People panel"))
     }
 
-    func testCircleGuideExplainsInterruptedSwitchRecovery() {
+    func testCircleGuideExplainsVisibleLoadingAndInterruptedSwitchRecovery() {
         let guide = HelpTopic.circles.steps.map(\.body).joined()
         XCTAssertTrue(guide.contains("finish loading before sharing"))
-        XCTAssertTrue(guide.contains("previous circle stays selected"))
+        XCTAssertTrue(guide.contains("previous circle returns"))
+        XCTAssertTrue(guide.contains("select the other circle again"))
+        XCTAssertTrue(guide.contains("move between tabs"))
+        XCTAssertTrue(guide.contains("Retry refreshes the circle currently shown"))
+        XCTAssertTrue(guide.contains("Retry reloads them"))
+        XCTAssertTrue(guide.contains("streaks, and profile/circle photos"))
+        XCTAssertTrue(guide.contains("up to seven days"))
+        XCTAssertTrue(guide.contains("signing out clears them"))
+        XCTAssertTrue(guide.contains("Blessings still need a fresh connection"))
+        XCTAssertTrue(guide.contains("Old blessings from another circle are never shown"))
         XCTAssertTrue(guide.contains("try again"))
     }
     func testOlderWidgetLinksDoNotRequireLoadingTimelineHistory() {

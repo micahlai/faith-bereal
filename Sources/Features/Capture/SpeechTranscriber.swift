@@ -6,7 +6,7 @@ private final class SpeechAudioTapSink: @unchecked Sendable {
     private let request: SFSpeechAudioBufferRecognitionRequest
     private let audioFile: AVAudioFile
     private let lock = NSLock()
-    private var writeFailed = false
+    private var writeFailure: BackendDiagnosticFailure?
 
     init(request: SFSpeechAudioBufferRecognitionRequest, audioFile: AVAudioFile) {
         self.request = request
@@ -19,34 +19,45 @@ private final class SpeechAudioTapSink: @unchecked Sendable {
             try audioFile.write(from: buffer)
         } catch {
             lock.lock()
-            writeFailed = true
+            if writeFailure == nil { writeFailure = BackendDiagnosticFailure.capture(error: error) }
             lock.unlock()
         }
     }
 
-    func hasWriteFailure() -> Bool {
+    func recordingFailure() -> BackendDiagnosticFailure? {
         lock.lock()
         defer { lock.unlock() }
-        return writeFailed
+        return writeFailure
     }
 }
 
-private enum SpeechCallbackFactory {
-    static func makeAudioTap(sink: SpeechAudioTapSink) -> AVAudioNodeTapBlock {
+/// The UI message stays local; only the sanitized diagnostic snapshot may be uploaded.
+struct SpeechRecognitionCallbackFailure: Sendable {
+    let message: String
+    let diagnostic: BackendDiagnosticFailure
+}
+
+enum SpeechCallbackFactory {
+    fileprivate static func makeAudioTap(sink: SpeechAudioTapSink) -> AVAudioNodeTapBlock {
         { buffer, _ in
             sink.receive(buffer)
         }
     }
 
     static func makeRecognitionHandler(
-        _ callback: @escaping @MainActor @Sendable (String?, Bool, String?) -> Void
+        _ callback: @escaping @MainActor @Sendable (String?, Bool, SpeechRecognitionCallbackFailure?) -> Void
     ) -> @Sendable (SFSpeechRecognitionResult?, (any Error)?) -> Void {
         { result, error in
             let transcript = result?.bestTranscription.formattedString
             let isFinal = result?.isFinal == true
-            let errorMessage = error?.localizedDescription
+            // Capture the underlying NSError before crossing the actor boundary. Passing only
+            // localizedDescription would lose the domain/code needed to identify the service.
+            let failure = error.map {
+                SpeechRecognitionCallbackFailure(message: $0.localizedDescription,
+                    diagnostic: BackendDiagnosticFailure.capture(error: $0))
+            }
             Task { @MainActor in
-                callback(transcript, isFinal, errorMessage)
+                callback(transcript, isFinal, failure)
             }
         }
     }
@@ -85,6 +96,7 @@ final class SpeechTranscriber: NSObject {
     private var recordedAudioFile: AVAudioFile?
     private var tapSink: SpeechAudioTapSink?
     private var fileContinuation: CheckedContinuation<String?, Never>?
+    private var fileRecognitionSessionID: UUID?
     private var recognitionSessionID: UUID?
 
     func toggle(existingTranscript: String? = nil) async {
@@ -101,7 +113,10 @@ final class SpeechTranscriber: NSObject {
         permissionID = nil
         let wasListening = state == .listening
         let capturedURL = recordingURL
-        let recordingWriteFailed = tapSink?.hasWriteFailure() == true
+        let recordingWriteFailure = tapSink?.recordingFailure()
+        if let recordingWriteFailure {
+            BackendDiagnostics.shared.recordFailure(.audio, failure: recordingWriteFailure)
+        }
         recognitionSessionID = nil
         if audioEngine.isRunning { audioEngine.stop() }
         if hasInputTap {
@@ -116,7 +131,7 @@ final class SpeechTranscriber: NSObject {
         recordedAudioFile = nil
         deactivateAudioSession()
         if Self.activeRecorder === self { Self.activeRecorder = nil }
-        if recordingWriteFailed || capturedURL.map(Self.isEmptyRecording) == true {
+        if recordingWriteFailure != nil || capturedURL.map(Self.isEmptyRecording) == true {
             recordingURL = nil
             state = .failed("The microphone started, but the recording could not be saved. Please try again.")
         } else {
@@ -160,6 +175,7 @@ final class SpeechTranscriber: NSObject {
                 self.state = .idle
             } catch {
                 guard let self, self.assemblyID == id, !Task.isCancelled else { return }
+                BackendDiagnostics.shared.recordFailure(.audio, error: error)
                 self.recordingURL = nil
                 self.state = .failed("Couldn’t combine your recording. Try again or start over.")
             }
@@ -182,17 +198,23 @@ final class SpeechTranscriber: NSObject {
         guard speechStatus == .authorized, let recognizer, recognizer.isAvailable else { return nil }
 
         task?.cancel()
+        let fileSessionID = UUID()
+        fileRecognitionSessionID = fileSessionID
         let request = SFSpeechURLRecognitionRequest(url: url)
         request.shouldReportPartialResults = false
         return await withCheckedContinuation { continuation in
             fileContinuation = continuation
             task = recognizer.recognitionTask(
                 with: request,
-                resultHandler: SpeechCallbackFactory.makeRecognitionHandler { [weak self] transcript, isFinal, errorMessage in
-                    guard let self else { return }
+                resultHandler: SpeechCallbackFactory.makeRecognitionHandler { [weak self] transcript, isFinal, failure in
+                    guard let self, self.fileContinuation != nil,
+                          self.fileRecognitionSessionID == fileSessionID else { return }
+                    if let failure {
+                        BackendDiagnostics.shared.recordFailure(.speech, failure: failure.diagnostic)
+                    }
                     if isFinal {
                         self.finishFileTranscription(with: transcript)
-                    } else if errorMessage != nil {
+                    } else if failure != nil {
                         self.finishFileTranscription(with: nil)
                     }
                 }
@@ -227,6 +249,7 @@ final class SpeechTranscriber: NSObject {
             return
         }
 
+        let sessionSpan = BackendDiagnostics.shared.beginRequest(.audio)
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(
@@ -235,7 +258,9 @@ final class SpeechTranscriber: NSObject {
                 options: [.defaultToSpeaker, .allowBluetoothHFP]
             )
             try session.setActive(true)
+            sessionSpan.finish()
         } catch {
+            sessionSpan.finish(error: error)
             state = .failed("The microphone could not be started. Check audio access and try again.")
             return
         }
@@ -255,12 +280,15 @@ final class SpeechTranscriber: NSObject {
 
         let outputURL: URL
         let audioFile: AVAudioFile
+        let fileSpan = BackendDiagnostics.shared.beginRequest(.audio)
         do {
             outputURL = try CaptureMediaStore.newRecordingURL(pathExtension: "caf")
             audioFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
             recordedAudioFile = audioFile
             recordingURL = outputURL
+            fileSpan.finish()
         } catch {
+            fileSpan.finish(error: error)
             recordingURL = nil
             deactivateAudioSession()
             state = .failed("The audio recording could not be created.")
@@ -277,10 +305,13 @@ final class SpeechTranscriber: NSObject {
         hasInputTap = true
 
         audioEngine.prepare()
+        let engineSpan = BackendDiagnostics.shared.beginRequest(.audio)
         do {
             try audioEngine.start()
+            engineSpan.finish()
             state = .listening
         } catch {
+            engineSpan.finish(error: error)
             if hasInputTap {
                 input.removeTap(onBus: 0)
                 hasInputTap = false
@@ -299,15 +330,16 @@ final class SpeechTranscriber: NSObject {
         recognitionSessionID = sessionID
         task = recognizer.recognitionTask(
             with: request,
-            resultHandler: SpeechCallbackFactory.makeRecognitionHandler { [weak self] transcript, isFinal, errorMessage in
+            resultHandler: SpeechCallbackFactory.makeRecognitionHandler { [weak self] transcript, isFinal, failure in
                 guard let self else { return }
                 guard self.recognitionSessionID == sessionID else { return }
                 if let transcript {
                     self.transcript = [self.transcriptPrefix, transcript].filter { !$0.isEmpty }.joined(separator: " ")
                 }
-                if let errorMessage {
+                if let failure {
+                    BackendDiagnostics.shared.recordFailure(.speech, failure: failure.diagnostic)
                     self.stop()
-                    self.state = .failed(errorMessage)
+                    self.state = .failed(failure.message)
                 } else if isFinal {
                     self.stop()
                 }
@@ -316,7 +348,11 @@ final class SpeechTranscriber: NSObject {
     }
 
     private func deactivateAudioSession() {
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            BackendDiagnostics.shared.recordFailure(.audio, error: error)
+        }
     }
 
     private static func isEmptyRecording(_ url: URL) -> Bool {
@@ -328,6 +364,7 @@ final class SpeechTranscriber: NSObject {
     private func finishFileTranscription(with text: String?) {
         guard let continuation = fileContinuation else { return }
         fileContinuation = nil
+        fileRecognitionSessionID = nil
         task = nil
         continuation.resume(returning: text)
     }

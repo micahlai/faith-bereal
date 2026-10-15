@@ -301,21 +301,22 @@ final class DiagnosticCollectionTests: XCTestCase {
             diagnostics: BackendDiagnostics(enabled: false), buildNumber: 31)
         defer { controller.deactivate() }
         await controller.activate(accountID: account)
+        controller.setForeground(false)
         await controller.setEnabled(true)
         try await append(to: store, account: account, at: now)
-        await controller.sendNow(now: now)
+        await sendManualBatch(controller, now: now)
         await controller.refreshSummary()
-        XCTAssertEqual(controller.queuedCount, 1)
+        XCTAssertEqual(controller.queuedCount, 2, "Keep the original retry plus the diagnostic-upload failure")
         XCTAssertNil(controller.lastUploadedAt)
-        await controller.sendNow(now: now.addingTimeInterval(59))
+        await sendManualBatch(controller, now: now.addingTimeInterval(59))
         let attemptsBeforeRetry = await uploader.reports
         XCTAssertEqual(attemptsBeforeRetry.count, 1)
-        await controller.sendNow(now: now.addingTimeInterval(60))
+        await sendManualBatch(controller, now: now.addingTimeInterval(60))
         let attempts = await uploader.reports
         XCTAssertEqual(attempts.count, 2)
         XCTAssertEqual(attempts[0].reportID, attempts[1].reportID)
         XCTAssertEqual(try encoded(attempts[0]), try encoded(attempts[1]))
-        XCTAssertEqual(controller.queuedCount, 0)
+        XCTAssertEqual(controller.queuedCount, 1, "The outage record waits behind the unchanged retried batch")
         XCTAssertNotNil(controller.lastUploadedAt)
     }
 
@@ -358,12 +359,24 @@ final class DiagnosticCollectionTests: XCTestCase {
             diagnostics: BackendDiagnostics(enabled: false), buildNumber: 31)
         defer { controller.deactivate() }
         await controller.activate(accountID: account)
+        controller.setForeground(false)
         await controller.setEnabled(true)
         try await append(to: store, account: account, at: now)
-        let sending = Task { await controller.sendNow(now: now) }
+        let sending = Task {
+            // Make this task own the first request before the automatic worker
+            // can attempt it, so awaiting it also awaits the delayed completion.
+            controller.setForeground(true)
+            await controller.sendNow(now: now)
+        }
         let started = await uploader.waitUntilStarted()
         XCTAssertTrue(started, "Upload should reach the suspended test transport")
+        let originalOptional = try await store.prepareReport(accountID: account, now: now)
+        let original = try XCTUnwrap(originalOptional)
         await controller.activate(accountID: other)
+        // This test isolates the old account's delayed response. The new account
+        // remains enabled with a pending event, without starting a second upload
+        // that could replace the suspended fixture's single continuation.
+        controller.setForeground(false)
         await controller.setEnabled(true)
         try await append(to: store, account: other, at: now)
         await uploader.release()
@@ -374,6 +387,9 @@ final class DiagnosticCollectionTests: XCTestCase {
         XCTAssertNil(controller.lastUploadedAt)
         let previous = try await store.load(accountID: account, now: now)
         XCTAssertEqual(previous.queuedCount, 1, "An ambiguous in-flight success retains its stable retry report")
+        let retryOptional = try await store.prepareReport(accountID: account, now: now)
+        let retry = try XCTUnwrap(retryOptional)
+        XCTAssertEqual(try encoded(retry), try encoded(original), "The delayed response cannot acknowledge or rewrite the original account's report")
         let sentAccount = await uploader.accountID
         XCTAssertEqual(sentAccount, account)
     }
@@ -428,6 +444,15 @@ final class DiagnosticCollectionTests: XCTestCase {
         .init(kind: .request, startedAt: date, durationMilliseconds: duration, stage: nil,
             requestKind: .blessings, outcome: .success, httpStatus: status,
             transportErrorCode: transport, payloadBytes: payload, receivedBytes: 20)
+    }
+
+    @MainActor
+    private func sendManualBatch(_ controller: DiagnosticCollectionController, now: Date) async {
+        // Keep the automatic worker from racing the exact manual-spacing assertions.
+        // sendNow marks itself active before yielding; the worker cannot duplicate it.
+        controller.setForeground(true)
+        await controller.sendNow(now: now)
+        controller.setForeground(false)
     }
 
     @MainActor

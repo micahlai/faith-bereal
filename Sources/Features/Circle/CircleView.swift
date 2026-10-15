@@ -69,6 +69,13 @@ struct CircleView: View {
         .fullScreenCover(isPresented: $showingCreate) { createSheet }
         .onAppear { presentPendingInviteIfNeeded() }
         .onChange(of: model.pendingInviteCode) { _, _ in presentPendingInviteIfNeeded() }
+        .onChange(of: model.isPageLoading) { _, loading in
+            if !loading { presentPendingInviteIfNeeded() }
+        }
+        .onChange(of: model.circle?.id) { _, _ in showingSettings = false }
+        .onChange(of: model.isShowingCachedMetadata) { _, cached in
+            if cached { showingSettings = false }
+        }
         .onChange(of: showingJoin) { wasShowing, isShowing in
             if wasShowing && !isShowing { model.clearPendingInvite() }
         }
@@ -116,7 +123,7 @@ struct CircleView: View {
                     Label("Share join link", systemImage: "square.and.arrow.up")
                         .frame(minHeight: 44)
                 }
-                .disabled(model.circle?.inviteCode.isEmpty != false)
+                .disabled(!model.canUseFreshCircle || model.circle?.inviteCode.isEmpty != false)
             }
 
             Divider()
@@ -132,6 +139,7 @@ struct CircleView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(!model.canUseFreshCircle)
             .accessibilityIdentifier("circle-settings-button")
             .sheet(isPresented: $showingSettings) {
                 if let circle = model.circle {
@@ -187,6 +195,7 @@ struct CircleView: View {
             }
             .buttonStyle(.bordered)
         }
+        .disabled(model.isPageLoading || model.isShowingCachedMetadata)
     }
 
     private var joinSheet: some View {
@@ -204,7 +213,8 @@ struct CircleView: View {
                             if await model.joinCircle(code: joinCode) { showingJoin = false }
                         }
                     }
-                    .disabled(joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(joinCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || model.isPageLoading || model.isShowingCachedMetadata)
                 }
             }
             .navigationTitle("Join a circle")
@@ -221,7 +231,8 @@ struct CircleView: View {
     }
 
     private func presentPendingInviteIfNeeded() {
-        guard let code = model.pendingInviteCode else { return }
+        guard !model.isPageLoading, !model.isShowingCachedMetadata,
+              let code = model.pendingInviteCode else { return }
         joinCode = code
         showingJoin = true
     }

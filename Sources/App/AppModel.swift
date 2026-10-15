@@ -18,9 +18,17 @@ final class AppModel {
     private let repository: any BlessingRepository
     private let bibleService: any BibleTextProviding
     private let authentication: (any AuthenticationProviding)?
+    private let registersForRemoteNotifications: Bool
+    private let runsBackgroundRefreshes: Bool
     let diagnosticCollection: DiagnosticCollectionController
     private let savedBlessingStore: SavedBlessingStore
     private let draftStore: BlessingDraftStore
+    private let metadataStore: CircleMetadataStore
+    private var metadataSaveTask: Task<Void, Never>?
+    private(set) var isShowingCachedMetadata = false
+    private(set) var isPageLoading = false
+    private(set) var pageLoadError: String?
+    var canUseFreshCircle: Bool { !isShowingCachedMetadata && !isSwitchingCircle }
     private(set) var savedDrafts: [BlessingDraft] = []
     private(set) var captureDraftToRestore: BlessingDraft?
     private(set) var draftSaveError: String?
@@ -50,11 +58,17 @@ final class AppModel {
 
     var loadState: LoadState = .idle
     private var dataScopeGeneration = UUID()
+    private var timelineRefreshGeneration: UUID?
+    private var bootstrapGeneration = UUID()
+    private var pageLoadGeneration = UUID()
     var currentUser: Member? {
         didSet {
             if currentUser?.id != oldValue?.id {
                 dataScopeGeneration = UUID()
                 if oldValue != nil { diagnosticCollection.deactivate() }
+                if let previousID = oldValue?.id {
+                    Task { await IdentityPhotoCache.shared.clear(accountID: previousID) }
+                }
             }
         }
     }
@@ -130,14 +144,20 @@ final class AppModel {
         authentication: (any AuthenticationProviding)? = nil,
         savedBlessingStore: SavedBlessingStore = SavedBlessingStore(),
         draftStore: BlessingDraftStore = BlessingDraftStore(),
-        diagnosticCollection: DiagnosticCollectionController = DiagnosticCollectionController()
+        diagnosticCollection: DiagnosticCollectionController = DiagnosticCollectionController(),
+        metadataStore: CircleMetadataStore = .shared,
+        registersForRemoteNotifications: Bool = true,
+        runsBackgroundRefreshes: Bool = true
     ) {
         self.repository = repository
         self.bibleService = bibleService
         self.authentication = authentication
+        self.registersForRemoteNotifications = registersForRemoteNotifications
+        self.runsBackgroundRefreshes = runsBackgroundRefreshes
         self.diagnosticCollection = diagnosticCollection
         self.savedBlessingStore = savedBlessingStore
         self.draftStore = draftStore
+        self.metadataStore = metadataStore
         self.pendingInviteCode = UserDefaults.standard.string(forKey: Self.pendingInviteCodeKey)
             .flatMap(CircleInviteLink.normalize(code:))
         let skipsOnboarding = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
@@ -258,6 +278,7 @@ final class AppModel {
     }
 
     func canEnterEndOfDayPrompt(at date: Date = .now) -> Bool {
+        guard canUseFreshCircle else { return false }
         guard let endOfDayPrompt,
               currentUserBlessing(for: endOfDayPrompt) == nil else { return false }
         return isEndOfDayWindowOpen(at: date)
@@ -277,6 +298,7 @@ final class AppModel {
     }
 
     func canEnterCurrentPrompt(at date: Date = .now) -> Bool {
+        guard canUseFreshCircle else { return false }
 #if DEBUG
         guard !isDebugPromptPreview else { return false }
 #endif
@@ -295,7 +317,7 @@ final class AppModel {
     }
 
     func openCapture(for targetPrompt: DailyPrompt? = nil, now: Date = .now) async -> Bool {
-        guard !isPreparingCapture, !isSwitchingCircle,
+        guard !isPreparingCapture, canUseFreshCircle,
               let targetPrompt = targetPrompt ?? prompt, let currentUser,
               circle?.id == targetPrompt.circleID else {
             message = BlessingError.outsideResponseWindow.localizedDescription
@@ -337,17 +359,46 @@ final class AppModel {
 
     func bootstrap() async {
         guard loadState == .idle else { return }
+        let startup = UUID()
+        bootstrapGeneration = startup
+        pageLoadGeneration = startup
+        isPageLoading = true
+        pageLoadError = nil
+        defer { if pageLoadGeneration == startup { isPageLoading = false } }
         var span: BackendDiagnostics.Span?
         var measuredReady = false
         defer { if !measuredReady { span?.finish(Task.isCancelled ? .cancelled : .failure) } }
         loadState = .loading
         if let accountID = await authentication?.cachedUserID() {
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             await diagnosticCollection.activate(accountID: accountID)
+            if let cached = await metadataStore.load(accountID: accountID) {
+                guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+                currentUser = cached.currentUser
+                circles = cached.circles
+                let selected = Self.persistedCircleID ?? cached.selectedCircleID
+                circle = cached.circles.first { $0.id == selected } ?? cached.circles.first
+                prompt = nil; endOfDayPrompt = nil; lanes = []
+                isShowingCachedMetadata = true
+                if let preferences = try? await savedBlessingStore.loadPreferences(userID: accountID) {
+                    guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+                    localSavingPreferences = preferences
+                    hasChosenInitialSaving = preferences.hasChosen
+                        || ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
+                }
+                guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+                loadState = .ready
+            }
         }
         // Cached identity restores collection before a session refresh can fail.
         // It never grants content access; the repository still authorizes every read.
         span = BackendDiagnostics.shared.begin(.bootstrapVisible)
-        if let authentication, await !authentication.hasSession() {
+        let hasSession = await authentication?.hasSession() ?? true
+        guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+        if !hasSession {
+            if let userID = currentUser?.id { await metadataStore.remove(accountID: userID) }
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+            clearCachedPresentation()
             loadState = .signedOut
             savedDrafts = []
             captureDraftToRestore = nil
@@ -355,20 +406,41 @@ final class AppModel {
             return
         }
         if let accountID = await authentication?.currentUserID() {
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             await diagnosticCollection.activate(accountID: accountID)
         }
+        guard bootstrapGeneration == startup, !Task.isCancelled else { return }
         do {
             let bootstrap = try await repository.bootstrap()
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+#if DEBUG
+            // Explicit local-only UI fixture: hold the real metadata-only loading
+            // presentation while automation inspects navigation and access gates.
+            if authentication == nil, ProcessInfo.processInfo.arguments.contains("--manna-loading-ui-test") {
+                currentUser = bootstrap.currentUser; circles = bootstrap.circles; circle = bootstrap.circle
+                prompt = nil; endOfDayPrompt = nil; lanes = []
+                hasSeenAbout = true; hasChosenInitialAppearance = true; hasChosenInitialSaving = true
+                isShowingCachedMetadata = true; loadState = .ready
+                try await Task.sleep(for: .seconds(300))
+                try Task.checkCancellation()
+            }
+#endif
             if currentUser?.id != bootstrap.currentUser.id {
                 nudgingMembers = []
                 nudgedMembers = []
             }
             self.currentUser = bootstrap.currentUser
+            let accountGeneration = dataScopeGeneration
             await diagnosticCollection.activate(accountID: bootstrap.currentUser.id)
-            savedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
+            let loadedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
+            guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
+            savedBlessings = loadedBlessings
             do {
-                localSavingPreferences = try await savedBlessingStore.loadPreferences(userID: bootstrap.currentUser.id)
+                let preferences = try await savedBlessingStore.loadPreferences(userID: bootstrap.currentUser.id)
+                guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
+                localSavingPreferences = preferences
             } catch {
+                guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
                 // A damaged local preference must not block sign-in or circle access.
                 localSavingPreferences = LocalSavingPreferences()
                 automaticSavingError = "Local saving settings couldn’t be read. Please choose your preference again; existing saved copies are unchanged."
@@ -381,6 +453,7 @@ final class AppModel {
             } ?? bootstrap.selectedCircleID
             if let preferredID, preferredID != bootstrap.selectedCircleID {
                 let context = try await repository.circleContext(circleID: preferredID)
+                guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
                 self.circle = context.circle
                 self.prompt = context.prompt
                 self.endOfDayPrompt = context.endOfDayPrompt
@@ -392,12 +465,18 @@ final class AppModel {
             Self.persistedCircleID = self.circle?.id
             if self.circle == nil { selectedTab = 2 }
             try await refreshTimeline(freshCircle: self.circle)
+            guard bootstrapGeneration == startup, !Task.isCancelled,
+                  currentUser?.id == bootstrap.currentUser.id else { return }
+            isShowingCachedMetadata = false
+            await persistMetadata()
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             loadState = .ready
             span?.finish(.success)
             measuredReady = true
             if pendingInviteCode != nil { selectedTab = 2 }
             startRealtimeUpdates()
             await configureRemoteServices()
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             if let prompt = self.prompt,
                let circle = self.circle,
                prompt.phase(at: .now) == .open {
@@ -405,8 +484,35 @@ final class AppModel {
             }
             await handlePendingDeepLinkIfNeeded()
         } catch {
-            loadState = .failed(error.localizedDescription)
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+            if isShowingCachedMetadata {
+                // Cached identity/metadata is display-only; no old content is restored.
+                pageLoadError = "Couldn’t load your circle: \(error.localizedDescription)"
+                loadState = .ready
+            } else {
+                loadState = .failed(error.localizedDescription)
+            }
         }
+    }
+
+    func retryPageLoad() async {
+        guard !isPageLoading, !isSwitchingCircle else { return }
+        if isShowingCachedMetadata || loadState != .ready {
+            loadState = .idle
+            await bootstrap()
+        } else { await refreshCurrentCircle() }
+    }
+
+    private func clearCachedPresentation() {
+        currentUser = nil; circles = []; circle = nil
+        prompt = nil; endOfDayPrompt = nil; lanes = []
+        isShowingCachedMetadata = false
+    }
+
+    private func persistMetadata() async {
+        guard authentication != nil, !isShowingCachedMetadata, let currentUser else { return }
+        await metadataStore.save(accountID: currentUser.id, currentUser: currentUser,
+            circles: circles, selectedCircleID: circle?.id)
     }
 
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async {
@@ -429,9 +535,21 @@ final class AppModel {
 
     func signOut() async {
         guard let authentication else { return }
+        bootstrapGeneration = UUID()
+        pageLoadGeneration = UUID()
+        isPageLoading = false
+        isSwitchingCircle = false
+        let previousUserID = currentUser?.id
         diagnosticCollection.deactivate()
         do {
             try await authentication.signOut()
+            metadataSaveTask?.cancel()
+            await metadataSaveTask?.value
+            if let previousUserID {
+                await metadataStore.remove(accountID: previousUserID)
+                await IdentityPhotoCache.shared.clear(accountID: previousUserID)
+            }
+            isShowingCachedMetadata = false; pageLoadError = nil
             automaticSaveTask?.cancel()
             automaticSaveTask = nil
             automaticSaveRunID = nil
@@ -465,10 +583,16 @@ final class AppModel {
 
     func refreshTimeline(now: Date = .now, freshCircle: CircleGroup? = nil) async throws {
         guard let circle, let currentUser else { return }
+        if freshCircle == nil {
+            guard canUseFreshCircle, !isPageLoading else { return }
+        }
+        let generation = dataScopeGeneration
+        guard timelineRefreshGeneration != generation else { return }
+        timelineRefreshGeneration = generation
+        defer { if timelineRefreshGeneration == generation { timelineRefreshGeneration = nil } }
         let span = BackendDiagnostics.shared.begin(.timelineRefresh)
         var outcome = BackendOutcome.failure
         defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
-        let generation = dataScopeGeneration
         let page: TimelinePage
         if let freshCircle, freshCircle.id == circle.id {
             page = try await repository.timelinePage(circle: freshCircle, viewerID: currentUser.id, now: now, before: nil)
@@ -555,6 +679,7 @@ final class AppModel {
     }
 
     func loadMoreTimeline() async {
+        guard canUseFreshCircle else { return }
         guard !isLoadingMoreTimeline, let cursor = timelineNextBeforeDate, let circle, let currentUser else { return }
         isLoadingMoreTimeline = true
         defer { isLoadingMoreTimeline = false }
@@ -575,17 +700,23 @@ final class AppModel {
     }
 
     func refreshCurrentCircle(now: Date = .now) async {
+        guard !isPageLoading, !isSwitchingCircle, !isShowingCachedMetadata else { return }
+        let operation = UUID()
+        pageLoadGeneration = operation
+        isPageLoading = true
+        pageLoadError = nil
+        defer { if pageLoadGeneration == operation { isPageLoading = false } }
         let generation = dataScopeGeneration
         do {
             try await reloadCurrentCircle(now: now)
         } catch {
             guard dataScopeGeneration == generation, !Task.isCancelled, !Self.isCancellation(error) else { return }
-            message = "Couldn’t refresh your circle: \(error.localizedDescription)"
+            pageLoadError = "Couldn’t refresh your circle: \(error.localizedDescription)"
         }
     }
 
     func switchCircle(to circleID: UUID) async {
-        guard !isSwitchingCircle,
+        guard !isSwitchingCircle, !isPageLoading, !isShowingCachedMetadata,
               circle?.id != circleID,
               circles.contains(where: { $0.id == circleID }),
               let currentUser else { return }
@@ -593,7 +724,21 @@ final class AppModel {
         var outcome = BackendOutcome.failure
         defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
         isSwitchingCircle = true
-        defer { isSwitchingCircle = false }
+        let operation = UUID()
+        pageLoadGeneration = operation
+        isPageLoading = true
+        pageLoadError = nil
+        let previousCircle = circle
+        let previousPrompt = prompt, previousEvening = endOfDayPrompt
+        let previousLanes = lanes
+        defer {
+            if pageLoadGeneration == operation { isSwitchingCircle = false; isPageLoading = false }
+        }
+        // Show the destination's local identity immediately; content is always fresh.
+        circle = circles.first { $0.id == circleID }
+        isShowingCachedMetadata = true
+        prompt = nil; endOfDayPrompt = nil; lanes = []
+        capturePrompt = nil; submittedBlessing = nil
         dataScopeGeneration = UUID()
         let generation = dataScopeGeneration
         realtimeTask?.cancel()
@@ -603,7 +748,8 @@ final class AppModel {
                 circleID: circleID,
                 viewerID: currentUser.id
             )
-            guard !Task.isCancelled, dataScopeGeneration == generation,
+            try Task.checkCancellation()
+            guard dataScopeGeneration == generation,
                   self.currentUser?.id == currentUser.id else {
                 if realtimeTask == nil, self.currentUser != nil { startRealtimeUpdates() }
                 return
@@ -619,11 +765,13 @@ final class AppModel {
 #endif
             submittedBlessing = nil
             installTimelinePage(targetLanes, circleID: circleID, reset: true)
+            isShowingCachedMetadata = false
             outcome = .success
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
                 circles[index] = resolvedCircle
             }
             Self.persistedCircleID = circleID
+            await persistMetadata()
             scheduleWidgetSnapshotRefresh()
             startRealtimeUpdates()
             if let prompt = context.prompt, prompt.phase(at: .now) == .open {
@@ -631,6 +779,16 @@ final class AppModel {
             }
             await reloadDrafts()
         } catch {
+            if dataScopeGeneration == generation, self.currentUser?.id == currentUser.id {
+                circle = previousCircle; prompt = previousPrompt; endOfDayPrompt = previousEvening; lanes = previousLanes
+                isShowingCachedMetadata = false
+                // Restoring the original circle creates a new scope generation.
+                if realtimeTask == nil { startRealtimeUpdates() }
+                if !Self.isCancellation(error), !Task.isCancelled {
+                    pageLoadError = "Couldn’t switch circles: \(error.localizedDescription)"
+                }
+                return
+            }
             if dataScopeGeneration == generation, self.currentUser?.id == currentUser.id,
                realtimeTask == nil { startRealtimeUpdates() }
             guard dataScopeGeneration == generation, self.currentUser?.id == currentUser.id,
@@ -684,6 +842,7 @@ final class AppModel {
         installTimelinePage(refreshedLanes, circleID: selectedCircleID)
         outcome = .success
         upsertCircle(refreshedCircle)
+        await persistMetadata()
         scheduleWidgetSnapshotRefresh(now: now)
 
         if let prompt = context.prompt, prompt.phase(at: now) == .open {
@@ -693,7 +852,7 @@ final class AppModel {
     }
 
     private func activatePrompt(promptID: UUID, now: Date = .now) async -> Bool {
-        guard !isSwitchingCircle, let currentUser else { return false }
+        guard canUseFreshCircle, let currentUser else { return false }
         isSwitchingCircle = true
         defer { isSwitchingCircle = false }
 
@@ -779,7 +938,7 @@ final class AppModel {
         photoURL: URL? = nil,
         scriptureReference: ScriptureReference?
     ) async -> Bool {
-        guard let targetPrompt = capturePrompt ?? prompt, let currentUser else {
+        guard canUseFreshCircle, let targetPrompt = capturePrompt ?? prompt, let currentUser else {
             message = BlessingError.outsideResponseWindow.localizedDescription
             return false
         }
@@ -881,6 +1040,7 @@ final class AppModel {
     }
 
     func joinCircle(code: String) async -> Bool {
+        guard !isShowingCachedMetadata, !isPageLoading, !isSwitchingCircle else { return false }
         guard let currentUser else { return false }
         guard let code = CircleInviteLink.normalize(code: code) else {
             message = "That circle invitation is not valid."
@@ -900,6 +1060,7 @@ final class AppModel {
     }
 
     func createCircle(configuration: CircleConfiguration) async -> Bool {
+        guard !isShowingCachedMetadata, !isPageLoading, !isSwitchingCircle else { return false }
         guard let currentUser else { return false }
         do {
             let createdCircle = try await repository.createCircle(
@@ -922,7 +1083,7 @@ final class AppModel {
     }
 
     func setCircleMemberChanges(_ allowed: Bool) async -> Bool {
-        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
         guard circle.ownerID == currentUser.id,
               circle.members.contains(where: { $0.id == currentUser.id }) else {
             message = BlessingError.notCircleOwner.localizedDescription
@@ -947,7 +1108,7 @@ final class AppModel {
     }
 
     func regenerateCurrentCircleInviteCode() async -> Bool {
-        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
         guard circle.canManageSettings(memberID: currentUser.id) else {
             message = BlessingError.circleChangesNotAllowed.localizedDescription
             return false
@@ -982,7 +1143,7 @@ final class AppModel {
         repeatWindowMinutes: Int,
         endOfDayMinutes: Int
     ) async -> Bool {
-        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
         guard circle.canManageSettings(memberID: currentUser.id) else {
             message = BlessingError.circleChangesNotAllowed.localizedDescription
             return false
@@ -1019,7 +1180,7 @@ final class AppModel {
     }
 
     func updateCirclePhoto(_ photoURL: URL?) async -> Bool {
-        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
         guard circle.canManageSettings(memberID: currentUser.id) else {
             message = BlessingError.circleChangesNotAllowed.localizedDescription
             return false
@@ -1047,6 +1208,7 @@ final class AppModel {
     }
 
     func setCircleActivityNotifications(_ enabled: Bool, for circleID: UUID) async {
+        guard canUseFreshCircle else { return }
         guard let currentUser,
               let index = circles.firstIndex(where: { $0.id == circleID }) else { return }
         let previous = circles[index].circleActivityNotificationsEnabled
@@ -1067,6 +1229,7 @@ final class AppModel {
     }
 
     func setEndOfDayNotifications(_ enabled: Bool, for circleID: UUID) async {
+        guard canUseFreshCircle else { return }
         guard let currentUser,
               let index = circles.firstIndex(where: { $0.id == circleID }) else { return }
         let previous = circles[index].endOfDayNotificationsEnabled
@@ -1087,7 +1250,7 @@ final class AppModel {
     }
 
     func forceCurrentCirclePrompt(now: Date = .now) async -> Bool {
-        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
         guard circle.canManageSettings(memberID: currentUser.id) else {
             message = BlessingError.circleChangesNotAllowed.localizedDescription
             return false
@@ -1165,6 +1328,7 @@ final class AppModel {
     }
 
     func updateProfile(displayName: String, avatarURL: URL?) async -> Bool {
+        guard canUseFreshCircle else { return false }
         guard let currentUser else { return false }
         do {
             let updated = try await repository.updateProfile(
@@ -1187,6 +1351,7 @@ final class AppModel {
             }
             scheduleWidgetSnapshotRefresh()
             message = "Profile saved."
+            await persistMetadata()
             return true
         } catch {
             message = error.localizedDescription
@@ -1201,7 +1366,7 @@ final class AppModel {
     }
 
     func transferCurrentCircleOwnership(to newOwnerID: UUID) async -> Bool {
-        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
         guard circle.ownerID == currentUser.id && circle.members.contains(where: { $0.id == currentUser.id }) else {
             message = BlessingError.notCircleOwner.localizedDescription
             return false
@@ -1232,7 +1397,7 @@ final class AppModel {
     }
 
     func removeMemberFromCurrentCircle(_ memberID: UUID) async -> Bool {
-        guard !isSwitchingCircle, let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
         guard circle.canManageSettings(memberID: currentUser.id) else {
             message = BlessingError.circleChangesNotAllowed.localizedDescription
             return false
@@ -1266,6 +1431,7 @@ final class AppModel {
     }
 
     func repeatBlessingCandidates(now: Date = .now) async -> [Blessing] {
+        guard canUseFreshCircle else { return [] }
         guard let circle, let currentUser else { return [] }
         let earliest = now.addingTimeInterval(-TimeInterval(circle.repeatWindowMinutes * 60))
         do {
@@ -1325,6 +1491,7 @@ final class AppModel {
     }
 
     func repeatBlessing(_ source: Blessing, now: Date = .now) async -> Bool {
+        guard canUseFreshCircle else { return false }
         guard let targetPrompt = capturePrompt ?? prompt, let currentUser else { return false }
         isSubmitting = true
         defer { isSubmitting = false }
@@ -1365,9 +1532,11 @@ final class AppModel {
     }
 
     func leaveCurrentCircle() async -> Bool {
-        guard let circle, let currentUser else { return false }
+        guard canUseFreshCircle, let circle, let currentUser else { return false }
+        let generation = dataScopeGeneration
         do {
             try await repository.leaveCircle(circleID: circle.id, memberID: currentUser.id)
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
             let leftName = circle.name
             circles.removeAll { $0.id == circle.id }
             realtimeTask?.cancel()
@@ -1378,6 +1547,10 @@ final class AppModel {
             capturePrompt = nil
             lanes = []
             submittedBlessing = nil
+            let completionGeneration = dataScopeGeneration
+            await persistMetadata()
+            await IdentityPhotoCache.shared.clear(accountID: currentUser.id)
+            guard self.currentUser?.id == currentUser.id, dataScopeGeneration == completionGeneration, !Task.isCancelled else { return true }
             if let nextCircle = circles.first {
                 Self.persistedCircleID = nextCircle.id
                 await switchCircle(to: nextCircle.id)
@@ -1386,9 +1559,11 @@ final class AppModel {
                 selectedTab = 2
                 scheduleWidgetSnapshotRefresh()
             }
+            guard self.currentUser?.id == currentUser.id, !Task.isCancelled else { return true }
             message = "You left \(leftName)."
             return true
         } catch {
+            guard isCurrentCircleMutation(circleID: circle.id, userID: currentUser.id, generation: generation) else { return false }
             message = error.localizedDescription
             return false
         }
@@ -1410,6 +1585,7 @@ final class AppModel {
     }
 
     func responses(for blessing: Blessing) async -> [BlessingResponse] {
+        guard canUseFreshCircle else { return [] }
         guard let currentUser else { return [] }
         do {
             let responses = try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
@@ -1565,6 +1741,7 @@ final class AppModel {
     }
 
     private func scheduleAutomaticSaving() {
+        guard runsBackgroundRefreshes else { return }
         guard automaticallySavesLocally, !isChangingAutomaticSaving, !isChoosingAutomaticSaving else { return }
         if automaticSaveTask != nil {
             automaticSaveNeedsAnotherPass = true
@@ -1583,6 +1760,9 @@ final class AppModel {
             repeat {
                 self.automaticSaveNeedsAnotherPass = false
                 do { try await Task.sleep(for: .milliseconds(600)) } catch { return }
+                while self.isPageLoading || self.isSwitchingCircle || self.isShowingCachedMetadata {
+                    do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                }
                 await self.saveVisibleBlessingsAutomatically()
             } while self.automaticSaveNeedsAnotherPass && !Task.isCancelled && self.automaticallySavesLocally
         }
@@ -1654,6 +1834,7 @@ final class AppModel {
     }
 
     func canRespond(to blessing: Blessing, at date: Date = .now) -> Bool {
+        guard canUseFreshCircle else { return false }
         if let prompt,
            isCurrentPromptToday(at: date),
            blessing.promptID == prompt.id {
@@ -1673,6 +1854,7 @@ final class AppModel {
         body: String,
         audioURL: URL?
     ) async -> BlessingResponse? {
+        guard canUseFreshCircle else { return nil }
         guard let currentUser else { return nil }
         do {
             return try await repository.submitResponse(
@@ -1869,7 +2051,7 @@ final class AppModel {
                 let updates = try await repository.timelineUpdates(circleID: circle.id)
                 for await _ in updates {
                     guard !Task.isCancelled else { break }
-                    try await self?.reloadCurrentCircle(now: .now)
+                    await self?.refreshCurrentCircle(now: .now)
                 }
             } catch {
                 guard !Task.isCancelled, !Self.isCancellation(error) else { return }
@@ -1883,6 +2065,11 @@ final class AppModel {
             circles[index] = circle.preservingInviteCode(circles[index].inviteCode)
         } else {
             circles.append(circle)
+        }
+        metadataSaveTask?.cancel()
+        metadataSaveTask = Task { [weak self] in
+            guard !Task.isCancelled else { return }
+            await self?.persistMetadata()
         }
     }
 
@@ -1905,12 +2092,19 @@ final class AppModel {
     }
 
     private func scheduleWidgetSnapshotRefresh(now: Date = .now) {
+        guard runsBackgroundRefreshes else { return }
         // Frequent realtime/scroll refreshes must not starve a multi-circle fetch.
         widgetSnapshotPendingDate = now
         guard widgetSnapshotTask == nil else { return }
         widgetSnapshotTask = Task { [weak self] in
             guard let self else { return }
             while let requestedDate = self.widgetSnapshotPendingDate {
+                // Visible circle reads take priority over optional cross-circle
+                // widget work, especially during startup and switching.
+                while self.isPageLoading || self.isSwitchingCircle || self.isShowingCachedMetadata {
+                    do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                }
+                guard !Task.isCancelled else { return }
                 self.widgetSnapshotPendingDate = nil
                 await self.writeWidgetSnapshot(now: requestedDate)
             }
@@ -2062,7 +2256,7 @@ final class AppModel {
     }
 
     private func configureRemoteServices() async {
-        guard usesAuthentication, !remoteServicesConfigured else { return }
+        guard usesAuthentication, registersForRemoteNotifications, !remoteServicesConfigured else { return }
         remoteServicesConfigured = true
         activityController.startMonitoringTokens(
             onPushToStartToken: { [weak self] token in

@@ -1,10 +1,58 @@
 import Foundation
 import OSLog
+import Supabase
+
+enum BackendErrorSource: String, Codable, Sendable { case postgrest, storage, auth, url, speech, audio, other }
+enum BackendErrorCategory: String, Codable, Sendable { case connectionLimit, other }
+
+/// Only closed sources/categories and structured codes cross the collection boundary.
+/// Messages are inspected locally for classification, never retained in the payload.
+struct BackendDiagnosticFailure: Sendable {
+    let source: BackendErrorSource
+    let code: String?
+    let category: BackendErrorCategory
+
+    static func capture(error: any Error) -> Self {
+        var source = BackendErrorSource.other
+        var code: String?
+        if let error = error as? PostgrestError {
+            source = .postgrest
+            if let raw = error.code,
+               raw.range(of: "^(?:[A-Z0-9]{5}|PGRST[0-9]{3})$", options: .regularExpression) != nil { code = raw }
+        } else if let error = error as? StorageError {
+            source = .storage
+            if let raw = error.statusCode, let status = Int(raw), (100...599).contains(status) { code = String(status) }
+        } else if let error = error as? AuthError {
+            source = .auth
+            // Auth codes are an open string vocabulary; retain only known short
+            // constants, otherwise the typed HTTP status is useful and bounded.
+            let known = ["unknown", "bad_json", "bad_jwt", "not_admin", "user_not_found",
+                         "session_expired", "request_timeout", "conflict", "hook_timeout"]
+            if known.contains(error.errorCode.rawValue) { code = error.errorCode.rawValue }
+            else if case let .api(_, _, _, response) = error { code = String(response.statusCode) }
+        } else {
+            let ns = error as NSError
+            switch ns.domain {
+            case NSURLErrorDomain: source = .url
+            case "kAFAssistantErrorDomain", "kLSRErrorDomain", "SFSpeechErrorDomain": source = .speech
+            case "AVFAudioErrorDomain", "AVFoundationErrorDomain", NSOSStatusErrorDomain: source = .audio
+            default: break
+            }
+            if source != .other, String(ns.code).count <= 16 { code = String(ns.code) }
+        }
+        let message = error.localizedDescription.lowercased()
+        let connectionLimit = code == "53300" || code == "PGRST003"
+            || message.contains("too many connections") || message.contains("remaining connection slots")
+            || message.contains("max client connections") || message.contains("maxclientsinsessionmode")
+        return Self(source: source, code: code, category: connectionLimit ? .connectionLimit : .other)
+    }
+}
 
 /// Closed vocabulary: never emit URLs, filters, headers, bodies, IDs, or error descriptions.
 enum BackendRequestKind: String, Codable, Sendable {
     case auth, circles, members, profiles, prompts, blessings, responses
     case rpc, storageSign, storageUpload, storageOther, function, other
+    case speech, audio, diagnosticsUpload
 
 
 }
@@ -31,6 +79,9 @@ final class BackendDiagnostics: @unchecked Sendable {
         let transportErrorCode: Int?
         let payloadBytes: Int64?
         let receivedBytes: Int64?
+        var errorSource: BackendErrorSource? = nil
+        var errorCode: String? = nil
+        var errorCategory: BackendErrorCategory? = nil
     }
 
     static let shared = BackendDiagnostics(
@@ -70,6 +121,19 @@ final class BackendDiagnostics: @unchecked Sendable {
         RequestSpan(diagnostics: self, kind: kind, payloadBytes: payloadBytes, collection: lock.withLock { collectionSink })
     }
 
+    func recordFailure(_ kind: BackendRequestKind, error: any Error) {
+        let ns = error as NSError
+        guard !(error is CancellationError), !(ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCancelled) else { return }
+        recordFailure(kind, failure: .capture(error: error))
+    }
+
+    func recordFailure(_ kind: BackendRequestKind, failure: BackendDiagnosticFailure) {
+        record(Event(kind: .request, startedAt: .now, durationMilliseconds: 0, stage: nil,
+            requestKind: kind, outcome: .failure, httpStatus: nil, transportErrorCode: nil,
+            payloadBytes: nil, receivedBytes: nil, errorSource: failure.source,
+            errorCode: failure.code, errorCategory: failure.category))
+    }
+
     struct RequestSpan: Sendable {
         let diagnostics: BackendDiagnostics
         let kind: BackendRequestKind
@@ -82,12 +146,14 @@ final class BackendDiagnostics: @unchecked Sendable {
             let elapsed = start.duration(to: .now).components
             let code = (error as NSError?).flatMap { $0.domain == NSURLErrorDomain ? $0.code : nil }
             let cancelled = error is CancellationError || code == NSURLErrorCancelled
+            let failure = cancelled ? nil : error.map { BackendDiagnosticFailure.capture(error: $0) }
             diagnostics.record(Event(kind: .request, startedAt: startedAt,
                 durationMilliseconds: Double(elapsed.seconds) * 1_000 + Double(elapsed.attoseconds) / 1e15,
                 stage: nil, requestKind: kind,
                 outcome: cancelled ? .cancelled : (error != nil || (httpStatus ?? 200) >= 400 ? .failure : .success),
                 httpStatus: httpStatus, transportErrorCode: code, payloadBytes: payloadBytes,
-                receivedBytes: receivedBytes), collection: collection)
+                receivedBytes: receivedBytes, errorSource: failure?.source,
+                errorCode: failure?.code, errorCategory: failure?.category), collection: collection)
         }
     }
 

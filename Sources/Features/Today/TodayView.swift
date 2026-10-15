@@ -12,8 +12,12 @@ struct TodayView: View {
                         header
                         // Keep the scroll container outside the clock's invalidation
                         // boundary, while still updating prompt/deadline transitions.
-                        SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
-                            todayContent(at: context.date)
+                        if model.isShowingCachedMetadata || (model.isPageLoading && model.prompt == nil && model.lanes.isEmpty) {
+                            CircleBlessingsPlaceholder()
+                        } else {
+                            SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { context in
+                                todayContent(at: context.date)
+                            }
                         }
                     }
                     .frame(width: max(0, min(680, viewport.size.width - 2 * AppTheme.pagePadding)))
@@ -37,7 +41,7 @@ struct TodayView: View {
             if let endOfDayPrompt = model.endOfDayPrompt,
                model.canEnterEndOfDayPrompt(at: date) {
                 EndOfDayPromptCard(
-                    isPreparingCapture: model.isPreparingCapture || model.isSwitchingCircle,
+                    isPreparingCapture: model.isPreparingCapture || !model.canUseFreshCircle,
                     hasDraft: model.resumableDraft(for: endOfDayPrompt, at: date) != nil,
                     shareAction: { Task { await model.openCapture(for: endOfDayPrompt) } }
                 )
@@ -62,7 +66,7 @@ struct TodayView: View {
                         allowsLateBlessings: model.circle?.allowsLateBlessings == true,
                         isFirstCircleDay: model.isFirstCircleDay(at: date),
                         allowsSharing: allowsSharing,
-                        isPreparingCapture: model.isPreparingCapture || model.isSwitchingCircle,
+                        isPreparingCapture: model.isPreparingCapture || !model.canUseFreshCircle,
                         hasDraft: model.resumableDraft(for: prompt, at: date) != nil,
                         shareAction: { Task { await model.openCapture() } }
                     )

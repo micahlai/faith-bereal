@@ -42,6 +42,9 @@ final class BackendDiagnosticsTests: XCTestCase {
         XCTAssertEqual(event.outcome, .success)
         XCTAssertEqual(event.httpStatus, 200)
         XCTAssertNil(event.transportErrorCode)
+        XCTAssertNil(event.errorSource)
+        XCTAssertNil(event.errorCode)
+        XCTAssertNil(event.errorCategory)
         try assertPrivateValuesAbsent(event)
     }
 
@@ -51,13 +54,19 @@ final class BackendDiagnosticsTests: XCTestCase {
         XCTAssertEqual(event.outcome, .failure)
         XCTAssertNil(event.httpStatus, "The SDK error does not expose the HTTP response status")
         XCTAssertNil(event.transportErrorCode)
+        XCTAssertEqual(event.errorSource, .postgrest)
+        XCTAssertEqual(event.errorCode, "42501")
+        XCTAssertEqual(event.errorCategory, .other)
         try assertPrivateValuesAbsent(event)
     }
 
-    func testTransportFailureRecordsOnlyNumericURLCode() async throws {
+    func testTransportFailureRecordsNumericURLCodeAndSanitizedClassification() async throws {
         let event = try await requestEvent(scenario: "transport")
         XCTAssertEqual(event.outcome, .failure)
         XCTAssertNotNil(event.transportErrorCode)
+        XCTAssertEqual(event.errorSource, .url)
+        XCTAssertEqual(event.errorCode, event.transportErrorCode.map { String($0) })
+        XCTAssertEqual(event.errorCategory, .other)
         XCTAssertNil(event.httpStatus)
         try assertPrivateValuesAbsent(event)
     }
@@ -68,6 +77,9 @@ final class BackendDiagnosticsTests: XCTestCase {
         // Structured cancellation may become CancellationError inside the SDK,
         // which has no URL transport code to report.
         XCTAssertTrue(event.transportErrorCode == nil || event.transportErrorCode == NSURLErrorCancelled)
+        XCTAssertNil(event.errorSource)
+        XCTAssertNil(event.errorCode)
+        XCTAssertNil(event.errorCategory)
         try assertPrivateValuesAbsent(event)
     }
 
@@ -81,6 +93,9 @@ final class BackendDiagnosticsTests: XCTestCase {
         let event = try XCTUnwrap(captured.events.first)
         XCTAssertEqual(event.outcome, .cancelled)
         XCTAssertEqual(event.transportErrorCode, NSURLErrorCancelled)
+        XCTAssertNil(event.errorSource)
+        XCTAssertNil(event.errorCode)
+        XCTAssertNil(event.errorCategory)
         try assertPrivateValuesAbsent(event)
     }
 
@@ -215,8 +230,18 @@ final class BackendDiagnosticsTests: XCTestCase {
         file: StaticString = #filePath, line: UInt = #line) throws {
         let json = try jsonObject(event)
         let allowedKeys: Set<String> = ["kind", "startedAt", "durationMilliseconds", "requestKind",
-            "outcome", "httpStatus", "transportErrorCode", "payloadBytes", "receivedBytes"]
+            "outcome", "httpStatus", "transportErrorCode", "payloadBytes", "receivedBytes",
+            "errorSource", "errorCode", "errorCategory"]
         XCTAssertTrue(Set(json.keys).isSubset(of: allowedKeys), file: file, line: line)
+        if let code = event.errorCode {
+            XCTAssertNotNil(code.range(of: "^[A-Za-z0-9_-]{1,16}$", options: .regularExpression),
+                "Only a bounded structured error code may enter the payload", file: file, line: line)
+        }
+        if event.errorSource != nil || event.errorCode != nil || event.errorCategory != nil {
+            XCTAssertEqual(event.outcome, .failure, file: file, line: line)
+            XCTAssertNotNil(event.errorSource, file: file, line: line)
+            XCTAssertNotNil(event.errorCategory, file: file, line: line)
+        }
         let encoded = String(decoding: try JSONEncoder().encode(event), as: UTF8.self)
         for forbidden in ["private-", "Authorization", "https://", "http://", "127.0.0.1", "user_id", "scenario", "NSLocalizedDescription"] {
             XCTAssertFalse(encoded.contains(forbidden), forbidden, file: file, line: line)

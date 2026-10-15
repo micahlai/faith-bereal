@@ -728,7 +728,16 @@ actor SupabaseBlessingRepository: BlessingRepository {
             table: "circle_members",
             filter: .eq("circle_id", value: circleID)
         )
-        try await channel.subscribeWithError()
+        do {
+            try await channel.subscribeWithError()
+            try Task.checkCancellation()
+        } catch {
+            // A failed/cancelled switch must not leave an unowned subscription
+            // accumulating in the client's channel registry.
+            await client.removeChannel(channel)
+            BackendDiagnostics.shared.recordFailure(.other, error: error)
+            throw error
+        }
 
         return AsyncStream { continuation in
             let tasks = [

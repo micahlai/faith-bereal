@@ -32,7 +32,10 @@ struct CircleTimelineView: View {
     var body: some View {
         ZStack {
             AppTheme.canvas.ignoresSafeArea()
-            if model.lanes.isEmpty {
+            if model.isShowingCachedMetadata || (model.isPageLoading && model.lanes.isEmpty) {
+                CircleBlessingsPlaceholder()
+                    .padding(AppTheme.pagePadding)
+            } else if model.lanes.isEmpty {
                 ContentUnavailableView(
                     "No days yet",
                     systemImage: "clock",
@@ -1280,11 +1283,7 @@ struct AvatarBadge: View {
     var body: some View {
         Group {
             if let avatarURL = member.avatarURL {
-                AsyncImage(url: avatarURL) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    initials
-                }
+                IdentityPhotoImage(key: .member(member.id), url: avatarURL) { initials }
             } else {
                 initials
             }
@@ -1315,17 +1314,7 @@ struct CircleAvatarBadge: View {
     var body: some View {
         Group {
             if let photoURL = circle.photoURL {
-                if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    AsyncImage(url: photoURL) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        fallback
-                    }
-                }
+                IdentityPhotoImage(key: .circle(circle.id), url: photoURL) { fallback }
             } else {
                 fallback
             }
@@ -1342,5 +1331,57 @@ struct CircleAvatarBadge: View {
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(AppTheme.actionFill.gradient)
+    }
+}
+
+
+/// A disk hit is shown before refreshing a signed URL. Cached metadata can never
+/// start a network request; only the live model supplies verified photo URLs.
+private struct IdentityPhotoImage<Placeholder: View>: View {
+    @Environment(AppModel.self) private var model
+    let key: IdentityPhotoCache.Key
+    let url: URL
+    @ViewBuilder let placeholder: () -> Placeholder
+    @State private var loadedData: Data?
+    @State private var loadedAccountID: UUID?
+    @State private var loadedKey: IdentityPhotoCache.Key?
+
+    private struct Load: Hashable {
+        let accountID: UUID?
+        let key: IdentityPhotoCache.Key
+        let url: URL
+        let allowNetwork: Bool
+    }
+    private var load: Load {
+        Load(accountID: model.currentUser?.id, key: key, url: url,
+             allowNetwork: !model.isShowingCachedMetadata)
+    }
+
+    var body: some View {
+        Group {
+            if url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else if let accountID = model.currentUser?.id, loadedAccountID == accountID,
+                      loadedKey == key, let loadedData, let image = UIImage(data: loadedData) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                placeholder()
+            }
+        }
+        .task(id: load) {
+            let request = load
+            guard !url.isFileURL, let accountID = request.accountID else { return }
+            if loadedAccountID != accountID || loadedKey != key { loadedData = nil }
+            loadedAccountID = accountID
+            loadedKey = key
+            if let cached = await IdentityPhotoCache.shared.cachedData(accountID: accountID, key: request.key),
+               !Task.isCancelled, load == request {
+                loadedData = cached
+            }
+            let fetched = await IdentityPhotoCache.shared.imageData(accountID: accountID, key: request.key,
+                sourceURL: request.url, allowNetwork: request.allowNetwork)
+            guard !Task.isCancelled, load == request else { return }
+            loadedData = fetched
+        }
     }
 }

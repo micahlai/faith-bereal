@@ -1,5 +1,15 @@
 # Backend optimization — measurement and request reduction started
 
+## October 15 follow-up checkpoint
+
+- The next client adds account-scoped seven-day circle/member/streak metadata and bounded profile/circle photo bytes for immediate display, with a persistent page-loading/error indicator and Retry. Cached membership/permissions never authorize content, entry, or edits; prompts/blessings remain live authorized reads. Startup, switch, leave, and loading completions reject stale account scopes. Sign-out clears identity caches.
+- Foreground circle/Timeline refreshes coalesce, failed/cancelled live subscriptions are removed, and optional widget/automatic-saving work waits for visible loading. This reduces overlapping work but does not establish the cause of the reported connection limit. Further request budgeting/signing batching remain later measured work.
+- Rich diagnostic source/code/connection-limit classification, Speech/audio capture, prioritized bounded failure queues, retained upload-outage records, and foreground/backlog draining are implemented locally. Exact frozen report retries and existing quotas/retention remain. Diagnostic migration `202610150001_backend_diagnostic_errors.sql` is deployed and passes hosted rollback checks. Operator summaries distinguish event time from receipt time. Existing clients cannot retroactively provide the new fields.
+- Debug/Release domain coverage passes (268/264 tests), plus 42 final focused domain checks and nine distinct focused UI cases across final batches/reruns. Normal/largest-text loading and diagnostic screenshots were reviewed. Device reproduction remains pending; full result paths and earlier superseded UI failures are tracked in STATUS.md. This client follow-up remains uncommitted/unpushed and requires a new build for field use.
+
+The earlier checkpoints below describe their implementation stage at the time.
+
+
 Updated October 14, 2026. The owner authorized starting this plan and delegated regression/simulator verification. The reported “too many connections issued to the database” error affects startup/sign-in, circle switching/Timeline, and media sending; an exact failing timestamp/service code remains unavailable. Measurement and request reduction are underway. Modest media compression still requires reviewed comparison tests.
 
 ## TestFlight field collection — v0.2.2 (31)

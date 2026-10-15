@@ -10,7 +10,8 @@ enum AppComposition {
 #if DEBUG
         // An explicit local-backend fence for accessibility UI automation.
         // This launch argument is intentionally unavailable in Release builds.
-        if ProcessInfo.processInfo.arguments.contains("--manna-local-ui-test") {
+        if ProcessInfo.processInfo.arguments.contains("--manna-local-ui-test")
+            || ProcessInfo.processInfo.arguments.contains("--manna-loading-ui-test") {
             let photoURL = ProcessInfo.processInfo.arguments.contains("--manna-photo-ui-test")
                 ? PhotoViewerUITestFixture.makePhoto() : nil
             let settingsRole = ProcessInfo.processInfo.environment["MANNA_CIRCLE_SETTINGS_TEST_ROLE"]

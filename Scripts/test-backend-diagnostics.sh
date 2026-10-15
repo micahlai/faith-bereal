@@ -14,7 +14,10 @@ pg_ctl -D "$diagnostics_tmp/db" -o "-F -k $diagnostics_tmp -h ''" -l "$diagnosti
 run_sql() { psql -h "$diagnostics_tmp" -U diagnostics_test -d postgres -v ON_ERROR_STOP=1 "$@"; }
 run_sql -f "$repo_root/supabase/tests/backend_diagnostics_schema.sql" \
   -f "$repo_root/supabase/migrations/202610130002_backend_diagnostics.sql" \
-  -f "$repo_root/supabase/tests/backend_diagnostics.sql"
+  -f "$repo_root/supabase/migrations/202610150001_backend_diagnostic_errors.sql" \
+  -f "$repo_root/supabase/tests/backend_diagnostics.sql" \
+  -f "$repo_root/supabase/tests/backend_diagnostic_errors.sql" \
+  -f "$repo_root/supabase/tests/backend_diagnostic_errors_hosted.sql"
 
 # A simultaneous two-connection upload must preserve the account rate limit.
 # This is a bounded local race against the real RPC, not a hosted load test.

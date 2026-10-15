@@ -26,11 +26,15 @@ struct RootView: View {
             case .signedOut:
                 SignInView()
             case let .failed(message):
-                ContentUnavailableView(
-                    "Couldn’t open your circle",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(message)
-                )
+                ContentUnavailableView {
+                    Label("Couldn’t open your circle", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(message)
+                } actions: {
+                    Button("Retry") { Task { await model.retryPageLoad() } }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityIdentifier("circle.startupRetry")
+                }
             }
         }
         .task { await model.bootstrap() }
@@ -558,21 +562,90 @@ private struct AppIconPreview: View {
 
 private struct LoadingView: View {
     var body: some View {
-        ZStack {
-            AppTheme.canvas.ignoresSafeArea()
-            VStack(spacing: 18) {
-                Image("MannaWordmark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 280)
-                    .accessibilityLabel("manna")
-                Text("Gathering your circle")
-                    .font(.title3.weight(.semibold))
+        NavigationStack {
+            ZStack {
+                AppTheme.canvas.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("Your circles")
+                        .font(.system(.largeTitle, design: .serif, weight: .semibold))
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text("Loading your circles…")
+                            .font(.body)
+                            .foregroundStyle(AppTheme.secondaryInk)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+                    .blessingCard()
+                    Spacer()
+                }
+                .padding(AppTheme.pagePadding)
+                .frame(maxWidth: 680, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .navigationTitle("Today")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+/// Page status stays beside the content so navigation remains available during a refresh.
+struct CirclePageStatusBanner: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.isPageLoading || model.pageLoadError != nil || model.isShowingCachedMetadata {
+            HStack(alignment: .center, spacing: 12) {
+                if model.isPageLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "exclamationmark.circle")
+                        .foregroundStyle(AppTheme.secondaryInk)
+                        .accessibilityHidden(true)
+                }
+                Text(model.pageLoadError ?? (model.isShowingCachedMetadata ? "Loading circle…" : "Updating circle…"))
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                if model.pageLoadError != nil, !model.isPageLoading {
+                    Button("Retry") { Task { await model.retryPageLoad() } }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityIdentifier("circle.pageRetry")
+                }
+            }
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.vertical, 6)
+            .background(AppTheme.surface)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("circle.pageStatus")
+        }
+    }
+}
+
+struct CircleBlessingsPlaceholder: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if model.isPageLoading {
                 ProgressView()
-                    .controlSize(.small)
-                    .accessibilityLabel("Loading")
+                Text("Loading blessings…")
+                    .font(.headline)
+            } else {
+                Image(systemName: "arrow.clockwise")
+                    .font(.title2)
+                    .accessibilityHidden(true)
+                Text("Blessings couldn’t load")
+                    .font(.headline)
+                Text("Use Retry above to try again.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryInk)
             }
         }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, minHeight: 180)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("circle.blessingsLoading")
     }
 }
 
@@ -587,6 +660,7 @@ struct MainTabView: View {
         TabView(selection: $model.selectedTab) {
             NavigationStack {
                 TodayView()
+                    .safeAreaInset(edge: .top, spacing: 0) { CirclePageStatusBanner() }
                     .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout, showingHelp: $showingHelp) }
             }
             .tabItem { Label("Today", systemImage: "sun.max") }
@@ -594,6 +668,7 @@ struct MainTabView: View {
 
             NavigationStack {
                 CircleTimelineView()
+                    .safeAreaInset(edge: .top, spacing: 0) { CirclePageStatusBanner() }
                     .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout, showingHelp: $showingHelp) }
             }
             .tabItem { Label("Timeline", systemImage: "point.3.connected.trianglepath.dotted") }
@@ -601,6 +676,7 @@ struct MainTabView: View {
 
             NavigationStack {
                 CircleView()
+                    .safeAreaInset(edge: .top, spacing: 0) { CirclePageStatusBanner() }
                     .toolbar { GlobalAppToolbar(showingUserSettings: $showingUserSettings, showingAbout: $showingAbout, showingHelp: $showingHelp) }
             }
             .tabItem { Label("Circle", systemImage: "person.3") }
@@ -686,6 +762,7 @@ private struct GlobalAppToolbar: ToolbarContent {
                 } label: {
                     Label("Join or create a circle", systemImage: "plus.circle")
                 }
+                .disabled(model.isPageLoading || model.isShowingCachedMetadata)
             } label: {
                 HStack(spacing: 5) {
                     if model.isSwitchingCircle {
@@ -735,6 +812,7 @@ private struct UserSettingsView: View {
                             .frame(minHeight: 44)
                         }
                         .buttonStyle(.plain)
+                        .disabled(!model.canUseFreshCircle)
                     }
                 }
 
@@ -782,6 +860,7 @@ private struct UserSettingsView: View {
                     } footer: {
                         Text("Control blessing, response, and nudge alerts separately from the scheduled end-of-day reminder for each circle.")
                     }
+                    .disabled(!model.canUseFreshCircle)
                 }
 
                 Section {
@@ -962,7 +1041,8 @@ private struct ProfileEditorView: View {
                             isSaving = false
                         }
                     }
-                    .disabled(displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving || isPreparingPhoto)
+                    .disabled(displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || isSaving || isPreparingPhoto || !model.canUseFreshCircle)
                 }
             }
             .task(id: selectedPhoto) {

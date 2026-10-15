@@ -199,3 +199,9 @@ The same disposable suite loads `202610130001_circle_streaks.sql` and its regres
 - speech transcription latency and audio-session interruption.
 - voice capture produces a playable audio file after permission grant, interruption, stop, and relaunch;
 - camera capture presents, records, returns a playable file, and recovers from denial or interruption.
+
+## Diagnostic error and cached-loading regression coverage
+
+Run `Scripts/test-backend-diagnostics.sh` for old/new ingestion compatibility, strict sanitized error fields, Speech/audio/upload categories, exact retries, account boundaries, retention/quotas, delayed event-vs-receipt timestamps, and the two-connection ingestion race. This uses disposable PostgreSQL only.
+
+`DiagnosticFailureTests`, `SpeechDiagnosticTests`, `CircleMetadataStoreTests`, `IdentityPhotoCacheTests`, and `CachedCircleLoadingTests` cover typed backend connection-limit classification without raw data, callback propagation, priority/bounded queues and exact retries, upload outage deduplication, local expiration/account isolation, image limits/cancelled sign-out, gated startup/switching, stale account completion rejection, and concurrent refresh coalescing. Authentication-backed loading fixtures disable system notification registration and optional background work to isolate foreground loading deterministically. `CachedLoadingUITests` exercises navigation/loading/privacy at normal and largest dark text sizes using an explicit local-only Debug fixture.
