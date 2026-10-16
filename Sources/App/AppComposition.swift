@@ -17,7 +17,8 @@ enum AppComposition {
             let settingsRole = ProcessInfo.processInfo.environment["MANNA_CIRCLE_SETTINGS_TEST_ROLE"]
             return AppModel(repository: LocalBlessingRepository(seedPhotoURL: photoURL,
                 settingsTestRole: settingsRole,
-                streakTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-streak-ui-test")), diagnosticCollection: localCollection)
+                streakTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-streak-ui-test"),
+                timelineTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-timeline-ui-test")), diagnosticCollection: localCollection)
         }
 #endif
         if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {

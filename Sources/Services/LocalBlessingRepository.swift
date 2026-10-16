@@ -16,7 +16,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var entryTimes: [BlessingEntryGrantKey: Date] = [:]
     private var nudgedMembers: Set<NudgeKey> = []
 
-    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil, streakTestFixture: Bool = false) {
+    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil, streakTestFixture: Bool = false, timelineTestFixture: Bool = false) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -259,6 +259,17 @@ actor LocalBlessingRepository: BlessingRepository {
         prompts = seededPrompts
         blessings = seededBlessings
         blessingResponses = []
+#if DEBUG
+        if timelineTestFixture, let target = seededBlessings.filter({
+            $0.authorID == ava.id && $0.body == "Sunlight through the kitchen window."
+        }).max(by: { $0.submittedAt < $1.submittedAt }) {
+            blessingResponses = [user.id, user.id, ben.id].enumerated().map { index, authorID in
+                BlessingResponse(id: UUID(), blessingID: target.id, circleID: primaryCircle.id,
+                    authorID: authorID, mode: .typed, body: "Timeline response fixture \(index + 1)",
+                    audioURL: nil, submittedAt: target.submittedAt.addingTimeInterval(Double(index + 1) * 60))
+            }
+        }
+#endif
     }
 
     func bootstrap() async throws -> AppBootstrap {
@@ -947,6 +958,23 @@ actor LocalBlessingRepository: BlessingRepository {
             now: now, nextDailyStart: next
         ) else { throw BlessingError.nudgeUnavailable }
         return nudgedMembers.insert(NudgeKey(promptID: promptID, recipientID: recipientID)).inserted
+    }
+
+    func timelineResponderSummaries(blessingIDs: [UUID], viewerID: UUID) async throws -> [TimelineResponderSummary] {
+        let requested = Set(blessingIDs)
+        let circleIDs = Set(blessings.filter { requested.contains($0.id) }.map(\.circleID))
+        var permitted = Set<UUID>()
+        for circle in circles where circleIDs.contains(circle.id) && circle.members.contains(where: { $0.id == viewerID }) {
+            let lanes = try await timeline(circleID: circle.id, viewerID: viewerID, now: .now)
+            for event in lanes.flatMap(\.events) {
+                if case let .blessing(visible) = event.status, requested.contains(visible.id) {
+                    permitted.insert(visible.id)
+                }
+            }
+        }
+        return blessingResponses.filter { permitted.contains($0.blessingID) }.map {
+            TimelineResponderSummary(blessingID: $0.blessingID, authorID: $0.authorID, mode: $0.mode, submittedAt: $0.submittedAt)
+        }
     }
 
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {

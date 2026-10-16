@@ -1,5 +1,11 @@
 # Backend optimization — measurement and request reduction started
 
+## October 16 Timeline client follow-up
+
+List now indexes chronological events by person once per data update; the default layout avoids building Threads rows until requested. Threads isolates horizontal geometry, precomputes event ordering/notification labels, and resolves only anchored date rows. Person filters affect List only and do not issue another Timeline fetch.
+
+Timeline response previews use batched metadata reads (up to 40 visible blessing IDs per query), a bounded 256-entry/60-second memory cache, and independent cancelled waiters. They fetch response authors/counts and voice dates for expiry warnings, without response bodies, blessing-detail fetches, or response-audio signing. Refresh/submission and account/circle changes replace the scoped cache; stale results cannot populate the new scope. An 85-card synthetic test uses three bounded batches; the transport fixture confirms only response metadata is requested. These are call-count/contract checks, not hosted latency or physical-device scrolling benchmarks. Final verification passes 313 Debug and 309 Release domain tests plus five distinct focused UI flows across accepted batches; normal/largest-dark screenshots were reviewed. See STATUS.md for result bundles and superseded fixture/layout failures. Changes are committed locally and unpushed. No connection capacity or schema change is included.
+
 ## October 15 follow-up checkpoint
 
 - The next client adds account-scoped seven-day circle/member/streak metadata and bounded profile/circle photo bytes for immediate display, with a persistent page-loading/error indicator and Retry. Cached membership/permissions never authorize content, entry, or edits; prompts/blessings remain live authorized reads. Startup, switch, leave, and loading completions reject stale account scopes. Sign-out clears identity caches.

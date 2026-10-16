@@ -59,7 +59,11 @@ final class AppModel {
     private var pendingDeepLink: URL?
 
     var loadState: LoadState = .idle
-    private var dataScopeGeneration = UUID()
+    private var dataScopeGeneration = UUID() {
+        didSet { invalidateTimelineResponders() }
+    }
+    private var timelineResponderCache = TimelineResponderSummaryCache()
+    private(set) var timelineResponderRevision = UUID()
     private var timelineRefreshGeneration: UUID?
     private var bootstrapGeneration = UUID()
     private var pageLoadGeneration = UUID()
@@ -91,7 +95,15 @@ final class AppModel {
     var prompt: DailyPrompt?
     var endOfDayPrompt: DailyPrompt?
     private(set) var capturePrompt: DailyPrompt?
-    var lanes: [TimelineLane] = []
+    var lanes: [TimelineLane] = [] {
+        didSet {
+            timelineVisibleBlessingIDs = Set(lanes.flatMap(\.events).compactMap { event in
+                if case let .blessing(blessing) = event.status { return blessing.id }
+                return nil
+            })
+        }
+    }
+    private var timelineVisibleBlessingIDs: Set<UUID> = []
     private(set) var timelineNextBeforeDate: Date?
     private(set) var isLoadingMoreTimeline = false
     private(set) var timelineLoadError: String?
@@ -678,6 +690,7 @@ final class AppModel {
 
     private func installTimelinePage(_ page: TimelinePage, circleID: UUID, reset: Bool = false) {
         guard let userID = currentUser?.id else { return }
+        invalidateTimelineResponders()
         let scope = TimelinePaging.scope(circleID: circleID, viewerID: userID,
             timeZoneIdentifier: circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
         if reset || timelinePagingScope != scope {
@@ -1596,6 +1609,37 @@ final class AppModel {
         )
     }
 
+    private func invalidateTimelineResponders() {
+        // Replace the cache synchronously: old in-flight batches can finish only in their old instance.
+        timelineResponderCache = TimelineResponderSummaryCache()
+        timelineResponderRevision = UUID()
+    }
+
+    func timelineResponseSummary(for blessing: Blessing, revision: UUID) async -> TimelineResponseSummary? {
+        guard !Task.isCancelled, revision == timelineResponderRevision,
+              canUseFreshCircle, let currentUser, let circle,
+              blessing.circleID == circle.id,
+              timelineVisibleBlessingIDs.contains(blessing.id) else { return nil }
+        let generation = dataScopeGeneration
+        let cache = timelineResponderCache
+        do {
+            let summary = try await cache.summary(for: blessing.id) { [repository] ids in
+                try await repository.timelineResponderSummaries(blessingIDs: ids, viewerID: currentUser.id)
+            }
+            guard !Task.isCancelled, revision == timelineResponderRevision,
+                  generation == dataScopeGeneration, canUseFreshCircle,
+                  self.currentUser?.id == currentUser.id, self.circle?.id == circle.id else { return nil }
+            responseMediaDates[blessing.id] = summary.responseAudioDates
+            let members = Set(circle.members.map(\.id))
+            return TimelineResponseSummary(count: summary.count,
+                authorIDs: summary.authorIDs.filter { members.contains($0) },
+                responseAudioDates: summary.responseAudioDates)
+        } catch {
+            // Avatar previews are optional. Detail views retain the complete response error/retry flow.
+            return nil
+        }
+    }
+
     func responses(for blessing: Blessing) async -> [BlessingResponse] {
         guard canUseFreshCircle else { return [] }
         guard let currentUser else { return [] }
@@ -1868,8 +1912,9 @@ final class AppModel {
     ) async -> BlessingResponse? {
         guard canUseFreshCircle else { return nil }
         guard let currentUser else { return nil }
+        let generation = dataScopeGeneration
         do {
-            return try await repository.submitResponse(
+            let response = try await repository.submitResponse(
                 blessingID: blessing.id,
                 circleID: blessing.circleID,
                 authorID: currentUser.id,
@@ -1878,6 +1923,10 @@ final class AppModel {
                 audioURL: audioURL,
                 now: .now
             )
+            if dataScopeGeneration == generation, self.currentUser?.id == currentUser.id {
+                invalidateTimelineResponders()
+            }
+            return response
         } catch {
             message = error.localizedDescription
             return nil

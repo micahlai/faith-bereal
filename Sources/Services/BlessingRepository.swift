@@ -61,6 +61,7 @@ protocol BlessingRepository: Sendable {
     ) async throws -> Blessing
     func leaveCircle(circleID: UUID, memberID: UUID) async throws
     func nudgeMember(promptID: UUID, recipientID: UUID, senderID: UUID, now: Date) async throws -> Bool
+    func timelineResponderSummaries(blessingIDs: [UUID], viewerID: UUID) async throws -> [TimelineResponderSummary]
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse]
     func submitResponse(
         blessingID: UUID,
@@ -87,6 +88,10 @@ protocol BlessingRepository: Sendable {
 }
 
 extension BlessingRepository {
+    // Adapters without Timeline summaries can omit the optional avatar preview.
+    func timelineResponderSummaries(blessingIDs: [UUID], viewerID: UUID) async throws -> [TimelineResponderSummary] {
+        throw TimelineResponseSummaryError.unsupported
+    }
     func setCircleMemberChanges(circleID: UUID, ownerID: UUID, allowed: Bool) async throws -> CircleGroup {
         throw BlessingError.notCircleOwner
     }

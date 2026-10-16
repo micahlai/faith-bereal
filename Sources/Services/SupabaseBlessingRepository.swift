@@ -660,6 +660,30 @@ actor SupabaseBlessingRepository: BlessingRepository {
         ]).measuredExecute(.rpc).value
     }
 
+    func timelineResponderSummaries(blessingIDs: [UUID], viewerID: UUID) async throws -> [TimelineResponderSummary] {
+        let ids = Array(Set(blessingIDs)).sorted { $0.uuidString < $1.uuidString }
+        guard !ids.isEmpty else { return [] }
+        var result: [TimelineResponderSummary] = []
+        // Existing response RLS follows the parent blessing's visibility. No signed media is needed.
+        for start in stride(from: 0, to: ids.count, by: 40) {
+            let batch = Array(ids[start..<min(start + 40, ids.count)])
+            var offset = 0
+            while true {
+                try Task.checkCancellation()
+                let rows: [TimelineResponderSummary] = try await client.from("blessing_responses")
+                    .select("blessing_id,author_id,mode,submitted_at")
+                    .in("blessing_id", values: batch)
+                    .order("blessing_id").order("author_id").order("id")
+                    .range(from: offset, to: offset + 999)
+                    .measuredExecute(.responses).value
+                result.append(contentsOf: rows)
+                if rows.count < 1_000 { break }
+                offset += rows.count
+            }
+        }
+        return result
+    }
+
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
         let blessingRow = try await fetchBlessing(id: blessingID)
         let rows: [ResponseRow] = try await client

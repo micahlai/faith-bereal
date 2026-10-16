@@ -1,5 +1,34 @@
 import Foundation
 
+enum TimelineLayoutMode: String, CaseIterable {
+    case list = "List"
+    case threads = "Threads"
+    static let defaultMode: Self = .list
+}
+
+/// Build chronological order once per page change. Selecting a person performs
+/// a dictionary lookup, without projecting/sorting the entire history again.
+struct TimelineListIndex {
+    let members: [Member]
+    private let allEntries: [TimelineListEntry]
+    private let entriesByMemberID: [UUID: [TimelineListEntry]]
+
+    init(lanes: [TimelineLane]) {
+        members = lanes.map(\.member)
+        allEntries = TimelinePresentation.listEntries(lanes)
+        entriesByMemberID = Dictionary(grouping: allEntries, by: { $0.member.id })
+    }
+
+    func entries(for memberID: UUID?) -> [TimelineListEntry] {
+        guard let memberID else { return allEntries }
+        return entriesByMemberID[memberID] ?? []
+    }
+
+    func validSelection(_ memberID: UUID?) -> UUID? {
+        memberID.flatMap { id in members.contains(where: { $0.id == id }) ? id : nil }
+    }
+}
+
 enum TimelinePresentation {
     static func notificationTimes(_ events: [TimelineEvent]) -> [TimelineNotificationStamp] {
         Array(Set(events.compactMap { event -> TimelineNotificationStamp? in

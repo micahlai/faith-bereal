@@ -15,19 +15,12 @@ private extension EnvironmentValues {
 struct CircleTimelineView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @State private var selection: BlessingSelection?
-    @State private var horizontalOffset: CGFloat = 0
-    @State private var prefersList: Bool?
+    @State private var layout = TimelineLayoutMode.defaultMode
+    @State private var selectedMemberID: UUID?
     @State private var presentedLanes: [TimelineLane] = []
-    @State private var rows: [TimelineRow] = []
-    @State private var listEntries: [TimelineListEntry] = []
+    @State private var listIndex = TimelineListIndex(lanes: [])
     @AppStorage("timeline.columnWidth") private var storedWidth = TimelineSizing.defaultWidth
-    @GestureState private var pinchScale = 1.0
-
-    private var columnWidth: CGFloat { TimelineSizing.clamped(storedWidth * pinchScale) }
-
-    private var showsList: Bool { prefersList ?? (dynamicTypeSize.isAccessibilitySize || voiceOverEnabled) }
 
     var body: some View {
         ZStack {
@@ -41,87 +34,28 @@ struct CircleTimelineView: View {
                     systemImage: "clock",
                     description: Text("Your circle’s blessings will gather here.")
                 )
+            } else if layout == .list {
+                timelineList
             } else {
-                VStack(spacing: 0) {
-                    if showsList {
-                        accessibleTimeline(rows: rows)
-                    } else {
-                        TimelineMemberHeader(
-                            lanes: model.lanes,
-                            currentUserID: model.currentUser?.id,
-                            horizontalOffset: horizontalOffset
-                        )
-                        ScrollView([.horizontal, .vertical]) {
-                            LazyVStack(alignment: .leading, spacing: 0) {
-                                ForEach(rows) { row in
-                                    TimelineDayRow(
-                                        row: row,
-                                        lanes: presentedLanes,
-                                        calendar: circleCalendar,
-                                        currentUserID: model.currentUser?.id,
-                                        onSelect: { member, blessing in
-                                            selection = BlessingSelection(member: member, blessing: blessing)
-                                        }
-                                    )
-                                }
-                                olderDaysButton
-                            }
-                            .padding(.leading, TimelineLayout.leadingPadding)
-                            .padding(.trailing, AppTheme.pagePadding)
-                            .padding(.top, 8)
-                            .padding(.bottom, 118)
-                        }
-                        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                            geometry.contentOffset.x
-                        } action: { _, newOffset in
-                            horizontalOffset = newOffset
-                        }
-                        .overlayPreferenceValue(TimelineDateAnchors.self) { anchors in
-                            TimelineFrozenDates(rows: rows, anchors: anchors, calendar: circleCalendar)
-                        }
-                        .scrollIndicators(.visible)
-                        .simultaneousGesture(MagnifyGesture()
-                            .updating($pinchScale) { value, scale, _ in scale = value.magnification }
-                            .onEnded { value in storedWidth = TimelineSizing.clamped(storedWidth * value.magnification) })
-                        .clipped()
+                TimelineThreadsView(lanes: presentedLanes, calendar: circleCalendar,
+                    currentUserID: model.currentUser?.id, storedWidth: $storedWidth) { member, blessing in
+                        selection = BlessingSelection(member: member, blessing: blessing)
                     }
-                }
+                    .id(presentationScope)
             }
         }
         .navigationTitle("Timeline")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(AppTheme.canvas, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("Timeline layout", selection: Binding(get: { showsList }, set: { prefersList = $0 })) {
-                        Text("Threads").tag(false)
-                        Text("List").tag(true)
-                    }
-                    if !showsList {
-                        Section("Timeline size") {
-                            Button("Smaller", systemImage: "minus.magnifyingglass") {
-                                storedWidth = TimelineSizing.clamped(storedWidth - 24)
-                            }.disabled(storedWidth <= 168)
-                            Button("Larger", systemImage: "plus.magnifyingglass") {
-                                storedWidth = TimelineSizing.clamped(storedWidth + 24)
-                            }.disabled(storedWidth >= 360)
-                            Button("Reset size") { storedWidth = TimelineSizing.defaultWidth }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "list.bullet")
-                        .frame(minWidth: 44, minHeight: 44)
-                }
-                .accessibilityLabel("Timeline layout")
-                .accessibilityValue(showsList ? "List" : "Threads")
-            }
-        }
+        .safeAreaInset(edge: .top, spacing: 0) { timelineControls }
         .refreshable { await model.refreshCurrentCircle() }
-        .environment(\.timelineColumnWidth, columnWidth)
         .onChange(of: model.lanes, initial: true) { _, _ in rebuildPresentation() }
-        .onChange(of: model.circle?.timeZoneIdentifier) { _, _ in rebuildPresentation() }
+        .onChange(of: presentationScope) { _, _ in
+            selectedMemberID = nil
+            selection = nil
+            rebuildPresentation()
+        }
         .sheet(item: $selection) { selection in
             BlessingDetailView(
                 member: selection.member,
@@ -131,50 +65,233 @@ struct CircleTimelineView: View {
         }
     }
 
+    private var timelineControls: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .trailing, spacing: 8) {
+                    layoutMenu
+                    if layout == .list, !model.lanes.isEmpty { personFilter }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            } else {
+                HStack(spacing: 12) {
+                    if layout == .list, !model.lanes.isEmpty {
+                        personFilter
+                    } else {
+                        Text("Timeline").font(.headline).foregroundStyle(AppTheme.ink)
+                        Spacer(minLength: 0)
+                    }
+                    layoutMenu
+                }
+            }
+        }
+        .padding(.horizontal, AppTheme.pagePadding)
+        .padding(.vertical, 8)
+        .background(AppTheme.canvas)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("timeline.controls")
+    }
+
+    private var layoutMenu: some View {
+        Menu {
+            Picker("Timeline layout", selection: $layout) {
+                Text("List").tag(TimelineLayoutMode.list)
+                Text("Threads").tag(TimelineLayoutMode.threads)
+            }
+            if layout == .threads {
+                Section("Timeline size") {
+                    Button("Smaller", systemImage: "minus.magnifyingglass") {
+                        storedWidth = TimelineSizing.clamped(storedWidth - 24)
+                    }.disabled(storedWidth <= 168)
+                    Button("Larger", systemImage: "plus.magnifyingglass") {
+                        storedWidth = TimelineSizing.clamped(storedWidth + 24)
+                    }.disabled(storedWidth >= 360)
+                    Button("Reset size") { storedWidth = TimelineSizing.defaultWidth }
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: layout == .list ? "list.bullet" : "point.3.connected.trianglepath.dotted")
+                    .accessibilityHidden(true)
+                Text(layout.rawValue)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            .font(.subheadline.weight(.semibold))
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+            .frame(minWidth: 112, minHeight: 32)
+            .padding(.horizontal, 4)
+            .background(AppTheme.surface, in: Capsule())
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .frame(minWidth: 120, minHeight: 44)
+        .buttonStyle(.plain)
+        .controlSize(.large)
+        .accessibilityLabel("Timeline layout")
+        .accessibilityValue(layout.rawValue)
+        .accessibilityIdentifier("timeline.layout")
+    }
+
+    private var presentationScope: String {
+        "\(model.currentUser?.id.uuidString ?? "")|\(model.circle?.id.uuidString ?? "")|\(model.circle?.timeZoneIdentifier ?? "")"
+    }
+
     private var circleCalendar: Calendar {
         CircleLocalDay.calendar(timeZoneIdentifier: model.circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
     }
 
     private func rebuildPresentation() {
         presentedLanes = TimelinePresentation.lanes(model.lanes, calendar: circleCalendar)
-        rows = TimelineRow.rows(for: presentedLanes, calendar: circleCalendar)
-        listEntries = TimelinePresentation.listEntries(presentedLanes)
+        listIndex = TimelineListIndex(lanes: presentedLanes)
+        selectedMemberID = listIndex.validSelection(selectedMemberID)
     }
 
-    private func accessibleTimeline(rows: [TimelineRow]) -> some View {
-        List {
-            ForEach(listEntries) { item in
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(accessibleDate(item.sortDate))
-                        .font(.caption).foregroundStyle(AppTheme.secondaryInk)
-                    HStack {
-                        ProfileStreakAvatar(member: item.member, size: 36)
-                        Text(item.member.id == model.currentUser?.id ? "You" : item.member.displayName)
-                            .font(.headline)
-                    }
-                    .accessibilityAddTraits(.isHeader)
-                    TimelineEventView(event: item.event, member: item.member, currentUserID: model.currentUser?.id) { blessing in
-                        selection = BlessingSelection(member: item.member, blessing: blessing)
-                    }
+    private var personFilter: some View {
+        Menu {
+            Picker("Person", selection: $selectedMemberID) {
+                Text("All").tag(Optional<UUID>.none)
+                ForEach(listIndex.members) { member in
+                    Text(member.displayName).tag(Optional(member.id))
+                }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: selectedMemberID == nil ? "person.3" : "person")
+                    .accessibilityHidden(true)
+                Text(selectedPersonName)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(AppTheme.ink)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Filter by person")
+        .accessibilityValue(selectedPersonName)
+        .accessibilityIdentifier("timeline.personFilter")
+    }
+
+    private var selectedPersonName: String {
+        listIndex.members.first { $0.id == selectedMemberID }?.displayName ?? "All"
+    }
+
+    private var timelineList: some View {
+        let entries = listIndex.entries(for: selectedMemberID)
+        return List {
+            if entries.isEmpty {
+                ContentUnavailableView("No blessings yet", systemImage: "clock",
+                    description: Text(selectedMemberID == nil
+                        ? "Visible blessings and joining events will appear here."
+                        : "No events for this person in the loaded days. Load older days to see more history when available."))
+                    .listRowBackground(AppTheme.canvas)
+                    .listRowSeparator(.hidden)
+            }
+            ForEach(entries) { item in
+                TimelineListRow(item: item, currentUserID: model.currentUser?.id, calendar: circleCalendar) { blessing in
+                    selection = BlessingSelection(member: item.member, blessing: blessing)
                 }
                 .listRowBackground(AppTheme.canvas)
                 .listRowSeparator(.hidden)
             }
-            olderDaysButton.listRowBackground(AppTheme.canvas)
+            TimelineOlderDaysButton().listRowBackground(AppTheme.canvas)
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .accessibilityIdentifier("timeline.accessibleList")
         .foregroundStyle(AppTheme.ink)
     }
+}
 
-    private func accessibleDate(_ day: Date) -> String {
-        var style = Date.FormatStyle.dateTime.month(.wide).day().year()
-        style.timeZone = circleCalendar.timeZone
-        return day.formatted(style)
+private struct TimelineListRow: View {
+    let item: TimelineListEntry
+    let currentUserID: UUID?
+    let calendar: Calendar
+    let onSelect: (Blessing) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(dateLabel)
+                .font(.caption).foregroundStyle(AppTheme.secondaryInk)
+            HStack {
+                ProfileStreakAvatar(member: item.member, size: 36)
+                Text(item.member.id == currentUserID ? "You" : item.member.displayName)
+                    .font(.headline)
+            }
+            .accessibilityAddTraits(.isHeader)
+            TimelineEventView(event: item.event, member: item.member, currentUserID: currentUserID, onSelect: onSelect)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("timeline.listRow.\(item.member.id.uuidString).\(item.id)")
     }
 
-    @ViewBuilder private var olderDaysButton: some View {
+    private var dateLabel: String {
+        var style = Date.FormatStyle.dateTime.month(.wide).day().year()
+        style.timeZone = calendar.timeZone
+        return item.sortDate.formatted(style)
+    }
+}
+
+/// Geometry updates stay in Threads instead of invalidating the List/filter toolbar.
+private struct TimelineThreadsView: View {
+    let lanes: [TimelineLane]
+    let calendar: Calendar
+    let currentUserID: UUID?
+    @Binding var storedWidth: Double
+    let onSelect: (Member, Blessing) -> Void
+    @State private var horizontalOffset: CGFloat = 0
+    @State private var rows: [TimelineRow] = []
+    @State private var rowsByID: [String: TimelineRow] = [:]
+    @GestureState private var pinchScale = 1.0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TimelineMemberHeader(lanes: lanes, currentUserID: currentUserID, horizontalOffset: horizontalOffset)
+            ScrollView([.horizontal, .vertical]) {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(rows) { row in
+                        TimelineDayRow(row: row, lanes: lanes, calendar: calendar,
+                            currentUserID: currentUserID, onSelect: onSelect)
+                    }
+                    TimelineOlderDaysButton()
+                }
+                .padding(.leading, TimelineLayout.leadingPadding)
+                .padding(.trailing, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 118)
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.x } action: { _, offset in
+                horizontalOffset = offset
+            }
+            .overlayPreferenceValue(TimelineDateAnchors.self) { anchors in
+                TimelineFrozenDates(rowsByID: rowsByID, anchors: anchors, calendar: calendar)
+            }
+            .scrollIndicators(.visible)
+            .simultaneousGesture(MagnifyGesture()
+                .updating($pinchScale) { value, scale, _ in scale = value.magnification }
+                .onEnded { value in storedWidth = TimelineSizing.clamped(storedWidth * value.magnification) })
+            .clipped()
+        }
+        .environment(\.timelineColumnWidth, TimelineSizing.clamped(storedWidth * pinchScale))
+        .onChange(of: lanes, initial: true) { _, _ in
+            rows = TimelineRow.rows(for: lanes, calendar: calendar)
+            rowsByID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+        }
+    }
+}
+
+private struct TimelineOlderDaysButton: View {
+    @Environment(AppModel.self) private var model
+    var body: some View {
         if model.timelineNextBeforeDate != nil {
             VStack(alignment: .leading, spacing: 8) {
                 Button {
@@ -210,7 +327,7 @@ private struct TimelineDateAnchors: PreferenceKey {
 }
 
 private struct TimelineFrozenDates: View {
-    let rows: [TimelineRow]
+    let rowsByID: [String: TimelineRow]
     let anchors: [String: Anchor<CGRect>]
     let calendar: Calendar
 
@@ -220,8 +337,8 @@ private struct TimelineFrozenDates: View {
                 AppTheme.canvas
                     .frame(width: TimelineLayout.leadingPadding + TimelineLayout.dayColumnWidth)
                     .accessibilityHidden(true)
-                ForEach(rows.filter { anchors[$0.id] != nil }) { row in
-                    if let anchor = anchors[row.id] {
+                ForEach(anchors.keys.sorted(), id: \.self) { id in
+                    if let row = rowsByID[id], let anchor = anchors[id] {
                         let rect = geometry[anchor]
                         TimelineDateLabel(row: row, calendar: calendar)
                         .frame(height: rect.height, alignment: .topTrailing)
@@ -257,7 +374,7 @@ private struct TimelineDateLabel: View {
                     .font(.caption2)
                     .foregroundStyle(AppTheme.primary)
             }
-            ForEach(TimelinePresentation.notificationTimes(row.eventsByMemberID.values.flatMap { $0 })) { stamp in
+            ForEach(row.notificationTimes) { stamp in
                 VStack(alignment: .trailing, spacing: 1) {
                     Image(systemName: stamp.kind == .daily ? "sun.max" : "moon")
                         .accessibilityHidden(true)
@@ -344,6 +461,14 @@ private struct TimelineRow: Identifiable {
     let day: Date
     let kind: Kind
     let eventsByMemberID: [UUID: [TimelineEvent]]
+    let notificationTimes: [TimelineNotificationStamp]
+
+    init(day: Date, kind: Kind, eventsByMemberID: [UUID: [TimelineEvent]]) {
+        self.day = day
+        self.kind = kind
+        self.eventsByMemberID = eventsByMemberID
+        notificationTimes = TimelinePresentation.notificationTimes(eventsByMemberID.values.flatMap { $0 })
+    }
 
     var id: String { "\(day.timeIntervalSinceReferenceDate)-\(kind.rawValue)" }
 
@@ -363,7 +488,7 @@ private struct TimelineRow: Identifiable {
         }
 
         let prompts = promptRows.map {
-            TimelineRow(day: $0.key, kind: .prompt, eventsByMemberID: $0.value)
+            TimelineRow(day: $0.key, kind: .prompt, eventsByMemberID: $0.value.mapValues(sorted))
         }
         let joins = joinedRows.map {
             TimelineRow(
@@ -375,6 +500,13 @@ private struct TimelineRow: Identifiable {
         return (prompts + joins).sorted { lhs, rhs in
             if lhs.day != rhs.day { return lhs.day > rhs.day }
             return lhs.kind.rawValue < rhs.kind.rawValue
+        }
+    }
+    private static func sorted(_ events: [TimelineEvent]) -> [TimelineEvent] {
+        events.sorted { lhs, rhs in
+            if lhs.promptKind != rhs.promptKind { return lhs.promptKind == .endOfDay }
+            if lhs.isWelcome != rhs.isWelcome { return !lhs.isWelcome }
+            return lhs.id < rhs.id
         }
     }
 }
@@ -398,7 +530,7 @@ private struct TimelineDayRow: View {
             ForEach(lanes) { lane in
                 if let events = row.eventsByMemberID[lane.member.id] {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForEach(sorted(events)) { event in
+                        ForEach(events) { event in
                             TimelineEventView(
                                 event: event,
                                 member: lane.member,
@@ -420,13 +552,7 @@ private struct TimelineDayRow: View {
         }
     }
 
-    private func sorted(_ events: [TimelineEvent]) -> [TimelineEvent] {
-        events.sorted { lhs, rhs in
-            if lhs.promptKind != rhs.promptKind { return lhs.promptKind == .endOfDay }
-            if lhs.isWelcome != rhs.isWelcome { return !lhs.isWelcome }
-            return lhs.id < rhs.id
-        }
-    }
+
 }
 
 private struct TimelineConnectorView: View {
@@ -574,7 +700,6 @@ private struct TimelineEventView: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppTheme.iris)
                     }
-                    TimelineResponderAvatars(blessing: blessing)
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -593,6 +718,8 @@ private struct TimelineEventView: View {
             .accessibilityLabel(accessibilityDescription(for: blessing))
             .accessibilityInputLabels(["\(member.displayName) blessing", "Open blessing"])
             .accessibilityHint("Opens the complete blessing")
+            TimelineResponderAvatars(blessing: blessing)
+                .padding(.horizontal, 10)
         case .missed:
             Label("Missed this day", systemImage: "minus.circle")
                 .font(.subheadline)
@@ -657,44 +784,71 @@ private struct TimelineEventView: View {
 private struct TimelineResponderAvatars: View {
     @Environment(AppModel.self) private var model
     let blessing: Blessing
-    @State private var responderIDs: [UUID] = []
+    @State private var summary: TimelineResponseSummary?
 
     var body: some View {
-        Group {
-            if !responders.isEmpty {
-                HStack(spacing: -6) {
-                    ForEach(responders.prefix(5)) { member in
-                        AvatarBadge(member: member, size: 24)
-                            .overlay { Circle().stroke(AppTheme.surface, lineWidth: 2) }
+        VStack(alignment: .leading, spacing: 0) {
+            if let summary {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        Text(responseCount(summary.count))
+                        photos
                     }
-                    if responders.count > 5 {
-                        Text("+\(responders.count - 5)")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(AppTheme.secondaryInk)
-                            .padding(.leading, 10)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(responseCount(summary.count))
+                        photos
                     }
                 }
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryInk)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(responseAccessibilityLabel)
+                .accessibilityLabel(responseAccessibilityLabel(summary))
+                .accessibilityIdentifier("timeline.responses.\(blessing.id.uuidString)")
             }
         }
-        .task(id: blessing.id) { await loadResponses() }
+        .task(id: ResponseTaskID(blessingID: blessing.id, revision: model.timelineResponderRevision)) {
+            let revision = model.timelineResponderRevision
+            summary = nil
+            let result = await model.timelineResponseSummary(for: blessing, revision: revision)
+            guard !Task.isCancelled, model.timelineResponderRevision == revision else { return }
+            summary = result
+        }
+    }
+
+    private struct ResponseTaskID: Equatable {
+        let blessingID: UUID
+        let revision: UUID
+    }
+
+    private func responseCount(_ count: Int) -> String {
+        count == 1 ? "1 response" : "\(count) responses"
+    }
+
+    @ViewBuilder private var photos: some View {
+        if !responders.isEmpty {
+            HStack(spacing: -6) {
+                ForEach(responders.prefix(5)) { member in
+                    AvatarBadge(member: member, size: 24)
+                        .overlay { Circle().stroke(AppTheme.surface, lineWidth: 2) }
+                }
+                if responders.count > 5 {
+                    Text("+\(responders.count - 5)")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.leading, 10)
+                }
+            }
+            .fixedSize()
+        }
     }
 
     private var responders: [Member] {
-        let members = model.circle?.members ?? []
-        return responderIDs.compactMap { id in members.first(where: { $0.id == id }) }
+        let members = Dictionary(uniqueKeysWithValues: (model.circle?.members ?? []).map { ($0.id, $0) })
+        return (summary?.authorIDs ?? []).compactMap { members[$0] }
     }
 
-    private var responseAccessibilityLabel: String {
+    private func responseAccessibilityLabel(_ summary: TimelineResponseSummary) -> String {
         let names = responders.map(\.displayName)
-        return names.isEmpty ? "No responses" : "Responses from \(names.joined(separator: ", "))"
-    }
-
-    private func loadResponses() async {
-        let responses = await model.responses(for: blessing)
-        var seen = Set<UUID>()
-        responderIDs = responses.map(\.authorID).filter { seen.insert($0).inserted }
+        return responseCount(summary.count) + (names.isEmpty ? "" : ". From \(names.joined(separator: ", "))")
     }
 }
 

@@ -14,6 +14,8 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
         app.tabBars.buttons["Timeline"].tap()
         app.buttons["Timeline layout"].tap()
+        app.buttons["Threads"].tap()
+        app.buttons["Timeline layout"].tap()
         app.buttons["Reset size"].tap()
         let member = app.staticTexts["You"].firstMatch
         XCTAssertTrue(member.waitForExistence(timeout: 5))
@@ -375,6 +377,8 @@ final class BlessingCircleUITests: XCTestCase {
 
         app.tabBars.buttons["Timeline"].tap()
         XCTAssertTrue(app.navigationBars["Timeline"].waitForExistence(timeout: 5))
+        app.buttons["Timeline layout"].tap()
+        app.buttons["Threads"].tap()
 
         let memberHeader = app.staticTexts["You"].firstMatch
         XCTAssertTrue(memberHeader.waitForExistence(timeout: 3))
@@ -382,8 +386,8 @@ final class BlessingCircleUITests: XCTestCase {
             .matching(identifier: "timeline.memberHeader").firstMatch
         XCTAssertTrue(frozenHeader.waitForExistence(timeout: 3))
         let initialHeaderY = frozenHeader.frame.minY
-        XCTAssertLessThanOrEqual(initialHeaderY - app.navigationBars["Timeline"].frame.maxY, 10)
-        XCTAssertLessThan(memberHeader.frame.maxY - app.navigationBars["Timeline"].frame.maxY, 140)
+        XCTAssertLessThanOrEqual(initialHeaderY - app.buttons["Timeline layout"].frame.maxY, 12)
+        XCTAssertLessThan(memberHeader.frame.maxY - app.buttons["Timeline layout"].frame.maxY, 140)
         let initialTimeline = XCTAttachment(screenshot: app.screenshot())
         initialTimeline.name = "Compact fixed timeline header"
         initialTimeline.lifetime = .keepAlways
