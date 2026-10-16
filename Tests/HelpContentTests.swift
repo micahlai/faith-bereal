@@ -71,6 +71,7 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(guide.contains("streaks, and profile/circle photos"))
         XCTAssertTrue(guide.contains("up to seven days"))
         XCTAssertTrue(guide.contains("signing out clears them"))
+        XCTAssertTrue(guide.contains("Basic circle details are saved before blessings finish loading"))
         XCTAssertTrue(guide.contains("Blessings still need a fresh connection"))
         XCTAssertTrue(guide.contains("Old blessings from another circle are never shown"))
         XCTAssertTrue(guide.contains("try again"))
@@ -81,13 +82,14 @@ final class HelpContentTests: XCTestCase {
     func testTimelineGuideExplainsListDefaultPersonFilterAndResponseCounts() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
         for concept in ["Timeline opens in List", "wide Timeline layout button", "filter starts at All",
-                        "only to List", "Threads always shows everyone", "changing circles resets it to All"] {
+                        "only to List", "Threads always shows everyone", "changing circles resets it to All", "picker shows profile photos", "initials when no photo", "photo stays beside their name"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
         let responses = HelpTopic.responses.steps.map(\.body).joined()
         XCTAssertTrue(responses.contains("number of responses"))
         XCTAssertTrue(responses.contains("slightly overlapping profile photos"))
         XCTAssertTrue(responses.contains("count includes every response"))
+        XCTAssertTrue(responses.contains("no responses leave this line hidden"))
         XCTAssertTrue(HelpTopic.accessibility.steps.map(\.body).joined().contains("opens in List for everyone"))
     }
 

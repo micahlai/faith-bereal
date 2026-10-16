@@ -3,6 +3,77 @@ import XCTest
 
 final class CachedCircleLoadingTests: XCTestCase {
     @MainActor
+    func testFirstFreshIdentityAppearsAndPersistsBeforeBlessingPageFinishes() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.repository.gate.arm(.page)
+        let work = Task { await fixture.model.bootstrap() }
+        await fixture.repository.gate.waitUntilSuspended()
+
+        XCTAssertEqual(fixture.model.loadState, .ready)
+        XCTAssertEqual(fixture.model.circle?.name, fixture.seed.circle?.name)
+        XCTAssertEqual(fixture.model.currentUser, fixture.seed.currentUser)
+        XCTAssertTrue(fixture.model.isPageLoading)
+        XCTAssertTrue(fixture.model.isShowingCachedMetadata)
+        XCTAssertFalse(fixture.model.canUseFreshCircle)
+        XCTAssertTrue(fixture.model.lanes.isEmpty)
+        let cached = await fixture.metadata.load(accountID: fixture.seed.currentUser.id)
+        XCTAssertEqual(cached?.currentUser, fixture.seed.currentUser)
+        XCTAssertEqual(cached?.selectedCircleID, fixture.model.circle?.id)
+        XCTAssertTrue(cached?.circles.allSatisfy { $0.inviteCode.isEmpty && !$0.allowMemberCircleChanges } == true)
+        let opened = await fixture.model.openCapture(for: fixture.seed.prompt, now: fixture.now)
+        XCTAssertFalse(opened, "Fresh identity does not grant access before the page finishes")
+
+        await fixture.repository.gate.release()
+        await work.value
+        XCTAssertFalse(fixture.model.isShowingCachedMetadata)
+        XCTAssertFalse(fixture.model.lanes.isEmpty)
+    }
+
+    @MainActor
+    func testFailedFirstPageRetainsFreshMetadataForNextLaunchWithoutGrantingContentAccess() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.repository.failNextPage()
+        await fixture.model.bootstrap()
+
+        XCTAssertEqual(fixture.model.loadState, .ready)
+        XCTAssertFalse(fixture.model.isPageLoading)
+        XCTAssertTrue(fixture.model.isShowingCachedMetadata)
+        XCTAssertFalse(fixture.model.canUseFreshCircle)
+        XCTAssertTrue(fixture.model.lanes.isEmpty)
+        XCTAssertTrue(fixture.model.pageLoadError?.contains("Couldn’t load your circle") == true)
+        let cached = await fixture.metadata.load(accountID: fixture.seed.currentUser.id)
+        XCTAssertEqual(cached?.currentUser, fixture.seed.currentUser)
+        XCTAssertEqual(cached?.circles.first?.name, fixture.seed.circles.first?.name)
+        let opened = await fixture.model.openCapture(for: fixture.seed.prompt, now: fixture.now)
+        XCTAssertFalse(opened)
+        let calls = await fixture.repository.counts()
+        XCTAssertEqual(calls.mutations, 0)
+    }
+
+    @MainActor
+    func testFirstPageFinishingAfterSignOutCannotRestoreEarlyPersistedMetadata() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.repository.gate.arm(.page)
+        let work = Task { await fixture.model.bootstrap() }
+        await fixture.repository.gate.waitUntilSuspended()
+        let before = await fixture.metadata.load(accountID: fixture.seed.currentUser.id)
+        XCTAssertNotNil(before)
+        await fixture.model.signOut()
+        await fixture.repository.gate.release()
+        await work.value
+
+        XCTAssertEqual(fixture.model.loadState, .signedOut)
+        XCTAssertNil(fixture.model.currentUser)
+        XCTAssertNil(fixture.model.circle)
+        XCTAssertTrue(fixture.model.lanes.isEmpty)
+        let after = await fixture.metadata.load(accountID: fixture.seed.currentUser.id)
+        XCTAssertNil(after)
+    }
+
+    @MainActor
     func testCachedStartupShowsIdentityBeforeBootstrapAndCannotAuthorizeCaptureOrSettings() async throws {
         let fixture = try await CachedLoadingFixture()
         defer { fixture.removeFiles() }
@@ -241,7 +312,7 @@ private struct CachedLoadingFixture {
     let model: AppModel
     private let previousSelection: String?
 
-    init() async throws {
+    init(cachesMetadata: Bool = true) async throws {
         previousSelection = UserDefaults.standard.string(forKey: "blessingCircle.selectedCircleID")
         repository = CachedLoadingRepository(now: now)
         seed = try await repository.seedBootstrap()
@@ -251,8 +322,10 @@ private struct CachedLoadingFixture {
         cachedUser.displayName = "Cached person"
         var cachedCircles = seed.circles
         for index in cachedCircles.indices { cachedCircles[index].name = "Cached identity" }
-        await metadata.save(accountID: cachedUser.id, currentUser: cachedUser,
-            circles: cachedCircles, selectedCircleID: seed.selectedCircleID)
+        if cachesMetadata {
+            await metadata.save(accountID: cachedUser.id, currentUser: cachedUser,
+                circles: cachedCircles, selectedCircleID: seed.selectedCircleID)
+        }
         model = AppModel(repository: repository,
             authentication: CachedLoadingAuthentication(accountID: seed.currentUser.id),
             savedBlessingStore: SavedBlessingStore(root: root.appendingPathComponent("saved")),
@@ -326,6 +399,7 @@ private actor CachedLoadingRepository: BlessingRepository {
     private var contextCalls = 0
     private var mutationCalls = 0
     private var shouldFailContext = false
+    private var shouldFailPage = false
     private var subscribedCircleID: UUID?
     private var subscriptionObservers: [CheckedContinuation<UUID, Never>] = []
 
@@ -335,6 +409,7 @@ private actor CachedLoadingRepository: BlessingRepository {
     func seedBootstrap() async throws -> AppBootstrap { try await base.bootstrap() }
 
     func failNextContext() { shouldFailContext = true }
+    func failNextPage() { shouldFailPage = true }
 
     func circleContext(circleID: UUID) async throws -> CircleContext {
         contextCalls += 1
@@ -353,6 +428,8 @@ private actor CachedLoadingRepository: BlessingRepository {
     func stubNextPage(_ page: TimelinePage) { nextPage = page }
 
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
+        let fail = shouldFailPage
+        shouldFailPage = false
         let result: TimelinePage
         if let nextPage {
             self.nextPage = nil
@@ -361,6 +438,7 @@ private actor CachedLoadingRepository: BlessingRepository {
             result = try await base.timelinePage(circleID: circleID, viewerID: viewerID, now: now, before: before)
         }
         await gate.pauseIfArmed(.page)
+        if fail { throw URLError(.networkConnectionLost) }
         return result
     }
 

@@ -391,7 +391,6 @@ final class AppModel {
         loadState = .loading
         if let accountID = await authentication?.cachedUserID() {
             guard bootstrapGeneration == startup, !Task.isCancelled else { return }
-            await diagnosticCollection.activate(accountID: accountID)
             if let cached = await metadataStore.load(accountID: accountID) {
                 guard bootstrapGeneration == startup, !Task.isCancelled else { return }
                 currentUser = cached.currentUser
@@ -409,6 +408,10 @@ final class AppModel {
                 guard bootstrapGeneration == startup, !Task.isCancelled else { return }
                 loadState = .ready
             }
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+            // Present local identity before opening the diagnostic queue. Capture
+            // still starts before session validation, including a failed refresh.
+            await diagnosticCollection.activate(accountID: accountID)
         }
         // Cached identity restores collection before a session refresh can fail.
         // It never grants content access; the repository still authorizes every read.
@@ -484,6 +487,22 @@ final class AppModel {
             }
             Self.persistedCircleID = self.circle?.id
             if self.circle == nil { selectedTab = 2 }
+            let metadataGeneration = dataScopeGeneration
+            if let selected = self.circle,
+               let index = self.circles.firstIndex(where: { $0.id == selected.id }) {
+                self.circles[index] = selected
+            }
+            // Fresh identity is useful even if blessing reads or media signing
+            // stall. Keep all content actions gated until the page is authorized.
+            isShowingCachedMetadata = true
+            loadState = .ready
+            if authentication != nil {
+                await metadataStore.save(accountID: bootstrap.currentUser.id,
+                    currentUser: bootstrap.currentUser, circles: self.circles,
+                    selectedCircleID: self.circle?.id)
+                guard bootstrapGeneration == startup, dataScopeGeneration == metadataGeneration,
+                      !Task.isCancelled else { return }
+            }
             try await refreshTimeline(freshCircle: self.circle)
             guard bootstrapGeneration == startup, !Task.isCancelled,
                   currentUser?.id == bootstrap.currentUser.id else { return }

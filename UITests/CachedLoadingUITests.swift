@@ -48,7 +48,7 @@ final class CachedLoadingUITests: XCTestCase {
         attachScreen(app, name: "Cached Circle identity and disabled changes \(largestText ? "largest dark" : "normal")")
 
         let streak = app.buttons["streak.details.A0000000-0000-0000-0000-000000000001"]
-        for _ in 0..<10 where !streak.isHittable { app.swipeUp() }
+        reveal(streak, in: app)
         XCTAssertTrue(streak.isHittable, "Saved streak metadata should appear with the cached people")
         XCTAssertTrue(app.staticTexts["Micah (you)"].exists)
         XCTAssertTrue(app.staticTexts["Ava"].exists)
@@ -69,6 +69,27 @@ final class CachedLoadingUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
         assertLoadingState(app)
         assertNoBlessingContent(app)
+    }
+
+    @MainActor
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
+        let top = app.navigationBars["Circle"].frame.maxY + 4
+        let bottom = app.tabBars.firstMatch.frame.minY - 4
+        let height = bottom - top
+        for _ in 0..<30 {
+            let frame = element.exists ? element.frame : .zero
+            if element.isHittable, frame.minY >= top, frame.maxY <= bottom { return }
+            let delta = frame.height > 0 ? frame.midY - (top + bottom) / 2 : height
+            let backwards = delta < 0
+            let travel = min(height * 0.32, max(24, abs(delta) * 0.7))
+            let start = top + height * (backwards ? 0.35 : 0.7)
+            let end = min(bottom - 12, max(top + 12, start + (backwards ? travel : -travel)))
+            // Small held drags can reverse after passing a short row at large text sizes.
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: start / app.frame.height))
+                .press(forDuration: 0.05, thenDragTo:
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: end / app.frame.height)),
+                    withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
     }
 
     @MainActor

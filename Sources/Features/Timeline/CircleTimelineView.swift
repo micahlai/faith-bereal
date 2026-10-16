@@ -15,9 +15,11 @@ private extension EnvironmentValues {
 struct CircleTimelineView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var selection: BlessingSelection?
     @State private var layout = TimelineLayoutMode.defaultMode
     @State private var selectedMemberID: UUID?
+    @State private var showingPersonFilter = false
     @State private var presentedLanes: [TimelineLane] = []
     @State private var listIndex = TimelineListIndex(lanes: [])
     @AppStorage("timeline.columnWidth") private var storedWidth = TimelineSizing.defaultWidth
@@ -53,6 +55,7 @@ struct CircleTimelineView: View {
         .onChange(of: model.lanes, initial: true) { _, _ in rebuildPresentation() }
         .onChange(of: presentationScope) { _, _ in
             selectedMemberID = nil
+            showingPersonFilter = false
             selection = nil
             rebuildPresentation()
         }
@@ -149,17 +152,14 @@ struct CircleTimelineView: View {
     }
 
     private var personFilter: some View {
-        Menu {
-            Picker("Person", selection: $selectedMemberID) {
-                Text("All").tag(Optional<UUID>.none)
-                ForEach(listIndex.members) { member in
-                    Text(member.displayName).tag(Optional(member.id))
-                }
-            }
-        } label: {
+        Button { showingPersonFilter = true } label: {
             HStack(spacing: 10) {
-                Image(systemName: selectedMemberID == nil ? "person.3" : "person")
-                    .accessibilityHidden(true)
+                if let member = listIndex.members.first(where: { $0.id == selectedMemberID }) {
+                    AvatarBadge(member: member, size: 30)
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: "person.3").accessibilityHidden(true)
+                }
                 Text(selectedPersonName)
                     .fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.leading)
@@ -176,9 +176,58 @@ struct CircleTimelineView: View {
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
             .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("Filter by person")
         .accessibilityValue(selectedPersonName)
         .accessibilityIdentifier("timeline.personFilter")
+        .popover(isPresented: $showingPersonFilter, arrowEdge: .top) {
+            ScrollView {
+                LazyVStack(spacing: 4) {
+                    personChoice(nil)
+                    ForEach(listIndex.members) { member in personChoice(member) }
+                }
+                .padding(8)
+            }
+            .frame(width: 300, height: verticalSizeClass == .compact ? 180 :
+                (dynamicTypeSize.isAccessibilitySize ? 360 : min(360, CGFloat(listIndex.members.count + 1) * 52 + 16)))
+            .background(AppTheme.surface)
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private func personChoice(_ member: Member?) -> some View {
+        Button {
+            selectedMemberID = member?.id
+            showingPersonFilter = false
+        } label: {
+            HStack(spacing: 12) {
+                if let member {
+                    AvatarBadge(member: member, size: 36)
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: "person.3")
+                        .font(.system(size: 24))
+                        .frame(width: 36, height: 36)
+                        .accessibilityHidden(true)
+                }
+                Text(member?.displayName ?? "All")
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                if selectedMemberID == member?.id {
+                    Image(systemName: "checkmark")
+                        .font(.subheadline.weight(.semibold))
+                        .accessibilityHidden(true)
+                }
+            }
+            .foregroundStyle(AppTheme.ink)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(member?.displayName ?? "All")
+        .accessibilityAddTraits(selectedMemberID == member?.id ? .isSelected : [])
     }
 
     private var selectedPersonName: String {
@@ -788,7 +837,7 @@ private struct TimelineResponderAvatars: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let summary {
+            if let summary, summary.count > 0 {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 10) {
                         Text(responseCount(summary.count))

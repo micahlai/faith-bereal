@@ -27,7 +27,7 @@ final class TimelineFilterUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments += ["--manna-local-ui-test", "--manna-timeline-ui-test",
+        app.launchArguments += ["--manna-local-ui-test", "--manna-timeline-ui-test", "--manna-photo-ui-test",
             "-blessingCircle.selectedCircleID", "B0000000-0000-0000-0000-000000000001",
             "-user.appearancePreference", largestDark ? "dark" : "light",
             "-UIPreferredContentSizeCategoryName",
@@ -61,6 +61,7 @@ final class TimelineFilterUITests: XCTestCase {
         assertTarget(filter)
         XCTAssertFalse(memberHeader(app).exists)
         assertNoPlaceholders(app)
+        XCTAssertFalse(app.staticTexts["0 responses"].exists)
         attach(app, "Timeline List default \(variant(largestDark, landscape))")
 
         choosePerson("Ava", app: app)
@@ -78,7 +79,7 @@ final class TimelineFilterUITests: XCTestCase {
         XCTAssertTrue(responseSummary.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertEqual(responseSummary.label, "3 responses. From Micah, Ben",
             "Three responses from two people retain the total count and distinct responder names.")
-        for _ in 0..<8 where !responseSummary.isHittable { list(app).swipeUp(velocity: .slow) }
+        revealResponse(responseSummary, in: app)
         XCTAssertTrue(responseSummary.isHittable)
         attach(app, "Timeline response count and distinct people \(variant(largestDark, landscape))")
         avaBlessing.tap()
@@ -140,12 +141,33 @@ final class TimelineFilterUITests: XCTestCase {
     }
 
     @MainActor
+    private func revealResponse(_ element: XCUIElement, in app: XCUIApplication) {
+        let top = app.buttons["timeline.personFilter"].frame.maxY + 4
+        let bottom = app.tabBars.firstMatch.frame.minY - 4
+        let height = bottom - top
+        for _ in 0..<30 {
+            let frame = element.exists ? element.frame : .zero
+            if element.isHittable, frame.minY >= top, frame.maxY <= bottom { return }
+            let delta = frame.height > 0 ? frame.midY - (top + bottom) / 2 : height
+            let backwards = delta < 0
+            let travel = min(height * 0.32, max(24, abs(delta) * 0.7))
+            let start = top + height * (backwards ? 0.35 : 0.7)
+            let end = min(bottom - 12, max(top + 12, start + (backwards ? travel : -travel)))
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: start / app.frame.height))
+                .press(forDuration: 0.05, thenDragTo:
+                    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: end / app.frame.height)),
+                    withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+    }
+
+    @MainActor
     private func choosePerson(_ name: String, app: XCUIApplication) {
         let filter = app.buttons["timeline.personFilter"]
         XCTAssertTrue(filter.isHittable)
         filter.tap()
         let option = app.buttons[name]
         XCTAssertTrue(option.waitForExistence(timeout: 5))
+        attach(app, "Photo person picker")
         option.tap()
         assertValue(filter, name)
     }

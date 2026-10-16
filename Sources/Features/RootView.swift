@@ -615,7 +615,7 @@ struct CirclePageStatusBanner: View {
             }
             .padding(.horizontal, AppTheme.pagePadding)
             .padding(.vertical, 6)
-            .background(AppTheme.surface)
+            .background(AppTheme.canvas)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("circle.pageStatus")
         }
