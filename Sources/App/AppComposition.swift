@@ -16,7 +16,8 @@ enum AppComposition {
                 ? PhotoViewerUITestFixture.makePhoto() : nil
             let settingsRole = ProcessInfo.processInfo.environment["MANNA_CIRCLE_SETTINGS_TEST_ROLE"]
             return AppModel(repository: LocalBlessingRepository(seedPhotoURL: photoURL,
-                settingsTestRole: settingsRole), diagnosticCollection: localCollection)
+                settingsTestRole: settingsRole,
+                streakTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-streak-ui-test")), diagnosticCollection: localCollection)
         }
 #endif
         if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {

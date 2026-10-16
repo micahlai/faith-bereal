@@ -958,8 +958,10 @@ struct BlessingContentView: View {
 
 struct AudioBlessingPlayer: View {
     @State private var playback: MediaPlaybackController
+    private let url: URL
 
     init(url: URL) {
+        self.url = url
         _playback = State(initialValue: MediaPlaybackController(url: url, kind: .voice))
     }
 
@@ -996,7 +998,7 @@ struct AudioBlessingPlayer: View {
                 }
             }
         }
-        .task { await playback.prepare() }
+        .task(id: url) { playback.updateURL(url); await playback.prepare() }
         .onDisappear { playback.pause() }
     }
 }
@@ -1034,8 +1036,10 @@ private struct MediaPlayhead: View {
 struct VideoBlessingPlayer: View {
     @State private var playback: MediaPlaybackController
     @State private var isFullscreen = false
+    private let url: URL
 
     init(url: URL) {
+        self.url = url
         _playback = State(initialValue: MediaPlaybackController(url: url, kind: .video))
     }
 
@@ -1068,10 +1072,11 @@ struct VideoBlessingPlayer: View {
                     .buttonStyle(.plain)
                     .padding(8)
                     .accessibilityLabel("Open video full screen")
+                    .disabled(playback.isPreparing)
                 }
             }
         }
-        .task { await playback.prepare() }
+        .task(id: url) { playback.updateURL(url); await playback.prepare() }
         .onDisappear {
             if !isFullscreen { playback.pause() }
         }

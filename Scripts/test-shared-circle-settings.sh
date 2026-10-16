@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+migration_order="${1:-standard}"
+case "$migration_order" in standard|--streak-first) ;; *) echo 'Unknown migration order.' >&2; exit 1 ;; esac
 settings_tmp="$(mktemp -d /tmp/manna-shared-settings.XXXXXX)"
 case "$settings_tmp" in /tmp/manna-shared-settings.*) ;; *) exit 1 ;; esac
 cleanup() {
@@ -40,11 +42,25 @@ run_sql -f "$repo_root/supabase/migrations/202610070002_universal_circle_invites
   -f "$repo_root/supabase/migrations/202609300003_remove_circle_member.sql" \
   -f "$repo_root/supabase/migrations/202610090002_durable_circle_invites.sql" \
   -f "$repo_root/supabase/migrations/202610120001_seven_hour_evening.sql" \
-  -f "$repo_root/supabase/migrations/202610130001_circle_streaks.sql" \
+  -f "$repo_root/supabase/migrations/202610130001_circle_streaks.sql"
+if [ "$migration_order" = '--streak-first' ]; then
+  run_sql -f "$repo_root/supabase/migrations/202610150002_independent_streak_deadlines.sql"
+fi
+run_sql \
   -f "$repo_root/supabase/migrations/202610140001_shared_circle_settings.sql" \
-  -f "$repo_root/supabase/tests/shared_circle_settings.sql" \
-  -f "$repo_root/supabase/tests/circle_streaks.sql" \
-  -f "$repo_root/supabase/tests/consecutive_timely_streaks.sql"
+  -f "$repo_root/supabase/tests/shared_circle_settings.sql"
+if [ "$migration_order" = standard ]; then
+  run_sql -f "$repo_root/supabase/tests/circle_streaks.sql" \
+    -f "$repo_root/supabase/tests/consecutive_timely_streaks.sql"
+  run_sql -f "$repo_root/supabase/migrations/202610150002_independent_streak_deadlines.sql"
+else
+  # Do not reapply the newer migration here: the pending settings migration must
+  # leave its six-column shape, private helper, and grants intact by itself.
+  run_sql -c "do \$\$ begin assert (select 'next_update_at'=any(proargnames) and cardinality(proallargtypes)=7 from pg_proc where oid='public.circle_streaks(uuid)'::regprocedure); assert not has_function_privilege('authenticated','manna_private.circle_streaks_at(uuid,timestamptz)','execute'); end; \$\$;"
+fi
+# Also prove the new streak-only migration upgrades the pending five-column
+# predecessor while leaving every shared-settings authorization check intact.
+run_sql -f "$repo_root/supabase/tests/independent_streak_deadlines.sql"
 # Simulate a setting edit already waiting when the leader revokes delegation.
 # The edit must authorize the updated row after the leader releases its lock.
 run_sql <<'SQL'
@@ -94,3 +110,7 @@ if [ "$edit_status" -eq 0 ] || [ "$revoke_status" -ne 0 ] || ! rg -q 'authorized
 fi
 run_sql -c "do \$\$ begin assert (select name='Race settings' and not allow_member_circle_changes from public.circles where id='00000000-0000-0000-0000-000000000103'); end; \$\$;" >/dev/null
 echo 'Shared circle settings, Storage permissions, ownership boundaries, and consecutive timely streak checks passed locally.'
+if [ "$migration_order" = standard ]; then
+  "$repo_root/Scripts/test-shared-circle-settings.sh" --streak-first
+  echo 'Reverse migration order preserves independent streaks and shared settings.'
+fi

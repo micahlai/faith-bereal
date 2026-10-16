@@ -32,16 +32,32 @@ final class HelpContentTests: XCTestCase {
             XCTAssertTrue(guide.contains(concept), concept)
         }
     }
-    func testStreakGuideDescribesSingleFlameColorPhotoOverlayAndCirclePanel() {
+    func testStreakGuideDescribesIndependentCountsAndWindowClosures() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
         XCTAssertTrue(guide.contains("One flame pill"))
-        XCTAssertTrue(guide.contains("blue when every day"))
-        XCTAssertTrue(guide.contains("red when it includes a late entry"))
+        XCTAssertTrue(guide.contains("always shows the overall count"))
+        XCTAssertTrue(guide.contains("blue only when both streak counts are equal"))
+        XCTAssertTrue(guide.contains("Evening blessings never earn an on time day"))
+        XCTAssertTrue(guide.contains("random for on time"))
+        XCTAssertTrue(guide.contains("final evening opportunity for overall"))
+        XCTAssertTrue(guide.contains("continuing after midnight"))
+        XCTAssertTrue(guide.contains("5 overall and 3 on time"))
+        XCTAssertTrue(guide.contains("shows both positive counts"))
+        XCTAssertTrue(guide.contains("only red when on time is zero"))
+        XCTAssertTrue(guide.contains("no flame when both are zero"))
         XCTAssertTrue(guide.contains("no verification badge"))
         XCTAssertTrue(guide.contains("small animated popup"))
-        XCTAssertTrue(guide.contains("A late entry breaks the blue run"))
+        XCTAssertTrue(guide.contains("A late random entry breaks the blue run"))
         XCTAssertTrue(guide.contains("without moving the name"))
         XCTAssertTrue(guide.contains("Circle People panel"))
+    }
+
+    func testRecordingHelpExplainsRefreshAndPrivateFailureDiagnostics() {
+        let guide = HelpTopic.timeline.steps.map(\.body).joined()
+        for concept in ["updated recording link", "missing or unreadable", "failed recording downloads and playback",
+                        "download status", "short audio error code", "contents and links are never included"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
     }
 
     func testCircleGuideExplainsVisibleLoadingAndInterruptedSwitchRecovery() {

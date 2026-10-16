@@ -49,6 +49,8 @@ final class AppModel {
     }
     private let activityController = PromptActivityController()
     private var realtimeTask: Task<Void, Never>?
+    private var streakRefreshTask: Task<Void, Never>?
+    private(set) var nextStreakRefreshAt: Date?
     private var widgetSnapshotTask: Task<Void, Never>?
     private var widgetSnapshotPendingDate: Date?
     private var remoteServicesConfigured = false
@@ -64,6 +66,9 @@ final class AppModel {
     var currentUser: Member? {
         didSet {
             if currentUser?.id != oldValue?.id {
+                streakRefreshTask?.cancel()
+                streakRefreshTask = nil
+                nextStreakRefreshAt = nil
                 dataScopeGeneration = UUID()
                 if oldValue != nil { diagnosticCollection.deactivate() }
                 if let previousID = oldValue?.id {
@@ -76,6 +81,9 @@ final class AppModel {
     var circle: CircleGroup? {
         didSet {
             if circle?.id != oldValue?.id || circle?.timeZoneIdentifier != oldValue?.timeZoneIdentifier {
+                streakRefreshTask?.cancel()
+                streakRefreshTask = nil
+                nextStreakRefreshAt = nil
                 dataScopeGeneration = UUID()
             }
         }
@@ -535,6 +543,9 @@ final class AppModel {
 
     func signOut() async {
         guard let authentication else { return }
+        streakRefreshTask?.cancel()
+        streakRefreshTask = nil
+        nextStreakRefreshAt = nil
         bootstrapGeneration = UUID()
         pageLoadGeneration = UUID()
         isPageLoading = false
@@ -676,6 +687,7 @@ final class AppModel {
         } else { lanes = TimelinePaging.merge(lanes, with: page.lanes) }
         if !timelineHasLoadedMore { timelineNextBeforeDate = page.nextBeforeDate }
         timelineLoadError = nil
+        scheduleStreakRefresh()
     }
 
     func loadMoreTimeline() async {
@@ -975,7 +987,7 @@ final class AppModel {
                 )
             }
             do {
-                try await refreshTimeline()
+                try await refreshAfterPosting()
             } catch {
                 guard !Task.isCancelled, !Self.isCancellation(error) else { return true }
                 message = "Your blessing was shared. The timeline will refresh shortly."
@@ -1517,7 +1529,7 @@ final class AppModel {
                 )
             }
             do {
-                try await refreshTimeline(now: now)
+                try await refreshAfterPosting(now: now)
             } catch {
                 guard !Task.isCancelled, !Self.isCancellation(error) else { return true }
                 message = "Your blessing was reused. The timeline will refresh shortly."
@@ -2040,6 +2052,64 @@ final class AppModel {
         )
         if case let .failed(reason) = result {
             message = "The blessing window is open, but its Live Activity couldn’t start: \(reason)"
+        }
+    }
+
+    /// Posting changes metadata as well as content. Fetch one fresh context and
+    /// pass it into the page read so all streak surfaces update together.
+    private func refreshAfterPosting(now: Date = .now) async throws {
+        let generation = dataScopeGeneration
+        while isPageLoading || isSwitchingCircle {
+            try await Task.sleep(for: .milliseconds(100))
+            guard dataScopeGeneration == generation else { return }
+        }
+        guard canUseFreshCircle, dataScopeGeneration == generation else { return }
+        let operation = UUID()
+        pageLoadGeneration = operation
+        isPageLoading = true
+        defer { if pageLoadGeneration == operation { isPageLoading = false } }
+        try await reloadCurrentCircle(now: now)
+    }
+
+    /// Server-authored streak deadlines let an idle visible circle resolve a
+    /// missed day without polling every second or waiting for a new launch.
+    private func scheduleStreakRefresh(now: Date = .now) {
+        streakRefreshTask?.cancel()
+        streakRefreshTask = nil
+        nextStreakRefreshAt = nil
+        guard runsBackgroundRefreshes, let circle, let accountID = currentUser?.id else { return }
+        var deadlines = (circle.streaks?.values.compactMap(\.nextUpdateAt) ?? [])
+        for candidate in [prompt, endOfDayPrompt].compactMap({ $0 }) where candidate.circleID == circle.id {
+            deadlines.append(candidate.startsAt)
+            deadlines.append(candidate.endsAt)
+        }
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: circle.timeZoneIdentifier)
+        if let nextDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) {
+            deadlines.append(nextDay)
+        }
+        guard let deadline = deadlines.filter({ $0 > now }).min() else { return }
+        nextStreakRefreshAt = deadline
+        let generation = dataScopeGeneration
+        streakRefreshTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(max(0.1, deadline.timeIntervalSinceNow + 0.35))) }
+            catch { return }
+            guard let self else { return }
+            // An in-flight visible load will install its own deadline. Give it a
+            // bounded chance to finish rather than overlapping that backend read.
+            for _ in 0..<20 {
+                guard !Task.isCancelled, self.dataScopeGeneration == generation,
+                      self.currentUser?.id == accountID, self.circle?.id == circle.id else { return }
+                if !self.isPageLoading && !self.isSwitchingCircle { break }
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+            }
+            guard !Task.isCancelled, self.dataScopeGeneration == generation,
+                  self.loadState == .ready, self.canUseFreshCircle,
+                  !self.isPageLoading, !self.isSwitchingCircle else { return }
+            // The load will schedule its successor; do not cancel its own task.
+            self.streakRefreshTask = nil
+            await self.refreshCurrentCircle()
+            guard !Task.isCancelled, self.dataScopeGeneration == generation else { return }
+            self.scheduleStreakRefresh()
         }
     }
 

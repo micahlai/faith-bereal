@@ -16,7 +16,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var entryTimes: [BlessingEntryGrantKey: Date] = [:]
     private var nudgedMembers: Set<NudgeKey> = []
 
-    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil) {
+    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil, streakTestFixture: Bool = false) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -62,7 +62,7 @@ actor LocalBlessingRepository: BlessingRepository {
             photoURL: seedPhotoURL
         )
 
-        let currentStart = now.addingTimeInterval(-60)
+        let currentStart = now.addingTimeInterval(streakTestFixture ? -1_200 : -60)
         let current = DailyPrompt(
             id: UUID(uuidString: "C0000000-0000-0000-0000-000000000001")!,
             circleID: primaryCircle.id,
@@ -70,7 +70,7 @@ actor LocalBlessingRepository: BlessingRepository {
             startsAt: currentStart,
             endsAt: currentStart.addingTimeInterval(600)
         )
-        let endOfDayStart = endOfDayStartsAt ?? startOfToday.addingTimeInterval(22 * 3_600)
+        let endOfDayStart = endOfDayStartsAt ?? (streakTestFixture ? now.addingTimeInterval(-300) : startOfToday.addingTimeInterval(22 * 3_600))
         let currentEndOfDay = DailyPrompt(
             id: UUID(uuidString: "C0000000-0000-0000-0000-000000000003")!,
             circleID: primaryCircle.id,
@@ -219,6 +219,37 @@ actor LocalBlessingRepository: BlessingRepository {
         )
 
 #if DEBUG
+        if streakTestFixture {
+            seededBlessings.removeAll { $0.circleID == primaryCircle.id }
+            // Exercise real daily/evening aggregation instead of assigning display counts.
+            for offset in 0...4 {
+                let day = calendar.date(byAdding: .day, value: -offset, to: startOfToday)!
+                let daily = seededPrompts.first {
+                    $0.circleID == primaryCircle.id && $0.kind == .daily
+                        && calendar.isDate($0.localDate, inSameDayAs: day)
+                }!
+                let sourcePrompt: DailyPrompt
+                if offset < 3 {
+                    sourcePrompt = daily
+                } else {
+                    let eveningStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: day)!
+                    let evening = DailyPrompt(id: UUID(), circleID: primaryCircle.id, localDate: day,
+                        startsAt: eveningStart, endsAt: eveningStart.addingTimeInterval(7 * 3_600), kind: .endOfDay)
+                    seededPrompts.append(evening)
+                    sourcePrompt = evening
+                }
+                seededBlessings.append(Blessing(id: UUID(), circleID: primaryCircle.id,
+                    promptID: sourcePrompt.id, authorID: user.id, captureMode: .typed,
+                    body: "Grateful for another day together.", audioURL: nil, videoURL: nil,
+                    submittedAt: sourcePrompt.startsAt.addingTimeInterval(30), isLate: false,
+                    scriptureReference: nil))
+            }
+            seededBlessings.append(Blessing(id: UUID(), circleID: primaryCircle.id,
+                promptID: currentEndOfDay.id, authorID: ava.id, captureMode: .typed,
+                body: "A quiet moment this evening.", audioURL: nil, videoURL: nil,
+                submittedAt: currentEndOfDay.startsAt.addingTimeInterval(30), isLate: false,
+                scriptureReference: nil))
+        }
         if settingsTestRole == "member" || settingsTestRole == "member_shared" {
             primaryCircle.ownerID = ava.id
             primaryCircle.allowMemberCircleChanges = settingsTestRole == "member_shared"
@@ -292,13 +323,15 @@ actor LocalBlessingRepository: BlessingRepository {
         var result = circle
         let circlePrompts = Dictionary(uniqueKeysWithValues: prompts.filter { $0.circleID == circle.id }.map { ($0.id, $0) })
         let posts = blessings.compactMap { blessing -> StreakDay? in
-            guard let prompt = circlePrompts[blessing.promptID] else { return nil }
+            guard let prompt = circlePrompts[blessing.promptID],
+                  prompt.startsAt <= now, prompt.notificationHasStarted != false,
+                  blessing.submittedAt >= prompt.startsAt, blessing.submittedAt <= now else { return nil }
             let key = BlessingEntryGrantKey(promptID: prompt.id, memberID: blessing.authorID)
             let entered = entryGrants.contains(key) ? entryTimes[key] : nil
             let onTime = entered.map { $0 >= prompt.startsAt && $0 < prompt.endsAt } ?? !blessing.isLate
-            return StreakDay(circleID: circle.id, memberID: blessing.authorID, day: prompt.localDate, onTime: onTime)
+            return StreakDay(circleID: circle.id, memberID: blessing.authorID, day: prompt.localDate, onTime: onTime, kind: prompt.kind)
         }
-        result.streaks = CircleStreakPolicy.summaries(circle: circle, posts: posts, now: now)
+        result.streaks = CircleStreakPolicy.summaries(circle: circle, posts: posts, prompts: Array(circlePrompts.values), now: now)
         return result
     }
 

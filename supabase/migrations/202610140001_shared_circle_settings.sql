@@ -282,7 +282,16 @@ comment on function public.update_circle_photo(uuid, text) is
 
 -- Separate consecutive timely-entry run for the blue flame explanation.
 -- Feature metadata only: no content, media paths, or cross-circle information.
-drop function public.circle_streaks(uuid);
+-- This migration is still unapplied. Preserve the newer independent-deadline
+-- RPC when that streak-only correction has already deployed out of order.
+do $streak_upgrade$
+begin
+  if exists(select 1 from pg_proc where oid='public.circle_streaks(uuid)'::regprocedure
+    and 'next_update_at'=any(proargnames) and cardinality(proallargtypes)>=7) then
+    return;
+  end if;
+execute 'drop function public.circle_streaks(uuid)';
+execute $streak_definition$
 create function public.circle_streaks(p_circle_id uuid)
 returns table(member_id uuid, days integer, on_time_days integer, on_time_today boolean, on_time_streak_days integer)
 language plpgsql stable security definer set search_path=public,pg_temp as $$
@@ -325,5 +334,8 @@ begin
   where cm.circle_id=p_circle_id and cm.removed_at is null;
 end;
 $$;
-revoke all on function public.circle_streaks(uuid) from public,anon;
-grant execute on function public.circle_streaks(uuid) to authenticated;
+$streak_definition$;
+execute 'revoke all on function public.circle_streaks(uuid) from public,anon';
+execute 'grant execute on function public.circle_streaks(uuid) to authenticated';
+end;
+$streak_upgrade$;

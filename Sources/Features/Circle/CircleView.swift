@@ -39,6 +39,7 @@ private struct CircleHeaderIdentity: View {
 
 struct CircleView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var joinCode = ""
     @State private var showingJoin = false
     @State private var showingCreate = false
@@ -155,22 +156,45 @@ struct CircleView: View {
             Text("People")
                 .font(.headline)
             ForEach(model.circle?.members ?? []) { member in
-                HStack(spacing: 12) {
-                    AvatarBadge(member: member, size: 42)
-                    Text(member.id == model.currentUser?.id ? "\(member.displayName) (you)" : member.displayName)
-                        .foregroundStyle(AppTheme.ink)
-                    Spacer()
-                    if member.id == model.circle?.ownerID {
-                        Text("Owner")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.secondaryInk)
+                Group {
+                    if dynamicTypeSize.isAccessibilitySize {
+                        VStack(alignment: .trailing, spacing: 8) {
+                            HStack(alignment: .top, spacing: 12) {
+                                AvatarBadge(member: member, size: 42)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    memberName(member)
+                                    if member.id == model.circle?.ownerID { ownerLabel }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            ProfileStreakBadge(memberID: member.id)
+                        }
+                    } else {
+                        HStack(spacing: 12) {
+                            AvatarBadge(member: member, size: 42)
+                            memberName(member)
+                            Spacer()
+                            if member.id == model.circle?.ownerID { ownerLabel }
+                            ProfileStreakBadge(memberID: member.id)
+                        }
                     }
-                    ProfileStreakBadge(memberID: member.id)
                 }
                 .frame(minHeight: 44)
             }
         }
         .blessingCard()
+    }
+
+    private func memberName(_ member: Member) -> some View {
+        Text(member.id == model.currentUser?.id ? "\(member.displayName) (you)" : member.displayName)
+            .foregroundStyle(AppTheme.ink)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var ownerLabel: some View {
+        Text("Owner")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(AppTheme.secondaryInk)
     }
 
     private var windowSummary: String {
