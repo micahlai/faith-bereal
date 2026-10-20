@@ -4,9 +4,10 @@ import XCTest
 final class HelpContentTests: XCTestCase {
     func testOfflineArchiveAndLegacyRecordingHelpExplainsLocalLimits() {
         let guide = HelpTopic.saving.steps.map(\.body).joined()
-        for concept in ["Saved on this device", "without internet", "closing and reopening", "read-only list", "until you sign out", "other accounts cannot read", "Missing local files"] {
+        for concept in ["automatically in Timeline", "without internet", "closing and reopening", "read-only", "until you sign out", "other accounts cannot read", "Missing local files"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
+        XCTAssertFalse(guide.contains("Use Saved on this device"))
         XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("no new download is needed"))
     }
 

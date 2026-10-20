@@ -13,14 +13,14 @@ final class PhotoViewerUITests: XCTestCase {
                 largest ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
             app.terminate()
             app.launch()
-            let archive = app.buttons["savedArchive.open"]
-            XCTAssertTrue(archive.waitForExistence(timeout: 15))
-            archive.tap()
+            XCTAssertTrue(app.navigationBars["Timeline"].waitForExistence(timeout: 15))
+            XCTAssertFalse(app.buttons["savedArchive.open"].exists)
             let row = app.staticTexts["Offline saved voice fixture"]
             XCTAssertTrue(row.waitForExistence(timeout: 5))
+            attachScreen(app, name: largest ? "Automatic saved Timeline largest dark" : "Automatic saved Timeline cold launch")
             for _ in 0..<5 where !row.isHittable { app.swipeUp() }
             row.tap()
-            XCTAssertTrue(app.navigationBars["Saved blessing"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.navigationBars["Blessing"].waitForExistence(timeout: 5))
             let play = app.buttons["Play recording"].firstMatch
             for _ in 0..<5 where !play.isHittable { app.swipeUp() }
             XCTAssertTrue(play.isEnabled)

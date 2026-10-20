@@ -12,21 +12,24 @@ final class CachedCircleLoadingTests: XCTestCase {
         _ = try await SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
             .save(blessing: blessing, responses: [], userID: fixture.seed.currentUser.id)
         await fixture.model.bootstrap()
-        XCTAssertEqual(fixture.model.loadState, .signedOut)
-        XCTAssertNil(fixture.model.currentUser)
+        XCTAssertEqual(fixture.model.loadState, .ready)
+        XCTAssertEqual(fixture.model.currentUser?.id, fixture.seed.currentUser.id)
         XCTAssertEqual(fixture.model.savedArchiveAccountID, fixture.seed.currentUser.id)
         XCTAssertEqual(fixture.model.savedArchiveRecords.map(\.blessing.body), [blessing.body])
-        XCTAssertTrue(fixture.model.lanes.isEmpty, "Offline archives cannot unlock live peer content")
+        XCTAssertTrue(fixture.model.isShowingSavedTimeline)
+        XCTAssertFalse(fixture.model.canUseFreshCircle)
+        XCTAssertEqual(fixture.model.selectedTab, 1)
+        XCTAssertEqual(fixture.model.lanes.flatMap(\.events).count, 1)
+        XCTAssertFalse(fixture.model.canSubmitCurrentPrompt)
         let other = AppModel(repository: fixture.repository,
             authentication: CachedLoadingAuthentication(accountID: UUID(), hasSession: false),
             savedBlessingStore: SavedBlessingStore(root: fixture.root.appendingPathComponent("saved")))
         await other.bootstrap()
         XCTAssertTrue(other.savedArchiveRecords.isEmpty)
-        fixture.model.isSavedArchivePresented = true
         await fixture.model.signOut()
         XCTAssertNil(fixture.model.savedArchiveAccountID)
         XCTAssertTrue(fixture.model.savedArchiveRecords.isEmpty)
-        XCTAssertFalse(fixture.model.isSavedArchivePresented)
+        XCTAssertFalse(fixture.model.isShowingSavedTimeline)
     }
 
     @MainActor
@@ -42,12 +45,94 @@ final class CachedCircleLoadingTests: XCTestCase {
         let work = Task { await fixture.model.bootstrap() }
         await fixture.repository.gate.waitUntilSuspended()
         XCTAssertEqual(fixture.model.savedArchiveRecords.map(\.blessing.id), [blessing.id])
-        XCTAssertEqual(fixture.model.loadState, .loading)
-        XCTAssertTrue(fixture.model.lanes.isEmpty)
+        XCTAssertEqual(fixture.model.loadState, .ready)
+        XCTAssertTrue(fixture.model.isShowingSavedTimeline)
+        XCTAssertEqual(fixture.model.lanes.flatMap(\.events).count, 1)
         await fixture.model.signOut()
         await fixture.repository.gate.release()
         await work.value
         XCTAssertTrue(fixture.model.savedArchiveRecords.isEmpty, "Late startup cannot restore a signed-out archive")
+    }
+
+    @MainActor
+    func testLocalTimelineKeepsPeerPrivacyCircleScopeAndResponsesWithoutBackend() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false, sessionIsValid: false)
+        defer { fixture.removeFiles() }
+        let store = SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
+        let circleID = UUID(), otherCircleID = UUID(), promptID = UUID(), peer = UUID()
+        func blessing(author: UUID, circle: UUID, prompt: UUID, date: Date) -> Blessing {
+            Blessing(id: UUID(), circleID: circle, promptID: prompt, authorID: author,
+                captureMode: .typed, body: "Local copy", audioURL: nil, videoURL: nil,
+                submittedAt: date, isLate: false, scriptureReference: nil)
+        }
+        let own = blessing(author: fixture.seed.currentUser.id, circle: circleID, prompt: promptID, date: fixture.now)
+        let visible = blessing(author: peer, circle: circleID, prompt: promptID, date: fixture.now)
+        let locked = blessing(author: peer, circle: circleID, prompt: UUID(), date: fixture.now)
+        let historic = blessing(author: peer, circle: otherCircleID, prompt: UUID(), date: fixture.now.addingTimeInterval(-3 * 86400))
+        let response = BlessingResponse(id: UUID(), blessingID: own.id, circleID: circleID,
+            authorID: peer, mode: .typed, body: "Saved response", audioURL: nil, submittedAt: fixture.now)
+        for item in [own, visible, locked, historic] {
+            _ = try await store.save(blessing: item, responses: item.id == own.id ? [response] : [], userID: fixture.seed.currentUser.id)
+        }
+        await fixture.model.bootstrap()
+        await fixture.model.switchCircle(to: circleID)
+        func ids() -> Set<UUID> {
+            Set(fixture.model.lanes.flatMap(\.events).compactMap {
+                if case let .blessing(value) = $0.status { return value.id }; return nil
+            })
+        }
+        XCTAssertEqual(ids(), [own.id, visible.id])
+        let responses = await fixture.model.responses(for: own)
+        XCTAssertEqual(responses.map(\.id), [response.id])
+        XCTAssertFalse(fixture.model.canEdit(own, at: fixture.now))
+        XCTAssertFalse(fixture.model.canRespond(to: own, at: fixture.now))
+        let summary = await fixture.model.timelineResponseSummary(for: own, revision: fixture.model.timelineResponderRevision)
+        XCTAssertEqual(summary?.count, 1)
+        XCTAssertEqual(summary?.authorIDs, [peer])
+        let edit = await fixture.model.updateBlessing(own, body: "Cannot edit offline", scriptureReference: nil)
+        XCTAssertNil(edit)
+        await fixture.model.switchCircle(to: otherCircleID)
+        XCTAssertEqual(ids(), [historic.id])
+        XCTAssertFalse(fixture.model.canUseFreshCircle)
+        let calls = await fixture.repository.counts()
+        XCTAssertEqual(calls.context, 0)
+        XCTAssertEqual(calls.mutations, 0)
+        XCTAssertEqual(calls.responses, 0)
+    }
+
+    @MainActor
+    func testSavedHistoryRemainsInOnlineTimelineAndDoesNotDuplicateFreshServerCards() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        let circle = try XCTUnwrap(fixture.seed.circle)
+        let user = fixture.seed.currentUser.id
+        let page = try await fixture.repository.timelinePage(circle: circle, viewerID: user, now: fixture.now, before: nil)
+        let serverBlessing = try XCTUnwrap(page.lanes.flatMap(\.events).compactMap { event -> Blessing? in
+            if case let .blessing(value) = event.status { return value }; return nil
+        }.first)
+        let old = Blessing(id: UUID(), circleID: circle.id, promptID: UUID(), authorID: user,
+            captureMode: .typed, body: "Older private history", audioURL: nil, videoURL: nil,
+            submittedAt: fixture.now.addingTimeInterval(-60 * 86400), isLate: false, scriptureReference: nil)
+        let store = SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
+        for blessing in [old, serverBlessing] {
+            _ = try await store.save(blessing: blessing.replacingMedia(audio: nil, video: nil, photo: nil),
+                responses: [], userID: user)
+        }
+        await fixture.model.bootstrap()
+        XCTAssertFalse(fixture.model.isShowingSavedTimeline)
+        func occurrences(_ id: UUID) -> Int {
+            fixture.model.lanes.flatMap(\.events).filter {
+                if case let .blessing(value) = $0.status { return value.id == id }; return false
+            }.count
+        }
+        XCTAssertEqual(occurrences(old.id), 1)
+        XCTAssertEqual(occurrences(serverBlessing.id), 1)
+        try await fixture.model.refreshTimeline(now: fixture.now)
+        XCTAssertEqual(occurrences(old.id), 1)
+        XCTAssertEqual(occurrences(serverBlessing.id), 1)
+        await fixture.model.loadMoreTimeline()
+        XCTAssertEqual(occurrences(old.id), 1)
+        XCTAssertEqual(occurrences(serverBlessing.id), 1)
     }
 
     @MainActor
@@ -446,6 +531,7 @@ private actor CachedLoadingRepository: BlessingRepository {
     private let base: LocalBlessingRepository
     private var nextPage: TimelinePage?
     private var contextCalls = 0
+    private var responseCalls = 0
     private var mutationCalls = 0
     private var shouldFailContext = false
     private var shouldFailPage = false
@@ -454,7 +540,7 @@ private actor CachedLoadingRepository: BlessingRepository {
 
     init(now: Date) { base = LocalBlessingRepository(now: now) }
 
-    func counts() -> (context: Int, mutations: Int) { (contextCalls, mutationCalls) }
+    func counts() -> (context: Int, mutations: Int, responses: Int) { (contextCalls, mutationCalls, responseCalls) }
     func seedBootstrap() async throws -> AppBootstrap { try await base.bootstrap() }
 
     func failNextContext() { shouldFailContext = true }
@@ -613,6 +699,7 @@ private actor CachedLoadingRepository: BlessingRepository {
     }
 
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
+        responseCalls += 1
         return try await base.responses(blessingID: blessingID, viewerID: viewerID)
     }
 

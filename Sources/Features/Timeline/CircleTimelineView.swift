@@ -27,7 +27,7 @@ struct CircleTimelineView: View {
     var body: some View {
         ZStack {
             AppTheme.canvas.ignoresSafeArea()
-            if model.isShowingCachedMetadata || (model.isPageLoading && model.lanes.isEmpty) {
+            if !model.isShowingSavedTimeline && (model.isShowingCachedMetadata || (model.isPageLoading && model.lanes.isEmpty)) {
                 CircleBlessingsPlaceholder()
                     .padding(AppTheme.pagePadding)
             } else if model.lanes.isEmpty {
@@ -926,7 +926,11 @@ struct BlessingDetailView: View {
                             .id(blessing.id)
                         SavedBlessingButton(blessing: blessing)
                         if let reference = blessing.scriptureReference {
-                            ScripturePassageView(reference: reference)
+                            if model.isShowingSavedTimeline {
+                                Label(reference.displayName, systemImage: "book.closed")
+                            } else {
+                                ScripturePassageView(reference: reference)
+                            }
                         }
                         BlessingResponsesView(blessing: blessing, allowsResponding: allowsResponses)
                     }

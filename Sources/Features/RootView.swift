@@ -6,52 +6,41 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            switch model.loadState {
-            case .idle, .loading:
-                LoadingView()
-            case .ready:
-                if !model.hasSeenAbout || !model.hasChosenInitialAppearance || !model.hasChosenInitialSaving {
-                    StartupOnboardingView(
-                        initialPage: !model.hasSeenAbout ? .about
-                            : (!model.hasChosenInitialAppearance ? .appearance : .saving)
-                    ) {
-                        model.hasSeenAbout = true
-                        model.hasChosenInitialAppearance = true
+            if model.isShowingSavedTimeline {
+                MainTabView()
+            } else {
+                switch model.loadState {
+                case .idle, .loading:
+                    LoadingView()
+                case .ready:
+                    if !model.hasSeenAbout || !model.hasChosenInitialAppearance || !model.hasChosenInitialSaving {
+                        StartupOnboardingView(
+                            initialPage: !model.hasSeenAbout ? .about
+                                : (!model.hasChosenInitialAppearance ? .appearance : .saving)
+                        ) {
+                            model.hasSeenAbout = true
+                            model.hasChosenInitialAppearance = true
+                        }
+                    } else if model.circles.isEmpty {
+                        EmptyCircleShell()
+                    } else {
+                        MainTabView()
                     }
-                } else if model.circles.isEmpty {
-                    EmptyCircleShell()
-                } else {
-                    MainTabView()
-                }
-            case .signedOut:
-                SignInView()
-            case let .failed(message):
-                ContentUnavailableView {
-                    Label("Couldn’t open your circle", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Retry") { Task { await model.retryPageLoad() } }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityIdentifier("circle.startupRetry")
+                case .signedOut:
+                    SignInView()
+                case let .failed(message):
+                    ContentUnavailableView {
+                        Label("Couldn’t open your circle", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(message)
+                    } actions: {
+                        Button("Retry") { Task { await model.retryPageLoad() } }
+                            .frame(minWidth: 44, minHeight: 44)
+                            .accessibilityIdentifier("circle.startupRetry")
+                    }
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if !model.savedArchiveRecords.isEmpty,
-               model.isPageLoading || model.isShowingCachedMetadata || model.loadState != .ready {
-                Button("Saved on this device", systemImage: "arrow.down.circle") {
-                    model.isSavedArchivePresented = true
-                }
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(AppTheme.canvas)
-                .accessibilityIdentifier("savedArchive.open")
-            }
-        }
-        .sheet(isPresented: Binding(
-            get: { model.isSavedArchivePresented && model.savedArchiveAccountID != nil },
-            set: { model.isSavedArchivePresented = $0 }
-        )) { SavedBlessingsView() }
         .task { await model.bootstrap() }
         .alert(
             "manna circle",
@@ -92,11 +81,6 @@ private struct EmptyCircleShell: View {
                     ToolbarItem(placement: .topBarLeading) {
                         Menu {
                             Button("Help", systemImage: "questionmark.circle") { showingHelp = true }
-                            if !model.savedArchiveRecords.isEmpty {
-                                Button("Saved on this device", systemImage: "arrow.down.circle") {
-                                    model.isSavedArchivePresented = true
-                                }
-                            }
                             Button("About manna circle", systemImage: "info.circle") { showingAbout = true }
                             Button("User settings", systemImage: "person.crop.circle") { showingUserSettings = true }
                         } label: {
@@ -611,19 +595,25 @@ private struct LoadingView: View {
 /// Page status stays beside the content so navigation remains available during a refresh.
 struct CirclePageStatusBanner: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         if model.isPageLoading || model.pageLoadError != nil || model.isShowingCachedMetadata {
-            HStack(alignment: .center, spacing: 12) {
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+            layout {
                 if model.isPageLoading {
                     ProgressView()
                         .controlSize(.small)
-                } else {
+                } else if !dynamicTypeSize.isAccessibilitySize {
                     Image(systemName: "exclamationmark.circle")
                         .foregroundStyle(AppTheme.secondaryInk)
                         .accessibilityHidden(true)
                 }
-                Text(model.pageLoadError ?? (model.isShowingCachedMetadata ? "Loading circle…" : "Updating circle…"))
+                Text(model.isShowingSavedTimeline && !model.isPageLoading
+                    ? "Offline"
+                    : model.pageLoadError ?? (model.isShowingSavedTimeline ? "Showing saved blessings…" : model.isShowingCachedMetadata ? "Loading circle…" : "Updating circle…"))
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryInk)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -734,11 +724,6 @@ private struct GlobalAppToolbar: ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Menu {
                 Button("Help", systemImage: "questionmark.circle") { showingHelp = true }
-                if !model.savedArchiveRecords.isEmpty {
-                    Button("Saved on this device", systemImage: "arrow.down.circle") {
-                        model.isSavedArchivePresented = true
-                    }
-                }
                 Button {
                     showingAbout = true
                 } label: {
