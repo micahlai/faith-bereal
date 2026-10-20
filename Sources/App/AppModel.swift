@@ -1666,21 +1666,19 @@ final class AppModel {
             let responses = try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
             responseMediaDates[blessing.id] = responses.filter { $0.mode == .voice }.map(\.submittedAt)
             if savedBlessings[blessing.id]?.isAutomatic == true { scheduleAutomaticSaving() }
-            let saved = savedBlessings[blessing.id]?.responses ?? []
-            return responses.map { response in
-                if let localURL = saved.first(where: { $0.id == response.id })?.audioURL {
-                    return response.replacingAudio(localURL)
-                }
-                return response.replacingAudio(
-                    MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) ? nil : response.audioURL
-                )
-            }
+            return responses.map { resolvedResponse($0) }
         } catch {
             guard !Task.isCancelled, !Self.isCancellation(error) else { return [] }
             if let saved = savedBlessings[blessing.id] { return saved.responses }
             message = error.localizedDescription
             return []
         }
+    }
+
+    func resolvedResponse(_ response: BlessingResponse, at now: Date = .now) -> BlessingResponse {
+        let local = savedBlessings[response.blessingID]?.responses.first { $0.id == response.id }?.audioURL
+        return response.replacingAudio(local ?? (MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt, at: now)
+            ? nil : response.audioURL))
     }
 
     func resolvedBlessing(_ blessing: Blessing, at now: Date = .now) -> Blessing {

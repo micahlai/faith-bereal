@@ -522,7 +522,7 @@ struct CaptureView: View {
         switch transcriber.state {
         case .idle: "Tap Start listening, then speak naturally."
         case .requestingPermission: "Requesting microphone and speech access…"
-        case .finishing: "Combining your recording segments…"
+        case .finishing: "Preparing your recording…"
         case .listening: "Listening… tap Stop listening when you’re done."
         case .denied: "Speech access is off. Enable it in Settings or choose Type."
         case let .failed(message): message

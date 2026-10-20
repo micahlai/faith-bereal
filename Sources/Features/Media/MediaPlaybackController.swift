@@ -32,7 +32,7 @@ final class MediaPlaybackController {
     private(set) var duration: TimeInterval = 0
     private(set) var videoAspectRatio: CGFloat = 16 / 9
     private(set) var isPlaying = false
-    private(set) var isPreparing = true
+    private(set) var isPreparing = false
     private(set) var errorMessage: String?
 
     private var url: URL
@@ -74,7 +74,7 @@ final class MediaPlaybackController {
         currentTime = 0
         duration = 0
         errorMessage = nil
-        isPreparing = true
+        isPreparing = false
     }
 
     func prepare() async {

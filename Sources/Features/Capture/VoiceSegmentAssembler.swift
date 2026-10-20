@@ -4,8 +4,7 @@ import Foundation
 enum VoiceSegmentAssembler {
     enum Failure: Error { case missingAudio }
     static func combine(_ segments: [URL]) async throws -> URL {
-        guard let first = segments.first else { throw Failure.missingAudio }
-        if segments.count == 1 { return first }
+        guard !segments.isEmpty else { throw Failure.missingAudio }
         let composition = AVMutableComposition()
         guard let track = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
             throw Failure.missingAudio
@@ -25,7 +24,14 @@ enum VoiceSegmentAssembler {
         guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else {
             throw Failure.missingAudio
         }
-        try await exporter.export(to: output, as: .m4a)
-        return output
+        do {
+            try Task.checkCancellation()
+            try await exporter.export(to: output, as: .m4a)
+            try Task.checkCancellation()
+            return output
+        } catch {
+            try? FileManager.default.removeItem(at: output)
+            throw error
+        }
     }
 }

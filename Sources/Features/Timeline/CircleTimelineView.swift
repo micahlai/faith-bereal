@@ -1195,13 +1195,13 @@ struct AudioBlessingPlayer: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(playback.isPreparing)
-                    .accessibilityLabel(playback.isPlaying ? "Pause recording" : "Play recording")
+                    .accessibilityLabel(playback.isPreparing ? "Loading recording" : playback.isPlaying ? "Pause recording" : "Play recording")
 
                     MediaPlayhead(playback: playback)
                 }
             }
         }
-        .task(id: url) { playback.updateURL(url); await playback.prepare() }
+        .onChange(of: url, initial: true) { _, value in playback.updateURL(value) }
         .onDisappear { playback.pause() }
     }
 }
@@ -1258,10 +1258,29 @@ struct VideoBlessingPlayer: View {
                     .frame(minHeight: 44)
             } else {
                 ZStack(alignment: .topTrailing) {
-                    VideoPlayer(player: playback.player)
-                        .aspectRatio(playback.videoAspectRatio, contentMode: .fit)
-                        .background(.black)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    if playback.player.currentItem != nil {
+                        VideoPlayer(player: playback.player)
+                            .aspectRatio(playback.videoAspectRatio, contentMode: .fit)
+                            .background(.black)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else {
+                        Color.black
+                            .aspectRatio(playback.videoAspectRatio, contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay {
+                                Button {
+                                    Task { await playback.play() }
+                                } label: {
+                                    Group {
+                                        if playback.isPreparing { ProgressView().tint(.white) }
+                                        else { Image(systemName: "play.fill").foregroundStyle(.white) }
+                                    }
+                                    .frame(width: 44, height: 44)
+                                }
+                                .accessibilityLabel("Play video")
+                                .disabled(playback.isPreparing)
+                            }
+                    }
 
                     Button {
                         isFullscreen = true
@@ -1279,7 +1298,7 @@ struct VideoBlessingPlayer: View {
                 }
             }
         }
-        .task(id: url) { playback.updateURL(url); await playback.prepare() }
+        .onChange(of: url, initial: true) { _, value in playback.updateURL(value) }
         .onDisappear {
             if !isFullscreen { playback.pause() }
         }

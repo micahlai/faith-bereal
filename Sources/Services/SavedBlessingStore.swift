@@ -116,17 +116,21 @@ actor SavedBlessingStore {
         defer { try? FileManager.default.removeItem(at: staging) }
         var files: [String: String] = [:]
         var sources: [(String, URL)] = []
-        if let url = blessing.audioURL { sources.append(("audio", url)) }
-        if let url = blessing.videoURL { sources.append(("video", url)) }
-        if let url = blessing.photoURL { sources.append(("photo", url)) }
+        if let url = blessing.audioURL ?? existing?.blessing.audioURL { sources.append(("audio", url)) }
+        if let url = blessing.videoURL ?? existing?.blessing.videoURL { sources.append(("video", url)) }
+        if let url = blessing.photoURL ?? existing?.blessing.photoURL { sources.append(("photo", url)) }
         for response in responses {
-            if let url = response.audioURL { sources.append((response.id.uuidString, url)) }
+            if let url = response.audioURL ?? existing?.responses.first(where: { $0.id == response.id })?.audioURL {
+                sources.append((response.id.uuidString, url))
+            }
         }
         for (key, source) in sources {
             try Task.checkCancellation()
             let ext = source.pathExtension.lowercased()
-            if let name = existing?.files[key], source == destination.appendingPathComponent(name),
-               FileManager.default.fileExists(atPath: source.path) {
+            // Blessing media is immutable. A refreshed signed URL is not a new file.
+            if let name = existing?.files[key],
+               name == URL(fileURLWithPath: name).lastPathComponent,
+               FileManager.default.fileExists(atPath: destination.appendingPathComponent(name).path) {
                 files[key] = name
                 continue
             }

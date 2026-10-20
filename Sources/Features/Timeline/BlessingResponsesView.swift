@@ -139,6 +139,7 @@ struct BlessingResponsesView: View {
 
     @ViewBuilder
     private func responseRow(_ response: BlessingResponse) -> some View {
+        let response = model.resolvedResponse(response)
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 if let member = model.circle?.members.first(where: { $0.id == response.authorID }) {

@@ -2,6 +2,15 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testMediaGuideExplainsDemandLoadingCompressionAndLocalReuse() {
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("download only when you tap Play"))
+        XCTAssertTrue(HelpTopic.responses.steps.map(\.body).joined().contains("compressed before sending"))
+        let saving = HelpTopic.saving.steps.map(\.body).joined()
+        for concept in ["use the local copy", "including before expiry", "does not download saved files again", "only newly available media"] {
+            XCTAssertTrue(saving.contains(concept), concept)
+        }
+    }
+
     func testPhotoAndTodayGuideExplainsZoomControlsAndVerticalOnlyFeed() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
         for concept in ["enlarge it", "Profile and circle photos do not", "Pinch to zoom", "Zoom in", "Zoom out", "movement controls",

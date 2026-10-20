@@ -2,6 +2,63 @@ import XCTest
 @testable import BlessingCircle
 
 final class SavedBlessingStoreTests: XCTestCase {
+    func testRefreshingRemoteURLsDownloadsEachSavedFileOnlyOnceAcrossRelaunch() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blessing = fixture()
+        let response = responseFixture(blessing: blessing)
+        let copier = CountingArchiveCopier()
+        let store = SavedBlessingStore(root: root, copier: copier)
+        let first = try await store.save(blessing: blessing, responses: [response], userID: user, automatically: true)
+        let initialCount = await copier.count
+        XCTAssertEqual(initialCount, 3)
+        let fresh = blessing.replacingMedia(audio: URL(string: "https://example.com/audio.m4a?fresh"),
+            video: nil, photo: URL(string: "https://example.com/photo.jpg?fresh"))
+        let freshResponse = response.replacingAudio(URL(string: "https://example.com/response.m4a?fresh"))
+        let reopened = SavedBlessingStore(root: root, copier: copier)
+        let refreshed = try await reopened.save(blessing: fresh, responses: [freshResponse], userID: user,
+            automatically: true, refreshing: true)
+        let afterRefresh = await copier.count
+        XCTAssertEqual(afterRefresh, initialCount)
+        XCTAssertEqual(refreshed.blessing.audioURL, first.blessing.audioURL)
+        XCTAssertEqual(refreshed.blessing.photoURL, first.blessing.photoURL)
+        XCTAssertEqual(refreshed.responses[0].audioURL, first.responses[0].audioURL)
+        let newResponse = responseFixture(blessing: blessing)
+        let added = try await reopened.save(blessing: fresh, responses: [freshResponse, newResponse], userID: user,
+            automatically: true, refreshing: true)
+        let afterNewResponse = await copier.count
+        XCTAssertEqual(afterNewResponse, initialCount + 1)
+        XCTAssertEqual(added.responses[0].audioURL, first.responses[0].audioURL)
+        _ = try await reopened.save(blessing: fresh.replacingMedia(audio: nil, video: nil, photo: nil),
+            responses: added.responses, userID: user, automatically: true, refreshing: true)
+        let reloaded = try await reopened.load(userID: user)
+        XCTAssertEqual(reloaded[blessing.id]?.blessing.audioURL, first.blessing.audioURL)
+    }
+
+    @MainActor
+    func testSavedMediaWinsOverFreshRemoteLinksBeforeAndAfterExpiry() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = SavedBlessingStore(root: root, copier: CountingArchiveCopier())
+        let repository = LocalBlessingRepository()
+        let firstModel = AppModel(repository: repository, savedBlessingStore: store)
+        await firstModel.bootstrap()
+        let user = try XCTUnwrap(firstModel.currentUser?.id)
+        let voice = fixture(), video = fixture(mode: .video)
+        let response = responseFixture(blessing: voice)
+        let voiceCopy = try await store.save(blessing: voice, responses: [response], userID: user)
+        let videoCopy = try await store.save(blessing: video, responses: [], userID: user)
+        let reopened = AppModel(repository: repository, savedBlessingStore: store)
+        await reopened.bootstrap()
+        for now in [voice.submittedAt, voice.submittedAt.addingTimeInterval(MediaRetentionPolicy.lifetime + 1)] {
+            let resolved = reopened.resolvedBlessing(voice, at: now)
+            XCTAssertEqual(resolved.audioURL, voiceCopy.blessing.audioURL)
+            XCTAssertEqual(resolved.photoURL, voiceCopy.blessing.photoURL)
+            XCTAssertEqual(reopened.resolvedBlessing(video, at: now).videoURL, videoCopy.blessing.videoURL)
+            XCTAssertEqual(reopened.resolvedResponse(response, at: now).audioURL, voiceCopy.responses[0].audioURL)
+        }
+    }
+
     func testRetentionBoundaryAndTwoDayWarning() {
         let sent = Date(timeIntervalSince1970: 1_000)
         XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(28 * 86_400 - 1)))
@@ -294,5 +351,13 @@ private struct FixtureArchiveCopier: SavedBlessingMediaCopying {
     func copy(from source: URL, to destination: URL) async throws {
         if source.lastPathComponent == failingFile { throw BlessingMediaSaveError.unavailable }
         try Data("fixture media".utf8).write(to: destination)
+    }
+}
+
+private actor CountingArchiveCopier: SavedBlessingMediaCopying {
+    private(set) var count = 0
+    func copy(from source: URL, to destination: URL) async throws {
+        count += 1
+        try Data("saved media".utf8).write(to: destination)
     }
 }

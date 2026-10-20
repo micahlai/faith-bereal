@@ -30,7 +30,15 @@ final class VoiceSegmentTests: XCTestCase {
         XCTAssertEqual(output.pathExtension, "m4a")
         XCTAssertEqual(duration, 0.5, accuracy: 0.06)
         let single = try await VoiceSegmentAssembler.combine([urls[0]])
-        XCTAssertEqual(single, urls[0])
+        defer { try? FileManager.default.removeItem(at: single) }
+        XCTAssertNotEqual(single, urls[0])
+        XCTAssertEqual(single.pathExtension, "m4a")
+        let singleDuration = try await AVURLAsset(url: single).load(.duration).seconds
+        XCTAssertEqual(singleDuration, 0.25, accuracy: 0.06)
+        let sourceSize = try Data(contentsOf: urls[0]).count
+        XCTAssertLessThan(try Data(contentsOf: single).count, sourceSize)
+        let file = try AVAudioFile(forReading: single)
+        XCTAssertEqual(file.fileFormat.settings[AVFormatIDKey] as? UInt32, kAudioFormatMPEG4AAC)
     }
 
     @MainActor

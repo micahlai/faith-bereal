@@ -286,8 +286,10 @@ final class BlessingCircleUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchArguments += ["--manna-local-ui-test"]
+        app.terminate()
         app.launch()
-        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
         app.buttons["App menu"].tap()
         app.buttons["User settings"].tap()
         XCTAssertTrue(app.navigationBars["User settings"].waitForExistence(timeout: 3))

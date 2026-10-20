@@ -137,7 +137,7 @@ final class SpeechTranscriber: NSObject {
         } else {
             if wasListening, let capturedURL { segments.append(capturedURL) }
             if state != .finishing { state = .idle }
-            if wasListening, segments.count > 1 { assembleSegments() }
+            if wasListening, !segments.isEmpty { assembleSegments() }
         }
     }
 
@@ -158,8 +158,7 @@ final class SpeechTranscriber: NSObject {
         reset()
         transcript = text
         segments = urls.filter { FileManager.default.fileExists(atPath: $0.path) }
-        if segments.count == 1 { recordingURL = segments[0] }
-        else if segments.count > 1 { assembleSegments() }
+        if !segments.isEmpty { assembleSegments() }
     }
 
     private func assembleSegments() {
@@ -170,14 +169,17 @@ final class SpeechTranscriber: NSObject {
         assemblyTask = Task { [weak self] in
             do {
                 let url = try await VoiceSegmentAssembler.combine(input)
-                guard let self, self.assemblyID == id, !Task.isCancelled else { return }
+                guard let self, self.assemblyID == id, !Task.isCancelled else {
+                    try? FileManager.default.removeItem(at: url)
+                    return
+                }
                 self.recordingURL = url
                 self.state = .idle
             } catch {
                 guard let self, self.assemblyID == id, !Task.isCancelled else { return }
                 BackendDiagnostics.shared.recordFailure(.audio, error: error)
                 self.recordingURL = nil
-                self.state = .failed("Couldn’t combine your recording. Try again or start over.")
+                self.state = .failed("Couldn’t prepare your recording. Try again or start over.")
             }
         }
     }

@@ -4,6 +4,44 @@ import XCTest
 
 final class MediaPlaybackTests: XCTestCase {
     @MainActor
+    func testDisplayingAndUpdatingVoiceDoesNotDownloadUntilPlay() async throws {
+        let fixture = PlaybackDownloadFixture()
+        defer { fixture.cleanup() }
+        let original = URL(string: "https://example.invalid/recording?old")!
+        let updated = URL(string: "https://example.invalid/recording?new")!
+        let playback = MediaPlaybackController(url: original, kind: .voice,
+            downloader: fixture.download, diagnostics: BackendDiagnostics(enabled: false))
+        playback.updateURL(updated)
+        XCTAssertFalse(playback.isPreparing, "Play must be enabled before the first download")
+        XCTAssertNil(playback.player.currentItem)
+        XCTAssertTrue(fixture.urls.isEmpty)
+        await playback.togglePlayback()
+        XCTAssertEqual(fixture.urls, [updated])
+        playback.pause()
+        await playback.togglePlayback()
+        XCTAssertEqual(fixture.urls, [updated], "Replay reuses the downloaded recording")
+        playback.pause()
+        playback.updateURL(original)
+    }
+
+    @MainActor
+    func testSavedVoicePlaybackNeverUsesDownloader() async throws {
+        let fixture = PlaybackDownloadFixture()
+        defer { fixture.cleanup() }
+        let (local, _) = try await fixture.download(URL(string: "https://example.invalid/fixture")!)
+        let playback = MediaPlaybackController(url: local, kind: .voice,
+            downloader: fixture.download, diagnostics: BackendDiagnostics(enabled: false))
+        await playback.togglePlayback()
+        playback.pause()
+        await playback.togglePlayback()
+        playback.pause()
+        XCTAssertNil(playback.errorMessage)
+        XCTAssertEqual(fixture.urls.count, 1, "Only fixture creation may call the transport")
+        let asset = try XCTUnwrap(playback.player.currentItem?.asset as? AVURLAsset)
+        XCTAssertEqual(asset.url, local)
+    }
+
+    @MainActor
     func testCancelledInitialPlayDoesNotStartAnEmptyPlayer() async throws {
         let fixture = PlaybackDownloadFixture(cancelFirst: true)
         defer { fixture.cleanup() }
