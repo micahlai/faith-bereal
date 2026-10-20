@@ -37,6 +37,21 @@ struct RootView: View {
                 }
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if !model.savedArchiveRecords.isEmpty,
+               model.isPageLoading || model.isShowingCachedMetadata || model.loadState != .ready {
+                Button("Saved on this device", systemImage: "arrow.down.circle") {
+                    model.isSavedArchivePresented = true
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(AppTheme.canvas)
+                .accessibilityIdentifier("savedArchive.open")
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { model.isSavedArchivePresented && model.savedArchiveAccountID != nil },
+            set: { model.isSavedArchivePresented = $0 }
+        )) { SavedBlessingsView() }
         .task { await model.bootstrap() }
         .alert(
             "manna circle",
@@ -65,6 +80,7 @@ struct RootView: View {
 }
 
 private struct EmptyCircleShell: View {
+    @Environment(AppModel.self) private var model
     @State private var showingUserSettings = false
     @State private var showingAbout = false
     @State private var showingHelp = false
@@ -76,6 +92,11 @@ private struct EmptyCircleShell: View {
                     ToolbarItem(placement: .topBarLeading) {
                         Menu {
                             Button("Help", systemImage: "questionmark.circle") { showingHelp = true }
+                            if !model.savedArchiveRecords.isEmpty {
+                                Button("Saved on this device", systemImage: "arrow.down.circle") {
+                                    model.isSavedArchivePresented = true
+                                }
+                            }
                             Button("About manna circle", systemImage: "info.circle") { showingAbout = true }
                             Button("User settings", systemImage: "person.crop.circle") { showingUserSettings = true }
                         } label: {
@@ -713,6 +734,11 @@ private struct GlobalAppToolbar: ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Menu {
                 Button("Help", systemImage: "questionmark.circle") { showingHelp = true }
+                if !model.savedArchiveRecords.isEmpty {
+                    Button("Saved on this device", systemImage: "arrow.down.circle") {
+                        model.isSavedArchivePresented = true
+                    }
+                }
                 Button {
                     showingAbout = true
                 } label: {

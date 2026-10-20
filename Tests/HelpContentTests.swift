@@ -2,6 +2,14 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testOfflineArchiveAndLegacyRecordingHelpExplainsLocalLimits() {
+        let guide = HelpTopic.saving.steps.map(\.body).joined()
+        for concept in ["Saved on this device", "without internet", "closing and reopening", "read-only list", "until you sign out", "other accounts cannot read", "Missing local files"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("no new download is needed"))
+    }
+
     func testMediaGuideExplainsDemandLoadingCompressionAndLocalReuse() {
         XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("download only when you tap Play"))
         XCTAssertTrue(HelpTopic.responses.steps.map(\.body).joined().contains("compressed before sending"))

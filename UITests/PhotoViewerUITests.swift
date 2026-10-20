@@ -2,6 +2,50 @@ import XCTest
 
 final class PhotoViewerUITests: XCTestCase {
     @MainActor
+    func testOfflineSavedLegacyRecordingsPlayAfterColdLaunchAndRelaunch() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        for largest in [false, true] {
+            app.launchArguments = ["--manna-offline-saved-ui-test",
+                "-user.appearancePreference", largest ? "dark" : "light",
+                "-UIPreferredContentSizeCategoryName",
+                largest ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
+            app.terminate()
+            app.launch()
+            let archive = app.buttons["savedArchive.open"]
+            XCTAssertTrue(archive.waitForExistence(timeout: 15))
+            archive.tap()
+            let row = app.staticTexts["Offline saved voice fixture"]
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            for _ in 0..<5 where !row.isHittable { app.swipeUp() }
+            row.tap()
+            XCTAssertTrue(app.navigationBars["Saved blessing"].waitForExistence(timeout: 5))
+            let play = app.buttons["Play recording"].firstMatch
+            for _ in 0..<5 where !play.isHittable { app.swipeUp() }
+            XCTAssertTrue(play.isEnabled)
+            play.tap()
+            let position = app.sliders["Recording position"].firstMatch
+            let prepared = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: position)
+            XCTAssertEqual(XCTWaiter.wait(for: [prepared], timeout: 5), .completed)
+            XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "couldn’t be loaded")).firstMatch.exists)
+            let response = app.staticTexts["Offline saved response"]
+            for _ in 0..<8 where !response.isHittable { app.swipeUp() }
+            XCTAssertTrue(response.isHittable)
+            let replyPlay = app.buttons.matching(identifier: "Play recording").allElementsBoundByIndex.last!
+            for _ in 0..<4 where !replyPlay.isHittable { app.swipeUp() }
+            replyPlay.tap()
+            let replyPosition = app.sliders.matching(identifier: "Recording position").allElementsBoundByIndex.last!
+            let replyPrepared = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: replyPosition)
+            XCTAssertEqual(XCTWaiter.wait(for: [replyPrepared], timeout: 5), .completed)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = largest ? "Offline saved audio after relaunch largest dark" : "Offline saved audio cold launch"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+    }
+
+    @MainActor
     func testTodayPhotoZoomAndHorizontalStability() {
         checkTodayAndPhoto(largestText: false)
     }

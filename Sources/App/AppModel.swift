@@ -33,6 +33,11 @@ final class AppModel {
     private(set) var captureDraftToRestore: BlessingDraft?
     private(set) var draftSaveError: String?
     private(set) var savedBlessings: [UUID: SavedBlessingRecord] = [:]
+    private(set) var savedArchiveAccountID: UUID?
+    var isSavedArchivePresented = false
+    var savedArchiveRecords: [SavedBlessingRecord] {
+        savedBlessings.values.sorted { $0.blessing.submittedAt > $1.blessing.submittedAt }
+    }
     private(set) var savingBlessingIDs: Set<UUID> = []
     private(set) var responseMediaDates: [UUID: [Date]] = [:]
     private var localSavingPreferences = LocalSavingPreferences()
@@ -70,6 +75,11 @@ final class AppModel {
     var currentUser: Member? {
         didSet {
             if currentUser?.id != oldValue?.id {
+                if let accountID = currentUser?.id, let archiveID = savedArchiveAccountID, accountID != archiveID {
+                    savedBlessings = [:]
+                    savedArchiveAccountID = nil
+                    isSavedArchivePresented = false
+                }
                 streakRefreshTask?.cancel()
                 streakRefreshTask = nil
                 nextStreakRefreshAt = nil
@@ -391,6 +401,8 @@ final class AppModel {
         loadState = .loading
         if let accountID = await authentication?.cachedUserID() {
             guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+            await restoreSavedArchive(accountID: accountID, startup: startup)
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             if let cached = await metadataStore.load(accountID: accountID) {
                 guard bootstrapGeneration == startup, !Task.isCancelled else { return }
                 currentUser = cached.currentUser
@@ -412,6 +424,10 @@ final class AppModel {
             // Present local identity before opening the diagnostic queue. Capture
             // still starts before session validation, including a failed refresh.
             await diagnosticCollection.activate(accountID: accountID)
+        } else if authentication != nil {
+            savedBlessings = [:]
+            savedArchiveAccountID = nil
+            isSavedArchivePresented = false
         }
         // Cached identity restores collection before a session refresh can fail.
         // It never grants content access; the repository still authorizes every read.
@@ -430,6 +446,10 @@ final class AppModel {
         }
         if let accountID = await authentication?.currentUserID() {
             guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+            if savedArchiveAccountID != accountID {
+                await restoreSavedArchive(accountID: accountID, startup: startup)
+                guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+            }
             await diagnosticCollection.activate(accountID: accountID)
         }
         guard bootstrapGeneration == startup, !Task.isCancelled else { return }
@@ -458,6 +478,7 @@ final class AppModel {
             let loadedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
             guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
             savedBlessings = loadedBlessings
+            savedArchiveAccountID = bootstrap.currentUser.id
             do {
                 let preferences = try await savedBlessingStore.loadPreferences(userID: bootstrap.currentUser.id)
                 guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
@@ -534,6 +555,19 @@ final class AppModel {
         }
     }
 
+    private func restoreSavedArchive(accountID: UUID, startup: UUID) async {
+        if savedArchiveAccountID != accountID {
+            savedBlessings = [:]
+            savedArchiveAccountID = nil
+            isSavedArchivePresented = false
+        }
+        let scope = dataScopeGeneration
+        let records = (try? await savedBlessingStore.load(userID: accountID)) ?? [:]
+        guard bootstrapGeneration == startup, dataScopeGeneration == scope, !Task.isCancelled else { return }
+        savedBlessings = records
+        savedArchiveAccountID = accountID
+    }
+
     func retryPageLoad() async {
         guard !isPageLoading, !isSwitchingCircle else { return }
         if isShowingCachedMetadata || loadState != .ready {
@@ -557,6 +591,9 @@ final class AppModel {
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async {
         guard let authentication else { return }
         diagnosticCollection.deactivate()
+        savedBlessings = [:]
+        savedArchiveAccountID = nil
+        isSavedArchivePresented = false
         loadState = .loading
         do {
             try await authentication.signInWithApple(
@@ -581,7 +618,7 @@ final class AppModel {
         pageLoadGeneration = UUID()
         isPageLoading = false
         isSwitchingCircle = false
-        let previousUserID = currentUser?.id
+        let previousUserID = currentUser?.id ?? savedArchiveAccountID
         diagnosticCollection.deactivate()
         do {
             try await authentication.signOut()
@@ -599,6 +636,8 @@ final class AppModel {
             nudgingMembers = []
             nudgedMembers = []
             savedBlessings = [:]
+            savedArchiveAccountID = nil
+            isSavedArchivePresented = false
             localSavingPreferences = LocalSavingPreferences()
             hasChosenInitialSaving = false
             automaticSavingError = nil

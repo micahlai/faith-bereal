@@ -59,6 +59,19 @@ final class SavedBlessingStoreTests: XCTestCase {
         }
     }
 
+    func testCAFArchivePreservesPlayableExtensionForBlessingAndResponse() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID()
+        let blessing = fixture().replacingMedia(audio: URL(string: "https://example.com/voice.caf"), video: nil, photo: nil)
+        let response = responseFixture(blessing: blessing).replacingAudio(URL(string: "https://example.com/reply.caf"))
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
+        _ = try await store.save(blessing: blessing, responses: [response], userID: user)
+        let records = try await store.load(userID: user)
+        XCTAssertEqual(records[blessing.id]?.blessing.audioURL?.pathExtension, "caf")
+        XCTAssertEqual(records[blessing.id]?.responses.first?.audioURL?.pathExtension, "caf")
+    }
+
     func testRetentionBoundaryAndTwoDayWarning() {
         let sent = Date(timeIntervalSince1970: 1_000)
         XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(28 * 86_400 - 1)))

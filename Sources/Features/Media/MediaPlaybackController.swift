@@ -221,8 +221,26 @@ final class MediaPlaybackController {
     }
 
     private func playbackURL(generation operation: UUID) async throws -> URL {
-        guard kind == .voice, !url.isFileURL else { return url }
+        guard kind == .voice else { return url }
         if let cachedVoiceURL { return cachedVoiceURL }
+        if url.isFileURL {
+            // Older archives named CAF files .data. AVURLAsset does not recognize
+            // those URLs; stage the same local bytes with their actual container.
+            guard url.pathExtension.lowercased() == "data" else { return url }
+            do {
+                let handle = try FileHandle(forReadingFrom: url)
+                defer { try? handle.close() }
+                guard try handle.read(upToCount: 4) == Data("caff".utf8) else { return url }
+                let local = try CaptureMediaStore.newRecordingURL(pathExtension: "caf")
+                do { try FileManager.default.copyItem(at: url, to: local) }
+                catch { try? FileManager.default.removeItem(at: local); throw error }
+                cachedVoiceURL = local
+                return local
+            } catch {
+                diagnostics.recordFailure(.audio, error: error)
+                throw error
+            }
+        }
 
         let sourceURL = url
         let request = diagnostics.beginRequest(.storageOther)

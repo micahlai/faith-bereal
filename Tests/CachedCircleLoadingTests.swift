@@ -3,6 +3,54 @@ import XCTest
 
 final class CachedCircleLoadingTests: XCTestCase {
     @MainActor
+    func testSavedArchiveOpensWithoutNetworkSessionOrMetadataAndSignOutClearsIt() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false, sessionIsValid: false)
+        defer { fixture.removeFiles() }
+        let blessing = Blessing(id: UUID(), circleID: UUID(), promptID: UUID(), authorID: fixture.seed.currentUser.id,
+            captureMode: .typed, body: "Saved and readable offline", audioURL: nil, videoURL: nil,
+            submittedAt: fixture.now, isLate: false, scriptureReference: nil)
+        _ = try await SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
+            .save(blessing: blessing, responses: [], userID: fixture.seed.currentUser.id)
+        await fixture.model.bootstrap()
+        XCTAssertEqual(fixture.model.loadState, .signedOut)
+        XCTAssertNil(fixture.model.currentUser)
+        XCTAssertEqual(fixture.model.savedArchiveAccountID, fixture.seed.currentUser.id)
+        XCTAssertEqual(fixture.model.savedArchiveRecords.map(\.blessing.body), [blessing.body])
+        XCTAssertTrue(fixture.model.lanes.isEmpty, "Offline archives cannot unlock live peer content")
+        let other = AppModel(repository: fixture.repository,
+            authentication: CachedLoadingAuthentication(accountID: UUID(), hasSession: false),
+            savedBlessingStore: SavedBlessingStore(root: fixture.root.appendingPathComponent("saved")))
+        await other.bootstrap()
+        XCTAssertTrue(other.savedArchiveRecords.isEmpty)
+        fixture.model.isSavedArchivePresented = true
+        await fixture.model.signOut()
+        XCTAssertNil(fixture.model.savedArchiveAccountID)
+        XCTAssertTrue(fixture.model.savedArchiveRecords.isEmpty)
+        XCTAssertFalse(fixture.model.isSavedArchivePresented)
+    }
+
+    @MainActor
+    func testSavedArchiveLoadsBeforeSuspendedServerBootstrap() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        let blessing = Blessing(id: UUID(), circleID: UUID(), promptID: UUID(), authorID: fixture.seed.currentUser.id,
+            captureMode: .typed, body: "Available while server waits", audioURL: nil, videoURL: nil,
+            submittedAt: fixture.now, isLate: false, scriptureReference: nil)
+        _ = try await SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
+            .save(blessing: blessing, responses: [], userID: fixture.seed.currentUser.id)
+        await fixture.repository.gate.arm(.bootstrap)
+        let work = Task { await fixture.model.bootstrap() }
+        await fixture.repository.gate.waitUntilSuspended()
+        XCTAssertEqual(fixture.model.savedArchiveRecords.map(\.blessing.id), [blessing.id])
+        XCTAssertEqual(fixture.model.loadState, .loading)
+        XCTAssertTrue(fixture.model.lanes.isEmpty)
+        await fixture.model.signOut()
+        await fixture.repository.gate.release()
+        await work.value
+        XCTAssertTrue(fixture.model.savedArchiveRecords.isEmpty, "Late startup cannot restore a signed-out archive")
+    }
+
+    @MainActor
     func testFirstFreshIdentityAppearsAndPersistsBeforeBlessingPageFinishes() async throws {
         let fixture = try await CachedLoadingFixture(cachesMetadata: false)
         defer { fixture.removeFiles() }
@@ -312,7 +360,7 @@ private struct CachedLoadingFixture {
     let model: AppModel
     private let previousSelection: String?
 
-    init(cachesMetadata: Bool = true) async throws {
+    init(cachesMetadata: Bool = true, sessionIsValid: Bool = true) async throws {
         previousSelection = UserDefaults.standard.string(forKey: "blessingCircle.selectedCircleID")
         repository = CachedLoadingRepository(now: now)
         seed = try await repository.seedBootstrap()
@@ -327,7 +375,7 @@ private struct CachedLoadingFixture {
                 circles: cachedCircles, selectedCircleID: seed.selectedCircleID)
         }
         model = AppModel(repository: repository,
-            authentication: CachedLoadingAuthentication(accountID: seed.currentUser.id),
+            authentication: CachedLoadingAuthentication(accountID: seed.currentUser.id, hasSession: sessionIsValid),
             savedBlessingStore: SavedBlessingStore(root: root.appendingPathComponent("saved")),
             draftStore: BlessingDraftStore(root: root.appendingPathComponent("drafts")),
             diagnosticCollection: DiagnosticCollectionController(store: BackendDiagnosticStore(root: root.appendingPathComponent("diagnostics"))),
@@ -353,13 +401,14 @@ private struct CachedLoadingFixture {
 }
 
 private actor CachedLoadingAuthentication: AuthenticationProviding {
-    let accountID: UUID
-    init(accountID: UUID) { self.accountID = accountID }
+    var accountID: UUID?
+    let sessionIsValid: Bool
+    init(accountID: UUID, hasSession: Bool = true) { self.accountID = accountID; self.sessionIsValid = hasSession }
     func cachedUserID() async -> UUID? { accountID }
     func currentUserID() async -> UUID? { accountID }
-    func hasSession() async -> Bool { true }
+    func hasSession() async -> Bool { sessionIsValid && accountID != nil }
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async throws { }
-    func signOut() async throws { }
+    func signOut() async throws { accountID = nil }
 }
 private actor CachedLoadingGate {
     enum Operation { case page, context, bootstrap, leave }

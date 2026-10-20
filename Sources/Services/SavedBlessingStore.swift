@@ -134,7 +134,7 @@ actor SavedBlessingStore {
                 files[key] = name
                 continue
             }
-            let name = key + "-" + UUID().uuidString + "." + (["m4a", "mp4", "mov", "jpg", "jpeg", "png", "heic", "wav", "aac"].contains(ext) ? ext : "data")
+            let name = key + "-" + UUID().uuidString + "." + (["caf", "m4a", "mp4", "mov", "jpg", "jpeg", "png", "heic", "wav", "aac"].contains(ext) ? ext : "data")
             let target = staging.appendingPathComponent(name)
             try await copier.copy(from: source, to: target)
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)

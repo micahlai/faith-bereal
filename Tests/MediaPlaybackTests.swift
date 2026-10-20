@@ -25,6 +25,27 @@ final class MediaPlaybackTests: XCTestCase {
     }
 
     @MainActor
+    func testLegacySavedCAFWithDataExtensionCanPlayWithoutDownload() async throws {
+        let fixture = PlaybackDownloadFixture()
+        defer { fixture.cleanup() }
+        let (source, _) = try await fixture.download(URL(string: "https://example.invalid/fixture")!)
+        let legacy = source.deletingPathExtension().appendingPathExtension("data")
+        defer { try? FileManager.default.removeItem(at: legacy) }
+        try FileManager.default.copyItem(at: source, to: legacy)
+        let playback = MediaPlaybackController(url: legacy, kind: .voice,
+            downloader: fixture.download, diagnostics: BackendDiagnostics(enabled: false))
+        await playback.prepare()
+        XCTAssertNil(playback.errorMessage)
+        XCTAssertNotNil(playback.player.currentItem)
+        XCTAssertGreaterThan(playback.duration, 0)
+        XCTAssertEqual(fixture.urls.count, 1, "Saved playback must never request the server")
+        let asset = try XCTUnwrap(playback.player.currentItem?.asset as? AVURLAsset)
+        XCTAssertEqual(asset.url.pathExtension, "caf")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: legacy.path), "The original archive stays intact")
+        playback.updateURL(URL(string: "https://example.invalid/cleanup")!)
+    }
+
+    @MainActor
     func testSavedVoicePlaybackNeverUsesDownloader() async throws {
         let fixture = PlaybackDownloadFixture()
         defer { fixture.cleanup() }
