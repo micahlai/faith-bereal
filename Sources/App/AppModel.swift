@@ -24,6 +24,22 @@ final class AppModel {
     private let savedBlessingStore: SavedBlessingStore
     private let draftStore: BlessingDraftStore
     private let metadataStore: CircleMetadataStore
+    private let networkSavingPolicy: any NetworkSavingChecking
+    private(set) var automaticSavingWaitingForWiFi = false
+    var automaticallySavesOnWiFiOnly: Bool { localSavingPreferences.wifiOnly ?? true }
+    var automaticallySavesOlderHistory: Bool { localSavingPreferences.includesOlderHistory ?? false }
+    private var automaticHistoryCursors: [UUID: Date] = [:]
+    private var automaticHistoryCompleted: Set<UUID> = []
+    private var lastVisibleReadAt: Date?
+    private struct BackgroundRead {
+        let context: CircleContext
+        let page: TimelinePage
+        let date: Date
+    }
+    private var backgroundReads: [UUID: BackgroundRead] = [:]
+    private var backgroundReadTasks: [UUID: Task<BackgroundRead, Error>] = [:]
+    private var lastWidgetWriteAt: Date?
+    private var lastWidgetRevision: UUID?
     private var metadataSaveTask: Task<Void, Never>?
     private(set) var isShowingCachedMetadata = false
     private(set) var isPageLoading = false
@@ -65,7 +81,13 @@ final class AppModel {
 
     var loadState: LoadState = .idle
     private var dataScopeGeneration = UUID() {
-        didSet { invalidateTimelineResponders() }
+        didSet {
+            invalidateTimelineResponders()
+            backgroundReadTasks.values.forEach { $0.cancel() }
+            backgroundReadTasks = [:]; backgroundReads = [:]
+            lastVisibleReadAt = nil; lastWidgetWriteAt = nil
+            automaticHistoryCursors = [:]; automaticHistoryCompleted = []
+        }
     }
     private var timelineResponderCache = TimelineResponderSummaryCache()
     private(set) var timelineResponderRevision = UUID()
@@ -86,7 +108,10 @@ final class AppModel {
                 dataScopeGeneration = UUID()
                 if oldValue != nil { diagnosticCollection.deactivate() }
                 if let previousID = oldValue?.id {
-                    Task { await IdentityPhotoCache.shared.clear(accountID: previousID) }
+                    Task {
+                        await IdentityPhotoCache.shared.clear(accountID: previousID)
+                        await MediaDownloadCache.shared.clear(accountID: previousID)
+                    }
                 }
             }
         }
@@ -177,7 +202,8 @@ final class AppModel {
         diagnosticCollection: DiagnosticCollectionController = DiagnosticCollectionController(),
         metadataStore: CircleMetadataStore = .shared,
         registersForRemoteNotifications: Bool = true,
-        runsBackgroundRefreshes: Bool = true
+        runsBackgroundRefreshes: Bool = true,
+        networkSavingPolicy: any NetworkSavingChecking = NetworkSavingPolicy.shared
     ) {
         self.repository = repository
         self.bibleService = bibleService
@@ -188,6 +214,7 @@ final class AppModel {
         self.savedBlessingStore = savedBlessingStore
         self.draftStore = draftStore
         self.metadataStore = metadataStore
+        self.networkSavingPolicy = networkSavingPolicy
         self.pendingInviteCode = UserDefaults.standard.string(forKey: Self.pendingInviteCodeKey)
             .flatMap(CircleInviteLink.normalize(code:))
         let skipsOnboarding = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
@@ -841,6 +868,7 @@ final class AppModel {
     private func installTimelinePage(_ page: TimelinePage, circleID: UUID, reset: Bool = false) {
         guard let userID = currentUser?.id else { return }
         invalidateTimelineResponders()
+        lastVisibleReadAt = .now
         let scope = TimelinePaging.scope(circleID: circleID, viewerID: userID,
             timeZoneIdentifier: circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
         if reset || timelinePagingScope != scope {
@@ -876,7 +904,8 @@ final class AppModel {
         }
     }
 
-    func refreshCurrentCircle(now: Date = .now) async {
+    func refreshCurrentCircle(now: Date = .now, force: Bool = true) async {
+        if !force, let lastVisibleReadAt, now.timeIntervalSince(lastVisibleReadAt) < 15 { return }
         guard !isPageLoading, !isSwitchingCircle, !isShowingCachedMetadata else { return }
         let operation = UUID()
         pageLoadGeneration = operation
@@ -1825,7 +1854,7 @@ final class AppModel {
     }
 
     func resolvedResponse(_ response: BlessingResponse, at now: Date = .now) -> BlessingResponse {
-        let local = savedBlessings[response.blessingID]?.responses.first { $0.id == response.id }?.audioURL
+        let local = existingLocalFile(savedBlessings[response.blessingID]?.responses.first { $0.id == response.id }?.audioURL)
         return response.replacingAudio(local ?? (MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt, at: now)
             ? nil : response.audioURL))
     }
@@ -1835,10 +1864,15 @@ final class AppModel {
         let saved = savedBlessings[blessing.id]?.blessing
         let expired = MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt, at: now)
         return blessing.replacingMedia(
-            audio: saved?.audioURL ?? (expired ? nil : blessing.audioURL),
-            video: saved?.videoURL ?? (expired ? nil : blessing.videoURL),
-            photo: saved?.photoURL ?? blessing.photoURL
+            audio: existingLocalFile(saved?.audioURL) ?? (expired ? nil : blessing.audioURL),
+            video: existingLocalFile(saved?.videoURL) ?? (expired ? nil : blessing.videoURL),
+            photo: existingLocalFile(saved?.photoURL) ?? blessing.photoURL
         )
+    }
+
+    private func existingLocalFile(_ url: URL?) -> URL? {
+        guard let url, url.isFileURL, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url
     }
 
     func mediaExpiryWarning(for blessing: Blessing, at now: Date = .now) -> String? {
@@ -1919,6 +1953,57 @@ final class AppModel {
         } catch { message = "Couldn’t change local saving: \(error.localizedDescription)" }
     }
 
+    func setAutomaticSavingNetwork(wifiOnly: Bool) async {
+        guard let userID = currentUser?.id else { return }
+        var preferences = localSavingPreferences
+        preferences.wifiOnly = wifiOnly
+        do {
+            try await savedBlessingStore.savePreferences(preferences, userID: userID)
+            guard currentUser?.id == userID else { return }
+            localSavingPreferences = preferences
+            automaticSavingWaitingForWiFi = false
+            scheduleAutomaticSaving()
+        } catch { automaticSavingError = "Couldn’t change download settings. Try again." }
+    }
+
+    func setAutomaticSavingHistory(_ includesOlder: Bool) async {
+        guard let userID = currentUser?.id else { return }
+        var preferences = localSavingPreferences
+        preferences.includesOlderHistory = includesOlder
+        do {
+            try await savedBlessingStore.savePreferences(preferences, userID: userID)
+            guard currentUser?.id == userID else { return }
+            localSavingPreferences = preferences
+            automaticHistoryCursors = [:]; automaticHistoryCompleted = []
+            scheduleAutomaticSaving()
+        } catch { automaticSavingError = "Couldn’t change history saving. Try again." }
+    }
+
+    /// Optional workers share a short-lived authorized page, never an unbounded timeline.
+    private func backgroundCircleRead(_ membership: CircleGroup, now: Date) async throws -> BackgroundRead {
+        guard let userID = currentUser?.id, canUseFreshCircle else { throw CancellationError() }
+        if membership.id == circle?.id, let circle, let lastVisibleReadAt,
+           now.timeIntervalSince(lastVisibleReadAt) < 60 {
+            return BackgroundRead(context: CircleContext(circle: circle, prompt: prompt, endOfDayPrompt: endOfDayPrompt),
+                page: TimelinePage(lanes: lanes, nextBeforeDate: timelineNextBeforeDate), date: lastVisibleReadAt)
+        }
+        if let cached = backgroundReads[membership.id], now.timeIntervalSince(cached.date) < 60 { return cached }
+        if let work = backgroundReadTasks[membership.id] { return try await work.value }
+        let generation = dataScopeGeneration
+        let repository = self.repository
+        let work = Task {
+            let context = try await repository.circleContext(circleID: membership.id)
+            let page = try await repository.timelinePage(circle: context.circle, viewerID: userID, now: now, before: nil)
+            return BackgroundRead(context: context, page: page, date: now)
+        }
+        backgroundReadTasks[membership.id] = work
+        defer { if dataScopeGeneration == generation { backgroundReadTasks[membership.id] = nil } }
+        let result = try await work.value
+        guard currentUser?.id == userID, dataScopeGeneration == generation, !Task.isCancelled else { throw CancellationError() }
+        backgroundReads[membership.id] = result
+        return result
+    }
+
     func pauseAutomaticSavingForSelection() async {
         isChoosingAutomaticSaving = true
         automaticSaveTask?.cancel()
@@ -1966,6 +2051,10 @@ final class AppModel {
         }
     }
 
+    func resumeAutomaticSavingAfterNetworkChange() {
+        if automaticSavingWaitingForWiFi { scheduleAutomaticSaving() }
+    }
+
     private func scheduleAutomaticSaving() {
         guard runsBackgroundRefreshes else { return }
         guard automaticallySavesLocally, !isChangingAutomaticSaving, !isChoosingAutomaticSaving else { return }
@@ -1998,6 +2087,13 @@ final class AppModel {
     // from the main screen's loading lifecycle and never surface scrolling alerts.
     func saveVisibleBlessingsAutomatically() async {
         guard let userID = currentUser?.id, automaticallySavesLocally, !isChoosingAutomaticSaving else { return }
+        if authentication != nil {
+            let allowed = await networkSavingPolicy.permitsAutomaticDownloads(wifiOnly: automaticallySavesOnWiFiOnly)
+            guard currentUser?.id == userID, !Task.isCancelled else { return }
+            automaticSavingWaitingForWiFi = !allowed
+            guard allowed else { return }
+        }
+        automaticSavingWaitingForWiFi = false
         let span = BackendDiagnostics.shared.begin(.automaticSaving)
         var outcome = BackendOutcome.failure
         defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
@@ -2006,11 +2102,41 @@ final class AppModel {
         for membership in memberships {
             do {
                 try Task.checkCancellation()
-                let visibleLanes = membership.id == circle?.id ? lanes
-                    : try await repository.timeline(circleID: membership.id, viewerID: userID, now: .now)
-                let blessings = visibleLanes.flatMap(\.events).compactMap { event -> Blessing? in
-                    if case let .blessing(blessing) = event.status { return blessing }
-                    return nil
+                let read = try await backgroundCircleRead(membership, now: .now)
+                var visibleLanes = read.page.lanes
+                let failuresBeforeCircle = failures
+                var readOlderPage = false
+                var nextOlderCursor: Date?
+                if automaticallySavesOlderHistory, !automaticHistoryCompleted.contains(membership.id) {
+                    let cursor = automaticHistoryCursors[membership.id] ?? read.page.nextBeforeDate
+                    if let cursor {
+                        let older = try await repository.timelinePage(circle: read.context.circle, viewerID: userID, now: .now, before: cursor)
+                        visibleLanes += older.lanes
+                        readOlderPage = true
+                        nextOlderCursor = older.nextBeforeDate
+                    } else { automaticHistoryCompleted.insert(membership.id) }
+                }
+                let cutoff = Date.now.addingTimeInterval(-7 * 86_400)
+                let blessings = Array(Dictionary(visibleLanes.flatMap(\.events).compactMap { event -> (UUID, Blessing)? in
+                    guard case let .blessing(blessing) = event.status,
+                          automaticallySavesOlderHistory || blessing.submittedAt >= cutoff else { return nil }
+                    return (blessing.id, blessing)
+                }, uniquingKeysWith: { first, _ in first }).values)
+                var responseCounts: [UUID: Int] = [:]
+                // Reuse the visible-card summary batcher; unchanged archives never fetch response bodies/audio links.
+                let savedIDs = blessings.filter { savedBlessings[$0.id]?.isAutomatic == true }.map(\.id)
+                let cache = timelineResponderCache
+                let repository = self.repository
+                await withTaskGroup(of: (UUID, Int?).self) { group in
+                    for id in savedIDs {
+                        group.addTask {
+                            let summary = try? await cache.summary(for: id) { ids in
+                                try await repository.timelineResponderSummaries(blessingIDs: ids, viewerID: userID)
+                            }
+                            return (id, summary?.count)
+                        }
+                    }
+                    for await (id, count) in group { responseCounts[id] = count }
                 }
                 for blessing in blessings {
                     try Task.checkCancellation()
@@ -2020,11 +2146,20 @@ final class AppModel {
                           !savingBlessingIDs.contains(blessing.id) else { continue }
                     let existing = savedBlessings[blessing.id]
                     if let existing, !existing.isAutomatic { continue }
+                    if let existing, existing.hasAllSavedFiles, existing.blessing.body == blessing.body,
+                       existing.blessing.scriptureReference == blessing.scriptureReference,
+                       existing.blessing.editedAt == blessing.editedAt,
+                       responseCounts[blessing.id] == existing.responses.count { continue }
+                    if authentication != nil {
+                        guard await networkSavingPolicy.permitsAutomaticDownloads(wifiOnly: automaticallySavesOnWiFiOnly) else {
+                            automaticSavingWaitingForWiFi = true; return
+                        }
+                    }
                     savingBlessingIDs.insert(blessing.id)
                     do {
                         defer { savingBlessingIDs.remove(blessing.id) }
                         let responses = try await repository.responses(blessingID: blessing.id, viewerID: userID)
-                        if let existing,
+                        if let existing, existing.hasAllSavedFiles,
                            existing.blessing.body == blessing.body,
                            existing.blessing.scriptureReference == blessing.scriptureReference,
                            existing.responses.map(\.id) == responses.map(\.id),
@@ -2039,13 +2174,21 @@ final class AppModel {
                                 ?? (MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) ? nil : response.audioURL))
                         }
                         let record = try await savedBlessingStore.save(blessing: available, responses: archivedResponses,
-                            userID: userID, automatically: true, refreshing: existing != nil)
+                            userID: userID, automatically: true, refreshing: existing != nil, wifiOnly: automaticallySavesOnWiFiOnly)
                         guard currentUser?.id == userID, !Task.isCancelled else { return }
                         savedBlessings[blessing.id] = record
                     } catch {
                         if Task.isCancelled || Self.isCancellation(error) { return }
+                        if authentication != nil,
+                           !(await networkSavingPolicy.permitsAutomaticDownloads(wifiOnly: automaticallySavesOnWiFiOnly)) {
+                            automaticSavingWaitingForWiFi = true; return
+                        }
                         failures += 1
                     }
+                }
+                if readOlderPage, failures == failuresBeforeCircle {
+                    automaticHistoryCursors[membership.id] = nextOlderCursor
+                    if nextOlderCursor == nil { automaticHistoryCompleted.insert(membership.id) }
                 }
             } catch {
                 if Task.isCancelled || Self.isCancellation(error) { return }
@@ -2401,13 +2544,15 @@ final class AppModel {
         }
     }
 
-    private func writeWidgetSnapshot(now: Date) async {
+    func writeWidgetSnapshot(now: Date) async {
         guard let currentUser else {
             BlessingWidgetSnapshotStore.save(.empty)
             WidgetCenter.shared.reloadAllTimelines()
             return
         }
 
+        if let lastWidgetWriteAt, now.timeIntervalSince(lastWidgetWriteAt) < 60, lastWidgetRevision == timelineResponderRevision { return }
+        let generation = dataScopeGeneration
         let span = BackendDiagnostics.shared.begin(.widgetRefresh)
         var outcome = BackendOutcome.failure
         defer { span.finish(Task.isCancelled ? .cancelled : outcome) }
@@ -2426,12 +2571,9 @@ final class AppModel {
         for membership in circles {
             guard !Task.isCancelled else { return }
             do {
-                let context = try await repository.circleContext(circleID: membership.id)
-                let circleLanes = try await repository.timeline(
-                    circle: context.circle,
-                    viewerID: currentUser.id,
-                    now: now
-                )
+                let read = try await backgroundCircleRead(membership, now: now)
+                let context = read.context
+                let circleLanes = read.page.lanes
                 loadedCircles += 1
                 let currentPromptIsToday = context.prompt?.occursOnCircleDay(
                     at: now,
@@ -2479,6 +2621,7 @@ final class AppModel {
             }
         }
 
+        if loadedCircles > 0 { lastWidgetWriteAt = now; lastWidgetRevision = timelineResponderRevision }
         // A temporary connection failure must not replace usable widget data with nothing.
         guard circles.isEmpty || loadedCircles > 0 else { return }
         var seenBlessingIDs = Set<UUID>()
@@ -2516,7 +2659,7 @@ final class AppModel {
             prompts: promptSnapshots,
             blessings: blessingSnapshots
         )
-        guard !Task.isCancelled, self.currentUser?.id == currentUser.id else { return }
+        guard !Task.isCancelled, self.currentUser?.id == currentUser.id, dataScopeGeneration == generation else { return }
         BlessingWidgetSnapshotStore.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
 

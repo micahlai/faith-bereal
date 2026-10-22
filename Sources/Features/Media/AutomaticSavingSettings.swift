@@ -2,19 +2,35 @@ import SwiftUI
 
 struct AutomaticSavingSettings: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showingKeepChoices = false
 
     var body: some View {
-        Toggle("Automatically save locally", isOn: Binding(
+        savingToggle("Automatically save locally", identifier: "saving.automaticToggle", isOn: Binding(
             get: { model.automaticallySavesLocally },
             set: { enabled in
                 if enabled { Task { await model.setAutomaticSavingEnabled(true) } }
                 else { showingKeepChoices = true }
             }
         ))
-        .accessibilityIdentifier("saving.automaticToggle")
         .disabled(model.isChangingAutomaticSaving || model.isChoosingAutomaticSaving)
         .sheet(isPresented: $showingKeepChoices) { AutomaticSaveKeepView() }
+        if model.automaticallySavesLocally {
+            savingToggle("Save automatically on Wi-Fi only", identifier: "saving.wifiOnly", isOn: Binding(
+                get: { model.automaticallySavesOnWiFiOnly },
+                set: { value in Task { await model.setAutomaticSavingNetwork(wifiOnly: value) } }
+            ))
+            savingToggle("Include older history", identifier: "saving.olderHistory", isOn: Binding(
+                get: { model.automaticallySavesOlderHistory },
+                set: { value in Task { await model.setAutomaticSavingHistory(value) } }
+            ))
+            Text("Automatic saving starts with the last seven days. Older history downloads in small batches only when you turn it on. Individual Save and Play work on cellular too.")
+                .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+            if model.automaticSavingWaitingForWiFi {
+                Label("Waiting for Wi-Fi", systemImage: "wifi")
+                    .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+            }
+        }
         Text("Audio and video are deleted from the server after 30 days. Want to enjoy them afterward? Automatically save private copies on this device while manna is open. If this is off, you can still choose individual blessings and tap Save. Text, Bible references, and attached photos remain in circle history. Local copies don’t sync and are lost if you uninstall the app.")
             .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
         if let error = model.automaticSavingError {
@@ -24,6 +40,20 @@ struct AutomaticSavingSettings: View {
         if !model.automaticallySavesLocally, !model.automaticSavedBlessings.isEmpty {
             Button("Manage remaining automatic copies") { showingKeepChoices = true }
                 .frame(minHeight: 44)
+        }
+    }
+
+    @ViewBuilder
+    private func savingToggle(_ title: String, identifier: String, isOn: Binding<Bool>) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title).fixedSize(horizontal: false, vertical: true)
+                Toggle(title, isOn: isOn).labelsHidden().accessibilityLabel(title)
+                    .accessibilityIdentifier(identifier)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
+            }
+        } else {
+            Toggle(title, isOn: isOn).accessibilityIdentifier(identifier)
         }
     }
 }

@@ -336,6 +336,7 @@ struct Blessing: Identifiable, Codable, Hashable, Sendable {
     var repeatedFromBlessingID: UUID? = nil
     var photoURL: URL? = nil
     var editedAt: Date? = nil
+    var photoPreviewURL: URL? = nil
 }
 
 enum BlessingEditPolicy {

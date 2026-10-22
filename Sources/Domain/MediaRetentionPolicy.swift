@@ -24,7 +24,7 @@ extension Blessing {
             id: id, circleID: circleID, promptID: promptID, authorID: authorID,
             captureMode: captureMode, body: body, audioURL: audio, videoURL: video,
             submittedAt: submittedAt, isLate: isLate, scriptureReference: scriptureReference,
-            repeatedFromBlessingID: repeatedFromBlessingID, photoURL: photo, editedAt: editedAt
+            repeatedFromBlessingID: repeatedFromBlessingID, photoURL: photo, editedAt: editedAt, photoPreviewURL: photo == nil ? nil : photo?.isFileURL == true ? photo : photoPreviewURL
         )
     }
 }

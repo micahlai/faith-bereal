@@ -2,6 +2,17 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testTrafficSavingGuideExplainsTemporaryCacheAndNetworkChoices() {
+        let timeline = HelpTopic.timeline.steps.map(\.body).joined()
+        for concept in ["most recent 7 days", "temporary cache", "256 MB", "up to seven days", "720p", "small previews", "full size"] {
+            XCTAssertTrue(timeline.contains(concept), concept)
+        }
+        let saving = HelpTopic.saving.steps.map(\.body).joined()
+        for concept in ["Wi-Fi only", "cellular", "Include older history", "starts off", "last seven days"] {
+            XCTAssertTrue(saving.contains(concept), concept)
+        }
+    }
+
     func testOfflineArchiveAndLegacyRecordingHelpExplainsLocalLimits() {
         let guide = HelpTopic.saving.steps.map(\.body).joined()
         for concept in ["automatically in Timeline", "without internet", "closing and reopening", "read-only", "until you sign out", "other accounts cannot read", "Missing local files"] {

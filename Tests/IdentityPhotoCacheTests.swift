@@ -32,6 +32,25 @@ final class IdentityPhotoCacheTests: XCTestCase {
         XCTAssertEqual(try files[0].resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
     }
 
+    func testTokenRenewalReusesPhotoUntilContentVersionChanges() async {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let account = UUID(), key = IdentityPhotoCache.Key.member(UUID())
+        let fetcher = IdentityPhotoFetcher(data: photo(.red))
+        let cache = IdentityPhotoCache(directory: root, fetch: fetcher.fetch)
+        let old = URL(string: "https://example.invalid/avatar.jpg?token=one&v=1")!
+        let renewed = URL(string: "https://example.invalid/avatar.jpg?token=two&v=1")!
+        _ = await cache.imageData(accountID: account, key: key, sourceURL: old, allowNetwork: true)
+        _ = await cache.imageData(accountID: account, key: key, sourceURL: renewed, allowNetwork: true)
+        let before = await fetcher.count
+        XCTAssertEqual(before, 1)
+        await fetcher.setData(photo(.blue))
+        _ = await cache.imageData(accountID: account, key: key,
+            sourceURL: URL(string: "https://example.invalid/avatar.jpg?token=three&v=2")!, allowNetwork: true)
+        let after = await fetcher.count
+        XCTAssertEqual(after, 2)
+    }
+
     func testCachedMetadataCannotFetchAndFreshURLRefreshesExistingBytes() async {
         let root = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }

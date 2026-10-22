@@ -36,27 +36,21 @@ private struct PhotoEnlargementModifier: ViewModifier {
 }
 
 struct BlessingPhotoView: View {
+    @Environment(AppModel.self) private var model
     let url: URL
+    var previewURL: URL? = nil
+    @State private var image: UIImage?
 
     var body: some View {
         Group {
-            if url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
+            if url.isFileURL, let local = UIImage(contentsOfFile: url.path) {
+                Image(uiImage: local).resizable().scaledToFit()
+            } else if let image {
                 Image(uiImage: image).resizable().scaledToFit()
             } else {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image): image.resizable().scaledToFit()
-                    case .failure:
-                        ContentUnavailableView("Photo unavailable", systemImage: "photo.badge.exclamationmark")
-                    case .empty:
-                        ZStack {
-                            AppTheme.canvas
-                            ProgressView().accessibilityLabel("Loading photo")
-                        }
-                        .frame(height: 220)
-                    @unknown default: EmptyView()
-                    }
-                }
+                Label("Open photo", systemImage: "photo")
+                    .frame(maxWidth: .infinity, minHeight: 80)
+                    .background(AppTheme.surface)
             }
         }
         .frame(maxWidth: .infinity)
@@ -64,10 +58,39 @@ struct BlessingPhotoView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityIdentifier("blessing.photo")
         .photoEnlargement(url: url, title: "Blessing photo")
+        .task(id: "\(model.currentUser?.id.uuidString ?? "")|\(previewURL?.absoluteString ?? "")") {
+            image = nil
+            guard !url.isFileURL, let previewURL, let accountID = model.currentUser?.id else { return }
+            if let local = try? await MediaDownloadCache.shared.file(for: previewURL, accountID: accountID),
+               !Task.isCancelled { image = UIImage(contentsOfFile: local.path) }
+        }
+    }
+}
+
+/// Timeline preview never fetches the original image.
+struct CachedPhotoPreview: View {
+    @Environment(AppModel.self) private var model
+    let url: URL
+    @State private var image: UIImage?
+    var body: some View {
+        Group {
+            if let image { Image(uiImage: image).resizable().scaledToFit() }
+            else { Color.clear.frame(height: 80) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: 160)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .accessibilityHidden(true)
+        .task(id: "\(model.currentUser?.id.uuidString ?? "")|\(url)") {
+            image = nil
+            guard let accountID = model.currentUser?.id else { return }
+            let local = url.isFileURL ? url : try? await MediaDownloadCache.shared.file(for: url, accountID: accountID)
+            if let local, !Task.isCancelled { image = UIImage(contentsOfFile: local.path) }
+        }
     }
 }
 
 private struct FullscreenPhotoViewer: View {
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let url: URL
     let title: String
@@ -138,12 +161,9 @@ private struct FullscreenPhotoViewer: View {
                 if url.isFileURL {
                     loaded = UIImage(contentsOfFile: url.path)
                 } else {
-                    let (data, response) = try await URLSession.shared.data(from: url)
-                    guard (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true else {
-                        failed = true
-                        return
-                    }
-                    loaded = UIImage(data: data)
+                    guard let accountID = model.currentUser?.id else { failed = true; return }
+                    let local = try await MediaDownloadCache.shared.file(for: url, accountID: accountID)
+                    loaded = UIImage(contentsOfFile: local.path)
                 }
                 guard !Task.isCancelled else { return }
                 image = loaded

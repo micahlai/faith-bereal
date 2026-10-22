@@ -7,8 +7,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
     private let avatarBucket = "avatars"
     private let circlePhotoBucket = "circle-photos"
     private let inviteCodeStore = CircleInviteCodeStore()
+    private let savedStore: SavedBlessingStore
+    private var linkCache: [String: (URL, Date)] = [:]
+    private var linkRequests: [String: Task<URL, Error>] = [:]
 
-    init(client: SupabaseClient) {
+    init(client: SupabaseClient, savedStore: SavedBlessingStore = SavedBlessingStore()) {
+        self.savedStore = savedStore
         self.client = client
     }
 
@@ -263,8 +267,10 @@ actor SupabaseBlessingRepository: BlessingRepository {
             try await upload(fileURL: audioURL, path: audioPath!, contentType: fileExtension == "m4a" ? "audio/mp4" : "audio/x-caf")
         }
         if let videoURL {
-            videoPath = "\(basePath)/video-\(UUID().uuidString.lowercased()).mov"
-            try await upload(fileURL: videoURL, path: videoPath!, contentType: "video/quicktime")
+            let compressed = try await CaptureMediaStore.compressedVideo(from: videoURL)
+            defer { try? FileManager.default.removeItem(at: compressed) }
+            videoPath = "\(basePath)/video-\(UUID().uuidString.lowercased()).mp4"
+            try await upload(fileURL: compressed, path: videoPath!, contentType: "video/mp4")
             let thumbnailSpan = BackendDiagnostics.shared.begin(.thumbnail)
             let thumbnailURL: URL
             do {
@@ -274,11 +280,15 @@ actor SupabaseBlessingRepository: BlessingRepository {
                 thumbnailSpan.finish(Task.isCancelled ? .cancelled : .failure)
                 throw error
             }
+            defer { try? FileManager.default.removeItem(at: thumbnailURL) }
             thumbnailPath = "\(basePath)/thumbnail-\(UUID().uuidString.lowercased()).jpg"
             try await upload(fileURL: thumbnailURL, path: thumbnailPath!, contentType: "image/jpeg", stage: .uploadThumbnail)
         }
         if let photoURL {
-            photoPath = "\(basePath)/photo-\(UUID().uuidString.lowercased()).jpg"
+            photoPath = "\(basePath)/photo-previewed-\(UUID().uuidString.lowercased()).jpg"
+            let preview = try CaptureMediaStore.persistPhotoPreview(from: photoURL)
+            defer { try? FileManager.default.removeItem(at: preview) }
+            try await upload(fileURL: preview, path: photoPath! + ".preview.jpg", contentType: "image/jpeg")
             try await upload(fileURL: photoURL, path: photoPath!, contentType: "image/jpeg")
         }
 
@@ -858,7 +868,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
             allowsLateBlessings: row.allowLateBlessings,
             repeatWindowMinutes: row.repeatWindowMinutes,
             endOfDayMinutes: Self.minutes(postgresTime: row.endOfDayTime),
-            photoURL: try await circlePhotoSignedURL(path: row.photoPath),
+            photoURL: try await circlePhotoSignedURL(path: row.photoPath, version: row.updatedAt),
             circleActivityNotificationsEnabled: membershipRows
                 .first(where: { $0.userID == viewerID })?
                 .notifyOnCircleActivity ?? true,
@@ -871,9 +881,8 @@ actor SupabaseBlessingRepository: BlessingRepository {
         return result
     }
 
-    private func circlePhotoSignedURL(path: String?) async throws -> URL? {
-        guard let path else { return nil }
-        return try await client.storage.from(circlePhotoBucket).measuredSignedURL(path: path, expiresIn: 86_400)
+    private func circlePhotoSignedURL(path: String?, version: Date?) async throws -> URL? {
+        try await signedURL(bucket: circlePhotoBucket, path: path, expiresIn: 86_400, version: version)
     }
 
     private func fetchCurrentPrompts(
@@ -938,48 +947,62 @@ actor SupabaseBlessingRepository: BlessingRepository {
     }
 
     private func blessing(from row: BlessingRow, circleID: UUID) async throws -> Blessing {
-        Blessing(
-            id: row.id,
-            circleID: circleID,
-            promptID: row.promptID,
-            authorID: row.authorID,
-            captureMode: CaptureMode(rawValue: row.captureMode) ?? .typed,
-            body: row.body,
-            audioURL: try await signedURL(path: row.audioPath),
-            videoURL: try await signedURL(path: row.videoPath),
-            submittedAt: row.submittedAt,
-            isLate: row.isLate,
-            scriptureReference: row.scriptureReference,
+        let userID = try await client.auth.session.user.id
+        let saved = await savedStore.loadRecord(blessingID: row.id, userID: userID)?.blessing
+        let preview: URL?
+        if let local = saved?.photoURL { preview = local }
+        else { preview = try await signedURL(path: row.photoPath.flatMap {
+            $0.contains("/photo-previewed-") ? $0 + ".preview.jpg" : nil
+        }) }
+        return Blessing(
+            id: row.id, circleID: circleID, promptID: row.promptID, authorID: row.authorID,
+            captureMode: CaptureMode(rawValue: row.captureMode) ?? .typed, body: row.body,
+            audioURL: try await localOrSigned(saved?.audioURL, path: row.audioPath),
+            videoURL: try await localOrSigned(saved?.videoURL, path: row.videoPath),
+            submittedAt: row.submittedAt, isLate: row.isLate, scriptureReference: row.scriptureReference,
             repeatedFromBlessingID: row.repeatedFromBlessingID,
-            photoURL: try await signedURL(path: row.photoPath),
-            editedAt: row.editedAt
+            photoURL: try await localOrSigned(saved?.photoURL, path: row.photoPath), editedAt: row.editedAt,
+            photoPreviewURL: preview
         )
+    }
+
+    private func localOrSigned(_ local: URL?, path: String?) async throws -> URL? {
+        if let local, local.isFileURL, FileManager.default.fileExists(atPath: local.path) { return local }
+        return try await signedURL(path: path)
     }
 
     private func response(from row: ResponseRow, circleID: UUID) async throws -> BlessingResponse {
-        BlessingResponse(
-            id: row.id,
-            blessingID: row.blessingID,
-            circleID: circleID,
-            authorID: row.authorID,
-            mode: ResponseMode(rawValue: row.mode) ?? .typed,
-            body: row.body,
-            audioURL: try await signedURL(path: row.audioPath),
-            submittedAt: row.submittedAt
-        )
+        let userID = try await client.auth.session.user.id
+        let saved = await savedStore.loadRecord(blessingID: row.blessingID, userID: userID)?
+            .responses.first { $0.id == row.id }?.audioURL
+        return BlessingResponse(id: row.id, blessingID: row.blessingID, circleID: circleID,
+            authorID: row.authorID, mode: ResponseMode(rawValue: row.mode) ?? .typed, body: row.body,
+            audioURL: try await localOrSigned(saved, path: row.audioPath), submittedAt: row.submittedAt)
     }
 
     private func signedURL(path: String?) async throws -> URL? {
+        try await signedURL(bucket: mediaBucket, path: path, expiresIn: 3_600)
+    }
+
+    private func signedURL(bucket: String, path: String?, expiresIn: Int, version: Date? = nil) async throws -> URL? {
         guard let path else { return nil }
-        let span = BackendDiagnostics.shared.begin(.mediaSigning)
-        do {
-            let url = try await client.storage.from(mediaBucket).measuredSignedURL(path: path, expiresIn: 3_600)
-            span.finish(.success)
-            return url
-        } catch {
-            span.finish(Task.isCancelled ? .cancelled : .failure)
-            throw error
+        let userID = try await client.auth.session.user.id
+        let key = "\(userID)|\(bucket)|\(path)|\(version?.timeIntervalSince1970 ?? 0)"
+        if let (url, expiry) = linkCache[key], expiry > .now { return url }
+        if let work = linkRequests[key] { return try await work.value }
+        let client = self.client
+        let work = Task { try await client.storage.from(bucket).measuredSignedURL(path: path, expiresIn: expiresIn) }
+        linkRequests[key] = work
+        defer { linkRequests[key] = nil }
+        var url = try await work.value
+        if let version, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            parts.queryItems = (parts.queryItems ?? []) + [URLQueryItem(name: "v", value: String(version.timeIntervalSince1970))]
+            url = parts.url ?? url
         }
+        if linkCache.count >= 512 { linkCache = linkCache.filter { $0.value.1 > .now } }
+        if linkCache.count >= 512 { linkCache.removeAll() }
+        linkCache[key] = (url, Date.now.addingTimeInterval(Double(expiresIn - 120)))
+        return url
     }
 
     private func upload(fileURL: URL, path: String, contentType: String, stage: BackendStage? = nil) async throws {
@@ -1020,13 +1043,12 @@ actor SupabaseBlessingRepository: BlessingRepository {
             tintSeed: row.id.uuidString.utf8.reduce(0) { $0 + Int($1) },
             bibleVersionID: row.bibleVersionID,
             joinedAt: joinedAt,
-            avatarURL: try await avatarSignedURL(path: row.avatarPath)
+            avatarURL: try await avatarSignedURL(path: row.avatarPath, version: row.updatedAt)
         )
     }
 
-    private func avatarSignedURL(path: String?) async throws -> URL? {
-        guard let path else { return nil }
-        return try await client.storage.from(avatarBucket).measuredSignedURL(path: path, expiresIn: 86_400)
+    private func avatarSignedURL(path: String?, version: Date?) async throws -> URL? {
+        try await signedURL(bucket: avatarBucket, path: path, expiresIn: 86_400, version: version)
     }
 
     private func circleCalendar(_ circle: CircleGroup) -> Calendar {
@@ -1072,7 +1094,10 @@ private struct ProfileRow: Codable, Sendable {
     let bibleVersionID: String
     let avatarPath: String?
 
+    let updatedAt: Date?
+
     enum CodingKeys: String, CodingKey {
+        case updatedAt = "updated_at"
         case id
         case displayName = "display_name"
         case bibleVersionID = "bible_version_id"
@@ -1134,7 +1159,10 @@ private struct CircleRow: Codable, Sendable {
     let photoPath: String?
     let allowMemberCircleChanges: Bool?
 
+    let updatedAt: Date?
+
     enum CodingKeys: String, CodingKey {
+        case updatedAt = "updated_at"
         case id, name
         case ownerID = "owner_id"
         case timeZone = "time_zone"

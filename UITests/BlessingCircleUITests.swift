@@ -279,6 +279,42 @@ final class BlessingCircleUITests: XCTestCase {
     }
 
     @MainActor
+    func testTrafficSavingControlsPersistAtNormalAndLargestText() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        let session = UUID().uuidString
+        for largest in [false, true] {
+            app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+            app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+            app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = session
+            app.launchArguments = ["--manna-local-ui-test", "-user.appearancePreference", largest ? "dark" : "light",
+                "-UIPreferredContentSizeCategoryName", largest ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
+            app.terminate(); app.launch()
+            XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
+            app.buttons["App menu"].tap(); app.buttons["User settings"].tap()
+            let automatic = app.switches["saving.automaticToggle"]
+            for _ in 0..<16 where !automatic.isHittable { app.swipeUp() }
+            XCTAssertTrue(automatic.isHittable)
+            if !largest {
+                automatic.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+            }
+            let wifi = app.switches["saving.wifiOnly"]
+            for _ in 0..<12 where !wifi.isHittable { app.swipeUp() }
+            XCTAssertTrue(wifi.waitForExistence(timeout: 5))
+            XCTAssertEqual(wifi.value as? String, largest ? "0" : "1")
+            if !largest { wifi.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+            let history = app.switches["saving.olderHistory"]
+            for _ in 0..<12 where !history.isHittable { app.swipeUp() }
+            XCTAssertTrue(history.isHittable)
+            XCTAssertEqual(history.value as? String, largest ? "1" : "0")
+            if !largest { history.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+            let screen = XCTAttachment(screenshot: app.screenshot())
+            screen.name = largest ? "Traffic saving controls largest dark" : "Traffic saving controls normal"
+            screen.lifetime = .keepAlways; add(screen)
+        }
+    }
+
+    @MainActor
     func testAutomaticSavingSettingsOffersKeepChoicesAndCancellation() {
         continueAfterFailure = false
         let app = XCUIApplication()

@@ -44,14 +44,17 @@ final class MediaPlaybackController {
     private var timeObserver: Any?
     private var hasPrepared = false
     private var cachedVoiceURL: URL?
+    var cacheAccountID: UUID?
+    private let mediaCache: MediaDownloadCache
 
     init(url: URL, kind: MediaPlaybackKind,
          downloader: @escaping @Sendable (URL) async throws -> (URL, URLResponse) = { try await URLSession.shared.download(from: $0) },
-         diagnostics: BackendDiagnostics = .shared) {
+         diagnostics: BackendDiagnostics = .shared, mediaCache: MediaDownloadCache = .shared) {
         self.url = url
         self.kind = kind
         self.downloader = downloader
         self.diagnostics = diagnostics
+        self.mediaCache = mediaCache
         let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: interval,
@@ -128,7 +131,7 @@ final class MediaPlaybackController {
             }
             if loadingAsset { diagnostics.recordFailure(.audio, error: error) }
             isPreparing = false
-            if case let MediaPlaybackError.httpStatus(status) = error, [401, 403, 404].contains(status) {
+            if let status = Self.httpStatus(error), [401, 403, 404].contains(status) {
                 errorMessage = "This recording’s link is no longer available. Refresh the page and try again."
             } else {
                 errorMessage = "This recording couldn’t be loaded. Try opening it again."
@@ -185,6 +188,11 @@ final class MediaPlaybackController {
     }
 
     func retry() async {
+        let previousGeneration = generation
+        if let accountID = cacheAccountID, !url.isFileURL {
+            await mediaCache.remove(for: url, accountID: accountID)
+        }
+        guard generation == previousGeneration else { return }
         generation = UUID()
         hasPrepared = false
         recordedPlayerFailure = false
@@ -221,7 +229,6 @@ final class MediaPlaybackController {
     }
 
     private func playbackURL(generation operation: UUID) async throws -> URL {
-        guard kind == .voice else { return url }
         if let cachedVoiceURL { return cachedVoiceURL }
         if url.isFileURL {
             // Older archives named CAF files .data. AVURLAsset does not recognize
@@ -243,45 +250,62 @@ final class MediaPlaybackController {
         }
 
         let sourceURL = url
-        let request = diagnostics.beginRequest(.storageOther)
-        let downloadURL: URL
-        let response: URLResponse
-        do {
-            (downloadURL, response) = try await downloader(sourceURL)
-        } catch {
-            request.finish(error: error)
-            throw error
-        }
-        defer { try? FileManager.default.removeItem(at: downloadURL) }
-        let status = (response as? HTTPURLResponse)?.statusCode
-        guard let status, (200..<300).contains(status) else {
-            let failure = MediaPlaybackError.httpStatus(status ?? 0)
-            request.finish(httpStatus: status, error: failure)
-            throw failure
-        }
-        request.finish(httpStatus: status)
-        try Task.checkCancellation()
-        guard generation == operation else { throw CancellationError() }
-
-        do {
-            let localURL = try CaptureMediaStore.newRecordingURL(pathExtension: sourceURL.pathExtension.lowercased() == "m4a" ? "m4a" : "caf")
+        let accountID = cacheAccountID
+        let downloader = self.downloader
+        let diagnostics = self.diagnostics
+        let measuredDownload: MediaDownloadCache.Download = { source in
+            let request = diagnostics.beginRequest(.storageOther)
             do {
-                try FileManager.default.moveItem(at: downloadURL, to: localURL)
+                let (file, response) = try await downloader(source)
+                let status = (response as? HTTPURLResponse)?.statusCode
+                guard let status, (200..<300).contains(status) else {
+                    let failure = MediaPlaybackError.httpStatus(status ?? 0)
+                    request.finish(httpStatus: status, error: failure)
+                    try? FileManager.default.removeItem(at: file)
+                    throw failure
+                }
+                let bytes = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize
+                request.finish(httpStatus: status, receivedBytes: bytes.map(Int64.init))
+                return (file, response)
             } catch {
-                try FileManager.default.copyItem(at: downloadURL, to: localURL)
+                request.finish(error: error)
+                throw error
             }
+        }
+        do {
+            let downloaded: URL
+            if let accountID {
+                downloaded = try await mediaCache.file(for: sourceURL, accountID: accountID, download: measuredDownload)
+            } else {
+                let (temporary, response) = try await measuredDownload(sourceURL)
+                guard let status = (response as? HTTPURLResponse)?.statusCode, (200..<300).contains(status) else {
+                    try? FileManager.default.removeItem(at: temporary)
+                    throw MediaPlaybackError.httpStatus((response as? HTTPURLResponse)?.statusCode ?? 0)
+                }
+                downloaded = temporary
+            }
+            defer { if accountID == nil { try? FileManager.default.removeItem(at: downloaded) } }
+            try Task.checkCancellation()
+            guard generation == operation else { throw CancellationError() }
+            let ext = sourceURL.pathExtension.lowercased()
+            let localURL = try CaptureMediaStore.newRecordingURL(pathExtension:
+                ["m4a", "caf", "mp4", "mov"].contains(ext) ? ext : kind == .video ? "mp4" : "caf")
+            try FileManager.default.copyItem(at: downloaded, to: localURL)
             cachedVoiceURL = localURL
             return localURL
-        } catch {
-            diagnostics.recordFailure(.audio, error: error)
-            throw error
-        }
+        } catch { throw error }
     }
 
     private func removeCachedVoiceFile() {
         guard let cachedVoiceURL else { return }
         try? FileManager.default.removeItem(at: cachedVoiceURL)
         self.cachedVoiceURL = nil
+    }
+
+    private static func httpStatus(_ error: any Error) -> Int? {
+        if case let MediaPlaybackError.httpStatus(status) = error { return status }
+        if case let MediaDownloadError.httpStatus(status) = error { return status }
+        return nil
     }
 
     private static func isCancellation(_ error: any Error) -> Bool {

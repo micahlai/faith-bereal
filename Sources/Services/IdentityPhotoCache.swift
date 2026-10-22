@@ -174,7 +174,7 @@ actor IdentityPhotoCache {
         accountDirectory(accountID).appendingPathComponent(key.filename)
     }
     private static func fingerprint(_ url: URL) -> String {
-        SHA256.hash(data: Data(url.absoluteString.utf8)).map { String(format: "%02x", $0) }.joined()
+        SHA256.hash(data: Data(MediaDownloadCache.identity(url).utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Bound decoded image size as well as transport bytes. Preserve transparent avatars.

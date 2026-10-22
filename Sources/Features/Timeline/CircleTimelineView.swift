@@ -718,6 +718,9 @@ private struct TimelineEventView: View {
             SavedBlessingStatusView(blessing: blessing)
             Button { onSelect(blessing) } label: {
                 VStack(alignment: .leading, spacing: 8) {
+                    if let preview = model.resolvedBlessing(blessing).photoPreviewURL {
+                        CachedPhotoPreview(url: preview)
+                    }
                     if blessing.captureMode != .typed || blessing.photoURL != nil {
                         HStack(spacing: 10) {
                             if blessing.captureMode != .typed {
@@ -1118,7 +1121,7 @@ struct BlessingContentView: View {
             case .typed:
                 VStack(alignment: .leading, spacing: 10) {
                     if let photoURL = blessing.photoURL {
-                        BlessingPhotoView(url: photoURL)
+                        BlessingPhotoView(url: photoURL, previewURL: blessing.photoPreviewURL)
                         SaveBlessingMediaButton(url: photoURL, kind: .photo)
                     }
                     Text(blessing.body ?? "")
@@ -1137,7 +1140,7 @@ struct BlessingContentView: View {
                             .foregroundStyle(AppTheme.secondaryInk)
                     }
                     if let photoURL = blessing.photoURL {
-                        BlessingPhotoView(url: photoURL)
+                        BlessingPhotoView(url: photoURL, previewURL: blessing.photoPreviewURL)
                         SaveBlessingMediaButton(url: photoURL, kind: .photo)
                     }
                     Text(blessing.body ?? "")
@@ -1164,6 +1167,7 @@ struct BlessingContentView: View {
 }
 
 struct AudioBlessingPlayer: View {
+    @Environment(AppModel.self) private var model
     @State private var playback: MediaPlaybackController
     private let url: URL
 
@@ -1205,7 +1209,7 @@ struct AudioBlessingPlayer: View {
                 }
             }
         }
-        .onChange(of: url, initial: true) { _, value in playback.updateURL(value) }
+        .onChange(of: url, initial: true) { _, value in playback.cacheAccountID = model.currentUser?.id; playback.updateURL(value) }
         .onDisappear { playback.pause() }
     }
 }
@@ -1241,6 +1245,7 @@ private struct MediaPlayhead: View {
 }
 
 struct VideoBlessingPlayer: View {
+    @Environment(AppModel.self) private var model
     @State private var playback: MediaPlaybackController
     @State private var isFullscreen = false
     private let url: URL
@@ -1302,7 +1307,7 @@ struct VideoBlessingPlayer: View {
                 }
             }
         }
-        .onChange(of: url, initial: true) { _, value in playback.updateURL(value) }
+        .onChange(of: url, initial: true) { _, value in playback.cacheAccountID = model.currentUser?.id; playback.updateURL(value) }
         .onDisappear {
             if !isFullscreen { playback.pause() }
         }

@@ -29,11 +29,14 @@ struct BlessingCircleApp: App {
                         Task { await model.handleForegroundNotification(url) }
                     }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .mannaSavingNetworkChanged).receive(on: RunLoop.main)) { _ in
+                    if scenePhase == .active { model.resumeAutomaticSavingAfterNetworkChange() }
+                }
                 .onChange(of: scenePhase) { _, phase in
                     model.diagnosticCollection.setForeground(phase == .active)
                     guard phase == .active else { return }
                     Task {
-                        await model.refreshCurrentCircle()
+                        await model.refreshCurrentCircle(force: false)
                         await model.diagnosticCollection.sendNow(automatic: true)
                     }
                 }

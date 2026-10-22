@@ -25,6 +25,33 @@ final class MediaPlaybackTests: XCTestCase {
     }
 
     @MainActor
+    func testReopeningVoiceWithRenewedLinkUsesDiskCacheAndLocalPlaybackCopy() async throws {
+        let fixture = PlaybackDownloadFixture()
+        defer { fixture.cleanup() }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = MediaDownloadCache(root: root), account = UUID()
+        let first = MediaPlaybackController(url: URL(string: "https://example.invalid/voice.caf?token=one")!,
+            kind: .voice, downloader: fixture.download, diagnostics: BackendDiagnostics(enabled: false), mediaCache: cache)
+        first.cacheAccountID = account
+        await first.prepare()
+        XCTAssertNil(first.errorMessage)
+        let second = MediaPlaybackController(url: URL(string: "https://example.invalid/voice.caf?token=two")!,
+            kind: .voice, downloader: fixture.download, diagnostics: BackendDiagnostics(enabled: false), mediaCache: cache)
+        second.cacheAccountID = account
+        await second.prepare()
+        XCTAssertNil(second.errorMessage)
+        XCTAssertGreaterThan(second.duration, 0)
+        XCTAssertEqual(fixture.urls.count, 1)
+        await second.retry()
+        XCTAssertNil(second.errorMessage)
+        XCTAssertEqual(fixture.urls.count, 2, "Explicit retry replaces only the temporary download")
+        second.pause()
+        first.updateURL(URL(string: "https://example.invalid/cleanup")!)
+        second.updateURL(URL(string: "https://example.invalid/cleanup")!)
+    }
+
+    @MainActor
     func testLegacySavedCAFWithDataExtensionCanPlayWithoutDownload() async throws {
         let fixture = PlaybackDownloadFixture()
         defer { fixture.cleanup() }

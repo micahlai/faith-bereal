@@ -19,6 +19,28 @@ enum CaptureMediaStore {
         return destinationURL
     }
 
+    /// Every upload uses the same 720p H.264/AAC export policy, including restored drafts.
+    static func compressedVideo(from source: URL) async throws -> URL {
+        let asset = AVURLAsset(url: source)
+        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
+            throw BlessingError.cameraUnavailable
+        }
+        let output = try newRecordingURL(pathExtension: "mp4")
+        do {
+            session.shouldOptimizeForNetworkUse = true
+            try await session.export(to: output, as: .mp4)
+            try Task.checkCancellation()
+            return output
+        } catch {
+            try? FileManager.default.removeItem(at: output)
+            throw error
+        }
+    }
+
+    static func persistPhotoPreview(from source: URL) throws -> URL {
+        try persistProfilePhoto(data: Data(contentsOf: source), maximumPixelSize: 480)
+    }
+
     static func persistDraftMedia(from sourceURL: URL) throws -> URL {
         let destination = try newRecordingURL(pathExtension: sourceURL.pathExtension)
         try FileManager.default.copyItem(at: sourceURL, to: destination)

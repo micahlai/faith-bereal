@@ -32,7 +32,7 @@ struct TodayView: View {
         }
         .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await model.refreshCurrentCircle() }
+        .task { await model.refreshCurrentCircle(force: false) }
     }
 
     @ViewBuilder

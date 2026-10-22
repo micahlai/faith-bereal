@@ -20,13 +20,15 @@ begin
   v_path:=v_a.id::text||'/'||v_pa.id::text||'/'||v_author::text||'/photo.jpg';
   v_source:=public.submit_text_blessing(v_pa.id,'typed','Photo',null,v_path);
   v_copy:=public.repeat_blessing(v_source.id,v_pb.id);
-  insert into storage.objects(bucket_id,name) values('blessing-media',v_path),('avatars',v_path),('blessing-media','not-referenced.jpg');
+  insert into storage.objects(bucket_id,name) values('blessing-media',v_path),('avatars',v_path),('blessing-media','not-referenced.jpg'),('blessing-media',v_path||'.preview.jpg'),('blessing-media',v_path||'.wrong-preview.jpg');
   perform set_config('request.jwt.claim.sub',v_peer::text,true);
   execute 'set local role authenticated';
   assert (select count(*) from storage.objects)=0;
   perform public.submit_text_blessing(v_pb.id,'typed','Unlock');
-  assert (select count(*) from storage.objects)=1;
-  assert (select name=v_path from storage.objects);
+  assert (select count(*) from storage.objects)=2;
+  assert exists(select 1 from storage.objects where name=v_path);
+  assert exists(select 1 from storage.objects where name=v_path||'.preview.jpg');
+  assert not exists(select 1 from storage.objects where name=v_path||'.wrong-preview.jpg');
   execute 'reset role';
 end;
 $$;

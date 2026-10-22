@@ -3,6 +3,9 @@ import Foundation
 struct LocalSavingPreferences: Codable, Sendable {
     var isEnabled = false
     var hasChosen = false
+    // Optional fields keep manifests from earlier app builds readable.
+    var wifiOnly: Bool? = nil
+    var includesOlderHistory: Bool? = nil
     var excludedBlessingIDs: Set<UUID> = []
 }
 

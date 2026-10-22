@@ -10,6 +10,19 @@ struct SavedBlessingRecord: Codable, Sendable {
     var automaticallySaved: Bool? = nil
 
     var isAutomatic: Bool { automaticallySaved == true }
+    var hasAllSavedFiles: Bool {
+        for key in files.keys {
+            let url: URL?
+            switch key {
+            case "audio": url = blessing.audioURL
+            case "video": url = blessing.videoURL
+            case "photo": url = blessing.photoURL
+            default: url = responses.first { $0.id.uuidString == key }?.audioURL
+            }
+            guard let url, url.isFileURL, FileManager.default.fileExists(atPath: url.path) else { return false }
+        }
+        return true
+    }
 
     var containsExpiredMedia: Bool {
         expiredMedia(at: .now)
@@ -26,16 +39,32 @@ struct SavedBlessingRecord: Codable, Sendable {
 
 protocol SavedBlessingMediaCopying: Sendable {
     func copy(from source: URL, to destination: URL) async throws
+    func copy(from source: URL, to destination: URL, wifiOnly: Bool) async throws
+}
+
+extension SavedBlessingMediaCopying {
+    func copy(from source: URL, to destination: URL, wifiOnly: Bool) async throws {
+        try await copy(from: source, to: destination)
+    }
 }
 
 struct SavedBlessingMediaCopier: SavedBlessingMediaCopying {
     func copy(from source: URL, to destination: URL) async throws {
+        try await copy(from: source, to: destination, wifiOnly: false)
+    }
+    func copy(from source: URL, to destination: URL, wifiOnly: Bool) async throws {
         if source.isFileURL {
             try FileManager.default.copyItem(at: source, to: destination)
             return
         }
         guard source.scheme == "https" else { throw BlessingMediaSaveError.unavailable }
-        let (temporary, response) = try await URLSession.shared.download(from: source)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.allowsCellularAccess = !wifiOnly
+        configuration.allowsExpensiveNetworkAccess = !wifiOnly
+        configuration.allowsConstrainedNetworkAccess = !wifiOnly
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let (temporary, response) = try await session.download(from: source)
         defer { try? FileManager.default.removeItem(at: temporary) }
         guard let response = response as? HTTPURLResponse,
               (200..<300).contains(response.statusCode),
@@ -75,7 +104,7 @@ actor SavedBlessingStore {
         return records
     }
 
-    private func loadRecord(blessingID: UUID, userID: UUID) -> SavedBlessingRecord? {
+    func loadRecord(blessingID: UUID, userID: UUID) -> SavedBlessingRecord? {
         let directory = root.appendingPathComponent(userID.uuidString).appendingPathComponent(blessingID.uuidString)
         guard let data = try? Data(contentsOf: directory.appendingPathComponent("blessing.json")),
               let record = try? JSONDecoder().decode(SavedBlessingRecord.self, from: data),
@@ -105,7 +134,7 @@ actor SavedBlessingStore {
     }
 
     func save(blessing: Blessing, responses: [BlessingResponse], userID: UUID, now: Date = .now,
-              automatically: Bool = false, refreshing: Bool = false) async throws -> SavedBlessingRecord {
+              automatically: Bool = false, refreshing: Bool = false, wifiOnly: Bool = false) async throws -> SavedBlessingRecord {
         let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
         try makeProtectedDirectory(account)
         let destination = account.appendingPathComponent(blessing.id.uuidString, isDirectory: true)
@@ -136,7 +165,8 @@ actor SavedBlessingStore {
             }
             let name = key + "-" + UUID().uuidString + "." + (["caf", "m4a", "mp4", "mov", "jpg", "jpeg", "png", "heic", "wav", "aac"].contains(ext) ? ext : "data")
             let target = staging.appendingPathComponent(name)
-            try await copier.copy(from: source, to: target)
+            let cached = source.isFileURL ? nil : await MediaDownloadCache.shared.cachedFile(for: source, accountID: userID)
+            try await copier.copy(from: cached ?? source, to: target, wifiOnly: wifiOnly)
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)
             files[key] = name
         }

@@ -6,7 +6,7 @@ struct TimelinePage: Sendable {
 }
 
 enum TimelinePaging {
-    static let daysPerPage = 14
+    static let daysPerPage = 7
     static func scope(circleID: UUID, viewerID: UUID, timeZoneIdentifier: String) -> String {
         "\(circleID)|\(viewerID)|\(timeZoneIdentifier)"
     }

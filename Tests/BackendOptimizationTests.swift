@@ -56,6 +56,41 @@ final class BackendOptimizationTests: XCTestCase {
         } == true)
     }
 
+    func testSavedFilesBypassSigningAndOtherRefreshesReuseLinks() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = SavedBlessingStore(root: root)
+        let fixture = try BackendHTTPFixture(savedStore: store)
+        defer { fixture.close() }
+        fixture.viewerHasSubmitted = true
+        fixture.includesAudio = true
+        let context = try await fixture.repository.circleContext(circleID: fixture.circleID)
+        fixture.resetRequests()
+        let first = try await fixture.repository.timelinePage(circle: context.circle, viewerID: fixture.viewerID, now: fixture.now, before: nil)
+        XCTAssertEqual(fixture.requestPaths.filter { $0.contains("/object/sign/") }.count, 2)
+        fixture.resetRequests()
+        _ = try await fixture.repository.timelinePage(circle: context.circle, viewerID: fixture.viewerID, now: fixture.now, before: nil)
+        XCTAssertEqual(fixture.requestPaths.filter { $0.contains("/object/sign/") }.count, 0)
+        XCTAssertEqual(fixture.requestPaths.filter { $0 == "/rest/v1/blessings" }.count, 1, "Authorization stays fresh")
+        let source = root.appendingPathComponent("fixture.caf")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("local bytes".utf8).write(to: source)
+        for lane in first.lanes {
+            for event in lane.events {
+                guard case let .blessing(blessing) = event.status else { continue }
+                _ = try await store.save(blessing: blessing.replacingMedia(audio: source, video: nil, photo: nil),
+                    responses: [], userID: fixture.viewerID)
+            }
+        }
+        let reopened = SupabaseBlessingRepository(client: fixture.client, savedStore: store)
+        fixture.resetRequests()
+        let local = try await reopened.timelinePage(circle: context.circle, viewerID: fixture.viewerID, now: fixture.now, before: nil)
+        XCTAssertFalse(local.lanes.flatMap(\.events).compactMap { event -> URL? in
+            if case let .blessing(value) = event.status { return value.audioURL }; return nil
+        }.contains { !$0.isFileURL })
+        XCTAssertEqual(fixture.requestPaths.filter { $0.contains("/object/sign/") }.count, 0)
+    }
+
     func testHostedMetadataReuseStillPropagatesAuthorizationFailure() async throws {
         let fixture = try BackendHTTPFixture()
         defer { fixture.close() }
@@ -96,6 +131,8 @@ private final class BackendHTTPFixture: @unchecked Sendable {
     private var paths: [String] = []
     private var hasSubmitted = false
     private var denied = false
+    var includesAudio = false
+    private(set) var client: SupabaseClient!
     private var session: URLSession!
     private(set) var repository: SupabaseBlessingRepository!
 
@@ -113,7 +150,7 @@ private final class BackendHTTPFixture: @unchecked Sendable {
     }
     func resetRequests() { lock.withLock { paths = [] } }
 
-    init() throws {
+    init(savedStore: SavedBlessingStore = SavedBlessingStore()) throws {
         let storage = BackendTestAuthStorage()
         let user = User(id: viewerID, appMetadata: [:], userMetadata: [:], aud: "authenticated",
             createdAt: now, updatedAt: now)
@@ -125,10 +162,10 @@ private final class BackendHTTPFixture: @unchecked Sendable {
         configuration.protocolClasses = [BackendTestURLProtocol.self]
         session = URLSession(configuration: configuration)
         BackendTestURLProtocol.register(self)
-        let client = SupabaseClient(supabaseURL: URL(string: "https://\(host)")!, supabaseKey: "synthetic-key",
+        client = SupabaseClient(supabaseURL: URL(string: "https://\(host)")!, supabaseKey: "synthetic-key",
             options: .init(auth: .init(storage: storage, storageKey: "test-session", autoRefreshToken: false,
                 emitLocalSessionAsInitialSession: true), global: .init(session: session)))
-        repository = SupabaseBlessingRepository(client: client)
+        repository = SupabaseBlessingRepository(client: client, savedStore: savedStore)
     }
 
     func close() {
@@ -150,6 +187,9 @@ private final class BackendHTTPFixture: @unchecked Sendable {
             "local_date": dateFormatter.string(from: now), "starts_at": timestamp,
             "ends_at": formatter.string(from: now.addingTimeInterval(540)), "kind": "daily", "state": "started"]
         let value: Any
+        if url.path.contains("/storage/v1/object/sign/") {
+            return (200, Data("{\"signedURL\":\"/object/sign/blessing-media/voice.caf?token=fixture\"}".utf8))
+        }
         switch url.path {
         case "/rest/v1/circles":
             value = ["id": circleID.uuidString, "name": "Fixture", "owner_id": viewerID.uuidString,
@@ -172,7 +212,8 @@ private final class BackendHTTPFixture: @unchecked Sendable {
             }
             func blessing(_ id: UUID, author: UUID) -> [String: Any] {
                 ["id": id.uuidString, "prompt_id": promptID.uuidString, "author_id": author.uuidString,
-                 "capture_mode": "typed", "body": "Synthetic fixture text", "submitted_at": timestamp, "is_late": false]
+                 "capture_mode": includesAudio ? "voice" : "typed", "body": "Synthetic fixture text", "submitted_at": timestamp, "is_late": false,
+                 "audio_path": includesAudio ? "voice-\(id).caf" : NSNull()]
             }
             var rows = [blessing(peerBlessingID, author: peerID)]
             if viewerHasSubmitted { rows.append(blessing(viewerBlessingID, author: viewerID)) }
