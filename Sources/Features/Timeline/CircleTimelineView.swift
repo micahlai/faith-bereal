@@ -722,7 +722,7 @@ private struct TimelineEventView: View {
             Button { onSelect(blessing) } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     if let preview = model.resolvedBlessing(blessing).photoPreviewURL {
-                        CachedPhotoPreview(url: preview)
+                        CachedPhotoPreview(url: preview, originalURL: model.resolvedBlessing(blessing).photoURL)
                     }
                     if blessing.captureMode != .typed || blessing.photoURL != nil {
                         HStack(spacing: 10) {

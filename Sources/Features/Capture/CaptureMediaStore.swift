@@ -81,8 +81,10 @@ enum CaptureMediaStore {
         guard let sourceImage = UIImage(data: data), maximumPixelSize > 0 else {
             throw BlessingError.cameraUnavailable
         }
-        let pixelWidth = CGFloat(sourceImage.cgImage?.width ?? Int(sourceImage.size.width * sourceImage.scale))
-        let pixelHeight = CGFloat(sourceImage.cgImage?.height ?? Int(sourceImage.size.height * sourceImage.scale))
+        // UIImage.size accounts for EXIF rotation; CGImage dimensions describe
+        // the unrotated sensor pixels and would stretch a portrait during draw.
+        let pixelWidth = sourceImage.size.width * sourceImage.scale
+        let pixelHeight = sourceImage.size.height * sourceImage.scale
         let longestSide = max(pixelWidth, pixelHeight)
         let scale = min(1, maximumPixelSize / max(longestSide, 1))
         let targetSize = CGSize(

@@ -44,7 +44,7 @@ final class HelpContentTests: XCTestCase {
 
     func testPhotoAndTodayGuideExplainsZoomControlsAndVerticalOnlyFeed() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
-        for concept in ["enlarge it", "Profile and circle photos do not", "Pinch to zoom", "Zoom in", "Zoom out", "movement controls",
+        for concept in ["keep their original proportions", "Tall photos may appear narrower", "older preview looks stretched", "temporary copy remains", "enlarge it", "Profile and circle photos do not", "Pinch to zoom", "Zoom in", "Zoom out", "movement controls",
                         "Tap Close photo", "crop editor", "fixed side to side"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }

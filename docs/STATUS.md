@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-10-24 rotated-photo thumbnail distortion — fixed and simulator verified
+
+- Camera photos with EXIF rotation could have a correct full-screen original but a distorted small preview: preview generation used unrotated sensor dimensions while drawing the orientation-corrected image. It now uses orientation-aware dimensions. The regression reproduces eight width/height assertion failures across the four axis-swapping EXIF orientations before the fix, then passes all eight rotation/mirroring variants after it; original bytes remain intact.
+- Today/details and Timeline previews prefer a saved or already-cached full photo before an older generated preview. Scrolling still never downloads a full original on a cache miss. Existing hosted preview bytes are unchanged: opening the full photo, then reopening the blessing/app, bypasses an older distorted thumbnail while the temporary account-scoped original remains cached. Help, guide tests, and the product spec explain this limit.
+- XcodeGen generation and the Debug simulator build/test pass. All 40 focused Help, photo-layout/cache-preference, and media-preparation tests pass (`build/PhotoOrientationAccepted.xcresult`), including actual rendered card pixels for portrait/landscape/square photos at narrow/wide widths and both height caps. A clean disposable simulator also records the pre-fix failing regression (`build/PhotoOrientationReproduced.xcresult`). Intermediate simulator launch failures/interruption did not execute assertions; the accepted final run uses another fresh simulator. No full-suite/UI rerun, hosted thumbnail rewrite, or release/upload is included. A new client build is required for installed users.
+
 ## 2026-10-24 display consistency and durable offline identities — implemented and simulator verified
 
 - Separate branch `codex/offline-polish`: the black-background photo viewer no longer overrides app appearance; attached photos use aspect-preserving layout with width/height caps. Timeline remembers List/Threads across tab changes and relaunch, and List omits thread lines/markers.

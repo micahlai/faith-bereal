@@ -1,10 +1,38 @@
 import XCTest
 import AVFoundation
 import UIKit
+import ImageIO
+import UniformTypeIdentifiers
 @testable import BlessingCircle
 
 @MainActor
 final class TrafficMediaPreparationTests: XCTestCase {
+    func testPhotoPreviewPreservesCameraOrientationAndProportions() throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 1200, height: 800), format: format).image { context in
+            UIColor.orange.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1200, height: 800))
+        }
+        // Camera JPEGs can store landscape pixels with a portrait EXIF rotation.
+        for orientation in 1...8 {
+            let data = NSMutableData()
+            let destination = try XCTUnwrap(CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil))
+            CGImageDestinationAddImage(destination, try XCTUnwrap(image.cgImage),
+                [kCGImagePropertyOrientation: orientation] as CFDictionary)
+            XCTAssertTrue(CGImageDestinationFinalize(destination))
+            let original = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID()).jpg")
+            try (data as Data).write(to: original)
+            defer { try? FileManager.default.removeItem(at: original) }
+            let preview = try CaptureMediaStore.persistPhotoPreview(from: original)
+            defer { try? FileManager.default.removeItem(at: preview) }
+            let rendered = try XCTUnwrap(UIImage(contentsOfFile: preview.path)?.cgImage)
+            XCTAssertEqual(rendered.width, orientation >= 5 ? 320 : 480, "EXIF orientation \(orientation)")
+            XCTAssertEqual(rendered.height, orientation >= 5 ? 480 : 320, "EXIF orientation \(orientation)")
+            XCTAssertEqual(try Data(contentsOf: original), data as Data, "Preview generation must leave the full photo intact")
+        }
+    }
+
     func testPhotoPreviewIsSmallAndDoesNotReplaceOriginal() throws {
         let format = UIGraphicsImageRendererFormat(); format.scale = 1
         let image = UIGraphicsImageRenderer(size: CGSize(width: 2400, height: 1800), format: format).image { context in

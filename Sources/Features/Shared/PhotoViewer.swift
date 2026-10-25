@@ -94,11 +94,11 @@ struct BlessingPhotoView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityIdentifier("blessing.photo")
         .photoEnlargement(url: url, title: "Blessing photo")
-        .task(id: "\(model.currentUser?.id.uuidString ?? "")|\(previewURL?.absoluteString ?? "")") {
+        .task(id: "\(model.currentUser?.id.uuidString ?? "")|\(url)|\(previewURL?.absoluteString ?? "")") {
             image = nil
-            guard !url.isFileURL, let previewURL, let accountID = model.currentUser?.id else { return }
-            if let local = try? await MediaDownloadCache.shared.file(for: previewURL, accountID: accountID),
-               !Task.isCancelled { image = UIImage(contentsOfFile: local.path) }
+            guard !url.isFileURL, let accountID = model.currentUser?.id else { return }
+            let loaded = await PhotoPreviewLoader.load(previewURL: previewURL, originalURL: url, accountID: accountID)
+            if !Task.isCancelled { image = loaded }
         }
     }
 }
@@ -107,6 +107,7 @@ struct BlessingPhotoView: View {
 struct CachedPhotoPreview: View {
     @Environment(AppModel.self) private var model
     let url: URL
+    var originalURL: URL? = nil
     @State private var image: UIImage?
     var body: some View {
         Group {
@@ -116,12 +117,28 @@ struct CachedPhotoPreview: View {
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .accessibilityHidden(true)
-        .task(id: "\(model.currentUser?.id.uuidString ?? "")|\(url)") {
+        .task(id: "\(model.currentUser?.id.uuidString ?? "")|\(url)|\(originalURL?.absoluteString ?? "")") {
             image = nil
             guard let accountID = model.currentUser?.id else { return }
-            let local = url.isFileURL ? url : try? await MediaDownloadCache.shared.file(for: url, accountID: accountID)
-            if let local, !Task.isCancelled { image = UIImage(contentsOfFile: local.path) }
+            let loaded = await PhotoPreviewLoader.load(previewURL: url, originalURL: originalURL, accountID: accountID)
+            if !Task.isCancelled { image = loaded }
         }
+    }
+}
+
+@MainActor
+enum PhotoPreviewLoader {
+    /// Previously opened originals also bypass older, already-distorted previews.
+    /// A cache miss must never download the full photo just to display a card.
+    static func load(previewURL: URL?, originalURL: URL?, accountID: UUID,
+                     cache: MediaDownloadCache = .shared) async -> UIImage? {
+        if let originalURL {
+            let local = originalURL.isFileURL ? originalURL : await cache.cachedFile(for: originalURL, accountID: accountID)
+            if let local, let image = UIImage(contentsOfFile: local.path) { return image }
+        }
+        guard !Task.isCancelled, let previewURL else { return nil }
+        let local = previewURL.isFileURL ? previewURL : try? await cache.file(for: previewURL, accountID: accountID)
+        return local.flatMap { UIImage(contentsOfFile: $0.path) }
     }
 }
 
