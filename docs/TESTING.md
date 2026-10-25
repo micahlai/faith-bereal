@@ -46,6 +46,12 @@ Launch with `BLESSING_CIRCLE_FORCE_LOCAL=1` for the complete simulator flow. Rea
 
 Use an available simulator name from `xcrun simctl list devices available` if the example device is unavailable.
 
+## Display consistency and offline identity regression
+
+`IdentityPhotoCacheTests` verifies persistence beyond 90 days and clock changes, migration from the old cache directory, account/key isolation, signed-token renewal, fresh replacement/removal, unseen-member/circle prefetch, corruption/size rejection, and sign-out during a suspended download. `CircleMetadataStoreTests` verifies durable display hints without retaining invitations or mutation permissions. `CachedCircleLoadingTests` checks cached names/photos before a suspended bootstrap, offline session-refresh failure with no saved blessings, local offline circle switching, and archive privacy/account fences. `PhotoLayoutTests` checks portrait/landscape/square aspect ratios at phone and wide widths with both preview height caps.
+
+Run `TimelineFilterUITests.testThreadsLayoutSurvivesTabChangesAndAppRelaunch` for actual preference persistence. Ordinary filter fixtures reset the layout with the Debug-only `--manna-reset-timeline-layout` flag. Photo UI tests compare the rendered navigation background before/after viewer dismissal and attach light/largest-dark screenshots. Keep full unit and UI phases separate; use clean disposable simulators if Xcode stalls before starting tests. The offline outgoing queue and 90-second video remain proposed behavior in `OFFLINE_CAPTURE_AND_VIDEO_PLAN.md`.
+
 ## Unit tests
 
 - Backend optimization fixtures inject an isolated HTTP transport/auth store and synthetic data. They compare metadata/page request counts, re-read content to unlock peers, propagate denied reads, and preserve local repository fallback behavior. They do not emulate server RLS or establish hosted latency improvement.

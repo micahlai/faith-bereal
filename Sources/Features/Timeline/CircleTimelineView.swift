@@ -1585,7 +1585,7 @@ private struct IdentityPhotoImage<Placeholder: View>: View {
     }
     private var load: Load {
         Load(accountID: model.currentUser?.id, key: key, url: url,
-             allowNetwork: !model.isShowingCachedMetadata)
+             allowNetwork: model.canRefreshIdentityPhoto(key: key, sourceURL: url))
     }
 
     var body: some View {

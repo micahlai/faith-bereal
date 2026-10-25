@@ -43,7 +43,7 @@ final class ReuseAndTimelineTests: XCTestCase {
     func testScheduledTimelineIsNotShareableEvenWithLateSharingEnabled() async throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
-        // Looking before the prompt must remain on its local day.
+        // Looking one minute before the prompt must remain on its local day.
         let start = try XCTUnwrap(calendar.date(bySettingHour: 12, minute: 0, second: 0,
             of: Date(timeIntervalSince1970: 1_800_000_000)))
         let repo = LocalBlessingRepository(now: start)

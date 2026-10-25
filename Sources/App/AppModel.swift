@@ -712,6 +712,19 @@ final class AppModel {
             circles: circles, selectedCircleID: circle?.id)
     }
 
+    /// Missing archive metadata is not evidence that a member removed a photo.
+    func canRefreshIdentityPhoto(key: IdentityPhotoCache.Key, sourceURL: URL?) -> Bool {
+        guard !isShowingCachedMetadata else { return false }
+        switch key {
+        case .member(let id):
+            guard let member = currentUser?.id == id ? currentUser : circles.flatMap(\.members).first(where: { $0.id == id }) else { return false }
+            return member.avatarURL == sourceURL
+        case .circle(let id):
+            guard let circle = circles.first(where: { $0.id == id }) else { return false }
+            return circle.photoURL == sourceURL
+        }
+    }
+
     private func scheduleIdentityPhotos() {
         guard let currentUser, !Task.isCancelled else { return }
         identityPhotoTask?.cancel()

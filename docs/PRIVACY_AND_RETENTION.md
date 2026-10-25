@@ -1,6 +1,6 @@
 # Privacy and retention plan
 
-Last updated: 2026-09-30
+Last updated: 2026-10-24
 
 ## Principles
 
@@ -19,6 +19,7 @@ Last updated: 2026-09-30
 | Voice, video, and optional blessing photos | Playback or display for the selected capture mode | Private Supabase Storage | Same as the parent blessing; abandoned upload cleanup must be automated |
 | Text/voice responses | Circle conversation | Supabase database/private storage | Same as the parent blessing |
 | APNs, push-to-start, and activity tokens | Notifications and Live Activities | Supabase database | Replaced on rotation; invalid and stale tokens must be revoked |
+| Local circle/member display metadata and downloaded profile/circle photos | Show known circle identity during loading and offline | Account-scoped protected Application Support, excluded from backup | No age expiry; connected updates replace/remove photos and metadata, explicit sign-out clears outgoing identity copies; display data never grants server access |
 | Local capture files | Recording, preview, and upload staging | App cache | Remove after successful upload or abandonment cleanup |
 | Widget snapshot and recently shown IDs | Widget display and variety | App Group UserDefaults | Replaced on refresh; cleared at sign-out |
 

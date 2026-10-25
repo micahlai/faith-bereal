@@ -62,6 +62,8 @@ final class IdentityPhotoCacheTests: XCTestCase {
         await fetcher.setData(photo(.blue))
         let hint = await cache.imageData(accountID: account, key: member, sourceURL: newURL, allowNetwork: false)
         XCTAssertEqual(hint, original)
+        let withoutMetadata = await cache.imageData(accountID: account, key: member, sourceURL: nil, allowNetwork: false)
+        XCTAssertEqual(withoutMetadata, original, "Unknown offline source metadata must not discard downloaded identity bytes")
         let before = await fetcher.count
         XCTAssertEqual(before, 1)
         let refreshed = await cache.imageData(accountID: account, key: member, sourceURL: newURL, allowNetwork: true)

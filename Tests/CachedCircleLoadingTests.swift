@@ -33,6 +33,22 @@ final class CachedCircleLoadingTests: XCTestCase {
     }
 
     @MainActor
+    func testMissingArchiveIdentityCannotRemovePhotoButFreshExplicitRemovalCan() async throws {
+        let fixture = try await CachedLoadingFixture()
+        defer { fixture.removeFiles() }
+        await fixture.model.bootstrap()
+        let missing = UUID()
+        XCTAssertFalse(fixture.model.canRefreshIdentityPhoto(key: .member(missing), sourceURL: nil))
+        XCTAssertFalse(fixture.model.canRefreshIdentityPhoto(key: .circle(missing), sourceURL: nil))
+        var user = try XCTUnwrap(fixture.model.currentUser)
+        user.avatarURL = nil
+        fixture.model.currentUser = user
+        XCTAssertTrue(fixture.model.canRefreshIdentityPhoto(key: .member(user.id), sourceURL: nil))
+        XCTAssertFalse(fixture.model.canRefreshIdentityPhoto(key: .member(user.id),
+            sourceURL: URL(string: "https://example.invalid/stale")))
+    }
+
+    @MainActor
     func testOfflineSessionFailurePreservesCachedIdentityPhotosAndCircleNamesWithoutSavedBlessings() async throws {
         let fixture = try await CachedLoadingFixture(sessionIsValid: false)
         defer { fixture.removeFiles() }
