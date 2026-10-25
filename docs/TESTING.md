@@ -50,6 +50,8 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 `IdentityPhotoCacheTests` verifies persistence beyond 90 days and clock changes, migration from the old cache directory, account/key isolation, signed-token renewal, fresh replacement/removal, unseen-member/circle prefetch, corruption/size rejection, and sign-out during a suspended download. `CircleMetadataStoreTests` verifies durable display hints without retaining invitations or mutation permissions. `CachedCircleLoadingTests` checks cached names/photos before a suspended bootstrap, offline session-refresh failure with no saved blessings, local offline circle switching, and archive privacy/account fences. `PhotoLayoutTests` checks portrait/landscape/square aspect ratios at phone and wide widths with both preview height caps.
 
+The full combined suite currently exposes an order-dependent pre-existing `VoiceSegmentTests.testCombiningSegmentsRetainsBothDurationsAndSupportsDifferentRoutes` failure (0.75 versus 0.5 seconds); both voice cases pass in a fresh isolated run. Keep that limitation visible when reporting the otherwise passing 349-test unit run with that one concatenation case excluded.
+
 Run `TimelineFilterUITests.testThreadsLayoutSurvivesTabChangesAndAppRelaunch` for actual preference persistence. Ordinary filter fixtures reset the layout with the Debug-only `--manna-reset-timeline-layout` flag. Photo UI tests compare the rendered navigation background before/after viewer dismissal and attach light/largest-dark screenshots. Keep full unit and UI phases separate; use clean disposable simulators if Xcode stalls before starting tests. The offline outgoing queue and 90-second video remain proposed behavior in `OFFLINE_CAPTURE_AND_VIDEO_PLAN.md`.
 
 ## Unit tests
