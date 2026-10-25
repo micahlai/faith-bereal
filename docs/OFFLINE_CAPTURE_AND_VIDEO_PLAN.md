@@ -24,7 +24,7 @@ Let D be the server-authored entry deadline and G = D + 10 minutes. Use the serv
 | A valid entry grant already exists for this outgoing blessing | Resume the authorized upload/submission after D or G, including after midnight; retain the original prompt. |
 | Membership removed, account changed, already posted, or target cannot be resolved safely | Stop auto-retries and retain the local composition for review. |
 
-Use a half-open grace interval: exactly G is closed. An already granted composition may finish afterward, matching the existing rule that deadlines control entry rather than upload completion. “Reconnect within ten minutes” means the server actually receives and accepts the authorization request in time, not merely that Wi-Fi becomes available. Compression or upload need not finish in the grace interval.
+After the normal countdown ends, show a plain ten-minute grace label and explain that a new entry counts as late. Keep the original deadline visible. Use a half-open grace interval: exactly G is closed. An already granted composition may finish afterward, matching the existing rule that deadlines control entry rather than upload completion. “Reconnect within ten minutes” means the server actually receives and accepts the authorization request in time, not merely that Wi-Fi becomes available. Compression or upload need not finish in the grace interval.
 
 The grace is **available to any new entry** during those ten minutes. No reliable offline proof exists on an ordinary client. Do not describe it as a loophole-free offline exception or grant on-time streak credit to a late entry. Store `entered_at` as the actual server time; retain the existing separate late submission label and on-time streak rules.
 

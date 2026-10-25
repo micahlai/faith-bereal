@@ -6,23 +6,7 @@ private struct CircleHeaderIdentity: View {
     let size: CGFloat
 
     var body: some View {
-        Group {
-            if let photoURL = circle.photoURL {
-                if photoURL.isFileURL, let image = UIImage(contentsOfFile: photoURL.path) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    AsyncImage(url: photoURL) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        fallback
-                    }
-                }
-            } else {
-                fallback
-            }
-        }
+        IdentityPhotoImage(key: .circle(circle.id), url: circle.photoURL) { fallback }
         .frame(width: size, height: size)
         .background(AppTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))

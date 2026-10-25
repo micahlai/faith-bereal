@@ -1083,7 +1083,7 @@ private struct ProfileEditorView: View {
 
     @ViewBuilder private var avatarPreview: some View {
         if let photoURL {
-            AsyncImage(url: photoURL) { image in image.resizable().scaledToFill() } placeholder: { ProgressView() }
+            IdentityPhotoImage(key: .member(user.id), url: photoURL) { ProgressView() }
                 .frame(width: 96, height: 96)
                 .background(AppTheme.surface)
                 .clipShape(Circle())
