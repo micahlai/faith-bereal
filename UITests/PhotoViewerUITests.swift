@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 final class PhotoViewerUITests: XCTestCase {
     @MainActor
@@ -130,6 +131,8 @@ final class PhotoViewerUITests: XCTestCase {
         for _ in 0..<15 where !photo.isHittable { scroll.swipeUp() }
         XCTAssertTrue(photo.isHittable)
         XCTAssertFalse(app.buttons["Ava profile photo"].exists)
+        let before = navigationPixel(app)
+        attachScreen(app, name: "Today appearance before photo")
         photo.tap()
         checkViewer(app)
         let image = app.descendants(matching: .any).matching(identifier: "photo.zoomImage").firstMatch
@@ -150,11 +153,31 @@ final class PhotoViewerUITests: XCTestCase {
         app.buttons["photo.close"].tap()
         XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["photo.close"].exists)
+        let restoredAppearance = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.navigationPixel(app) == before
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [restoredAppearance], timeout: 5), .completed,
+            "Opening and dismissing a photo must preserve the chosen app appearance.")
         attachScreen(app, name: "Today photo feed \(largestText ? "largest dark" : "normal")")
         let hierarchy = XCTAttachment(string: app.debugDescription)
         hierarchy.name = "Today photo and streak accessibility \(largestText ? "largest dark" : "normal")"
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
+    }
+
+    @MainActor
+    private func navigationPixel(_ app: XCUIApplication) -> [UInt8] {
+        let screenshot = app.screenshot().image
+        let point = CGPoint(x: 8, y: app.navigationBars.firstMatch.frame.midY)
+        guard let image = screenshot.cgImage?.cropping(to: CGRect(x: point.x * screenshot.scale,
+            y: point.y * screenshot.scale, width: 1, height: 1)) else { return [] }
+        var bytes = [UInt8](repeating: 0, count: 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            let context = CGContext(data: buffer.baseAddress, width: 1, height: 1, bitsPerComponent: 8,
+                bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            context?.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        }
+        return bytes
     }
 
     @MainActor

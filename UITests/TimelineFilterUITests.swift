@@ -20,6 +20,33 @@ final class TimelineFilterUITests: XCTestCase {
     }
 
     @MainActor
+    func testThreadsLayoutSurvivesTabChangesAndAppRelaunch() {
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchArguments = ["--manna-local-ui-test", "--manna-timeline-ui-test", "--manna-reset-timeline-layout",
+            "-blessingCircle.selectedCircleID", "B0000000-0000-0000-0000-000000000001"]
+        app.launch()
+        defer { app.terminate() }
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Timeline"].tap()
+        assertValue(app.buttons["timeline.layout"], "List")
+        chooseLayout("Threads", app: app)
+        app.tabBars.buttons["Today"].tap()
+        app.tabBars.buttons["Timeline"].tap()
+        assertValue(app.buttons["timeline.layout"], "Threads")
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "--manna-reset-timeline-layout" }
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Timeline"].tap()
+        assertValue(app.buttons["timeline.layout"], "Threads")
+        XCTAssertTrue(memberHeader(app).waitForExistence(timeout: 5))
+        attach(app, "Timeline remembers Threads after relaunch")
+    }
+
+    @MainActor
     private func checkFilters(largestDark: Bool, landscape: Bool) {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
@@ -29,6 +56,7 @@ final class TimelineFilterUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += ["--manna-local-ui-test", "--manna-timeline-ui-test", "--manna-photo-ui-test",
             "-blessingCircle.selectedCircleID", "B0000000-0000-0000-0000-000000000001",
+            "--manna-reset-timeline-layout",
             "-user.appearancePreference", largestDark ? "dark" : "light",
             "-UIPreferredContentSizeCategoryName",
             largestDark ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL",

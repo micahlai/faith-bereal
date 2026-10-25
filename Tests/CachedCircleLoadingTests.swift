@@ -33,6 +33,63 @@ final class CachedCircleLoadingTests: XCTestCase {
     }
 
     @MainActor
+    func testOfflineSessionFailurePreservesCachedIdentityPhotosAndCircleNamesWithoutSavedBlessings() async throws {
+        let fixture = try await CachedLoadingFixture(sessionIsValid: false)
+        defer { fixture.removeFiles() }
+        var user = fixture.seed.currentUser
+        user.avatarURL = URL(string: "https://example.invalid/avatar")
+        var groups = fixture.seed.circles
+        for index in groups.indices {
+            groups[index].name = "Known circle \(index)"
+            groups[index].photoURL = URL(string: "https://example.invalid/circle/\(index)")
+        }
+        await fixture.metadata.save(accountID: user.id, currentUser: user, circles: groups,
+                                    selectedCircleID: groups.first?.id)
+        await fixture.model.bootstrap()
+        XCTAssertEqual(fixture.model.loadState, .ready)
+        XCTAssertTrue(fixture.model.isShowingCachedMetadata)
+        XCTAssertEqual(fixture.model.currentUser?.avatarURL, user.avatarURL)
+        XCTAssertEqual(fixture.model.circle?.photoURL, groups.first?.photoURL)
+        XCTAssertEqual(fixture.model.circles.map(\.name), groups.map(\.name))
+        let other = try XCTUnwrap(groups.last)
+        await fixture.model.switchCircle(to: other.id)
+        XCTAssertEqual(fixture.model.circle?.id, other.id)
+        XCTAssertEqual(fixture.model.circle?.photoURL, other.photoURL)
+        XCTAssertFalse(fixture.model.canUseFreshCircle)
+        let persisted = await fixture.metadata.load(accountID: user.id)
+        XCTAssertNotNil(persisted)
+        let calls = await fixture.repository.counts()
+        XCTAssertEqual(calls.context, 0)
+        XCTAssertEqual(calls.mutations, 0)
+    }
+
+    @MainActor
+    func testSavedArchiveUsesKnownCircleNameAndPhotosBeforeServerBootstrap() async throws {
+        let fixture = try await CachedLoadingFixture()
+        defer { fixture.removeFiles() }
+        var group = try XCTUnwrap(fixture.seed.circle)
+        group.photoURL = URL(string: "https://example.invalid/circle")
+        group.members[0].avatarURL = URL(string: "https://example.invalid/member")
+        await fixture.metadata.save(accountID: fixture.seed.currentUser.id, currentUser: fixture.seed.currentUser,
+                                    circles: [group], selectedCircleID: group.id)
+        let blessing = Blessing(id: UUID(), circleID: group.id, promptID: UUID(), authorID: group.members[0].id,
+            captureMode: .typed, body: "Local archive", audioURL: nil, videoURL: nil,
+            submittedAt: fixture.now.addingTimeInterval(-3 * 86_400), isLate: false, scriptureReference: nil)
+        _ = try await SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
+            .save(blessing: blessing, responses: [], userID: fixture.seed.currentUser.id)
+        await fixture.repository.gate.arm(.bootstrap)
+        let work = Task { await fixture.model.bootstrap() }
+        await fixture.repository.gate.waitUntilSuspended()
+        XCTAssertTrue(fixture.model.isShowingSavedTimeline)
+        XCTAssertEqual(fixture.model.circle?.name, group.name)
+        XCTAssertEqual(fixture.model.circle?.photoURL, group.photoURL)
+        XCTAssertEqual(fixture.model.lanes.first?.member.avatarURL, group.members[0].avatarURL)
+        await fixture.model.signOut()
+        await fixture.repository.gate.release()
+        await work.value
+    }
+
+    @MainActor
     func testSavedArchiveLoadsBeforeSuspendedServerBootstrap() async throws {
         let fixture = try await CachedLoadingFixture(cachesMetadata: false)
         defer { fixture.removeFiles() }
@@ -532,7 +589,7 @@ private struct CachedLoadingFixture {
             savedBlessingStore: SavedBlessingStore(root: root.appendingPathComponent("saved"), copier: mediaCopier),
             draftStore: BlessingDraftStore(root: root.appendingPathComponent("drafts")),
             diagnosticCollection: DiagnosticCollectionController(store: BackendDiagnosticStore(root: root.appendingPathComponent("diagnostics"))),
-            metadataStore: metadata, registersForRemoteNotifications: false, runsBackgroundRefreshes: false, networkSavingPolicy: networkSavingPolicy)
+            metadataStore: metadata, identityPhotoCache: IdentityPhotoCache(directory: root.appendingPathComponent("identities"), fetch: { _ in nil }), registersForRemoteNotifications: false, runsBackgroundRefreshes: false, networkSavingPolicy: networkSavingPolicy)
     }
 
     func installFreshPresentation() async throws {

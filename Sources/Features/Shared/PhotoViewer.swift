@@ -35,6 +35,43 @@ private struct PhotoEnlargementModifier: ViewModifier {
     }
 }
 
+/// Resolve the photo's width and height together, including the preview height cap.
+struct AspectFitPhoto: View {
+    let image: UIImage
+    let maximumHeight: CGFloat
+
+    var body: some View {
+        PhotoAspectLayout(imageSize: image.size, maximumHeight: maximumHeight) {
+            Image(uiImage: image).resizable()
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct PhotoAspectLayout: Layout {
+    let imageSize: CGSize
+    let maximumHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        fittedSize(proposedWidth: proposal.width)
+    }
+
+    func fittedSize(proposedWidth: CGFloat?) -> CGSize {
+        guard imageSize.width > 0, imageSize.height > 0 else { return .zero }
+        let width = max(0, proposedWidth.flatMap { $0.isFinite ? $0 : nil } ?? imageSize.width)
+        let scale = min(width / imageSize.width, max(0, maximumHeight) / imageSize.height)
+        return CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let size = sizeThatFits(proposal: ProposedViewSize(width: bounds.width, height: nil), subviews: subviews, cache: &cache)
+        for subview in subviews {
+            subview.place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
+                          proposal: ProposedViewSize(size))
+        }
+    }
+}
+
 struct BlessingPhotoView: View {
     @Environment(AppModel.self) private var model
     let url: URL
@@ -44,9 +81,9 @@ struct BlessingPhotoView: View {
     var body: some View {
         Group {
             if url.isFileURL, let local = UIImage(contentsOfFile: url.path) {
-                Image(uiImage: local).resizable().scaledToFit()
+                AspectFitPhoto(image: local, maximumHeight: 520)
             } else if let image {
-                Image(uiImage: image).resizable().scaledToFit()
+                AspectFitPhoto(image: image, maximumHeight: 520)
             } else {
                 Label("Open photo", systemImage: "photo")
                     .frame(maxWidth: .infinity, minHeight: 80)
@@ -54,7 +91,6 @@ struct BlessingPhotoView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(maxHeight: 520)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityIdentifier("blessing.photo")
         .photoEnlargement(url: url, title: "Blessing photo")
@@ -74,10 +110,10 @@ struct CachedPhotoPreview: View {
     @State private var image: UIImage?
     var body: some View {
         Group {
-            if let image { Image(uiImage: image).resizable().scaledToFit() }
+            if let image { AspectFitPhoto(image: image, maximumHeight: 160) }
             else { Color.clear.frame(height: 80) }
         }
-        .frame(maxWidth: .infinity, maxHeight: 160)
+        .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .accessibilityHidden(true)
         .task(id: "\(model.currentUser?.id.uuidString ?? "")|\(url)") {
@@ -152,7 +188,6 @@ private struct FullscreenPhotoViewer: View {
         }
         .foregroundStyle(.white)
         .background { Color.black.ignoresSafeArea() }
-        .preferredColorScheme(.dark)
         .task(id: url) {
             image = nil
             failed = false

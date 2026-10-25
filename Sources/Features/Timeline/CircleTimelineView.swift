@@ -17,7 +17,7 @@ struct CircleTimelineView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var selection: BlessingSelection?
-    @State private var layout = TimelineLayoutMode.defaultMode
+    @AppStorage("timeline.layoutMode") private var layout = TimelineLayoutMode.defaultMode
     @State private var selectedMemberID: UUID?
     @State private var showingPersonFilter = false
     @State private var presentedLanes: [TimelineLane] = []
@@ -277,7 +277,7 @@ private struct TimelineListRow: View {
                     .font(.headline)
             }
             .accessibilityAddTraits(.isHeader)
-            TimelineEventView(event: item.event, member: item.member, currentUserID: currentUserID, onSelect: onSelect)
+            TimelineEventView(event: item.event, member: item.member, currentUserID: currentUserID, showsThread: false, onSelect: onSelect)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("timeline.listRow.\(item.member.id.uuidString).\(item.id)")
@@ -625,20 +625,23 @@ private struct TimelineEventView: View {
     let event: TimelineEvent
     let member: Member
     let currentUserID: UUID?
+    var showsThread = true
     let onSelect: (Blessing) -> Void
     @State private var isBodyTruncated = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 0) {
-                marker
-                    .frame(width: 24, height: 24)
-                    .accessibilityHidden(true)
-                if !isJoinedMarker {
-                    Rectangle()
-                        .fill(AppTheme.divider)
-                        .frame(width: 2)
-                        .frame(maxHeight: .infinity)
+            if showsThread {
+                VStack(spacing: 0) {
+                    marker
+                        .frame(width: 24, height: 24)
+                        .accessibilityHidden(true)
+                    if !isJoinedMarker {
+                        Rectangle()
+                            .fill(AppTheme.divider)
+                            .frame(width: 2)
+                            .frame(maxHeight: .infinity)
+                    }
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
@@ -1518,11 +1521,7 @@ struct AvatarBadge: View {
 
     var body: some View {
         Group {
-            if let avatarURL = member.avatarURL {
-                IdentityPhotoImage(key: .member(member.id), url: avatarURL) { initials }
-            } else {
-                initials
-            }
+            IdentityPhotoImage(key: .member(member.id), url: member.avatarURL) { initials }
         }
         .frame(width: size, height: size)
         .background(AppTheme.surface)
@@ -1549,11 +1548,7 @@ struct CircleAvatarBadge: View {
 
     var body: some View {
         Group {
-            if let photoURL = circle.photoURL {
-                IdentityPhotoImage(key: .circle(circle.id), url: photoURL) { fallback }
-            } else {
-                fallback
-            }
+            IdentityPhotoImage(key: .circle(circle.id), url: circle.photoURL) { fallback }
         }
         .frame(width: size, height: size)
         .background(AppTheme.surface)
@@ -1576,7 +1571,7 @@ struct CircleAvatarBadge: View {
 private struct IdentityPhotoImage<Placeholder: View>: View {
     @Environment(AppModel.self) private var model
     let key: IdentityPhotoCache.Key
-    let url: URL
+    let url: URL?
     @ViewBuilder let placeholder: () -> Placeholder
     @State private var loadedData: Data?
     @State private var loadedAccountID: UUID?
@@ -1585,7 +1580,7 @@ private struct IdentityPhotoImage<Placeholder: View>: View {
     private struct Load: Hashable {
         let accountID: UUID?
         let key: IdentityPhotoCache.Key
-        let url: URL
+        let url: URL?
         let allowNetwork: Bool
     }
     private var load: Load {
@@ -1595,7 +1590,7 @@ private struct IdentityPhotoImage<Placeholder: View>: View {
 
     var body: some View {
         Group {
-            if url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
+            if let url, url.isFileURL, let image = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: image).resizable().scaledToFill()
             } else if let accountID = model.currentUser?.id, loadedAccountID == accountID,
                       loadedKey == key, let loadedData, let image = UIImage(data: loadedData) {
@@ -1606,15 +1601,15 @@ private struct IdentityPhotoImage<Placeholder: View>: View {
         }
         .task(id: load) {
             let request = load
-            guard !url.isFileURL, let accountID = request.accountID else { return }
+            guard url?.isFileURL != true, let accountID = request.accountID else { return }
             if loadedAccountID != accountID || loadedKey != key { loadedData = nil }
             loadedAccountID = accountID
             loadedKey = key
-            if let cached = await IdentityPhotoCache.shared.cachedData(accountID: accountID, key: request.key),
+            if let cached = await model.identityPhotoCache.cachedData(accountID: accountID, key: request.key),
                !Task.isCancelled, load == request {
                 loadedData = cached
             }
-            let fetched = await IdentityPhotoCache.shared.imageData(accountID: accountID, key: request.key,
+            let fetched = await model.identityPhotoCache.imageData(accountID: accountID, key: request.key,
                 sourceURL: request.url, allowNetwork: request.allowNetwork)
             guard !Task.isCancelled, load == request else { return }
             loadedData = fetched

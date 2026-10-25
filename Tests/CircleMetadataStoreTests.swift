@@ -92,23 +92,19 @@ final class CircleMetadataStoreTests: XCTestCase {
         XCTAssertEqual(snapshot.circles.first?.streaks?.count, 0)
     }
 
-    func testSevenDayExpiryDeletesExpiredSnapshotAndRejectsFutureDates() async throws {
+    func testDisplayMetadataPersistsAcrossLongOfflineAbsenceAndClockChanges() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let date = instant
-        let user = member()
+        let user = member(), group = circle(user: member())
         let writer = CircleMetadataStore(directory: directory, now: { date })
-        await writer.save(accountID: user.id, currentUser: user, circles: [], selectedCircleID: nil)
-        let within = await CircleMetadataStore(directory: directory, now: { date.addingTimeInterval(CircleMetadataStore.lifetime - 1) })
-            .load(accountID: user.id)
-        XCTAssertNotNil(within)
-        let expired = await CircleMetadataStore(directory: directory, now: { date.addingTimeInterval(CircleMetadataStore.lifetime) })
-            .load(accountID: user.id)
-        XCTAssertNil(expired)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL(directory, accountID: user.id).path))
-        await writer.save(accountID: user.id, currentUser: user, circles: [], selectedCircleID: nil)
-        let future = await CircleMetadataStore(directory: directory, now: { date.addingTimeInterval(-1) }).load(accountID: user.id)
-        XCTAssertNil(future)
+        await writer.save(accountID: user.id, currentUser: user, circles: [circle(user: user)], selectedCircleID: group.id)
+        for offset in [90.0 * 86_400, -86_400] {
+            let restored = await CircleMetadataStore(directory: directory, now: { date.addingTimeInterval(offset) }).load(accountID: user.id)
+            XCTAssertEqual(restored?.currentUser, user)
+            XCTAssertEqual(restored?.circles.count, 1)
+            XCTAssertEqual(restored?.circles.first?.inviteCode, "")
+        }
     }
 
     func testCorruptAndRelabeledFilesNeverBecomeAnotherAccountsSnapshot() async throws {

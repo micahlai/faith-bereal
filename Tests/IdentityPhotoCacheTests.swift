@@ -74,21 +74,70 @@ final class IdentityPhotoCacheTests: XCTestCase {
         XCTAssertNil(disk)
     }
 
-    func testExpiredPhotosAreUnavailableAndCanBeFetchedAgain() async {
+    func testPhotosRemainOfflineAfterLongAbsenceAndClockChange() async {
         let root = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let clock = IdentityPhotoClock()
         let fetcher = IdentityPhotoFetcher(data: photo(.red))
         let cache = IdentityPhotoCache(directory: root, now: clock.read, fetch: fetcher.fetch)
         let account = UUID(), key = IdentityPhotoCache.Key.circle(UUID()), url = URL(string: "https://example.invalid/photo")!
-        _ = await cache.imageData(accountID: account, key: key, sourceURL: url, allowNetwork: true)
-        clock.advance(IdentityPhotoCache.lifetime)
-        let expired = await cache.cachedData(accountID: account, key: key)
-        XCTAssertNil(expired)
-        let restored = await cache.imageData(accountID: account, key: key, sourceURL: url, allowNetwork: true)
-        XCTAssertNotNil(restored)
+        let original = await cache.imageData(accountID: account, key: key, sourceURL: url, allowNetwork: true)
+        clock.advance(90 * 86_400)
+        let relaunched = IdentityPhotoCache(directory: root, now: clock.read, fetch: fetcher.fetch)
+        let retained = await relaunched.imageData(accountID: account, key: key, sourceURL: url, allowNetwork: false)
+        XCTAssertNotNil(original)
+        XCTAssertEqual(retained, original)
+        clock.advance(-180 * 86_400)
+        let backwards = await relaunched.cachedData(accountID: account, key: key)
+        XCTAssertEqual(backwards, original)
         let count = await fetcher.count
-        XCTAssertEqual(count, 2)
+        XCTAssertEqual(count, 1)
+    }
+
+    func testExistingSystemCacheMigratesToDurableStorage() async throws {
+        let root = temporaryDirectory(), legacy = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: legacy) }
+        let account = UUID(), key = IdentityPhotoCache.Key.member(UUID())
+        let fetcher = IdentityPhotoFetcher(data: photo(.red))
+        let original = await IdentityPhotoCache(directory: legacy, fetch: fetcher.fetch).imageData(
+            accountID: account, key: key, sourceURL: URL(string: "https://example.invalid/avatar")!, allowNetwork: true)
+        let migrated = IdentityPhotoCache(directory: root, legacyDirectory: legacy, fetch: { _ in nil })
+        let restored = await migrated.cachedData(accountID: account, key: key)
+        XCTAssertNotNil(original)
+        XCTAssertEqual(restored, original)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
+        XCTAssertEqual(cacheFiles(root).count, 1)
+    }
+
+    func testSynchronizationDownloadsUnseenMemberAndCirclePhotosAndReplacesRemovedPhoto() async throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fetcher = IdentityPhotoFetcher(data: photo(.red))
+        let cache = IdentityPhotoCache(directory: root, fetch: fetcher.fetch)
+        let repository = LocalBlessingRepository()
+        let bootstrap = try await repository.bootstrap()
+        let account = bootstrap.currentUser.id
+        var user = bootstrap.currentUser
+        user.avatarURL = URL(string: "https://example.invalid/self")
+        var circle = try XCTUnwrap(bootstrap.circle)
+        circle.photoURL = URL(string: "https://example.invalid/circle")
+        for index in circle.members.indices {
+            circle.members[index].avatarURL = URL(string: "https://example.invalid/member/\(circle.members[index].id)")
+        }
+        await cache.synchronize(accountID: account, currentUser: user, circles: [circle])
+        for member in circle.members {
+            let data = await cache.cachedData(accountID: account, key: .member(member.id))
+            XCTAssertNotNil(data)
+        }
+        let circleData = await cache.cachedData(accountID: account, key: .circle(circle.id))
+        XCTAssertNotNil(circleData)
+        user.avatarURL = nil
+        circle.photoURL = nil
+        await cache.synchronize(accountID: account, currentUser: user, circles: [circle])
+        let removedUser = await cache.cachedData(accountID: account, key: .member(account))
+        let removedCircle = await cache.cachedData(accountID: account, key: .circle(circle.id))
+        XCTAssertNil(removedUser)
+        XCTAssertNil(removedCircle)
     }
 
     func testSignOutInvalidatesInFlightDownloadWithoutRecreatingFiles() async {
@@ -130,26 +179,6 @@ final class IdentityPhotoCacheTests: XCTestCase {
             sourceURL: URL(string: "https://example.invalid/large")!, allowNetwork: true)
         XCTAssertNil(large)
         XCTAssertTrue(cacheFiles(root).isEmpty)
-    }
-
-    func testDiskByteBudgetEvictsOlderEntries() async throws {
-        let root = temporaryDirectory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let fetcher = IdentityPhotoFetcher(data: photo(.red))
-        let account = UUID(), url = URL(string: "https://example.invalid/photo")!
-        let measuring = IdentityPhotoCache(directory: root, fetch: fetcher.fetch)
-        _ = await measuring.imageData(accountID: account, key: .member(UUID()), sourceURL: url, allowNetwork: true)
-        let file = try XCTUnwrap(cacheFiles(root).first)
-        let size = try XCTUnwrap(file.resourceValues(forKeys: [.fileSizeKey]).fileSize)
-        await measuring.clear(accountID: account)
-        let budget = size + 64
-        let bounded = IdentityPhotoCache(directory: root, maximumAccountBytes: budget, fetch: fetcher.fetch)
-        _ = await bounded.imageData(accountID: account, key: .member(UUID()), sourceURL: url, allowNetwork: true)
-        _ = await bounded.imageData(accountID: account, key: .circle(UUID()), sourceURL: url, allowNetwork: true)
-        let files = cacheFiles(root)
-        let total = try files.reduce(0) { try $0 + XCTUnwrap($1.resourceValues(forKeys: [.fileSizeKey]).fileSize) }
-        XCTAssertLessThanOrEqual(total, budget)
-        XCTAssertEqual(files.count, 1)
     }
 
     private func temporaryDirectory() -> URL {

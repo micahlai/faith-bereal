@@ -22,6 +22,17 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("no new download is needed"))
     }
 
+    func testIdentityAndAppearanceHelpExplainsDurableOfflinePhotosAndTheme() {
+        let circles = HelpTopic.circles.steps.map(\.body).joined()
+        for concept in ["load locally first", "appear without internet", "never downloaded need a connection", "removed photos disappear"] {
+            XCTAssertTrue(circles.contains(concept), concept)
+        }
+        let appearance = HelpTopic.personalization.steps.map(\.body).joined()
+        XCTAssertTrue(appearance.contains("opening and closing a photo"))
+        XCTAssertTrue(appearance.contains("iPhone switches appearance"))
+        XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("no thread line or circle markers"))
+    }
+
     func testMediaGuideExplainsDemandLoadingCompressionAndLocalReuse() {
         XCTAssertTrue(HelpTopic.timeline.steps.map(\.body).joined().contains("download only when you tap Play"))
         XCTAssertTrue(HelpTopic.responses.steps.map(\.body).joined().contains("compressed before sending"))
@@ -98,7 +109,7 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(guide.contains("Retry refreshes the circle currently shown"))
         XCTAssertTrue(guide.contains("Retry reloads them"))
         XCTAssertTrue(guide.contains("streaks, and profile/circle photos"))
-        XCTAssertTrue(guide.contains("up to seven days"))
+        XCTAssertTrue(guide.contains("until you sign out"))
         XCTAssertTrue(guide.contains("signing out clears them"))
         XCTAssertTrue(guide.contains("Basic circle details are saved before blessings finish loading"))
         XCTAssertTrue(guide.contains("Blessings still need a fresh connection"))
@@ -110,7 +121,7 @@ final class HelpContentTests: XCTestCase {
     }
     func testTimelineGuideExplainsListDefaultPersonFilterAndResponseCounts() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
-        for concept in ["Timeline opens in List", "wide Timeline layout button", "filter starts at All",
+        for concept in ["remembers your last List or Threads choice", "wide Timeline layout button", "filter starts at All",
                         "only to List", "Threads always shows everyone", "changing circles resets it to All", "picker shows profile photos", "initials when no photo", "photo stays beside their name"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
@@ -119,7 +130,7 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(responses.contains("slightly overlapping profile photos"))
         XCTAssertTrue(responses.contains("count includes every response"))
         XCTAssertTrue(responses.contains("no responses leave this line hidden"))
-        XCTAssertTrue(HelpTopic.accessibility.steps.map(\.body).joined().contains("opens in List for everyone"))
+        XCTAssertTrue(HelpTopic.accessibility.steps.map(\.body).joined().contains("remembers your last layout"))
     }
 
     func testTimelineGuideDescribesLazyRendering() {

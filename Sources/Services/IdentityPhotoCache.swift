@@ -17,7 +17,6 @@ actor IdentityPhotoCache {
     }
 
     static let shared = IdentityPhotoCache()
-    static let lifetime: TimeInterval = 7 * 86_400
     static let maximumSourceBytes = 10 * 1_024 * 1_024
     private struct Entry: Codable {
         let version: Int
@@ -35,16 +34,23 @@ actor IdentityPhotoCache {
     private let directory: URL
     private let now: @Sendable () -> Date
     private let fetch: @Sendable (URL) async -> Data?
-    private let maximumAccountBytes: Int
     private var generations: [UUID: UUID] = [:]
     private var inFlight: [Request: Task<Data?, Never>] = [:]
 
-    init(directory: URL? = nil, maximumAccountBytes: Int = 32 * 1_024 * 1_024,
+    init(directory: URL? = nil, legacyDirectory: URL? = nil,
          now: @escaping @Sendable () -> Date = Date.init,
          fetch: @escaping @Sendable (URL) async -> Data? = IdentityPhotoCache.download) {
-        self.directory = directory ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("IdentityPhotos", isDirectory: true)
-        self.maximumAccountBytes = max(0, maximumAccountBytes)
+        // Carry existing photos out of the system-purgeable cache on upgrade.
+        let legacy = legacyDirectory ?? (directory == nil
+            ? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("IdentityPhotos", isDirectory: true) : nil)
+        if let legacy, !FileManager.default.fileExists(atPath: self.directory.path),
+           FileManager.default.fileExists(atPath: legacy.path) {
+            try? FileManager.default.createDirectory(at: self.directory.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? FileManager.default.moveItem(at: legacy, to: self.directory)
+        }
         self.now = now
         self.fetch = fetch
     }
@@ -57,8 +63,8 @@ actor IdentityPhotoCache {
     func imageData(accountID: UUID, key: Key, sourceURL: URL?, allowNetwork: Bool) async -> Data? {
         guard !Task.isCancelled else { return nil }
         guard let sourceURL else {
-            if allowNetwork { remove(accountID: accountID, key: key) }
-            return nil
+            if allowNetwork { remove(accountID: accountID, key: key); return nil }
+            return read(accountID: accountID, key: key)?.data
         }
         let cached = read(accountID: accountID, key: key)
         guard allowNetwork else { return cached?.data }
@@ -88,6 +94,20 @@ actor IdentityPhotoCache {
         return imageData
     }
 
+    /// Save every known identity, even if its avatar never scrolls into view.
+    /// The caller supplies fresh membership metadata; this never establishes access.
+    func synchronize(accountID: UUID, currentUser: Member, circles: [CircleGroup]) async {
+        guard currentUser.id == accountID else { return }
+        var members = Dictionary(circles.flatMap(\.members).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        members[currentUser.id] = currentUser
+        var sources = members.values.map { (Key.member($0.id), $0.avatarURL) }
+        sources += circles.map { (Key.circle($0.id), $0.photoURL) }
+        for (key, url) in sources {
+            guard !Task.isCancelled else { return }
+            _ = await imageData(accountID: accountID, key: key, sourceURL: url, allowNetwork: true)
+        }
+    }
+
     /// Invalidates delayed downloads before removing the signed-out account's files.
     func clear(accountID: UUID) {
         generations[accountID] = UUID()
@@ -102,14 +122,13 @@ actor IdentityPhotoCache {
         let file = fileURL(accountID: accountID, key: key)
         do {
             let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard size > 0, size <= min(maximumAccountBytes, 2 * Self.maximumSourceBytes) else {
+            guard size > 0, size <= 2 * Self.maximumSourceBytes else {
                 remove(accountID: accountID, key: key)
                 return nil
             }
             let entry = try JSONDecoder().decode(Entry.self, from: Data(contentsOf: file))
-            let age = now().timeIntervalSince(entry.fetchedAt)
             guard entry.version == 1, entry.accountID == accountID,
-                  age >= 0, age < Self.lifetime, entry.data.count <= Self.maximumSourceBytes else {
+                  entry.data.count <= Self.maximumSourceBytes else {
                 remove(accountID: accountID, key: key)
                 return nil
             }
@@ -123,7 +142,6 @@ actor IdentityPhotoCache {
     private func save(_ entry: Entry, key: Key) {
         do {
             let data = try JSONEncoder().encode(entry)
-            guard data.count <= maximumAccountBytes else { return }
             try protectDirectory(directory)
             try protectDirectory(accountDirectory(entry.accountID))
             var file = fileURL(accountID: entry.accountID, key: key)
@@ -131,9 +149,6 @@ actor IdentityPhotoCache {
             var values = URLResourceValues()
             values.isExcludedFromBackup = true
             try file.setResourceValues(values)
-            prune(accountDirectory(entry.accountID), maximumBytes: maximumAccountBytes)
-            // A shared device also has a bounded total across retained account directories.
-            prune(directory, maximumBytes: 2 * maximumAccountBytes)
         } catch {
             remove(accountID: entry.accountID, key: key)
         }
@@ -146,22 +161,6 @@ actor IdentityPhotoCache {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try folder.setResourceValues(values)
-    }
-
-    private func prune(_ folder: URL, maximumBytes: Int) {
-        guard let enumerator = FileManager.default.enumerator(at: folder,
-            includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey]) else { return }
-        var files: [(URL, Int, Date)] = []
-        for case let file as URL in enumerator {
-            guard let values = try? file.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey]),
-                  values.isRegularFile == true else { continue }
-            files.append((file, values.fileSize ?? 0, values.contentModificationDate ?? .distantPast))
-        }
-        var total = files.reduce(0) { $0 + $1.1 }
-        for (file, size, _) in files.sorted(by: { $0.2 < $1.2 }) where total > maximumBytes {
-            try? FileManager.default.removeItem(at: file)
-            total -= size
-        }
     }
 
     private func remove(accountID: UUID, key: Key) {

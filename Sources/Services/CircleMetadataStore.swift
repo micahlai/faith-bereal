@@ -13,7 +13,6 @@ struct CircleMetadataSnapshot: Codable, Sendable {
 /// No prompts, blessings, responses, or invitation codes enter this store.
 actor CircleMetadataStore {
     static let shared = CircleMetadataStore()
-    static let lifetime: TimeInterval = 7 * 24 * 60 * 60
 
     private struct Envelope: Codable {
         let version: Int
@@ -40,10 +39,8 @@ actor CircleMetadataStore {
                 return nil
             }
             let envelope = try JSONDecoder().decode(Envelope.self, from: Data(contentsOf: url))
-            let age = now().timeIntervalSince(envelope.snapshot.updatedAt)
             guard envelope.version == 1, envelope.accountID == accountID,
-                  envelope.snapshot.currentUser.id == accountID,
-                  age >= 0, age < Self.lifetime else {
+                  envelope.snapshot.currentUser.id == accountID else {
                 remove(accountID: accountID)
                 return nil
             }

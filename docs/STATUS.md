@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-10-24 display consistency and durable offline identities — in verification
+
+- Separate branch `codex/offline-polish`: the black-background photo viewer no longer overrides app appearance; attached photos use aspect-preserving layout with width/height caps. Timeline remembers List/Threads across tab changes and relaunch, and List omits thread lines/markers.
+- Profile/circle photos move from purgeable cache to protected Application Support without a seven-day expiry; fresh metadata warms all known identity photos without waiting for their views. Display metadata also persists without age expiry. Cached identity survives a failed offline session refresh, offline circle switches stay local, and known circle names/photos load before archived Timeline installation so startup no longer flashes Saved circle. Unknown archive-only circles use Circle. Explicit sign-out still clears outgoing identity copies; cached metadata grants no mutation or peer-content privileges.
+- Help/spec and regression tests accompany the changes. Initial full unit verification passed the new storage/loading/layout checks but found a changed Help phrase assertion, an existing midnight-dependent Timeline fixture and an intermittent audio export-duration result; verification is continuing.
+- [Offline capture/video plan](OFFLINE_CAPTURE_AND_VIDEO_PLAN.md) records the user's chosen ten-minute daily entry grace and a durable explicit-send queue design. These are planned changes: capture still requires server entry and video remains 30 seconds. The plan evaluates 90-second media costs and a proposed byte budget; no hosted migration/deployment or release is included.
+
 ## 2026-10-22 traffic reduction — implemented and verified
 
 - Saved audio/video/photos and response audio now resolve from the account's existing archive before private link signing. Authorized content still comes from fresh database reads. Unsaved played audio/video, opened full photos, and small photo previews share a protected account-scoped disk cache (seven days, 256 MB total, 128 MB per file); renewed tokens reuse immutable bytes and concurrent downloads coalesce. A later Save copies cached bytes into its permanent archive. Temporary downloads can be evicted and are cleared on sign-out; completed saves remain separate. Explicit playback Retry replaces the temporary recording only.

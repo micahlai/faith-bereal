@@ -23,6 +23,8 @@ final class AppModel {
     let diagnosticCollection: DiagnosticCollectionController
     private let savedBlessingStore: SavedBlessingStore
     private let draftStore: BlessingDraftStore
+    let identityPhotoCache: IdentityPhotoCache
+    private var identityPhotoTask: Task<Void, Never>?
     private let metadataStore: CircleMetadataStore
     private let networkSavingPolicy: any NetworkSavingChecking
     private(set) var automaticSavingWaitingForWiFi = false
@@ -102,6 +104,7 @@ final class AppModel {
                     savedArchiveAccountID = nil
                     isShowingSavedTimeline = false
                 }
+                identityPhotoTask?.cancel()
                 streakRefreshTask?.cancel()
                 streakRefreshTask = nil
                 nextStreakRefreshAt = nil
@@ -109,7 +112,7 @@ final class AppModel {
                 if oldValue != nil { diagnosticCollection.deactivate() }
                 if let previousID = oldValue?.id {
                     Task {
-                        await IdentityPhotoCache.shared.clear(accountID: previousID)
+                        await identityPhotoCache.clear(accountID: previousID)
                         await MediaDownloadCache.shared.clear(accountID: previousID)
                     }
                 }
@@ -201,6 +204,7 @@ final class AppModel {
         draftStore: BlessingDraftStore = BlessingDraftStore(),
         diagnosticCollection: DiagnosticCollectionController = DiagnosticCollectionController(),
         metadataStore: CircleMetadataStore = .shared,
+        identityPhotoCache: IdentityPhotoCache = .shared,
         registersForRemoteNotifications: Bool = true,
         runsBackgroundRefreshes: Bool = true,
         networkSavingPolicy: any NetworkSavingChecking = NetworkSavingPolicy.shared
@@ -214,6 +218,7 @@ final class AppModel {
         self.savedBlessingStore = savedBlessingStore
         self.draftStore = draftStore
         self.metadataStore = metadataStore
+        self.identityPhotoCache = identityPhotoCache
         self.networkSavingPolicy = networkSavingPolicy
         self.pendingInviteCode = UserDefaults.standard.string(forKey: Self.pendingInviteCodeKey)
             .flatMap(CircleInviteLink.normalize(code:))
@@ -428,8 +433,6 @@ final class AppModel {
         loadState = .loading
         if let accountID = await authentication?.cachedUserID() {
             guard bootstrapGeneration == startup, !Task.isCancelled else { return }
-            await restoreSavedArchive(accountID: accountID, startup: startup)
-            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             if let cached = await metadataStore.load(accountID: accountID) {
                 guard bootstrapGeneration == startup, !Task.isCancelled else { return }
                 currentUser = cached.currentUser
@@ -437,7 +440,6 @@ final class AppModel {
                 let selected = Self.persistedCircleID ?? cached.selectedCircleID
                 circle = cached.circles.first { $0.id == selected } ?? cached.circles.first
                 prompt = nil; endOfDayPrompt = nil; lanes = []
-                if !savedBlessings.isEmpty { showSavedTimeline() }
                 isShowingCachedMetadata = true
                 if let preferences = try? await savedBlessingStore.loadPreferences(userID: accountID) {
                     guard bootstrapGeneration == startup, !Task.isCancelled else { return }
@@ -448,6 +450,8 @@ final class AppModel {
                 guard bootstrapGeneration == startup, !Task.isCancelled else { return }
                 loadState = .ready
             }
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
+            await restoreSavedArchive(accountID: accountID, startup: startup)
             guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             // Present local identity before opening the diagnostic queue. Capture
             // still starts before session validation, including a failed refresh.
@@ -463,12 +467,13 @@ final class AppModel {
         let hasSession = await authentication?.hasSession() ?? true
         guard bootstrapGeneration == startup, !Task.isCancelled else { return }
         if !hasSession {
-            if let userID = currentUser?.id { await metadataStore.remove(accountID: userID) }
-            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
-            if savedBlessings.isEmpty { clearCachedPresentation() }
-            else { showSavedTimeline() }
-            loadState = isShowingSavedTimeline ? .ready : .signedOut
-            if isShowingSavedTimeline { pageLoadError = "You’re offline. Showing your saved blessings." }
+            // Failed session refresh may simply mean no internet. Keep display-only
+            // identities and photos; explicit sign-out still removes them.
+            if !savedBlessings.isEmpty { showSavedTimeline() }
+            let hasLocalPresentation = isShowingSavedTimeline || (isShowingCachedMetadata && currentUser != nil)
+            if !hasLocalPresentation { clearCachedPresentation() }
+            loadState = hasLocalPresentation ? .ready : .signedOut
+            if hasLocalPresentation { pageLoadError = "You’re offline. Showing what’s on this device. Reconnect and tap Retry to refresh." }
             savedDrafts = []
             captureDraftToRestore = nil
             draftSaveError = nil
@@ -554,6 +559,7 @@ final class AppModel {
                 guard bootstrapGeneration == startup, dataScopeGeneration == metadataGeneration,
                       !Task.isCancelled else { return }
             }
+            scheduleIdentityPhotos()
             try await refreshTimeline(freshCircle: self.circle)
             guard bootstrapGeneration == startup, !Task.isCancelled,
                   currentUser?.id == bootstrap.currentUser.id else { return }
@@ -611,21 +617,19 @@ final class AppModel {
         currentUser = currentUser?.id == accountID ? currentUser :
             Member(id: accountID, displayName: "You", initials: "Y", tintSeed: 0)
         let knownCircles = circles
-        let ids = Set(savedBlessings.values.map { $0.blessing.circleID })
+        let ids = Set(savedBlessings.values.map { $0.blessing.circleID }).union(knownCircles.map(\.id))
         circles = ids.sorted { $0.uuidString < $1.uuidString }.map { id in
             var value = knownCircles.first { $0.id == id } ?? CircleGroup(id: id,
-                name: "Saved circle", inviteCode: "", ownerID: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,
+                name: "Circle", inviteCode: "", ownerID: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,
                 members: [], timeZoneIdentifier: "UTC", randomWindowStartMinutes: 0,
                 randomWindowEndMinutes: 0, responseWindowMinutes: 10, allowsLateBlessings: false,
                 repeatWindowMinutes: 0)
             let authors = Set(savedBlessings.values.filter { $0.blessing.circleID == id }.map { $0.blessing.authorID })
-            value.members = authors.sorted { $0.uuidString < $1.uuidString }.map { author in
-                var member = value.members.first { $0.id == author } ?? Member(id: author,
+            value.members = authors.union(value.members.map(\.id)).sorted { $0.uuidString < $1.uuidString }.map { author in
+                let member = value.members.first { $0.id == author } ?? Member(id: author,
                     displayName: author == accountID ? "You" : "Circle member", initials: author == accountID ? "Y" : "M", tintSeed: 0)
-                member.avatarURL = member.avatarURL?.isFileURL == true ? member.avatarURL : nil
                 return member
             }
-            value.photoURL = nil
             value.inviteCode = ""
             value.allowMemberCircleChanges = false
             return value
@@ -703,8 +707,19 @@ final class AppModel {
 
     private func persistMetadata() async {
         guard authentication != nil, !isShowingCachedMetadata, let currentUser else { return }
+        scheduleIdentityPhotos()
         await metadataStore.save(accountID: currentUser.id, currentUser: currentUser,
             circles: circles, selectedCircleID: circle?.id)
+    }
+
+    private func scheduleIdentityPhotos() {
+        guard let currentUser, !Task.isCancelled else { return }
+        identityPhotoTask?.cancel()
+        let cache = identityPhotoCache
+        let circles = self.circles
+        identityPhotoTask = Task {
+            await cache.synchronize(accountID: currentUser.id, currentUser: currentUser, circles: circles)
+        }
     }
 
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async {
@@ -743,9 +758,11 @@ final class AppModel {
             try await authentication.signOut()
             metadataSaveTask?.cancel()
             await metadataSaveTask?.value
+            identityPhotoTask?.cancel()
+            identityPhotoTask = nil
             if let previousUserID {
                 await metadataStore.remove(accountID: previousUserID)
-                await IdentityPhotoCache.shared.clear(accountID: previousUserID)
+                await identityPhotoCache.clear(accountID: previousUserID)
             }
             isShowingCachedMetadata = false; pageLoadError = nil
             automaticSaveTask?.cancel()
@@ -922,9 +939,9 @@ final class AppModel {
     }
 
     func switchCircle(to circleID: UUID) async {
-        if isShowingSavedTimeline, !isPageLoading, let savedCircle = circles.first(where: { $0.id == circleID }) {
+        if (isShowingSavedTimeline || isShowingCachedMetadata), !isPageLoading, let savedCircle = circles.first(where: { $0.id == circleID }) {
             circle = savedCircle
-            lanes = savedTimelineLanes(circleID: circleID, now: .now)
+            lanes = isShowingSavedTimeline ? savedTimelineLanes(circleID: circleID, now: .now) : []
             Self.persistedCircleID = circleID
             return
         }
@@ -1761,7 +1778,6 @@ final class AppModel {
             submittedBlessing = nil
             let completionGeneration = dataScopeGeneration
             await persistMetadata()
-            await IdentityPhotoCache.shared.clear(accountID: currentUser.id)
             guard self.currentUser?.id == currentUser.id, dataScopeGeneration == completionGeneration, !Task.isCancelled else { return true }
             if let nextCircle = circles.first {
                 Self.persistedCircleID = nextCircle.id
