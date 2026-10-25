@@ -53,6 +53,12 @@ Use an available simulator name from `xcrun simctl list devices available` if th
 
 ## Backend diagnostics capture
 
+### Device registration regression
+
+`Scripts/test-device-registration.sh` reproduces the predecessor's omitted-token argument-resolution failure in disposable PostgreSQL, then checks the compatibility migration, named partial calls, explicit null/blank token preservation, updates, environment/account isolation, revoked-registration recovery, mandatory environment, and anonymous/missing-identity denial. The same rollback-only test body, `supabase/tests/device_registration_optional_tokens.sql`, can verify hosted behavior using random fixtures; it sends no push and commits no registrations. `BackendOptimizationTests.testDeviceRegistrationSendsNullForEitherUnavailableToken` checks the real SDK request body against a strict four-argument HTTP fixture for either token arriving first and both present. Help tests cover retry and delivery limits.
+
+### Field collection
+
 For v0.2.2 (32) field testers, Share diagnostic data defaults on for a new account/device. Explicit choices and legacy saved off settings are preserved. Check User settings → Field testing to verify the switch or disable sharing. The in-app setting persists without an Xcode environment variable, collects a bounded private queue, and uploads authenticated batches while active. Opt-out clears unsent metrics. See [tester setup, operator summaries, retention, and limits](TESTFLIGHT_FIELD_TESTING.md).
 
 Add `MANNA_BACKEND_DIAGNOSTICS=1` to the Xcode Run scheme's environment variables only for optional local OSLog capture. Leave it absent for normal runs. This enables local OSLog events under subsystem `app.manna-circle.ios`, category `BackendPerformance`, prefix `backend_metric`. Use Console with the attached phone selected and filter to that category; retain only those event lines when preparing a performance comparison. The environment variable alone does not opt into remote collection or persist to TestFlight; the in-app switch controls remote sharing separately.
