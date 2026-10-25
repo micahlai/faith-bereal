@@ -1558,6 +1558,16 @@ private struct RegisterDeviceParams: Encodable, Sendable {
         case pushToStartToken = "p_push_to_start_token"
         case environment = "p_environment"
     }
+
+    func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(installationID, forKey: .installationID)
+        // PostgREST matches argument names before entering the function. Include
+        // nulls while Apple's two token callbacks arrive independently.
+        try values.encode(apnsToken, forKey: .apnsToken)
+        try values.encode(pushToStartToken, forKey: .pushToStartToken)
+        try values.encode(environment, forKey: .environment)
+    }
 }
 
 private struct RegisterActivityParams: Encodable, Sendable {

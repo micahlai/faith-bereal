@@ -249,4 +249,12 @@ final class HelpContentTests: XCTestCase {
             XCTAssertTrue(guide.contains(concept))
         }
     }
+
+    func testNotificationGuideExplainsIndependentRegistrationAndRetry() {
+        let guide = HelpTopic.notifications.steps.map(\.body).joined(separator: " ")
+        for concept in ["Alerts and Live Activities can become ready separately", "reopen the app to retry",
+                        "iOS controls delivery", "does not guarantee"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
 }

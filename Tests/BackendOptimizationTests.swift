@@ -3,6 +3,27 @@ import Supabase
 @testable import BlessingCircle
 
 final class BackendOptimizationTests: XCTestCase {
+    func testDeviceRegistrationSendsNullForEitherUnavailableToken() async throws {
+        let fixture = try BackendHTTPFixture()
+        defer { fixture.close() }
+        let installationID = UUID()
+        for (apns, activity) in [("synthetic-apns", nil), (nil, "synthetic-activity"),
+                                 ("synthetic-apns", "synthetic-activity")] as [(String?, String?)] {
+            try await fixture.repository.registerDevice(installationID: installationID,
+                apnsToken: apns, pushToStartToken: activity, environment: "production")
+            let body = try XCTUnwrap(fixture.lastRegistrationBody)
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            XCTAssertEqual(Set(payload.keys), ["p_installation_id", "p_apns_token", "p_push_to_start_token", "p_environment"])
+            XCTAssertEqual(payload["p_installation_id"] as? String, installationID.uuidString)
+            XCTAssertEqual(payload["p_environment"] as? String, "production")
+            if let apns { XCTAssertEqual(payload["p_apns_token"] as? String, apns) }
+            else { XCTAssertTrue(payload["p_apns_token"] is NSNull) }
+            if let activity { XCTAssertEqual(payload["p_push_to_start_token"] as? String, activity) }
+            else { XCTAssertTrue(payload["p_push_to_start_token"] is NSNull) }
+        }
+        XCTAssertEqual(fixture.requestPaths, Array(repeating: "/rest/v1/rpc/register_device", count: 3))
+    }
+
     func testLocalMetadataOverloadsPreserveTimelineAndPaging() async throws {
         let now = Date()
         let repository: any BlessingRepository = LocalBlessingRepository(now: now)
@@ -131,6 +152,8 @@ private final class BackendHTTPFixture: @unchecked Sendable {
     private var paths: [String] = []
     private var hasSubmitted = false
     private var denied = false
+    private var registrationBody: Data?
+    var lastRegistrationBody: Data? { lock.withLock { registrationBody } }
     var includesAudio = false
     private(set) var client: SupabaseClient!
     private var session: URLSession!
@@ -191,6 +214,29 @@ private final class BackendHTTPFixture: @unchecked Sendable {
             return (200, Data("{\"signedURL\":\"/object/sign/blessing-media/voice.caf?token=fixture\"}".utf8))
         }
         switch url.path {
+        case "/rest/v1/rpc/register_device":
+            var body = request.httpBody
+            if body == nil, let stream = request.httpBodyStream {
+                stream.open()
+                defer { stream.close() }
+                var bytes = [UInt8](repeating: 0, count: 4096)
+                var data = Data()
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&bytes, maxLength: bytes.count)
+                    guard count >= 0 else { throw stream.streamError ?? URLError(.cannotDecodeRawData) }
+                    if count == 0 { break }
+                    data.append(contentsOf: bytes.prefix(count))
+                }
+                body = data
+            }
+            let data = try XCTUnwrap(body)
+            lock.withLock { registrationBody = data }
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            // Match the deployed function's four required argument names.
+            guard Set(payload.keys) == ["p_installation_id", "p_apns_token", "p_push_to_start_token", "p_environment"] else {
+                return (404, Data(#"{"code":"PGRST202","message":"Function signature not found"}"#.utf8))
+            }
+            value = NSNull()
         case "/rest/v1/circles":
             value = ["id": circleID.uuidString, "name": "Fixture", "owner_id": viewerID.uuidString,
                 "time_zone": "UTC", "window_start": "09:00:00", "window_end": "18:00:00",
