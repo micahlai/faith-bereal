@@ -1564,5 +1564,3 @@ struct CircleAvatarBadge: View {
             .background(AppTheme.actionFill.gradient)
     }
 }
-
-
