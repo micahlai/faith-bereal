@@ -44,7 +44,7 @@ final class StreakPresentationUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments += ["--manna-local-ui-test", "--manna-streak-ui-test",
+        app.launchArguments += ["--manna-local-ui-test", "--manna-streak-ui-test", "--manna-reset-timeline-layout",
             "-user.appearancePreference", largestText ? "dark" : "light",
             "-UIPreferredContentSizeCategoryName",
             largestText ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
@@ -72,8 +72,12 @@ final class StreakPresentationUITests: XCTestCase {
 
         app.tabBars.buttons["Timeline"].tap()
         XCTAssertTrue(app.navigationBars["Timeline"].waitForExistence(timeout: 5))
-        let timelineBadge = badge(app, memberID: micah)
-        XCTAssertTrue(timelineBadge.waitForExistence(timeout: 5))
+        // Layout now persists across launches, and TabView can retain offscreen
+        // badges. Start in List and query its content rather than another tab.
+        let timelineList = app.collectionViews["timeline.accessibleList"]
+        XCTAssertTrue(timelineList.waitForExistence(timeout: 5))
+        let timelineBadge = timelineList.buttons.matching(identifier: "streak.details.\(micah)").firstMatch
+        reveal(timelineBadge, in: app, page: "Timeline")
         assertCounts(timelineBadge, overall: 5, timely: 3, profile: true)
         timelineBadge.tap()
         checkPopup(app, overall: 5, timely: 3)
@@ -144,7 +148,14 @@ final class StreakPresentationUITests: XCTestCase {
 
     @MainActor
     private func dismissPopup(_ app: XCUIApplication) {
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.11)).tap()
+        // At accessibility sizes the popover can cover the upper-left corner.
+        // Its selected tab stays outside the popup and keeps navigation stable.
+        let selectedTab = app.tabBars.buttons.allElementsBoundByIndex.first { $0.isSelected }
+        XCTAssertNotNil(selectedTab)
+        selectedTab?.tap()
+        let popupText = app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", "days in a row")).firstMatch
+        let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: popupText)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
     }
 
     @MainActor

@@ -52,7 +52,7 @@ final class HelpContentTests: XCTestCase {
 
     func testCircleGuideExplainsSharedChangesAndLeaderOnlyExceptions() {
         let guide = HelpTopic.circles.steps.map(\.body).joined()
-        for concept in ["Anyone can make circle changes", "starts off", "current members", "leader-only", "cannot remove the leader", "Leave circle"] {
+        for concept in ["In Circle settings", "Anyone can make circle changes", "starts off", "saves immediately", "Turn it off to return circle changes to leader-only", "current members", "leader-only", "cannot remove the leader", "Leave circle"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
     }

@@ -36,6 +36,7 @@
 		379F1D90F6B5C85B8A75321B /* BlessingDraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763B72C779EC92487D1BE8A4 /* BlessingDraftTests.swift */; };
 		39368FBA4870701977ABABA5 /* TimelineFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4411AF484487F12C2DA5B2B8 /* TimelineFilterTests.swift */; };
 		393F22BB398884D9F713A08B /* BlessingMediaSaverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF24801068C972565AA8BE5 /* BlessingMediaSaverTests.swift */; };
+		3F941782CB1F4F7B9156DADD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B8119D4059952E8E2B976D9C /* PrivacyInfo.xcprivacy */; };
 		420640E5D1A790CEB3770A9C /* CircleStreakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2AC9639F2DC47FED46A5A4 /* CircleStreakTests.swift */; };
 		48C7FA9E28E453381BFFA1B5 /* TimelinePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CD0AF6C1AD6CA3FD0EC412 /* TimelinePresentationTests.swift */; };
 		4A3E2B3AEF012FEA33B5F98A /* WidgetReliabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474CEEEE8512E0B5A1DF5164 /* WidgetReliabilityTests.swift */; };
@@ -206,7 +207,7 @@
 		218B05F8EA26894C0DB33863 /* MannaWordmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MannaWordmark.swift; sourceTree = "<group>"; };
 		234411076A53B6836F09CC17 /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
 		270315B706B80C094ED1C5C4 /* TimelineSizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineSizing.swift; sourceTree = "<group>"; };
-		28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.extensionkit-extension"; path = BlessingCircleNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		28A2668C467FD536D72FAD72 /* BlessingCircleNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BlessingCircleNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		28C1D6DEBCFA654FEB8FDF13 /* BlessingDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingDraft.swift; sourceTree = "<group>"; };
 		28E10C692366BEAE2B09BBC9 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		2AC381E7B1B09C556F69E2C5 /* BackendConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfiguration.swift; sourceTree = "<group>"; };
@@ -251,7 +252,7 @@
 		763B72C779EC92487D1BE8A4 /* BlessingDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingDraftTests.swift; sourceTree = "<group>"; };
 		766D059B090295A07973C5B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		7793BAE7716C551F9DD986A1 /* SpeechDiagnosticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechDiagnosticTests.swift; sourceTree = "<group>"; };
-		77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		77A862E3D7C26ED1AF09479A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		78394E2536925B55E8D27A81 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		786FEA1806261CAF090030BA /* StreakRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakRefreshTests.swift; sourceTree = "<group>"; };
 		7A938A25ACE4527C0BAAEC17 /* VideoCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCaptureView.swift; sourceTree = "<group>"; };
@@ -269,7 +270,7 @@
 		987E1EEED204901EEFC40F74 /* PhotoLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLayoutTests.swift; sourceTree = "<group>"; };
 		98827C7D657BC61C3A7B527B /* TimelineStatusPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineStatusPolicy.swift; sourceTree = "<group>"; };
 		98F6955EDCB72669D8C4B54E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		98F97F35AE1F0B0BCA3FBC77 /* BlessingCircle.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlessingCircle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9931B9AC4525C2E91147CC13 /* IdentityPhotoCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityPhotoCacheTests.swift; sourceTree = "<group>"; };
 		99814B5F1C5233312C8DA5B6 /* AccessibilityContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityContrastTests.swift; sourceTree = "<group>"; };
 		9A4B2CEA1AA932D6C39BA152 /* TimelinePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelinePage.swift; sourceTree = "<group>"; };
@@ -283,7 +284,7 @@
 		A80C07B211B1EEE86AEFEA95 /* NotificationIdentityImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationIdentityImage.swift; sourceTree = "<group>"; };
 		A93FE805DFAB3D49FBB14400 /* CirclePermissionsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CirclePermissionsUITests.swift; sourceTree = "<group>"; };
 		A9FF0B7D82FF6DA7A4AA9D15 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
-		AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AAAAC6CFEBC3255A468708F0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ACE1A8FE2140DF404032151D /* BlessingCircleLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingCircleLiveActivity.swift; sourceTree = "<group>"; };
 		AF36B93FCD863063200201CE /* FirstJoinTimingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstJoinTimingTests.swift; sourceTree = "<group>"; };
 		AF96D83DCB140C9B96F965AB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -292,6 +293,7 @@
 		B4A1A874188E1541AB6AE199 /* AutomaticSavingSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomaticSavingSettings.swift; sourceTree = "<group>"; };
 		B5A2C582F8010468C26C9A21 /* CircleInviteCodeStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleInviteCodeStoreTests.swift; sourceTree = "<group>"; };
 		B67190A1474AA89AC2BBD59E /* SupabaseBlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseBlessingRepository.swift; sourceTree = "<group>"; };
+		B8119D4059952E8E2B976D9C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B95F3899B7E32272A53F832F /* LiveActivityCutoffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityCutoffTests.swift; sourceTree = "<group>"; };
 		BC88D8B6472E51A3AAACA1C4 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		BD086AB78C2411FC6492A448 /* BlessingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlessingRepository.swift; sourceTree = "<group>"; };
@@ -488,6 +490,7 @@
 				5AA633448ED63CFD632146E3 /* NotificationLogo.png */,
 				593AC44B1C0400D9F82A6CC7 /* NotificationLogoDark.png */,
 				78394E2536925B55E8D27A81 /* NotificationService.swift */,
+				B8119D4059952E8E2B976D9C /* PrivacyInfo.xcprivacy */,
 			);
 			name = NotificationService;
 			path = Sources/NotificationService;
@@ -809,6 +812,7 @@
 			files = (
 				2C562A4E4BA20C8861508E3E /* NotificationLogo.png in Resources */,
 				7062561AB6739AD4A1753E10 /* NotificationLogoDark.png in Resources */,
+				3F941782CB1F4F7B9156DADD /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1130,7 +1134,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 46;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 98RU8TVC42;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1150,7 +1154,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.4.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -1166,7 +1170,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A64B2CD999847E450C198DDA /* Development.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "MannaLight MannaDark";
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					MannaLight,
+					MannaDark,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Configuration/BlessingCircle.entitlements;
@@ -1186,7 +1193,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ios";
 				PRODUCT_MODULE_NAME = BlessingCircle;
 				SDKROOT = iphoneos;
@@ -1252,7 +1258,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BE92F563E6DAAEFBB2C27EDD /* Production.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "MannaLight MannaDark";
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = (
+					MannaLight,
+					MannaDark,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Configuration/BlessingCircle.entitlements;
@@ -1272,7 +1281,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "app.manna-circle.ios";
 				PRODUCT_MODULE_NAME = BlessingCircle;
 				SDKROOT = iphoneos;
@@ -1316,7 +1324,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 46;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 98RU8TVC42;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1330,7 +1338,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 0.2.2;
+				MARKETING_VERSION = 0.4.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

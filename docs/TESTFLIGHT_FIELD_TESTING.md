@@ -1,4 +1,18 @@
-# v0.2.2 field testing
+# TestFlight field testing
+
+## 0.4.0 (46) — candidate, not uploaded
+
+The November 1 audit and public-release blockers are in [the release checklist](RELEASE_CHECKLIST.md). The archive is `build/Manna-0.4.0-46.xcarchive`; the validated App Store distribution IPA is `build/TestFlight-0.4.0-46/manna circle.ipa` (SHA-256 `15b9fc4317ba94ec691fbdce7b9e808994bdaeba2dd5bf492382e7bb35052926`). Export succeeded after the account holder accepted Apple's updated Developer Program agreement. Confirm the next available build number in App Store Connect before upload. This candidate has not been uploaded, processed, or installed through TestFlight.
+
+The shared-settings migration is already deployed. On the candidate, use two installed accounts in a dedicated test circle:
+
+1. As leader, enable **Anyone can make circle changes**, leave settings, and reopen them to verify persistence. Reopen manna on the member device to load current permissions; change the circle name/settings there and verify both devices display the saved result.
+2. Confirm members cannot change the permission switch, transfer ownership, remove the leader, or remove themselves through member management. Switch delegation off as leader; an already-open member editor must fail to save, and reopening settings must show read-only controls.
+3. Verify Today and Timeline before/after each account shares. Daily and evening unlock independently; older history remains visible. Check attached photo previews/full photos, voice/video playback, and responses, including after circle switching and network interruption.
+4. Reproduce notification, Live Activity, widget, microphone/Speech/camera permission, and interruption cases on devices. A forced notification reaches every registered device in the circle; use only the dedicated test circle with participating testers.
+5. Check the diagnostic sharing preference and record the time/time zone, build, action, and safe error code for failures. Compare representative media/API usage across several days before expanding the cohort; the November 17 quota warning remains unresolved. Do not activate destructive media cleanup as part of this field test.
+
+## Earlier v0.2.2 field collection
 
 Build 30 was v0.2.1. Build 31 added request reduction, multi-user diagnostic collection, Circle People streaks, random-only Timeline notification times, and one draft-aware sharing button. Build 32 adds one smaller red/blue flame (blue for timely entry on every day in the current run), full-screen photo enlargement/zoom, fixed-horizontal Today, and field-build default-on collection.
 

@@ -30,6 +30,12 @@ if [ "$bundle_id" != "app.manna-circle.ios" ]; then
   exit 1
 fi
 
+encryption_declaration=$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$app/Info.plist" 2>/dev/null || true)
+if [ "$encryption_declaration" != "false" ]; then
+  echo "error: Exported app must declare its reviewed exempt encryption use." >&2
+  exit 1
+fi
+
 entitlements="$work_dir/app-entitlements.plist"
 codesign -d --entitlements :- "$app" > "$entitlements" 2>/dev/null
 
@@ -121,4 +127,28 @@ if [ ! -f "$notification_extension/NotificationLogoDark.png" ]; then
   exit 1
 fi
 
-echo "TestFlight export validation passed for $bundle_id."
+app_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")
+app_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")
+for embedded_extension in "$extension" "$notification_extension"; do
+  extension_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$embedded_extension/Info.plist")
+  extension_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$embedded_extension/Info.plist")
+  if [ "$extension_version" != "$app_version" ] || [ "$extension_build" != "$app_build" ]; then
+    echo "error: App and embedded extensions must have matching version and build numbers." >&2
+    exit 1
+  fi
+done
+
+for executable_bundle in "$app" "$extension" "$notification_extension"; do
+  privacy_manifest="$executable_bundle/PrivacyInfo.xcprivacy"
+  if [ ! -f "$privacy_manifest" ] || ! plutil -lint "$privacy_manifest" >/dev/null 2>&1; then
+    echo "error: App and both extensions must include a valid privacy manifest." >&2
+    exit 1
+  fi
+done
+
+if ! codesign --verify --deep --strict "$app" 2>/dev/null; then
+  echo "error: Exported app or embedded code has an invalid signature." >&2
+  exit 1
+fi
+
+echo "TestFlight export validation passed for $bundle_id ($app_version, build $app_build)."

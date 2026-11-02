@@ -41,6 +41,10 @@ begin
   assert not has_function_privilege('anon','public.daily_prompt_entry_cutoff(uuid)','execute');
   assert not has_function_privilege('authenticated','public.daily_prompt_entry_cutoff(uuid)','execute');
   update public.circles set time_zone='America/New_York' where id=v_circle.id;
+  -- The welcome fixture can itself fall on November 1 when this suite runs
+  -- on November 2 UTC. Its checks are complete; remove it inside this rollback
+  -- before reusing the daily prompt for the fixed daylight-saving boundary.
+  delete from public.daily_prompts where id=v_welcome;
   update public.daily_prompts set local_date=date '2026-11-01', starts_at=timestamptz '2026-11-01 16:50:00Z',
     ends_at=timestamptz '2026-11-01 17:00:00Z' where id=v_today.id;
   assert public.daily_prompt_entry_cutoff(v_today.id)=timestamptz '2026-11-02 05:00:00Z';

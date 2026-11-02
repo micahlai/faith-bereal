@@ -2,6 +2,14 @@
 
 Status: draft for a future release candidate. Values marked **Release input required** must be completed before submission.
 
+The November 1 audit is tracked in [the release checklist](RELEASE_CHECKLIST.md). The next test version is **0.4.0 (46)**, pending confirmation of the next available App Store Connect build number. Public submission remains blocked by deletion/moderation/privacy and installed-device acceptance work.
+
+## Encryption export-compliance answer
+
+The reviewed iOS client uses Apple's HTTPS networking, CryptoKit SHA-256 for sign-in/cache identities, and operating-system file protection. The pinned Supabase SDK's SHA-256 dependency uses CryptoKit on iOS. No custom encryption protocol or separate bundled iOS encryption implementation was found. `ITSAppUsesNonExemptEncryption` is therefore set to `false` in the generated app, and distribution-export validation requires it.
+
+For this implementation, answer **No** to non-exempt encryption. If the form instead lists proprietary algorithms or standard algorithms implemented outside Apple's operating system, select **None of the algorithms mentioned above**. This does not mean traffic is unencrypted or that circle content is end-to-end encrypted; the service handles content for authorized members. Future cryptography/dependency changes require reassessment. [Apple's exemption guidance](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations).
+
 ## App overview
 
 manna circle - daily blessings is a private-circle gratitude app. A circle receives one server-authored prompt at a randomized time within the circle owner's configured schedule. Members have the circle's configured response window to share one blessing as typed text, voice-transcribed text, or video. Historical posts remain visible, while the current prompt's peer posts unlock only after the reviewing user submits their own blessing.

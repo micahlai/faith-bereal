@@ -48,7 +48,8 @@ if [ "$migration_order" = '--streak-first' ]; then
 fi
 run_sql \
   -f "$repo_root/supabase/migrations/202610140001_shared_circle_settings.sql" \
-  -f "$repo_root/supabase/tests/shared_circle_settings.sql"
+  -f "$repo_root/supabase/tests/shared_circle_settings.sql" \
+  -f "$repo_root/supabase/tests/shared_circle_settings_hosted.sql"
 if [ "$migration_order" = standard ]; then
   run_sql -f "$repo_root/supabase/tests/circle_streaks.sql" \
     -f "$repo_root/supabase/tests/consecutive_timely_streaks.sql"
