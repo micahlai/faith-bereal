@@ -29,8 +29,7 @@ begin
   new_id:=k.job_id;
   assert public.finish_storage_mirror_job(old_id,old_token,'copy');
   assert public.finish_storage_mirror_job(k.job_id,k.lease_token,'copy');
-  assert (select count(*)=0 from public.claim_storage_mirror_jobs(10));
-  update manna_private.storage_mirror_jobs set available_at=now() where id=old_id;
+  -- Valid completion removes ambiguity, making the retired generation ready.
   select * into j from public.claim_storage_mirror_jobs(1);
   assert j.operation='delete' and j.job_id=old_id;
   assert public.finish_storage_mirror_job(j.job_id,j.lease_token,'delete');
@@ -38,8 +37,7 @@ begin
   -- Actual Storage deletion queues the current version, including successful copies.
   delete from storage.objects where bucket_id='avatars';
   assert (select not desired and state='copied' from manna_private.storage_mirror_jobs where id=new_id);
-  assert (select count(*)=0 from public.claim_storage_mirror_jobs(10)), 'deletion skipped in-flight grace';
-  update manna_private.storage_mirror_jobs set available_at=now() where id=new_id;
+  assert (select available_at<=now() from manna_private.storage_mirror_jobs where id=new_id), 'completed copy needlessly delayed deletion';
   select * into j from public.claim_storage_mirror_jobs(1);
   assert j.operation='delete' and j.job_id=new_id;
   assert public.finish_storage_mirror_job(j.job_id,j.lease_token,'delete','storage');
@@ -55,6 +53,8 @@ begin
   assert (select count(*)=0 from public.claim_storage_mirror_jobs(10)), 'backoff not enforced';
   -- Metadata edits and object moves enqueue a new generation; access timestamps do not.
   update storage.objects set metadata='{"size":5}', name='circle/prompt/author/b.mov' where bucket_id='blessing-media';
+  assert (select not desired and state='pending' and available_at>=now()+interval '30 minutes'
+    from manna_private.storage_mirror_jobs where id=k.job_id), 'failed copy lost retirement grace';
   select * into j from public.claim_storage_mirror_jobs(1);
   assert j.object_name='circle/prompt/author/b.mov';
   assert public.finish_storage_mirror_job(j.job_id,j.lease_token,'copy');

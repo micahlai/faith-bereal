@@ -6,7 +6,7 @@
   "workers_dev": false,
   "preview_urls": false,
   "r2_buckets": [{ "binding": "MEDIA_MIRROR", "bucket_name": "manna-private-media-mirror" }],
-  "vars": { "MIRROR_ENABLED": "false" },
+  "vars": { "MIRROR_ENABLED": "true" },
   "triggers": { "crons": ["* * * * *"] },
   "observability": { "enabled": true }
 }

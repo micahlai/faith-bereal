@@ -39,7 +39,10 @@ begin
   end if;
   if tg_op <> 'INSERT' then
     update manna_private.storage_mirror_jobs set desired = false,
-      available_at = greatest(now(), coalesce(last_copy_claim_at + interval '30 minutes', now()))
+      -- An acknowledged PUT has finished. Ambiguous/in-flight PUTs retain the
+      -- grace period, including copies that committed before a lost ACK.
+      available_at = case when state='copied' and lease_token is null then now()
+        else greatest(now(), coalesce(last_copy_claim_at + interval '30 minutes', now())) end
     where bucket_id = old.bucket_id and object_name = old.name and desired;
   end if;
   if tg_op <> 'DELETE' and new.bucket_id in ('blessing-media','avatars','circle-photos')
@@ -103,13 +106,15 @@ begin
       last_error = p_error,
       available_at = greatest(
         now() + make_interval(secs => least(21600, 30 * power(2, least(j.attempts,10))::integer)),
-        case when not desired then coalesce(last_copy_claim_at + interval '30 minutes', now()) else now() end)
+        case when not desired and state<>'copied' then coalesce(last_copy_claim_at + interval '30 minutes', now()) else now() end)
     where id = j.id;
   else
     update manna_private.storage_mirror_jobs set lease_token = null, lease_until = null,
       state = case when p_operation = 'copy' then 'copied' else 'deleted' end,
       completed_at = now(), last_error = null,
-      available_at = case when not desired then greatest(now(),coalesce(last_copy_claim_at + interval '30 minutes',now())) else now() end
+      -- A valid copy ACK proves the last possible PUT completed. Retired
+      -- generations can now be deleted without waiting out an ambiguous lease.
+      available_at = now()
     where id = j.id;
   end if;
   return true;
