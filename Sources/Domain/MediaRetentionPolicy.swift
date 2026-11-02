@@ -2,7 +2,7 @@ import Foundation
 
 enum MediaRetentionPolicy {
     static let lifetime: TimeInterval = 30 * 24 * 60 * 60
-    static let warningWindow: TimeInterval = 2 * 24 * 60 * 60
+    static let warningWindow: TimeInterval = 3 * 24 * 60 * 60
 
     static func expiresAt(submittedAt: Date) -> Date { submittedAt.addingTimeInterval(lifetime) }
 
@@ -14,7 +14,7 @@ enum MediaRetentionPolicy {
         let remaining = expiresAt(submittedAt: submittedAt).timeIntervalSince(now)
         guard remaining > 0, remaining <= warningWindow else { return nil }
         let hours = max(1, Int(ceil(remaining / 3_600)))
-        return hours > 24 ? "Media expires in 2 days" : "Media expires in \(hours)h"
+        return hours > 24 ? "Media expires in \(Int(ceil(Double(hours) / 24))) days" : "Media expires in \(hours)h"
     }
 }
 

@@ -1,3 +1,4 @@
+import { mediaRetentionMayRun } from "./media-retention.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "npm:jose@5";
 import {
@@ -965,7 +966,7 @@ Deno.serve(async (request) => {
   await processCircleNotifications();
   // Enable only after the archive-capable client has shipped. Cleanup failures
   // are retryable and must not block today's notifications or Live Activities.
-  if (Deno.env.get("MEDIA_RETENTION_ENABLED") === "true") {
+  if (mediaRetentionMayRun(Deno.env.get("MEDIA_RETENTION_ENABLED"), Deno.env.get("MEDIA_RETENTION_START_AT"), Date.now())) {
     try {
       const { error: queueError } = await admin.rpc("queue_expired_media", { p_limit: 100 });
       if (queueError) throw queueError;
@@ -976,12 +977,11 @@ Deno.serve(async (request) => {
       if (paths.length > 0) {
         const { error: removalError } = await admin.storage.from("blessing-media").remove(paths);
         if (removalError) throw removalError;
-        const { error: acknowledgementError } = await admin.from("media_deletion_queue")
-          .delete().in("storage_path", paths);
+        const { error: acknowledgementError } = await admin.rpc("acknowledge_media_deletions", { p_paths: paths });
         if (acknowledgementError) throw acknowledgementError;
       }
     } catch (error) {
-      console.error(JSON.stringify({ event: "media_retention_retry", error: String(error) }));
+      console.error(JSON.stringify({ event: "media_retention_retry" }));
     }
   }
 

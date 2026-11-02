@@ -47,7 +47,7 @@ begin
  perform public.resolve_media_review(review,true);
  assert not public.can_view_blessing(p.id,peer),'approval undid an independent moderation hold';
  update manna_private.content_reports set status='dismissed' where id=report;
- update public.blessings set photo_path=photo_path where id=b;
+ update public.blessings set photo_path=replace(photo_path,'fixture.jpg','fixture-reviewed.jpg') where id=b;
  select id into strict review from manna_private.media_review_queue where blessing_id=b;
  perform public.resolve_media_review(review,true);
  assert public.can_view_blessing(p.id,peer),'approved media stayed hidden';

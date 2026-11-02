@@ -30,4 +30,5 @@ for migration in "$repo_root"/supabase/migrations/*.sql; do
   sed '/^create extension if not exists pg_cron /d; /^create extension if not exists pg_net /d' "$migration" | run_sql
  done
 run_sql -f "$repo_root/supabase/tests/launch_compliance.sql"
+run_sql -f "$repo_root/supabase/tests/retention_launch.sql"
 echo 'Full migration-chain launch safety and deletion checks passed.'

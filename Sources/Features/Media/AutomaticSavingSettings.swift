@@ -4,6 +4,7 @@ struct AutomaticSavingSettings: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showingKeepChoices = false
+    @State private var showingRetentionReview = false
 
     var body: some View {
         savingToggle("Automatically save locally", identifier: "saving.automaticToggle", isOn: Binding(
@@ -24,15 +25,30 @@ struct AutomaticSavingSettings: View {
                 get: { model.automaticallySavesOlderHistory },
                 set: { value in Task { await model.setAutomaticSavingHistory(value) } }
             ))
-            Text("Automatic saving starts with the last seven days. Older history downloads in small batches only when you turn it on. Individual Save and Play work on cellular too.")
+            Text("Automatically checks every accessible blessing with media still in its 30-day window across all your circles, including older posts with recent voice responses. Include older history also keeps older text and photos. Keep manna open and connected until saving finishes.")
                 .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
             if model.automaticSavingWaitingForWiFi {
                 Label("Waiting for Wi-Fi", systemImage: "wifi")
                     .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
             }
         }
-        Text("Audio and video are deleted from the server after 30 days. Want to enjoy them afterward? Automatically save private copies on this device while manna is open. If this is off, you can still choose individual blessings and tap Save. Text, Bible references, and attached photos remain in circle history. Local copies don’t sync and are lost if you uninstall the app.")
+        Text("Audio and video are scheduled for server removal after 30 days. Cleanup begins three days after the updated build becomes available; retries can delay physical removal. Want to enjoy them afterward? Automatically save private copies on this device while manna is open. If this is off, use the pinned Timeline reminder to review and save recordings within 3 days of removal. Text, Bible references, and attached photos remain in circle history. Local copies don’t sync and are lost if you uninstall the app.")
             .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+        savingToggle("Show Timeline expiry reminder", identifier: "retention.showReminder", isOn: Binding(
+            get: { model.showsExpiryReminder }, set: { value in Task { await model.setExpiryReminderVisible(value) } }
+        ))
+        Text("The pinned reminder appears when automatic saving is off. Hiding it does not save recordings or change removal.")
+            .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+        if let usage = model.localArchiveUsage {
+            LabeledContent("Saved on this device", value: ByteCountFormatter.string(fromByteCount: usage.bytes, countStyle: .file))
+                .accessibilityIdentifier("saving.storageEstimate")
+            Text("About \(usage.blessingCount) saved blessings. Includes saved media and records for this account; excludes temporary caches, drafts and copies exported to Photos.")
+                .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+        }
+        Button("Refresh storage estimate") { Task { await model.refreshLocalArchiveUsage() } }.frame(minHeight: 44)
+            .task { await model.refreshLocalArchiveUsage() }
+        Button("Review recordings due for removal") { showingRetentionReview = true }.frame(minHeight: 44)
+            .sheet(isPresented: $showingRetentionReview) { RetentionReviewView() }
         if let error = model.automaticSavingError {
             Label(error, systemImage: "exclamationmark.triangle")
                 .font(.footnote).foregroundStyle(AppTheme.missed)

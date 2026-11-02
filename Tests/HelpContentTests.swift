@@ -8,9 +8,18 @@ final class HelpContentTests: XCTestCase {
             XCTAssertTrue(timeline.contains(concept), concept)
         }
         let saving = HelpTopic.saving.steps.map(\.body).joined()
-        for concept in ["Wi-Fi only", "cellular", "Include older history", "starts off", "last seven days"] {
+        for concept in ["Wi-Fi only", "cellular", "Include older history", "starts off", "30-day window"] {
             XCTAssertTrue(saving.contains(concept), concept)
         }
+    }
+
+    func testRetentionReviewGuideExplainsDefaultWarningStorageAndLimits() {
+        let guide = HelpTopic.saving.steps.map(\.body).joined(separator: " ")
+        for concept in ["starts on for new users", "existing choice stays unchanged", "3 days", "pinned reminder", "Save all listed blessings", "incomplete check", "Show Timeline expiry reminder", "estimate", "no automatic 30-day removal", "Server removal does not wait", "older blessings with recent voice responses"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+        XCTAssertFalse(guide.contains("last seven days"))
+        XCTAssertFalse(guide.contains("tap Save blessing"))
     }
 
     func testOfflineArchiveAndLegacyRecordingHelpExplainsLocalLimits() {
@@ -141,7 +150,7 @@ final class HelpContentTests: XCTestCase {
     }
     func testSavingGuideExplainsManualChoiceWhenAutomaticSavingIsOff() {
         let text = HelpTopic.saving.steps.map(\.body).joined()
-        XCTAssertTrue(text.contains("If this is off, you can still choose individual blessings"))
+        XCTAssertTrue(text.contains("If this is off, use the pinned Timeline reminder to choose individual blessings"))
         XCTAssertTrue(text.contains("Text, Bible references, and photos remain"))
     }
     func testWelcomeGuideExplainsPreviousDayAndNotificationCutoff() {
@@ -153,6 +162,7 @@ final class HelpContentTests: XCTestCase {
         let guide = HelpTopic.sharing.steps.map(\.body).joined()
         XCTAssertTrue(guide.contains("Continue recording"))
         XCTAssertTrue(guide.contains("words and audio are kept"))
+        XCTAssertTrue(guide.contains("different microphone sample rates without adding extra time"))
     }
     func testEveningGuideUsesSevenHourCutoff() {
         XCTAssertTrue(HelpTopic.evening.steps.map(\.body).joined().contains("seven hours"))

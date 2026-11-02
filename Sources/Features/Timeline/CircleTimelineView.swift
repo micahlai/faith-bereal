@@ -17,6 +17,7 @@ struct CircleTimelineView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var selection: BlessingSelection?
+    @State private var showingRetentionReview = false
     @AppStorage("timeline.layoutMode") private var layout = TimelineLayoutMode.defaultMode
     @State private var selectedMemberID: UUID?
     @State private var showingPersonFilter = false
@@ -50,7 +51,17 @@ struct CircleTimelineView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(AppTheme.canvas, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .safeAreaInset(edge: .top, spacing: 0) { timelineControls }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 0) {
+                TimelineRetentionBanner { showingRetentionReview = true }
+                timelineControls
+            }.background(AppTheme.canvas)
+        }
+        .sheet(isPresented: $showingRetentionReview) { RetentionReviewView() }
+        .task(id: model.circle?.id) {
+            guard !model.automaticallySavesLocally, model.showsExpiryReminder else { return }
+            await model.reviewExpiringMedia()
+        }
         .refreshable { await model.refreshCurrentCircle() }
         .onChange(of: model.lanes, initial: true) { _, _ in rebuildPresentation() }
         .onChange(of: presentationScope) { _, _ in
@@ -931,7 +942,7 @@ struct BlessingDetailView: View {
                         BlessingContentView(blessing: blessing)
                             .id(blessing.id)
                         ContentSafetyActions(authorID: member.id, blessingID: blessing.id)
-                        SavedBlessingButton(blessing: blessing)
+                        SavedBlessingStatusView(blessing: blessing)
                         if let reference = blessing.scriptureReference {
                             if model.isShowingSavedTimeline {
                                 Label(reference.displayName, systemImage: "book.closed")

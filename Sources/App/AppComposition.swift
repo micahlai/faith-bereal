@@ -36,10 +36,13 @@ enum AppComposition {
             let photoURL = ProcessInfo.processInfo.arguments.contains("--manna-photo-ui-test")
                 ? PhotoViewerUITestFixture.makePhoto() : nil
             let settingsRole = ProcessInfo.processInfo.environment["MANNA_CIRCLE_SETTINGS_TEST_ROLE"]
+            let retentionAudio = ProcessInfo.processInfo.arguments.contains("--manna-retention-ui-test")
+                ? RetentionUITestFixture.makeAudioAndPreferences() : nil
             return AppModel(repository: LocalBlessingRepository(seedPhotoURL: photoURL,
                 settingsTestRole: settingsRole,
                 streakTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-streak-ui-test"),
-                timelineTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-timeline-ui-test")), diagnosticCollection: localCollection)
+                timelineTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-timeline-ui-test"),
+                retentionFixtureURL: retentionAudio), diagnosticCollection: localCollection)
         }
 #endif
         if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {
@@ -71,6 +74,34 @@ enum AppComposition {
 }
 
 #if DEBUG
+private enum RetentionUITestFixture {
+    static func makeAudioAndPreferences() -> URL? {
+        guard let session = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SAVING_TEST_SESSION"],
+              let id = UUID(uuidString: session) else { return nil }
+        do {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("SavingUITests-\(id.uuidString)")
+            let account = root.appendingPathComponent("A0000000-0000-0000-0000-000000000001")
+            try FileManager.default.createDirectory(at: account, withIntermediateDirectories: true)
+            let preferences = account.appendingPathComponent("preferences.json")
+            if ProcessInfo.processInfo.arguments.contains("--manna-retention-saving-off"),
+               !FileManager.default.fileExists(atPath: preferences.path) {
+                try JSONEncoder().encode(LocalSavingPreferences(isEnabled: false, hasChosen: true))
+                    .write(to: preferences, options: .atomic)
+            }
+            let audio = root.appendingPathComponent("retention-source.caf")
+            let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
+            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4_410)!
+            buffer.frameLength = buffer.frameCapacity
+            for index in 0..<Int(buffer.frameLength) { buffer.floatChannelData?[0][index] = Float(sin(Double(index) * 0.05)) * 0.01 }
+            try autoreleasepool {
+                let file = try AVAudioFile(forWriting: audio, settings: format.settings)
+                try file.write(from: buffer)
+            }
+            return audio
+        } catch { return nil }
+    }
+}
+
 /// Offline-only UI fixture: no authenticated session or repository reads are available.
 private actor OfflineSavedUITestAuthentication: AuthenticationProviding {
     let store: SavedBlessingStore

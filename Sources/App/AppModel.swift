@@ -35,6 +35,14 @@ final class AppModel {
     private(set) var automaticSavingWaitingForWiFi = false
     var automaticallySavesOnWiFiOnly: Bool { localSavingPreferences.wifiOnly ?? true }
     var automaticallySavesOlderHistory: Bool { localSavingPreferences.includesOlderHistory ?? false }
+    var showsExpiryReminder: Bool { localSavingPreferences.showsExpiryReminder ?? true }
+    private(set) var expiringBlessings: [ExpiringBlessing] = []
+    private(set) var isReviewingExpiry = false
+    private(set) var expiryReviewError: String?
+    private(set) var expiryReviewCompletedAt: Date?
+    private(set) var localArchiveUsage: LocalArchiveUsage?
+    private var expiryReviewGeneration = UUID()
+
     private var automaticHistoryCursors: [UUID: Date] = [:]
     private var automaticHistoryCompleted: Set<UUID> = []
     private var lastVisibleReadAt: Date?
@@ -89,6 +97,9 @@ final class AppModel {
     var loadState: LoadState = .idle
     private var dataScopeGeneration = UUID() {
         didSet {
+            expiryReviewGeneration = UUID()
+            expiringBlessings = []; expiryReviewCompletedAt = nil; expiryReviewError = nil; isReviewingExpiry = false
+            localArchiveUsage = nil
             invalidateTimelineResponders()
             backgroundReadTasks.values.forEach { $0.cancel() }
             backgroundReadTasks = [:]; backgroundReads = [:]
@@ -542,7 +553,7 @@ final class AppModel {
             } catch {
                 guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
                 // A damaged local preference must not block sign-in or circle access.
-                localSavingPreferences = LocalSavingPreferences()
+                localSavingPreferences = LocalSavingPreferences(isEnabled: false)
                 automaticSavingError = "Local saving settings couldn’t be read. Please choose your preference again; existing saved copies are unchanged."
             }
             hasChosenInitialSaving = localSavingPreferences.hasChosen
@@ -1963,7 +1974,7 @@ final class AppModel {
         do {
             let responses = try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
             responseMediaDates[blessing.id] = responses.filter { $0.mode == .voice }.map(\.submittedAt)
-            if savedBlessings[blessing.id]?.isAutomatic == true { scheduleAutomaticSaving() }
+            if automaticallySavesLocally { scheduleAutomaticSaving() }
             return responses.filter { !blockedAuthorIDs.contains($0.authorID) }.map { resolvedResponse($0) }
         } catch {
             guard !Task.isCancelled, !Self.isCancellation(error) else { return [] }
@@ -1991,12 +2002,15 @@ final class AppModel {
     }
 
     private func existingLocalFile(_ url: URL?) -> URL? {
-        guard let url, url.isFileURL, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        guard let url, url.isFileURL, let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > 0 else { return nil }
         return url
     }
 
     func mediaExpiryWarning(for blessing: Blessing, at now: Date = .now) -> String? {
-        guard savedBlessings[blessing.id] == nil else { return nil }
+        if let saved = savedBlessings[blessing.id], saved.coversPostMedia(blessing, at: now),
+           (responseMediaDates[blessing.id] ?? []).allSatisfy({ date in
+               saved.responses.contains { $0.mode == .voice && $0.submittedAt == date && existingLocalFile($0.audioURL) != nil }
+           }) { return nil }
         var dates = responseMediaDates[blessing.id] ?? []
         if blessing.captureMode != .typed { dates.append(blessing.submittedAt) }
         return dates.sorted().compactMap { MediaRetentionPolicy.warning(for: $0, at: now) }.first
@@ -2005,18 +2019,24 @@ final class AppModel {
     func saveBlessing(_ blessing: Blessing) async -> Bool {
         guard let user = currentUser,
               circles.contains(where: { $0.id == blessing.circleID }),
-              savedBlessings[blessing.id] == nil,
               !savingBlessingIDs.contains(blessing.id) else { return false }
         // Do not archive a fabricated or locked peer payload.
         guard lanes.flatMap(\.events).contains(where: {
-            if case let .blessing(visible) = $0.status { return visible.id == blessing.id }
-            return false
-        }) else { return false }
+            if case let .blessing(visible) = $0.status { return visible.id == blessing.id }; return false
+        }) || expiringBlessings.contains(where: { $0.id == blessing.id }) else { return false }
+        let scope = dataScopeGeneration
         savingBlessingIDs.insert(blessing.id)
         defer { savingBlessingIDs.remove(blessing.id) }
         do {
             let responses = try await repository.responses(blessingID: blessing.id, viewerID: user.id).filter { !blockedAuthorIDs.contains($0.authorID) }
-            let available = resolvedBlessing(blessing)
+            guard currentUser?.id == user.id, dataScopeGeneration == scope,
+                  !blockedAuthorIDs.contains(blessing.authorID), !accountDeletionPending, !Task.isCancelled else { return false }
+            // The server may still offer older recordings during the launch grace period.
+            // Preserve those bytes while available; null server references cannot be recovered.
+            let available = blessing.replacingMedia(
+                audio: existingLocalFile(savedBlessings[blessing.id]?.blessing.audioURL) ?? blessing.audioURL,
+                video: existingLocalFile(savedBlessings[blessing.id]?.blessing.videoURL) ?? blessing.videoURL,
+                photo: existingLocalFile(savedBlessings[blessing.id]?.blessing.photoURL) ?? blessing.photoURL)
             if blessing.captureMode != .typed,
                available.audioURL == nil && available.videoURL == nil,
                !MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt) {
@@ -2024,11 +2044,13 @@ final class AppModel {
             }
             let record = try await savedBlessingStore.save(
                 blessing: available,
-                responses: responses.map {
-                    $0.replacingAudio(MediaRetentionPolicy.isExpired(submittedAt: $0.submittedAt) ? nil : $0.audioURL)
-                }, userID: user.id
+                responses: responses, userID: user.id, refreshing: savedBlessings[blessing.id] != nil
             )
-            if currentUser?.id == user.id { savedBlessings[blessing.id] = record }
+            guard currentUser?.id == user.id, dataScopeGeneration == scope,
+                  !blockedAuthorIDs.contains(blessing.authorID), !Task.isCancelled else { return false }
+            savedBlessings[blessing.id] = record
+            expiringBlessings.removeAll { $0.id == blessing.id }
+            await refreshLocalArchiveUsage()
             return true
         } catch {
             guard !Task.isCancelled, !Self.isCancellation(error) else { return false }
@@ -2049,6 +2071,7 @@ final class AppModel {
             if currentUser?.id == userID {
                 savedBlessings.removeValue(forKey: blessing.id)
                 if isShowingSavedTimeline { lanes = savedTimelineLanes(circleID: circle?.id, now: .now) }
+                await refreshLocalArchiveUsage()
             }
         } catch {
             message = "Couldn’t remove the saved blessing: \(error.localizedDescription)"
@@ -2071,6 +2094,74 @@ final class AppModel {
             isChangingAutomaticSaving = false
             if enabled { scheduleAutomaticSaving() }
         } catch { message = "Couldn’t change local saving: \(error.localizedDescription)" }
+    }
+
+    func setExpiryReminderVisible(_ visible: Bool) async {
+        guard let userID = currentUser?.id else { return }
+        var preferences = localSavingPreferences
+        preferences.showsExpiryReminder = visible
+        do {
+            try await savedBlessingStore.savePreferences(preferences, userID: userID)
+            guard currentUser?.id == userID else { return }
+            localSavingPreferences = preferences
+        } catch { automaticSavingError = "Couldn’t save your reminder setting. Try again." }
+    }
+
+    func refreshLocalArchiveUsage() async {
+        guard let userID = currentUser?.id else { localArchiveUsage = nil; return }
+        let usage = try? await savedBlessingStore.usage(userID: userID)
+        if currentUser?.id == userID { localArchiveUsage = usage }
+    }
+
+    func reviewExpiringMedia(now: Date = .now) async {
+        guard let userID = currentUser?.id, canUseFreshCircle, !accountDeletionPending else {
+            expiryReviewError = "Reconnect to check all your circles for recordings approaching removal."
+            expiryReviewCompletedAt = nil
+            return
+        }
+        let scope = UUID()
+        expiryReviewGeneration = scope
+        isReviewingExpiry = true; expiryReviewError = nil; expiryReviewCompletedAt = nil
+        defer { if expiryReviewGeneration == scope { isReviewingExpiry = false } }
+        var pending: [ExpiringBlessing] = []
+        do {
+            for membership in circles {
+                var cursor: UUID?
+                repeat {
+                    let page = try await repository.retentionPage(circle: membership, viewerID: userID, now: now, afterID: cursor)
+                    let summaries = try await repository.timelineResponderSummaries(blessingIDs: page.blessings.map(\.id), viewerID: userID)
+                    for blessing in page.blessings where !blockedAuthorIDs.contains(blessing.authorID) {
+                        try Task.checkCancellation()
+                        let responseDates = summaries.filter { $0.blessingID == blessing.id && $0.mode == .voice }.compactMap(\.submittedAt)
+                        let dates = responseDates + (blessing.captureMode == .typed ? [] : [blessing.submittedAt])
+                        guard dates.map({ MediaRetentionPolicy.expiresAt(submittedAt: $0) })
+                            .contains(where: { $0.timeIntervalSince(now) <= MediaRetentionPolicy.warningWindow }) else { continue }
+                        let responses = try await repository.responses(blessingID: blessing.id, viewerID: userID)
+                            .filter { !blockedAuthorIDs.contains($0.authorID) }
+                        let saved = savedBlessings[blessing.id]
+                        let availableDates = responses.filter {
+                            $0.mode == .voice && $0.audioURL != nil && saved?.containsResponseAudio($0.id) != true
+                        }.map(\.submittedAt)
+                            + (((blessing.audioURL != nil || blessing.videoURL != nil) && saved?.containsRecording(for: blessing) != true) ? [blessing.submittedAt] : [])
+                        guard let availableExpiry = availableDates.map({ MediaRetentionPolicy.expiresAt(submittedAt: $0) })
+                            .filter({ $0.timeIntervalSince(now) <= MediaRetentionPolicy.warningWindow }).min() else { continue }
+                        pending.append(ExpiringBlessing(blessing: blessing,
+                            memberName: membership.members.first { $0.id == blessing.authorID }?.displayName ?? "Member",
+                            circleName: membership.name, expiresAt: availableExpiry))
+                    }
+                    guard expiryReviewGeneration == scope, currentUser?.id == userID, !Task.isCancelled else { return }
+                    if let next = page.nextAfterID, next == cursor { throw BlessingMediaSaveError.unavailable }
+                    cursor = page.nextAfterID
+                } while cursor != nil
+            }
+            guard expiryReviewGeneration == scope, currentUser?.id == userID else { return }
+            expiringBlessings = pending.sorted { $0.expiresAt < $1.expiresAt }
+            expiryReviewCompletedAt = now
+        } catch {
+            guard expiryReviewGeneration == scope, !Task.isCancelled else { return }
+            expiringBlessings = pending.sorted { $0.expiresAt < $1.expiresAt }
+            expiryReviewError = "The check is incomplete. Reconnect and retry; more unsaved recordings may be approaching removal."
+        }
     }
 
     func setAutomaticSavingNetwork(wifiOnly: Bool) async {
@@ -2236,12 +2327,21 @@ final class AppModel {
                         nextOlderCursor = older.nextBeforeDate
                     } else { automaticHistoryCompleted.insert(membership.id) }
                 }
-                let cutoff = Date.now.addingTimeInterval(-7 * 86_400)
-                let blessings = Array(Dictionary(visibleLanes.flatMap(\.events).compactMap { event -> (UUID, Blessing)? in
-                    guard case let .blessing(blessing) = event.status,
-                          automaticallySavesOlderHistory || blessing.submittedAt >= cutoff else { return nil }
-                    return (blessing.id, blessing)
-                }, uniquingKeysWith: { first, _ in first }).values)
+                var retained: [Blessing] = []
+                var cursor: UUID?
+                repeat {
+                    let page = try await repository.retentionPage(circle: read.context.circle, viewerID: userID, now: .now, afterID: cursor)
+                    try Task.checkCancellation()
+                    guard currentUser?.id == userID, automaticallySavesLocally else { return }
+                    retained += page.blessings
+                    if let next = page.nextAfterID, next == cursor { throw BlessingMediaSaveError.unavailable }
+                    cursor = page.nextAfterID
+                } while cursor != nil
+                let extra = automaticallySavesOlderHistory ? visibleLanes.flatMap(\.events).compactMap { event -> Blessing? in
+                    if case let .blessing(b) = event.status { return b }; return nil
+                } : []
+                let blessings = Array(Dictionary((retained + extra).filter { !blockedAuthorIDs.contains($0.authorID) }
+                    .map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values)
                 var responseCounts: [UUID: Int] = [:]
                 // Reuse the visible-card summary batcher; unchanged archives never fetch response bodies/audio links.
                 let savedIDs = blessings.filter { savedBlessings[$0.id]?.isAutomatic == true }.map(\.id)
@@ -2265,11 +2365,11 @@ final class AppModel {
                     guard !localSavingPreferences.excludedBlessingIDs.contains(blessing.id),
                           !savingBlessingIDs.contains(blessing.id) else { continue }
                     let existing = savedBlessings[blessing.id]
-                    if let existing, !existing.isAutomatic { continue }
-                    if let existing, existing.hasAllSavedFiles, existing.blessing.body == blessing.body,
+                    if let existing, existing.hasAllSavedFiles, existing.coversPostMedia(blessing), existing.blessing.body == blessing.body,
                        existing.blessing.scriptureReference == blessing.scriptureReference,
                        existing.blessing.editedAt == blessing.editedAt,
-                       responseCounts[blessing.id] == existing.responses.count { continue }
+                       responseCounts[blessing.id] == existing.responses.count,
+                       existing.covers(blessing: blessing, responses: existing.responses) { continue }
                     if authentication != nil {
                         guard await networkSavingPolicy.permitsAutomaticDownloads(wifiOnly: automaticallySavesOnWiFiOnly) else {
                             automaticSavingWaitingForWiFi = true; return
@@ -2279,22 +2379,24 @@ final class AppModel {
                     do {
                         defer { savingBlessingIDs.remove(blessing.id) }
                         let responses = try await repository.responses(blessingID: blessing.id, viewerID: userID).filter { !blockedAuthorIDs.contains($0.authorID) }
-                        if let existing, existing.hasAllSavedFiles,
+                        if let existing, existing.hasAllSavedFiles, existing.covers(blessing: blessing, responses: responses),
                            existing.blessing.body == blessing.body,
                            existing.blessing.scriptureReference == blessing.scriptureReference,
                            existing.responses.map(\.id) == responses.map(\.id),
                            existing.responses.map(\.body) == responses.map(\.body) { continue }
-                        let available = resolvedBlessing(blessing)
+                        let available = blessing.replacingMedia(audio: existingLocalFile(existing?.blessing.audioURL) ?? blessing.audioURL,
+                            video: existingLocalFile(existing?.blessing.videoURL) ?? blessing.videoURL,
+                            photo: existingLocalFile(existing?.blessing.photoURL) ?? blessing.photoURL)
                         if blessing.captureMode != .typed, available.audioURL == nil && available.videoURL == nil,
                            !MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt) {
                             throw BlessingMediaSaveError.unavailable
                         }
                         let archivedResponses = responses.map { response in
                             response.replacingAudio(existing?.responses.first(where: { $0.id == response.id })?.audioURL
-                                ?? (MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt) ? nil : response.audioURL))
+                                ?? response.audioURL)
                         }
                         let record = try await savedBlessingStore.save(blessing: available, responses: archivedResponses,
-                            userID: userID, automatically: true, refreshing: existing != nil, wifiOnly: automaticallySavesOnWiFiOnly)
+                            userID: userID, automatically: existing?.isAutomatic ?? true, refreshing: existing != nil, wifiOnly: automaticallySavesOnWiFiOnly)
                         guard currentUser?.id == userID, !Task.isCancelled else { return }
                         savedBlessings[blessing.id] = record
                     } catch {
@@ -2316,6 +2418,7 @@ final class AppModel {
             }
         }
         if currentUser?.id == userID {
+            await refreshLocalArchiveUsage()
             automaticSavingError = failures == 0 ? nil
                 : "Some blessings couldn’t be saved. Available copies will retry next time the app refreshes."
             outcome = failures == 0 ? .success : .failure

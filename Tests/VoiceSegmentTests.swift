@@ -29,6 +29,17 @@ final class VoiceSegmentTests: XCTestCase {
         let duration = try await AVURLAsset(url: output).load(.duration).seconds
         XCTAssertEqual(output.pathExtension, "m4a")
         XCTAssertEqual(duration, 0.5, accuracy: 0.06)
+        let decoded = try AVAudioFile(forReading: output)
+        let pcm = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: decoded.processingFormat, frameCapacity: AVAudioFrameCount(decoded.length)))
+        try decoded.read(into: pcm)
+        let channel = try XCTUnwrap(pcm.floatChannelData?[0])
+        for range in [0.05..<0.20, 0.30..<0.45] {
+            let lower = Int(range.lowerBound * decoded.processingFormat.sampleRate)
+            let upper = min(Int(range.upperBound * decoded.processingFormat.sampleRate), Int(pcm.frameLength))
+            XCTAssertLessThan(lower, upper)
+            let peak = (lower..<upper).map { abs(channel[$0]) }.max() ?? 0
+            XCTAssertGreaterThan(peak, 0.01, "Both resumed segments must contain sound, not padding or silence")
+        }
         let single = try await VoiceSegmentAssembler.combine([urls[0]])
         defer { try? FileManager.default.removeItem(at: single) }
         XCTAssertNotEqual(single, urls[0])

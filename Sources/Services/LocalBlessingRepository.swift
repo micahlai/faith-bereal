@@ -16,7 +16,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var entryTimes: [BlessingEntryGrantKey: Date] = [:]
     private var nudgedMembers: Set<NudgeKey> = []
 
-    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil, streakTestFixture: Bool = false, timelineTestFixture: Bool = false) {
+    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil, streakTestFixture: Bool = false, timelineTestFixture: Bool = false, retentionFixtureURL: URL? = nil) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -260,6 +260,24 @@ actor LocalBlessingRepository: BlessingRepository {
         blessings = seededBlessings
         blessingResponses = []
 #if DEBUG
+        if let audio = retentionFixtureURL {
+            for (index, days) in [28.0, 29.0, 50.0].enumerated() {
+                let sent = now.addingTimeInterval(-days * 86_400)
+                let p = DailyPrompt(id: UUID(), circleID: primaryCircle.id, localDate: calendar.startOfDay(for: sent),
+                    startsAt: sent.addingTimeInterval(-60), endsAt: sent.addingTimeInterval(540))
+                prompts.append(p)
+                let b = Blessing(id: UUID(), circleID: primaryCircle.id, promptID: p.id, authorID: user.id,
+                    captureMode: index == 2 ? .typed : .voice,
+                    body: index == 2 ? "An older blessing with a recent voice response" : "Recording to keep \(index + 1)",
+                    audioURL: index == 2 ? nil : audio, videoURL: nil, submittedAt: sent, isLate: false, scriptureReference: nil)
+                blessings.append(b)
+                if index == 2 {
+                    blessingResponses.append(BlessingResponse(id: UUID(), blessingID: b.id, circleID: primaryCircle.id,
+                        authorID: user.id, mode: .voice, body: "A response to keep", audioURL: audio,
+                        submittedAt: now.addingTimeInterval(-28.5 * 86_400)))
+                }
+            }
+        }
         if timelineTestFixture, let target = seededBlessings.filter({
             $0.authorID == ava.id && $0.body == "Sunlight through the kitchen window."
         }).max(by: { $0.submittedAt < $1.submittedAt }) {
@@ -270,6 +288,18 @@ actor LocalBlessingRepository: BlessingRepository {
             }
         }
 #endif
+    }
+
+    func retentionPage(circle: CircleGroup, viewerID: UUID, now: Date, afterID: UUID?) async throws -> RetentionPage {
+        guard afterID == nil else { return RetentionPage(blessings: [], nextAfterID: nil) }
+        guard circle.members.contains(where: { $0.id == viewerID }) else { throw BlessingError.circleNotFound }
+        let visible = try await timeline(circleID: circle.id, viewerID: viewerID, now: now)
+            .flatMap(\.events).compactMap { event -> Blessing? in
+                guard case let .blessing(b) = event.status else { return nil }
+                let hasRecentResponse = blessingResponses.contains { $0.blessingID == b.id && $0.mode == .voice && $0.audioURL != nil }
+                return !MediaRetentionPolicy.isExpired(submittedAt: b.submittedAt, at: now) || b.audioURL != nil || b.videoURL != nil || hasRecentResponse ? b : nil
+            }
+        return RetentionPage(blessings: visible, nextAfterID: nil)
     }
 
     func bootstrap() async throws -> AppBootstrap {

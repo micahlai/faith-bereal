@@ -107,9 +107,10 @@ final class SavedBlessingStoreTests: XCTestCase {
         XCTAssertEqual(records[blessing.id]?.responses.first?.audioURL?.pathExtension, "caf")
     }
 
-    func testRetentionBoundaryAndTwoDayWarning() {
+    func testRetentionBoundaryAndThreeDayWarning() {
         let sent = Date(timeIntervalSince1970: 1_000)
-        XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(28 * 86_400 - 1)))
+        XCTAssertNil(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(27 * 86_400 - 1)))
+        XCTAssertEqual(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(27 * 86_400)), "Media expires in 3 days")
         XCTAssertEqual(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(28 * 86_400)), "Media expires in 2 days")
         XCTAssertEqual(MediaRetentionPolicy.warning(for: sent, at: sent.addingTimeInterval(30 * 86_400 - 1)), "Media expires in 1h")
         XCTAssertFalse(MediaRetentionPolicy.isExpired(submittedAt: sent, at: sent.addingTimeInterval(30 * 86_400 - 1)))
@@ -240,7 +241,7 @@ final class SavedBlessingStoreTests: XCTestCase {
         XCTAssertTrue(same.isEnabled)
         XCTAssertTrue(same.hasChosen)
         XCTAssertEqual(same.excludedBlessingIDs, [excluded])
-        XCTAssertFalse(other.isEnabled)
+        XCTAssertTrue(other.isEnabled)
         XCTAssertFalse(other.hasChosen)
     }
 
@@ -376,6 +377,121 @@ final class SavedBlessingStoreTests: XCTestCase {
         XCTAssertEqual(model.savedBlessings.count, 1)
     }
 
+    func testNewDefaultAndExistingOptOutAndReminderStayAccountScoped() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = SavedBlessingStore(root: root), user = UUID()
+        let first = try await store.loadPreferences(userID: user)
+        XCTAssertTrue(first.isEnabled)
+        XCTAssertNil(first.showsExpiryReminder)
+        try await store.savePreferences(LocalSavingPreferences(isEnabled: false, hasChosen: true, showsExpiryReminder: false), userID: user)
+        let reopened = try await SavedBlessingStore(root: root).loadPreferences(userID: user)
+        XCTAssertFalse(reopened.isEnabled)
+        XCTAssertEqual(reopened.showsExpiryReminder, false)
+        let other = try await store.loadPreferences(userID: UUID())
+        XCTAssertTrue(other.isEnabled)
+        XCTAssertNil(other.showsExpiryReminder)
+    }
+
+    func testMissingAndEmptyDownloadsCannotPublishOrClaimCompleteArchive() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blessing = fixture()
+        let missing = blessing.replacingMedia(audio: nil, video: nil, photo: nil)
+        let store = SavedBlessingStore(root: root, copier: EmptyArchiveCopier())
+        for post in [missing, blessing] {
+            do { _ = try await store.save(blessing: post, responses: [], userID: user); XCTFail("Incomplete save succeeded") }
+            catch { XCTAssertTrue(error is BlessingMediaSaveError) }
+        }
+        let records = try await store.load(userID: user)
+        XCTAssertTrue(records.isEmpty)
+    }
+
+    func testUsageCountsOnlyCurrentAccountArchivesAndFallsAfterRemoval() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier()), user = UUID(), post = fixture()
+        _ = try await store.save(blessing: post, responses: [responseFixture(blessing: post)], userID: user)
+        _ = try await store.save(blessing: fixture(), responses: [], userID: UUID())
+        try await store.savePreferences(.init(), userID: user)
+        let directory = root.appendingPathComponent(user.uuidString).appendingPathComponent(post.id.uuidString)
+        let manifestBytes = try Data(contentsOf: directory.appendingPathComponent("blessing.json")).count
+        let usage = try await store.usage(userID: user)
+        XCTAssertEqual(usage.blessingCount, 1)
+        XCTAssertEqual(usage.bytes, Int64(manifestBytes + 3 * Data("fixture media".utf8).count))
+        try await store.unsave(blessingID: post.id, userID: user)
+        let empty = try await store.usage(userID: user)
+        XCTAssertEqual(empty.bytes, 0)
+        XCTAssertEqual(empty.blessingCount, 0)
+    }
+
+#if DEBUG
+    @MainActor
+    func testWholeRetentionWindowIncludingOldParentResponseSavesBeforeSourceRemoval() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("source.caf")
+        let bytes = Data("permanent synthetic recording bytes".utf8)
+        try bytes.write(to: source)
+        let now = Date(), repository = LocalBlessingRepository(now: now, retentionFixtureURL: source)
+        let store = SavedBlessingStore(root: root.appendingPathComponent("saved"))
+        let model = AppModel(repository: repository, savedBlessingStore: store, registersForRemoteNotifications: false, runsBackgroundRefreshes: false)
+        await model.bootstrap()
+        XCTAssertTrue(model.automaticallySavesLocally)
+        await model.reviewExpiringMedia(now: now)
+        let due = model.expiringBlessings
+        XCTAssertEqual(due.count, 3, "The older parent with recent voice audio must be included")
+        XCTAssertTrue(due.contains { $0.blessing.submittedAt < now.addingTimeInterval(-40 * 86_400) })
+        await model.saveVisibleBlessingsAutomatically()
+        let user = try XCTUnwrap(model.currentUser?.id)
+        for item in due {
+            let record = try XCTUnwrap(model.savedBlessings[item.id])
+            let responses = try await repository.responses(blessingID: item.id, viewerID: user)
+            XCTAssertTrue(record.covers(blessing: item.blessing, responses: responses))
+        }
+        await model.reviewExpiringMedia(now: now)
+        XCTAssertTrue(model.expiringBlessings.isEmpty)
+        XCTAssertNil(model.expiryReviewError)
+        // Physically remove the source bytes, reopen the archive, and verify every recording.
+        try FileManager.default.removeItem(at: source)
+        let reopened = try await SavedBlessingStore(root: root.appendingPathComponent("saved")).load(userID: user)
+        for item in due {
+            let record = try XCTUnwrap(reopened[item.id])
+            let urls = [record.blessing.audioURL, record.blessing.videoURL].compactMap { $0 }
+                + record.responses.compactMap(\.audioURL)
+            XCTAssertFalse(urls.isEmpty)
+            for url in urls { XCTAssertEqual(try Data(contentsOf: url), bytes) }
+        }
+    }
+
+    @MainActor
+    func testManualReviewRescueAndHiddenReminderPersistWithoutTurningSavingOn() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("source.caf")
+        try Data("recording".utf8).write(to: source)
+        let repository = LocalBlessingRepository(retentionFixtureURL: source)
+        let store = SavedBlessingStore(root: root.appendingPathComponent("saved"))
+        let model = AppModel(repository: repository, savedBlessingStore: store, registersForRemoteNotifications: false, runsBackgroundRefreshes: false)
+        await model.bootstrap()
+        await model.setAutomaticSavingEnabled(false)
+        await model.setExpiryReminderVisible(false)
+        await model.reviewExpiringMedia()
+        XCTAssertEqual(model.expiringBlessings.count, 3)
+        let post = try XCTUnwrap(model.expiringBlessings.first?.blessing)
+        let saved = await model.saveBlessing(post)
+        XCTAssertTrue(saved)
+        XCTAssertEqual(model.expiringBlessings.count, 2)
+        XCTAssertGreaterThan(model.localArchiveUsage?.bytes ?? 0, 0)
+        let reopened = AppModel(repository: repository, savedBlessingStore: store, registersForRemoteNotifications: false, runsBackgroundRefreshes: false)
+        await reopened.bootstrap()
+        XCTAssertFalse(reopened.automaticallySavesLocally)
+        XCTAssertFalse(reopened.showsExpiryReminder)
+        await reopened.reviewExpiringMedia()
+        XCTAssertEqual(reopened.expiringBlessings.count, 2)
+    }
+#endif
+
     private func fixture(mode: CaptureMode = .voice, sent: Date = .now) -> Blessing {
         Blessing(
             id: UUID(), circleID: UUID(), promptID: UUID(), authorID: UUID(), captureMode: mode,
@@ -430,4 +546,8 @@ private actor PausedArchiveCopier: SavedBlessingMediaCopying {
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("in-flight private media".utf8).write(to: destination)
     }
+}
+
+private struct EmptyArchiveCopier: SavedBlessingMediaCopying {
+    func copy(from source: URL, to destination: URL) async throws { try Data().write(to: destination) }
 }

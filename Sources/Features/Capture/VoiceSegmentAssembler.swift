@@ -6,11 +6,13 @@ enum VoiceSegmentAssembler {
     static func combine(_ segments: [URL]) async throws -> URL {
         guard !segments.isEmpty else { throw Failure.missingAudio }
         let composition = AVMutableComposition()
-        guard let track = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
-            throw Failure.missingAudio
-        }
         var cursor = CMTime.zero
         for url in segments {
+            // Separate tracks let the exporter mix different microphone sample
+            // rates without stretching a preceding segment at the format switch.
+            guard let track = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+                throw Failure.missingAudio
+            }
             let asset = AVURLAsset(url: url)
             guard let source = try await asset.loadTracks(withMediaType: .audio).first else {
                 throw Failure.missingAudio

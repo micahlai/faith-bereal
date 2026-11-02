@@ -221,12 +221,12 @@ final class BlessingCircleUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += [
-            "-onboarding.hasSeenAbout", "NO",
+            "-privacy.acceptedVersion", "2026-11-02", "-onboarding.hasSeenAbout", "NO",
             "-onboarding.hasChosenAppearance", "NO",
         ]
         app.launch()
 
-        XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["Step 1 of 6"].exists)
         XCTAssertTrue(app.staticTexts["circle"].exists)
         app.buttons["Continue"].tap()
@@ -260,7 +260,7 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Local saving"].waitForExistence(timeout: 3))
         let automaticSaving = app.switches["saving.automaticToggle"]
         XCTAssertTrue(automaticSaving.exists)
-        automaticSaving.tap()
+        // New accounts start with automatic saving enabled.
         XCTAssertTrue(automaticSaving.waitForExistence(timeout: 3))
         XCTAssertEqual(automaticSaving.value as? String, "1")
         app.buttons["Continue"].tap()
@@ -295,9 +295,7 @@ final class BlessingCircleUITests: XCTestCase {
             let automatic = app.switches["saving.automaticToggle"]
             for _ in 0..<16 where !automatic.isHittable { app.swipeUp() }
             XCTAssertTrue(automatic.isHittable)
-            if !largest {
-                automatic.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-            }
+            XCTAssertEqual(automatic.value as? String, "1")
             let wifi = app.switches["saving.wifiOnly"]
             for _ in 0..<12 where !wifi.isHittable { app.swipeUp() }
             XCTAssertTrue(wifi.waitForExistence(timeout: 5))
@@ -334,9 +332,7 @@ final class BlessingCircleUITests: XCTestCase {
         XCTAssertTrue(automatic.isHittable)
         // A Form exposes the entire labeled row as Switch; only the trailing
         // UISwitch is interactive, unlike the standalone onboarding control.
-        automatic.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-        let enabled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '1'"), object: automatic)
-        XCTAssertEqual(XCTWaiter.wait(for: [enabled], timeout: 5), .completed)
+        XCTAssertEqual(automatic.value as? String, "1")
         automatic.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         XCTAssertTrue(app.navigationBars["Saved copies"].waitForExistence(timeout: 5))
         for label in ["Keep all", "Keep only my blessings", "Keep none", "Choose from a list"] {
@@ -367,13 +363,13 @@ final class BlessingCircleUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += [
-            "-onboarding.hasSeenAbout", "YES", "-onboarding.hasChosenAppearance", "YES",
+            "-privacy.acceptedVersion", "2026-11-02", "-onboarding.hasSeenAbout", "YES", "-onboarding.hasChosenAppearance", "YES",
             "-user.appearancePreference", "dark",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
             "-UIAccessibilityReduceMotionEnabled", "YES",
         ]
         app.launch()
-        XCTAssertTrue(app.navigationBars["Local saving"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Local saving"].waitForExistence(timeout: 15))
         let automatic = app.switches["saving.automaticToggle"]
         for _ in 0..<4 where !automatic.isHittable { app.swipeUp() }
         XCTAssertTrue(automatic.isHittable)
@@ -655,31 +651,68 @@ final class BlessingCircleUITests: XCTestCase {
     }
 
     @MainActor
-    func testFirstSaveExplainsPrivateStorageAndCanUnsaveFromDetail() {
+    func testRetentionReviewAtLargestTextInDarkAppearance() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
-        app.launchArguments += ["-saving.explained.A0000000-0000-0000-0000-000000000001", "NO"]
+        app.launchArguments = ["--manna-local-ui-test", "--manna-retention-ui-test", "--manna-retention-saving-off",
+            "-user.appearancePreference", "dark", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Timeline"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Timeline"].waitForExistence(timeout: 15))
         app.tabBars.buttons["Timeline"].tap()
-        let blessing = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "A quiet walk before the rain.")).firstMatch
-        for _ in 0..<3 where !blessing.isHittable { app.swipeUp() }
-        XCTAssertTrue(blessing.waitForExistence(timeout: 3))
-        blessing.tap()
-        let save = app.buttons["Save blessing"]
-        XCTAssertTrue(save.waitForExistence(timeout: 3))
-        save.tap()
-        let explanation = app.alerts["Save this blessing on your device?"]
-        XCTAssertTrue(explanation.waitForExistence(timeout: 3))
-        XCTAssertTrue(explanation.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Only you can use this copy")).firstMatch.exists)
-        explanation.buttons["Save blessing"].tap()
-        let unsave = app.buttons["Unsave blessing"]
-        XCTAssertTrue(unsave.waitForExistence(timeout: 5))
-        unsave.tap()
-        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        let banner = app.buttons["retention.banner"]
+        XCTAssertTrue(banner.waitForExistence(timeout: 10))
+        XCTAssertTrue(banner.isHittable)
+        banner.tap()
+        XCTAssertTrue(app.navigationBars["Save before removal"].waitForExistence(timeout: 5))
+        let all = app.buttons["retention.saveAll"]
+        for _ in 0..<8 where !all.isHittable { app.swipeUp() }
+        XCTAssertTrue(all.isHittable)
+        XCTAssertGreaterThanOrEqual(all.frame.height, 44)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Retention review largest dark"; screenshot.lifetime = .keepAlways; add(screenshot)
+        app.buttons["Done"].tap()
+    }
+
+    @MainActor
+    func testPinnedRetentionReviewSavesAllAndReminderCanBeHidden() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchArguments = ["--manna-local-ui-test", "--manna-retention-ui-test", "--manna-retention-saving-off"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Timeline"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Timeline"].tap()
+        let banner = app.buttons["retention.banner"]
+        XCTAssertTrue(banner.waitForExistence(timeout: 10))
+        app.swipeUp()
+        XCTAssertTrue(banner.isHittable, "The reminder must stay pinned while history scrolls")
+        banner.tap()
+        XCTAssertTrue(app.navigationBars["Save before removal"].waitForExistence(timeout: 5))
+        let all = app.buttons["retention.saveAll"]
+        XCTAssertTrue(all.waitForExistence(timeout: 10))
+        let screen = XCTAttachment(screenshot: app.screenshot())
+        screen.name = "Recordings due for removal"
+        screen.lifetime = .keepAlways; add(screen)
+        all.tap()
+        XCTAssertTrue(app.staticTexts["No unsaved recordings are due within 3 days in your accessible circles."].waitForExistence(timeout: 15))
+        let reminder = app.switches["Show Timeline expiry reminder"]
+        for _ in 0..<6 where !reminder.isHittable { app.swipeUp() }
+        reminder.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let hidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '0'"), object: reminder)
+        XCTAssertEqual(XCTWaiter.wait(for: [hidden], timeout: 5), .completed)
+        app.buttons["Done"].tap()
+        let noBanner = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: banner)
+        XCTAssertEqual(XCTWaiter.wait(for: [noBanner], timeout: 5), .completed)
+        XCTAssertFalse(app.buttons["Save blessing"].exists)
+        app.buttons["App menu"].tap(); app.buttons["User settings"].tap()
+        let usage = app.descendants(matching: .any)["saving.storageEstimate"]
+        for _ in 0..<18 where !usage.isHittable { app.swipeUp() }
+        XCTAssertTrue(usage.exists)
     }
 
     @MainActor

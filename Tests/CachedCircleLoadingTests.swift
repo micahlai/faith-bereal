@@ -209,6 +209,20 @@ final class CachedCircleLoadingTests: XCTestCase {
     }
 
     @MainActor
+    func testFailedRetentionInventoryNeverReportsACompletedExpiryCheck() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.model.bootstrap()
+        await fixture.model.reviewExpiringMedia()
+        XCTAssertNotNil(fixture.model.expiryReviewCompletedAt)
+        await fixture.repository.failNextRetention()
+        await fixture.model.reviewExpiringMedia()
+        XCTAssertNil(fixture.model.expiryReviewCompletedAt)
+        XCTAssertNotNil(fixture.model.expiryReviewError)
+        XCTAssertFalse(fixture.model.isReviewingExpiry)
+    }
+
+    @MainActor
     func testWidgetAndSavingShareBoundedPagesAndUnchangedArchivesSkipResponses() async throws {
         let fixture = try await CachedLoadingFixture(cachesMetadata: false, mediaCopier: CachedArchiveCopier())
         defer { fixture.removeFiles() }
@@ -690,6 +704,8 @@ private actor CachedLoadingRepository: BlessingRepository {
 
     func failNextContext() { shouldFailContext = true }
     func failNextPage() { shouldFailPage = true }
+    private var shouldFailRetention = false
+    func failNextRetention() { shouldFailRetention = true }
 
     func circleContext(circleID: UUID) async throws -> CircleContext {
         contextCalls += 1
@@ -725,6 +741,11 @@ private actor CachedLoadingRepository: BlessingRepository {
 
     func timelinePage(circle: CircleGroup, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
         try await timelinePage(circleID: circle.id, viewerID: viewerID, now: now, before: before)
+    }
+
+    func retentionPage(circle: CircleGroup, viewerID: UUID, now: Date, afterID: UUID?) async throws -> RetentionPage {
+        if shouldFailRetention { shouldFailRetention = false; throw URLError(.networkConnectionLost) }
+        return try await base.retentionPage(circle: circle, viewerID: viewerID, now: now, afterID: afterID)
     }
 
     func timelineUpdates(circleID: UUID) async throws -> AsyncStream<Void> {

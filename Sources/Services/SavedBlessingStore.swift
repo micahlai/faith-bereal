@@ -19,7 +19,43 @@ struct SavedBlessingRecord: Codable, Sendable {
             case "photo": url = blessing.photoURL
             default: url = responses.first { $0.id.uuidString == key }?.audioURL
             }
-            guard let url, url.isFileURL, FileManager.default.fileExists(atPath: url.path) else { return false }
+            guard hasFile(url) else { return false }
+        }
+        return true
+    }
+
+    private func hasFile(_ url: URL?) -> Bool {
+        guard let url, url.isFileURL,
+              let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return false }
+        return size > 0
+    }
+
+    func containsRecording(for post: Blessing) -> Bool {
+        switch post.captureMode {
+        case .voice: hasFile(blessing.audioURL)
+        case .video: hasFile(blessing.videoURL)
+        case .typed: true
+        }
+    }
+
+    func containsResponseAudio(_ id: UUID) -> Bool { hasFile(responses.first { $0.id == id }?.audioURL) }
+
+    func coversPostMedia(_ post: Blessing, at now: Date = .now) -> Bool {
+        if post.photoURL != nil && !hasFile(blessing.photoURL) { return false }
+        if post.audioURL != nil || post.videoURL != nil || !MediaRetentionPolicy.isExpired(submittedAt: post.submittedAt, at: now) {
+            if post.captureMode == .voice && !hasFile(blessing.audioURL) { return false }
+            if post.captureMode == .video && !hasFile(blessing.videoURL) { return false }
+        }
+        return hasAllSavedFiles
+    }
+
+    func covers(blessing post: Blessing, responses visible: [BlessingResponse], at now: Date = .now) -> Bool {
+        guard coversPostMedia(post, at: now) else { return false }
+        for response in visible {
+            guard let saved = responses.first(where: { $0.id == response.id }), saved.body == response.body else { return false }
+            if response.mode == .voice,
+               (response.audioURL != nil || !MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt, at: now)),
+               !hasFile(saved.audioURL) { return false }
         }
         return true
     }
@@ -92,6 +128,22 @@ actor SavedBlessingStore {
         self.copier = copier
     }
 
+    func usage(userID: UUID) throws -> LocalArchiveUsage {
+        let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
+        guard FileManager.default.fileExists(atPath: account.path) else { return LocalArchiveUsage(bytes: 0, blessingCount: 0) }
+        var bytes: Int64 = 0
+        let records = try load(userID: userID)
+        for id in records.keys {
+            let directory = account.appendingPathComponent(id.uuidString, isDirectory: true)
+            guard let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { continue }
+            for case let file as URL in files {
+                let value = try file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+                if value.isRegularFile == true { bytes += Int64(value.fileSize ?? 0) }
+            }
+        }
+        return LocalArchiveUsage(bytes: bytes, blessingCount: records.count)
+    }
+
     func load(userID: UUID) throws -> [UUID: SavedBlessingRecord] {
         let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
         guard FileManager.default.fileExists(atPath: account.path) else { return [:] }
@@ -143,7 +195,14 @@ actor SavedBlessingStore {
         try makeProtectedDirectory(account)
         let destination = account.appendingPathComponent(blessing.id.uuidString, isDirectory: true)
         let existing = loadRecord(blessingID: blessing.id, userID: userID)
-        if let existing, !refreshing { return existing }
+        if !MediaRetentionPolicy.isExpired(submittedAt: blessing.submittedAt, at: now) {
+            if blessing.captureMode == .voice && blessing.audioURL == nil && existing?.blessing.audioURL == nil { throw BlessingMediaSaveError.unavailable }
+            if blessing.captureMode == .video && blessing.videoURL == nil && existing?.blessing.videoURL == nil { throw BlessingMediaSaveError.unavailable }
+        }
+        for response in responses where response.mode == .voice && !MediaRetentionPolicy.isExpired(submittedAt: response.submittedAt, at: now) {
+            if response.audioURL == nil && existing?.responses.first(where: { $0.id == response.id })?.audioURL == nil { throw BlessingMediaSaveError.unavailable }
+        }
+        if let existing, !refreshing, existing.covers(blessing: blessing, responses: responses, at: now) { return existing }
         let staging = account.appendingPathComponent("staging-\(UUID().uuidString)", isDirectory: true)
         try makeProtectedDirectory(staging)
         defer { try? FileManager.default.removeItem(at: staging) }
@@ -163,7 +222,7 @@ actor SavedBlessingStore {
             // Blessing media is immutable. A refreshed signed URL is not a new file.
             if let name = existing?.files[key],
                name == URL(fileURLWithPath: name).lastPathComponent,
-               FileManager.default.fileExists(atPath: destination.appendingPathComponent(name).path) {
+               let size = try? destination.appendingPathComponent(name).resourceValues(forKeys: [.fileSizeKey]).fileSize, size > 0 {
                 files[key] = name
                 continue
             }
@@ -173,6 +232,11 @@ actor SavedBlessingStore {
             try await copier.copy(from: cached ?? source, to: target, wifiOnly: wifiOnly)
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path)
             files[key] = name
+        }
+        for name in files.values {
+            let staged = staging.appendingPathComponent(name)
+            let path = FileManager.default.fileExists(atPath: staged.path) ? staged : destination.appendingPathComponent(name)
+            guard let size = try path.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > 0 else { throw BlessingMediaSaveError.unavailable }
         }
         try Task.checkCancellation()
         guard accountGenerations[userID] == generation else { throw CancellationError() }

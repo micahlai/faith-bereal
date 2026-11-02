@@ -8,6 +8,7 @@ protocol BlessingRepository: Sendable {
     func timeline(circle: CircleGroup, viewerID: UUID, now: Date) async throws -> [TimelineLane]
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage
     func timelinePage(circle: CircleGroup, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage
+    func retentionPage(circle: CircleGroup, viewerID: UUID, now: Date, afterID: UUID?) async throws -> RetentionPage
     func blessing(id: UUID, viewerID: UUID) async throws -> Blessing?
     func beginBlessingEntry(promptID: UUID, memberID: UUID, now: Date) async throws
     func submit(
@@ -102,6 +103,16 @@ extension BlessingRepository {
     }
     func timelinePage(circle: CircleGroup, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
         try await timelinePage(circleID: circle.id, viewerID: viewerID, now: now, before: before)
+    }
+    func retentionPage(circle: CircleGroup, viewerID: UUID, now: Date, afterID: UUID?) async throws -> RetentionPage {
+        guard afterID == nil else { return RetentionPage(blessings: [], nextAfterID: nil) }
+        let lanes = try await timeline(circle: circle, viewerID: viewerID, now: now)
+        // Protocol fallback keeps local/test services usable. Hosted reads use a
+        // bounded keyset query, including old parents with retained responses.
+        let blessings = lanes.flatMap(\.events).compactMap { event -> Blessing? in
+            guard case let .blessing(b) = event.status else { return nil }; return b
+        }
+        return RetentionPage(blessings: blessings, nextAfterID: nil)
     }
     func blessing(id: UUID, viewerID: UUID) async throws -> Blessing? { nil }
     func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {

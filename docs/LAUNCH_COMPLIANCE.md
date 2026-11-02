@@ -4,7 +4,7 @@ Initial launch: **United States only, ages 13+**, as selected by the owner. Do n
 
 | Area | Implementation / evidence | Remaining acceptance |
 | --- | --- | --- |
-| Public policy | https://manna-circle.micahlai.com/privacy, website footer, launch screen and offline User settings policy | Update the version-qualified website notice when 0.5.0 is distributed |
+| Public policy | https://manna-circle.micahlai.com/privacy, website footer, launch screen and offline User settings policy | Policy/support updated for approved recording retention and three-day launch grace; record availability on distribution |
 | Diagnostics | Off by default in 0.5.0, fresh consent replaces legacy default-on state; account-linked reports, opt-out clears unsent queue; existing 14-day hosted cleanup | Essential provider logs are separate; do not describe reports as anonymous |
 | App Store labels | Ten account-linked categories, no tracking; published in App Store Connect after owner confirmed final attestation; policy URL saved | Reconcile whenever collection changes |
 | Cloudflare | Fresh original/copy/replacement/delete validation; Supabase still supplies every app read. R2 private, no public reader | Existing media not backfilled; mirror does not reduce Supabase read egress yet |
@@ -22,19 +22,17 @@ Cloudflare's existing minute Worker calls the protected cleanup processor after 
 
 Migrations `202611020002`–`004` were deployed after full disposable migration-chain tests and rollback-only hosted trials. Exact source hashes match migration history. Worker version `6e793c00-cf85-4b33-9d01-028eff87598d` has copying and account cleanup enabled. Actual scheduled invocation was observed with outcome `ok`. Synthetic acceptance fixtures and their failed-attempt remnants were removed; no real user was deleted or blocked. Moderation instructions: [MODERATION.md](MODERATION.md).
 
-## Retention proposal — not implemented
+## Approved recording retention — implemented, activation gated
 
-The owner requested a proposal only. `MEDIA_RETENTION_ENABLED` remains untouched/off. Current client 30-day media expiry and Help promises do not establish server deletion and remain a public-release blocker. Website/support policy now discloses this mismatch honestly; that does not activate cleanup.
+The owner approved 30-day removal of blessing audio/video and response audio, keeping text/transcripts/Bible references/photos. New users start with automatic device saving on; existing explicit preferences remain. The pinned three-day review, reminder switch, full-window automatic scan, response paging and account-scoped storage estimate are implemented in the updated 0.5.0 source. [Contract, verification and rollout gates](MEDIA_RETENTION.md).
 
-Before changing behavior:
+Cleanup must start **three days after that updated build is actually available**, not after export. The distribution date is unknown. Production flag remains false and start date unset; the deployed scheduler requires both valid gates. This remaining rollout step is deliberate, not a completed deletion claim. Backups/provider logs, abandoned uploads and security/moderation records require their separate documented schedules; never promise that device exports or other members' saved copies can be recalled. Physical permission/APNs/Apple-revocation acceptance remains required for public launch.
 
-1. Choose an explicit schedule for each category: audio/video/response audio, photos/previews, text/transcripts, drafts/abandoned uploads, diagnostics, moderation/security records, receipts, and departed-member history. Confirm whether the existing 30-day audio/video plan is actually desired.
-2. Verify actual Supabase/Cloudflare backup and provider-log behavior and access; state active-service deletion separately from backup aging. Do not invent a backup erasure deadline or claim that exported copies can be recalled.
-3. Define the timer source, grace periods, retry/outage treatment, legal/security exceptions, and what “deletion completed” means. Decide what users should see while media cleanup is pending.
-4. Implement only after approval, with an inventory/dry run and disposable end-to-end tests proving original, mirror, previews and metadata deletion without harming retained history or saved copies.
-5. Update Help, warning labels, policy, support copy and App Store disclosures together, monitor actual completion, and promise only what the deployed system demonstrably does.
+## Updated retention candidate verification
 
-An App Store public release remains blocked on this decision/implementation and physical-device acceptance; the existence of a policy or published labels is not certification of every applicable US law.
+The retention update supersedes the earlier export below. Full Debug: **366 passed, no failures or exclusions**, including the repaired mixed-sample-rate recording assembly and decoded sound in both segments. Final three-case retention/onboarding UI run passes; other accepted cases cover saving settings/keep choices/largest-dark landscape. Full SQL chain, retained-media fixture, activation-gate test, Edge type check, exact hosted hashes and real fixture-only Supabase/R2 removal pass. No production historical cleanup is enabled.
+
+Rebuilt signed app/extensions: **0.5.0 (47)**, production APNs/no debug entitlement, export validation passes. IPA `build/TestFlight-0.5.0-retention-47/manna circle.ipa`, SHA-256 `94a548be75805b0d827304b74fa00aec77d04012bb2af59b6e7bcfdf99924d4f`. No upload or review submission. Latest evidence and remaining release gates: [STATUS.md](STATUS.md).
 
 ## Candidate verification record
 

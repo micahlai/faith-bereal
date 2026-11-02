@@ -309,7 +309,7 @@ private struct StartupOnboardingView: View {
         Button {
             if page == .widget {
                 Task {
-                    if !model.hasChosenInitialSaving { await model.setAutomaticSavingEnabled(false) }
+                    if !model.hasChosenInitialSaving { await model.setAutomaticSavingEnabled(model.automaticallySavesLocally) }
                     if model.hasChosenInitialSaving { onFinished() }
                 }
             } else { move(to: page.rawValue + 1) }

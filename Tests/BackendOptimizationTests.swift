@@ -24,6 +24,32 @@ final class BackendOptimizationTests: XCTestCase {
         XCTAssertEqual(fixture.requestPaths, Array(repeating: "/rest/v1/rpc/register_device", count: 3))
     }
 
+    func testRetentionInventoryConsumesFortyAndContinuesFromLastReturnedID() async throws {
+        let fixture = try BackendHTTPFixture()
+        defer { fixture.close() }
+        let circle = try await fixture.repository.circleContext(circleID: fixture.circleID).circle
+        fixture.resetRequests()
+        let first = try await fixture.repository.retentionPage(circle: circle, viewerID: fixture.viewerID, now: fixture.now, afterID: nil)
+        XCTAssertEqual(first.blessings.count, 40)
+        XCTAssertEqual(first.nextAfterID, first.blessings.last?.id)
+        let second = try await fixture.repository.retentionPage(circle: circle, viewerID: fixture.viewerID, now: fixture.now, afterID: first.nextAfterID)
+        XCTAssertEqual(second.blessings.count, 1)
+        XCTAssertNil(second.nextAfterID)
+        XCTAssertEqual(Set((first.blessings + second.blessings).map(\.id)).count, 41)
+        XCTAssertEqual(fixture.requestPaths, Array(repeating: "/rest/v1/rpc/retained_blessings_page", count: 2))
+    }
+
+    func testAllResponsesArePagedPastTheServerThousandRowLimit() async throws {
+        let fixture = try BackendHTTPFixture()
+        defer { fixture.close() }
+        fixture.viewerHasSubmitted = true
+        fixture.largeResponseFixture = true
+        let responses = try await fixture.repository.responses(blessingID: fixture.viewerBlessingID, viewerID: fixture.viewerID)
+        XCTAssertEqual(responses.count, 1001)
+        XCTAssertEqual(Set(responses.map(\.id)).count, 1001)
+        XCTAssertEqual(fixture.requestPaths.filter { $0 == "/rest/v1/blessing_responses" }.count, 2)
+    }
+
     func testLocalMetadataOverloadsPreserveTimelineAndPaging() async throws {
         let now = Date()
         let repository: any BlessingRepository = LocalBlessingRepository(now: now)
@@ -191,6 +217,8 @@ private final class BackendHTTPFixture: @unchecked Sendable {
         repository = SupabaseBlessingRepository(client: client, savedStore: savedStore)
     }
 
+    var largeResponseFixture = false
+
     func close() {
         session.invalidateAndCancel()
         BackendTestURLProtocol.unregister(host: host)
@@ -252,6 +280,34 @@ private final class BackendHTTPFixture: @unchecked Sendable {
         case "/rest/v1/daily_prompts":
             let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             value = items.contains { $0.name == "kind" && $0.value == "eq.end_of_day" } ? [] : [prompt]
+        case "/rest/v1/rpc/retained_blessings_page":
+            var body = request.httpBody
+            if body == nil, let stream = request.httpBodyStream {
+                stream.open(); defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 4096), data = Data()
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&buffer, maxLength: buffer.count)
+                    if count <= 0 { break }; data.append(contentsOf: buffer.prefix(count))
+                }
+                body = data
+            }
+            let params = try JSONSerialization.jsonObject(with: XCTUnwrap(body)) as! [String: Any]
+            let after = (params["p_after"] as? String)?.lowercased()
+            value = (1...41).compactMap { index -> [String: Any]? in
+                let id = String(format: "00000000-0000-0000-0000-%012d", index)
+                if let after, id <= after { return nil }
+                return ["id": id, "prompt_id": promptID.uuidString, "author_id": viewerID.uuidString,
+                    "capture_mode": "typed", "body": "Paged blessing", "submitted_at": timestamp, "is_late": false]
+            }
+        case "/rest/v1/blessing_responses":
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            let offset = Int(items.first { $0.name == "offset" }?.value ?? "0") ?? 0
+            let count = largeResponseFixture ? min(1000, 1001 - offset) : 0
+            value = (offset..<(offset + count)).map { index in
+                ["id": String(format: "00000000-0000-0000-0000-%012d", index + 1),
+                    "blessing_id": viewerBlessingID.uuidString, "author_id": viewerID.uuidString,
+                    "mode": "typed", "body": "Response \(index)", "submitted_at": timestamp]
+            }
         case "/rest/v1/blessings":
             if denyBlessings {
                 return (403, Data(#"{"code":"42501","message":"permission denied"}"#.utf8))
@@ -263,7 +319,9 @@ private final class BackendHTTPFixture: @unchecked Sendable {
             }
             var rows = [blessing(peerBlessingID, author: peerID)]
             if viewerHasSubmitted { rows.append(blessing(viewerBlessingID, author: viewerID)) }
-            value = rows
+            if request.value(forHTTPHeaderField: "Accept")?.contains("vnd.pgrst.object") == true {
+                value = ["prompt_id": promptID.uuidString, "daily_prompts": ["circle_id": circleID.uuidString]] as [String: Any]
+            } else { value = rows }
         default:
             throw URLError(.unsupportedURL)
         }

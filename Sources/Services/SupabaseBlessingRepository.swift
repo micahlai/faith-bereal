@@ -118,6 +118,16 @@ actor SupabaseBlessingRepository: BlessingRepository {
         }, nextBeforeDate: hasMore ? lower : nil)
     }
 
+    func retentionPage(circle: CircleGroup, viewerID: UUID, now: Date, afterID: UUID?) async throws -> RetentionPage {
+        struct Params: Encodable { let p_circle: UUID; let p_after: UUID? }
+        let rows: [BlessingRow] = try await client.rpc("retained_blessings_page",
+            params: Params(p_circle: circle.id, p_after: afterID)).measuredExecute(.blessings).value
+        let page = Array(rows.prefix(40))
+        var blessings: [Blessing] = []
+        for row in page { blessings.append(try await blessing(from: row, circleID: circle.id)) }
+        return RetentionPage(blessings: blessings, nextAfterID: rows.count > 40 ? page.last?.id : nil)
+    }
+
     func blessing(id: UUID, viewerID: UUID) async throws -> Blessing? {
         let rows: [BlessingRow] = try await client.from("blessings").select().eq("id", value: id).limit(1).measuredExecute(.blessings).value
         guard let row = rows.first else { return nil }
@@ -696,13 +706,16 @@ actor SupabaseBlessingRepository: BlessingRepository {
 
     func responses(blessingID: UUID, viewerID: UUID) async throws -> [BlessingResponse] {
         let blessingRow = try await fetchBlessing(id: blessingID)
-        let rows: [ResponseRow] = try await client
-            .from("blessing_responses")
-            .select()
-            .eq("blessing_id", value: blessingID)
-            .order("submitted_at")
-            .measuredExecute(.responses)
-            .value
+        var rows: [ResponseRow] = []
+        var offset = 0
+        while true {
+            let page: [ResponseRow] = try await client.from("blessing_responses").select()
+                .eq("blessing_id", value: blessingID).order("submitted_at").order("id")
+                .range(from: offset, to: offset + 999).measuredExecute(.responses).value
+            rows += page
+            if page.count < 1000 { break }
+            offset += page.count
+        }
         var result: [BlessingResponse] = []
         for row in rows {
             result.append(try await response(from: row, circleID: blessingRow.circleID))
@@ -967,7 +980,7 @@ actor SupabaseBlessingRepository: BlessingRepository {
     }
 
     private func localOrSigned(_ local: URL?, path: String?) async throws -> URL? {
-        if let local, local.isFileURL, FileManager.default.fileExists(atPath: local.path) { return local }
+        if let local, local.isFileURL, let size = try? local.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > 0 { return local }
         return try await signedURL(path: path)
     }
 
