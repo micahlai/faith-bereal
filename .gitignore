@@ -8,3 +8,8 @@ xcuserdata/
 Configuration/Secrets.xcconfig
 supabase/.temp/
 graphify-out/
+cloudflare/storage-mirror/node_modules/
+cloudflare/storage-mirror/.wrangler/
+cloudflare/storage-mirror/.dev.vars*
+cloudflare/storage-mirror/.env*
+cloudflare/storage-mirror/dist/

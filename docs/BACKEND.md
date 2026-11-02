@@ -5,7 +5,7 @@
 - Supabase Auth with Sign in with Apple
 - Postgres with Row Level Security
 - Supabase Realtime for unlocked feed refreshes
-- Supabase Storage for private video and thumbnails
+- Supabase Storage for authoritative private media uploads/reads; optional server-side Cloudflare R2 mirror ([dual-storage contract and rollout](CLOUDFLARE_STORAGE.md))
 - Edge Functions for privileged commands and APNs provider calls
 - `pg_cron` + `pg_net` for minute-level scheduling
 - APNs token authentication for alerts and ActivityKit pushes

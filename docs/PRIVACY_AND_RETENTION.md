@@ -37,3 +37,7 @@ Account deletion must be initiated in-app, reauthenticate when required, remove 
 - Implement and validate export and account-deletion server operations against two hosted accounts.
 - Validate private Storage cleanup, abandoned upload cleanup, token revocation, and deletion completion timing.
 - Reconcile this manifest and plan with App Store Connect privacy answers before submission.
+
+## Cloudflare storage mirror
+
+The separate dual-storage implementation adds Cloudflare R2 as a private server-side copy of Supabase media, avatars, and circle photos when enabled. Supabase remains the upload/read authority. Background copies retry; replacements and Storage API deletions retire R2 copies after an in-flight-copy grace period of at least 30 minutes. A paused or failing mirror delays R2 deletion. Account deletion must verify both providers before reporting completion. No R2 read endpoint or end-to-end content encryption is added. The actual public privacy policy and App Store privacy answers must name/reconcile this processor before wider distribution. See [the contract and activation record](CLOUDFLARE_STORAGE.md); code presence alone does not mean hosted activation.

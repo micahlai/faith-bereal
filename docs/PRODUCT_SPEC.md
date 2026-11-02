@@ -214,3 +214,7 @@ This resolves the example in the brief as “history is always readable; only th
 ### Planned offline composition and video duration
 
 The [offline capture and video plan](OFFLINE_CAPTURE_AND_VIDEO_PLAN.md) records the chosen 10-minute daily entry grace, queue semantics, unresolved-target handling, rollout and verification. It is proposed behavior; the current client still requires an entry grant before opening capture and records video up to 30 seconds.
+
+## Storage migration staging
+
+An optional server-side Cloudflare R2 mirror copies new/changed hosted media in the background with durable retries. Upload completion and every app read continue through Supabase. It covers private blessing/response media, avatars, and circle photos, plus version-specific replacement/deletion cleanup. It does not mirror the database or change local-demo behavior, current visibility rules, or sharing success. Existing-media backfill and authenticated R2 reads are separate rollout steps. See [CLOUDFLARE_STORAGE.md](CLOUDFLARE_STORAGE.md).
