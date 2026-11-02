@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-11-02 0.5.1 main integration
+
+- At the owner's request, `main` fast-forwarded through the privacy/safety, recording-retention and version commits (`39630a7`, `9248e1c`, `211fa03`) without conflicts. App and both extensions remain **0.5.1 (48)**. XcodeGen regeneration produces no project changes.
+- The integrated source is the already-verified feature tree plus its version-only update. The accepted 366-test run, targeted UI checks, hosted storage/deletion acceptance and version-setting checks remain the evidence; no functional changes were introduced by integration, so the suites were not repeated.
+- This Git integration does not export/upload a 0.5.1 build or enable historical cleanup. The existing 0.5.0 IPA remains historical; cleanup still requires actual updated-build availability plus the approved three-day grace period.
+
 ## 2026-11-02 0.5.1 version update
 
 - At the owner's request, current source is **0.5.1 (48)** for the app, widget/Live Activity extension and notification service. XcodeGen and effective Release settings verify all three bundles. The policy's release-grace wording now refers to the updated build without a stale version number.
