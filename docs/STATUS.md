@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-11-01 main consolidation and version verification
+
+- At the owner's request, `main` fast-forwarded through the release-audit and Cloudflare activation commits (`025b64e`, `47f6deb`, `e44f7d4`). All existing local branches are now ancestors of `main`; no conflicts or feature edits were needed. The separate worktrees remain available.
+- XcodeGen regenerates without changes. Effective Release build settings and the exported TestFlight IPA confirm **0.4.0 (46)** for the app, widget/Live Activity extension, and notification service. This merge preserves the already-verified source tree; full unit/UI suites were not repeated. App Store/TestFlight upload and public-release approval remain separate from the Git push.
+
 ## 2026-11-01 Cloudflare dual storage — live for new uploads
 
 - The user activated R2 and selected background copying with durable retries. Implementation remains isolated in `/Users/micahlai/.codex/worktrees/cloudflare-dual-storage/faith-bereal`, branch `codex/cloudflare-dual-storage`, based on release-audit commit `025b64e`. The original release worktree remains clean. Supabase remains authoritative for uploads, signed reads, authorization, Auth, Postgres, and realtime; the app/local-demo services are unchanged. Existing media was not backfilled.
