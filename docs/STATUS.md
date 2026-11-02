@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-11-02 0.5.1 version update
+
+- At the owner's request, current source is **0.5.1 (48)** for the app, widget/Live Activity extension and notification service. XcodeGen and effective Release settings verify all three bundles. The policy's release-grace wording now refers to the updated build without a stale version number.
+- The previously validated 0.5.0 (47) IPA/archive and verification evidence below remain unchanged. This metadata-only update does not export or upload a 0.5.1 IPA, activate retention cleanup, or change behavior; the existing 366-test and UI acceptance was not repeated. The updated release must still become available before its three-day cleanup grace starts.
+- Source work is on `codex/launch-privacy-safety`; the owner requested pushing this version and its preceding compliance/retention commits. `main` integration remains separate.
+
 ## 2026-11-02 0.5.0 recording retention and device saving — implemented and verified
 
 - The owner selected **audio/video only**, automatic saving **on for new users** with existing choices preserved, and historical cleanup **three days after the updated build is actually available**. That distribution date is unknown. `MEDIA_RETENTION_ENABLED` remains verified false and `MEDIA_RETENTION_START_AT` is unset; the deployed scheduler requires both valid gates. No real-user historical cleanup was activated.

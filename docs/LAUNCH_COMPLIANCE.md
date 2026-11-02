@@ -1,4 +1,6 @@
-# 0.5.0 launch privacy and safety
+# 0.5.1 launch privacy and safety
+
+Current source version: **0.5.1 (48)**. The signed 0.5.0 (47) export below is historical and remains unchanged; 0.5.1 has not been exported or uploaded in this version-only update.
 
 Initial launch: **United States only, ages 13+**, as selected by the owner. Do not intentionally admit under-13 users; investigate actual-knowledge reports through the privacy contact. The first launch asks for age confirmation and acknowledgement of data use before app bootstrap/sign-in. It does not collect a birth date or establish independently verified age. Apple's age-rating questionnaire remains separate and must reflect the actual user-generated content features; do not equate a product age rule with a completed legal review.
 
@@ -24,7 +26,7 @@ Migrations `202611020002`–`004` were deployed after full disposable migration-
 
 ## Approved recording retention — implemented, activation gated
 
-The owner approved 30-day removal of blessing audio/video and response audio, keeping text/transcripts/Bible references/photos. New users start with automatic device saving on; existing explicit preferences remain. The pinned three-day review, reminder switch, full-window automatic scan, response paging and account-scoped storage estimate are implemented in the updated 0.5.0 source. [Contract, verification and rollout gates](MEDIA_RETENTION.md).
+The owner approved 30-day removal of blessing audio/video and response audio, keeping text/transcripts/Bible references/photos. New users start with automatic device saving on; existing explicit preferences remain. The pinned three-day review, reminder switch, full-window automatic scan, response paging and account-scoped storage estimate are implemented in the updated release source. [Contract, verification and rollout gates](MEDIA_RETENTION.md).
 
 Cleanup must start **three days after that updated build is actually available**, not after export. The distribution date is unknown. Production flag remains false and start date unset; the deployed scheduler requires both valid gates. This remaining rollout step is deliberate, not a completed deletion claim. Backups/provider logs, abandoned uploads and security/moderation records require their separate documented schedules; never promise that device exports or other members' saved copies can be recalled. Physical permission/APNs/Apple-revocation acceptance remains required for public launch.
 
