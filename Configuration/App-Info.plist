@@ -36,7 +36,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>MANNA_DIAGNOSTICS_DEFAULT_ENABLED</key>
-	<true/>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>manna circle uses the camera when you choose to take a photo or record a video blessing.</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -46,7 +46,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>manna circle can import a photo or video you choose for your blessing.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>manna circle transcribes your spoken blessing into editable text.</string>
+	<string>When you choose transcription, Apple’s speech service turns your recording into editable text. Audio may be processed by Apple.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSUserActivityTypes</key>

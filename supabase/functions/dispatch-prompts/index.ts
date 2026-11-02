@@ -284,13 +284,6 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
     senderID = response.author_id;
   }
 
-  const { data: sender, error: senderError } = await admin
-    .from("profiles")
-    .select("display_name, avatar_path")
-    .eq("id", senderID)
-    .single();
-  if (senderError) throw senderError;
-
   const { data: memberships, error: membershipError } = await admin
     .from("circle_members")
     .select("user_id")
@@ -341,7 +334,6 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
   const activeDevices = ((devices ?? []) as Device[]).filter((device) => device.apns_token !== null);
   if (activeDevices.length === 0) return;
 
-  const senderAvatarURL = await signedStorageURL("avatars", sender.avatar_path);
   const blessingMedia = notificationMedia({
     eventType: notification.event_type,
     unlocked: true,
@@ -353,11 +345,14 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
     ? await signedStorageURL(blessingMedia.bucket, blessingMedia.path)
     : null;
   const invalidByDevice = new Map<string, Set<DeviceTokenField>>();
-  const results = await Promise.allSettled(activeDevices.map((device) => {
+  const results = await Promise.allSettled(activeDevices.map(async (device) => {
+    const { data: safe, error: safetyError } = await admin.rpc("safety_can_interact", { p_author: senderID, p_viewer: device.user_id });
+    if (safetyError) throw new Error("Safety authorization unavailable");
+    if (!safe) return;
     const unlocked = notification.event_type === "response_shared" || submittedByRecipient.has(device.user_id);
     const body = circleActivityBody({
       eventType: notification.event_type,
-      senderName: sender.display_name,
+      senderName: "",
       message: response?.body ?? blessing.body,
       unlocked,
       promptKind: prompt.kind,
@@ -387,11 +382,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
         },
         route,
         notification_kind: notification.event_type,
-        sender_id: senderID,
-        sender_name: sender.display_name,
         circle_id: prompt.circle_id,
-        circle_name: circle.name,
-        ...(senderAvatarURL ? { sender_avatar_url: senderAvatarURL } : {}),
         ...(richMediaURL ? { rich_media_url: richMediaURL } : {}),
         blessing_id: blessing.id,
       },

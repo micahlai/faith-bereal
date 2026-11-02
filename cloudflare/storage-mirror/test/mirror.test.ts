@@ -27,6 +27,7 @@ before(async () => {
       const target = request.url;
       calls.push({ url: target, args: request.method === 'POST' ? await request.json() : null,
         init: { redirect: request.redirect, headers: Object.fromEntries(request.headers) } });
+      if (target.endsWith('/functions/v1/account-lifecycle')) return Response.json({processed:0,completed:0});
       if (target.endsWith('claim_storage_mirror_jobs')) return Response.json(jobs);
       if (target.endsWith('finish_storage_mirror_job')) return accepted === 'fail'
         ? new Response('secret content', { status: 500 }) : Response.json(accepted);
@@ -143,4 +144,16 @@ test('failed RPC acknowledgement throws without logging sensitive response text'
   mock([job]);
   accepted = 'fail';
   await assert.rejects(run(), { message: 'Mirror acknowledgement failed' });
+});
+
+test('account cleanup is opt-in, server authenticated and follows mirror processing', async () => {
+ let observed = mock([]);
+ let response = await mf.dispatchFetch('http://test/scheduled', {method:'POST',body:'{}'});
+ assert.ok(response.ok); assert.equal(observed.length,1);
+ observed = mock([]);
+ response = await mf.dispatchFetch('http://test/scheduled', {method:'POST',body:JSON.stringify({ACCOUNT_DELETION_ENABLED:'true',ACCOUNT_DELETION_PROCESSOR_SECRET:'test-server-only-key'})});
+ assert.ok(response.ok); assert.equal(observed.length,2);
+ assert.ok(observed[1].url.endsWith('/functions/v1/account-lifecycle'));
+ assert.deepEqual(observed[1].args,{action:'process'});
+ assert.equal(observed[1].init.headers.authorization,'Bearer test-server-only-key');
 });

@@ -20,6 +20,11 @@ final class AppModel {
     private let authentication: (any AuthenticationProviding)?
     private let registersForRemoteNotifications: Bool
     private let runsBackgroundRefreshes: Bool
+    let accountSafety: any AccountSafetyProviding
+    var accountDeletionPending = UserDefaults.standard.bool(forKey: "privacy.deletionPending")
+    var accountDeletionStatusMessage: String?
+    private var blockedAuthorIDs: Set<UUID> = []
+    var isDeletingAccount = false
     let diagnosticCollection: DiagnosticCollectionController
     private let savedBlessingStore: SavedBlessingStore
     private let draftStore: BlessingDraftStore
@@ -135,6 +140,9 @@ final class AppModel {
     private(set) var capturePrompt: DailyPrompt?
     var lanes: [TimelineLane] = [] {
         didSet {
+            if lanes.contains(where: { blockedAuthorIDs.contains($0.member.id) }) {
+                lanes = lanes.filter { !blockedAuthorIDs.contains($0.member.id) }
+            }
             timelineVisibleBlessingIDs = Set(lanes.flatMap(\.events).compactMap { event in
                 if case let .blessing(blessing) = event.status { return blessing.id }
                 return nil
@@ -202,6 +210,7 @@ final class AppModel {
         authentication: (any AuthenticationProviding)? = nil,
         savedBlessingStore: SavedBlessingStore = SavedBlessingStore(),
         draftStore: BlessingDraftStore = BlessingDraftStore(),
+        accountSafety: any AccountSafetyProviding = LocalAccountSafetyService(),
         diagnosticCollection: DiagnosticCollectionController = DiagnosticCollectionController(),
         metadataStore: CircleMetadataStore = .shared,
         identityPhotoCache: IdentityPhotoCache = .shared,
@@ -214,6 +223,7 @@ final class AppModel {
         self.authentication = authentication
         self.registersForRemoteNotifications = registersForRemoteNotifications
         self.runsBackgroundRefreshes = runsBackgroundRefreshes
+        self.accountSafety = accountSafety
         self.diagnosticCollection = diagnosticCollection
         self.savedBlessingStore = savedBlessingStore
         self.draftStore = draftStore
@@ -420,6 +430,12 @@ final class AppModel {
     }
 
     func bootstrap() async {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--manna-skip-onboarding") {
+            hasSeenAbout = true; hasChosenInitialAppearance = true; hasChosenInitialSaving = true
+        }
+#endif
+        if accountDeletionPending { await checkAccountDeletion(); return }
         guard loadState == .idle else { return }
         let startup = UUID()
         bootstrapGeneration = startup
@@ -479,6 +495,11 @@ final class AppModel {
             draftSaveError = nil
             return
         }
+        if authentication != nil, (try? await accountSafety.deletionStatus()) == "pending" {
+            accountDeletionPending = true
+            diagnosticCollection.deactivate()
+            return
+        }
         if let accountID = await authentication?.currentUserID() {
             guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             if savedArchiveAccountID != accountID {
@@ -526,6 +547,9 @@ final class AppModel {
             }
             hasChosenInitialSaving = localSavingPreferences.hasChosen
                 || ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1"
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--manna-skip-onboarding") { hasChosenInitialSaving = true }
+#endif
             self.circles = bootstrap.circles
             let preferredID = Self.persistedCircleID.flatMap { id in
                 bootstrap.circles.contains(where: { $0.id == id }) ? id : nil
@@ -756,6 +780,68 @@ final class AppModel {
         }
     }
 
+    func restoreBlockedAuthor(_ id: UUID) { blockedAuthorIDs.remove(id) }
+
+    func clearBlockedPresentation(authorID: UUID) async {
+        blockedAuthorIDs.insert(authorID)
+        dataScopeGeneration = UUID()
+        automaticSaveTask?.cancel()
+        await automaticSaveTask?.value
+        automaticSaveTask = nil
+        // Remove stale saved responses/media as well as visible posts before a
+        // fresh authorized read. Local copies cannot bypass a new block.
+        if let account = currentUser?.id {
+            try? await savedBlessingStore.removeContent(authorID: authorID, userID: account)
+            savedBlessings = (try? await savedBlessingStore.load(userID: account)) ?? [:]
+        }
+        deepLinkedBlessing = nil
+        lanes = lanes.filter { $0.member.id != authorID }
+        BlessingWidgetSnapshotStore.save(.empty); WidgetCenter.shared.reloadAllTimelines()
+        try? await refreshTimeline()
+    }
+
+    func requestAccountDeletion(appleCode: String) async {
+        guard !isDeletingAccount else { return }
+        isDeletingAccount = true
+        defer { isDeletingAccount = false }
+        do {
+            let receipt = UserDefaults.standard.string(forKey: "privacy.deletionReceipt")
+                ?? (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased()
+            UserDefaults.standard.set(receipt, forKey: "privacy.deletionReceipt")
+            try await accountSafety.requestDeletion(appleCode: appleCode, receipt: receipt)
+            UserDefaults.standard.set(true, forKey: "privacy.deletionPending")
+            accountDeletionPending = true
+            bootstrapGeneration = UUID(); pageLoadGeneration = UUID(); dataScopeGeneration = UUID()
+            await diagnosticCollection.eraseCurrentAccount()
+            automaticSaveTask?.cancel(); identityPhotoTask?.cancel(); realtimeTask?.cancel(); metadataSaveTask?.cancel()
+            await automaticSaveTask?.value; await identityPhotoTask?.value; await metadataSaveTask?.value
+            activityController.stopMonitoringTokens()
+            await activityController.end()
+            if let account = currentUser?.id {
+                try? await savedBlessingStore.removeAccount(userID: account)
+                try? await draftStore.removeAccount(authorID: account)
+                await MediaDownloadCache.shared.clear(accountID: account)
+                await identityPhotoCache.clear(accountID: account)
+                await metadataStore.remove(accountID: account)
+            }
+            savedBlessings = [:]; lanes = []; circle = nil; circles = []; prompt = nil; endOfDayPrompt = nil
+            BlessingWidgetSnapshotStore.save(.empty); WidgetCenter.shared.reloadAllTimelines()
+        } catch { message = "Deletion could not finish this step. Try again or contact support. Your account may already be queued; check deletion status before using it." }
+    }
+
+    func checkAccountDeletion() async {
+        guard let receipt = UserDefaults.standard.string(forKey: "privacy.deletionReceipt") else {
+            accountDeletionStatusMessage = "Contact support to check this request."
+            return
+        }
+        do {
+            let status = try await accountSafety.receiptStatus(receipt)
+            accountDeletionStatusMessage = status == "completed"
+                ? "Deletion completed in the active service, including both media stores. Other people’s copies and provider backups may remain."
+                : "Deletion has not been confirmed complete. Cleanup will retry; contact support if you need help."
+        } catch { accountDeletionStatusMessage = "Status is unavailable. Try again or contact support." }
+    }
+
     func signOut() async {
         guard let authentication else { return }
         streakRefreshTask?.cancel()
@@ -782,6 +868,11 @@ final class AppModel {
             automaticSaveTask = nil
             automaticSaveRunID = nil
             currentUser = nil
+            blockedAuthorIDs = []
+            if accountDeletionPending {
+                UserDefaults.standard.set(false, forKey: "privacy.deletionPending")
+                accountDeletionPending = false
+            }
             nudgingMembers = []
             nudgedMembers = []
             savedBlessings = [:]
@@ -1873,7 +1964,7 @@ final class AppModel {
             let responses = try await repository.responses(blessingID: blessing.id, viewerID: currentUser.id)
             responseMediaDates[blessing.id] = responses.filter { $0.mode == .voice }.map(\.submittedAt)
             if savedBlessings[blessing.id]?.isAutomatic == true { scheduleAutomaticSaving() }
-            return responses.map { resolvedResponse($0) }
+            return responses.filter { !blockedAuthorIDs.contains($0.authorID) }.map { resolvedResponse($0) }
         } catch {
             guard !Task.isCancelled, !Self.isCancellation(error) else { return [] }
             if let saved = savedBlessings[blessing.id] { return saved.responses }
@@ -1924,7 +2015,7 @@ final class AppModel {
         savingBlessingIDs.insert(blessing.id)
         defer { savingBlessingIDs.remove(blessing.id) }
         do {
-            let responses = try await repository.responses(blessingID: blessing.id, viewerID: user.id)
+            let responses = try await repository.responses(blessingID: blessing.id, viewerID: user.id).filter { !blockedAuthorIDs.contains($0.authorID) }
             let available = resolvedBlessing(blessing)
             if blessing.captureMode != .typed,
                available.audioURL == nil && available.videoURL == nil,
@@ -2187,7 +2278,7 @@ final class AppModel {
                     savingBlessingIDs.insert(blessing.id)
                     do {
                         defer { savingBlessingIDs.remove(blessing.id) }
-                        let responses = try await repository.responses(blessingID: blessing.id, viewerID: userID)
+                        let responses = try await repository.responses(blessingID: blessing.id, viewerID: userID).filter { !blockedAuthorIDs.contains($0.authorID) }
                         if let existing, existing.hasAllSavedFiles,
                            existing.blessing.body == blessing.body,
                            existing.blessing.scriptureReference == blessing.scriptureReference,

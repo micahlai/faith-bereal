@@ -11,6 +11,10 @@ enum AppComposition {
             Bundle.main.object(forInfoDictionaryKey: "MANNA_DIAGNOSTICS_DEFAULT_ENABLED") as? Bool ?? false)
         let localCollection = DiagnosticCollectionController(store: diagnosticStore)
 #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--manna-reset-privacy") {
+            UserDefaults.standard.removeObject(forKey: "privacy.acceptedVersion")
+            UserDefaults.standard.removeObject(forKey: "privacy.initialDiagnosticConsent")
+        }
         if ProcessInfo.processInfo.arguments.contains("--manna-offline-saved-ui-test"),
            let session = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SAVING_TEST_SESSION"],
            let sessionID = UUID(uuidString: session) {
@@ -59,6 +63,7 @@ enum AppComposition {
         return AppModel(
             repository: SupabaseBlessingRepository(client: client),
             authentication: SupabaseAuthenticationService(client: client),
+            accountSafety: SupabaseAccountSafetyService(client: client),
             diagnosticCollection: DiagnosticCollectionController(store: diagnosticStore, uploader:
                 SupabaseDiagnosticUploader(client: client, configuration: configuration))
         )

@@ -133,8 +133,12 @@ actor SavedBlessingStore {
         return record
     }
 
+    private var accountGenerations: [UUID: UUID] = [:]
+
     func save(blessing: Blessing, responses: [BlessingResponse], userID: UUID, now: Date = .now,
               automatically: Bool = false, refreshing: Bool = false, wifiOnly: Bool = false) async throws -> SavedBlessingRecord {
+        let generation = accountGenerations[userID] ?? UUID()
+        accountGenerations[userID] = generation
         let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
         try makeProtectedDirectory(account)
         let destination = account.appendingPathComponent(blessing.id.uuidString, isDirectory: true)
@@ -171,6 +175,7 @@ actor SavedBlessingStore {
             files[key] = name
         }
         try Task.checkCancellation()
+        guard accountGenerations[userID] == generation else { throw CancellationError() }
         let record = SavedBlessingRecord(
             blessing: blessing.replacingMedia(audio: nil, video: nil, photo: nil),
             responses: responses.map { $0.replacingAudio(nil) }, savedAt: now, files: files,
@@ -211,6 +216,33 @@ actor SavedBlessingStore {
         )
         try JSONEncoder().encode(manifest).write(to: directory.appendingPathComponent("blessing.json"),
             options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    func removeContent(authorID: UUID, userID: UUID) throws {
+        accountGenerations[userID] = UUID()
+        for record in try load(userID: userID).values {
+            if record.blessing.authorID == authorID {
+                try unsave(blessingID: record.blessing.id, userID: userID)
+                continue
+            }
+            let removed = record.responses.filter { $0.authorID == authorID }
+            guard !removed.isEmpty else { continue }
+            let directory = root.appendingPathComponent(userID.uuidString).appendingPathComponent(record.blessing.id.uuidString)
+            var files = record.files
+            for response in removed {
+                if let name = files.removeValue(forKey: response.id.uuidString), name == URL(fileURLWithPath: name).lastPathComponent {
+                    try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+                }
+            }
+            let cleaned = SavedBlessingRecord(blessing: record.blessing, responses: record.responses.filter { $0.authorID != authorID }, savedAt: record.savedAt, files: files, automaticallySaved: record.automaticallySaved)
+            try writeManifest(cleaned, in: directory)
+        }
+    }
+
+    func removeAccount(userID: UUID) throws {
+        accountGenerations[userID] = UUID()
+        let directory = root.appendingPathComponent(userID.uuidString, isDirectory: true)
+        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
     }
 
     func unsave(blessingID: UUID, userID: UUID) throws {

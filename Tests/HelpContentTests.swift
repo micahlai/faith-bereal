@@ -59,7 +59,7 @@ final class HelpContentTests: XCTestCase {
 
     func testDiagnosticGuideExplainsConsentAccountAssociationAndLimits() {
         let guide = HelpTopic.personalization.steps.map(\.body).joined()
-        for concept in ["Share diagnostic data", "starts with sharing on", "turn it off", "saved off setting remains off", "TestFlight", "linked to your signed-in account",
+        for concept in ["Share diagnostic data", "starts off", "turn it off", "new choice", "TestFlight", "linked to your signed-in account",
                         "14 days", "cannot read", "discards unsent", "1,000", "13 days", "Local demo"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
@@ -167,6 +167,13 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(guide.contains("User settings"))
         XCTAssertTrue(guide.contains("not in the app menu or Circle page"))
     }
+    func testLaunchPrivacyGuideMatchesSafetyAndDeletionLimits() {
+        let guide = HelpTopic.privacy.steps.map(\.body).joined(separator: " ")
+        for concept in ["13 and older", "United States", "Privacy policy", "Safety", "Blocked users", "both media stores", "Check deletion status", "backups", "App Tracking Transparency", "Apple may process", "developer review"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+    }
+
     func testEveryTopicHasDistinctTitleAndIllustratedPlainLanguageSteps() {
         XCTAssertEqual(Set(HelpTopic.allCases.map(\.title)).count, HelpTopic.allCases.count)
         for topic in HelpTopic.allCases {
@@ -243,9 +250,9 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(HelpTopic.personalization.steps.map(\.body).joined().contains("Adjust photo"))
     }
 
-    func testNotificationGuideExplainsFullSenderPhotoAndFallback() {
+    func testNotificationGuideExplainsGenericAlertsAndDeviceSurfaces() {
         let guide = HelpTopic.notifications.steps.map(\.body).joined(separator: " ")
-        for concept in ["full profile photo", "on the left", "fallback", "app-icon badge", "responses have no right image"] {
+        for concept in ["generic wording", "exclude sender and circle names", "attached media", "Earlier alerts", "Widgets and Live Activities"] {
             XCTAssertTrue(guide.contains(concept))
         }
     }

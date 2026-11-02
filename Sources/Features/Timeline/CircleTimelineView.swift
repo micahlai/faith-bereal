@@ -930,6 +930,7 @@ struct BlessingDetailView: View {
                         header
                         BlessingContentView(blessing: blessing)
                             .id(blessing.id)
+                        ContentSafetyActions(authorID: member.id, blessingID: blessing.id)
                         SavedBlessingButton(blessing: blessing)
                         if let reference = blessing.scriptureReference {
                             if model.isShowingSavedTimeline {

@@ -2,11 +2,12 @@ import Foundation
 
 // Customer-facing feature guide. Update this catalog whenever behavior changes.
 enum HelpTopic: String, CaseIterable, Identifiable {
-    case sharing, evening, circles, timeline, responses, saving, scripture, notifications, personalization, accessibility
+    case privacy, sharing, evening, circles, timeline, responses, saving, scripture, notifications, personalization, accessibility
 
     var id: Self { self }
     var title: String {
         switch self {
+        case .privacy: "Privacy & safety"
         case .sharing: "Sharing a blessing"
         case .evening: "End-of-day blessings"
         case .circles: "Your circles"
@@ -22,6 +23,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
+        case .privacy: "hand.raised"
         case .sharing: "sun.max"
         case .evening: "moon.stars"
         case .circles: "person.3"
@@ -37,6 +39,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
 
     var summary: String {
         switch self {
+        case .privacy: "Your information, choices, and safety."
         case .sharing: "A shared moment. Your own words."
         case .evening: "One more reflection at the day's end."
         case .circles: "Join, create, switch, and lead."
@@ -52,6 +55,12 @@ enum HelpTopic: String, CaseIterable, Identifiable {
 
     var steps: [HelpStep] {
         switch self {
+        case .privacy: [
+            .init("hand.raised", "Before you join", "The initial launch is for people 13 and older in the United States. Before signing in, confirm your age and review how manna shares your posts with circle members and processes them through its service providers. Read Privacy policy during launch or in User settings at any time. Faith-related posts can reveal sensitive beliefs. Members may keep copies; do not share information you do not want them to have."),
+            .init("flag", "Report and block", "Open a blessing or response and use Safety to report harmful content or block its author. Reports go privately to the developer for review. Blocking hides each other's posts and responses in the live service. Find Blocked users in User settings to unblock. Previously issued links and copies already saved or exported by others cannot be recalled. New audio, video and attached photos wait for developer review before peers can see them; text has a limited prohibited-phrase filter. Report abuse the filter misses. For urgent real-world danger, contact local emergency services."),
+            .init("person.crop.circle.badge.xmark", "Delete your account", "In User settings, choose Delete account, read the effects, and confirm with the same Apple account. Acceptance disables account access while cleanup retries. Your authored content, memberships, profile and owned media are removed from both media stores before completion is confirmed. Leadership passes to a remaining member; an empty circle is deleted. Use Check deletion status on the pending screen or contact privacy support. An interrupted copy can require at least 30 minutes, and an outage may take longer. Other people's copies and provider backups may remain. An accepted request cannot be undone."),
+            .init("checkmark.shield", "Permissions and tracking", "Camera, microphone and Speech permissions are requested when you choose those features. Apple may process transcription audio away from this device. You can type if you decline. The system photo picker shares only selected files; exporting to Photos requests add permission. Change permissions in iPhone Settings. manna does not use advertising tracking or request App Tracking Transparency permission."),
+        ]
         case .sharing: [
             .init("pencil.and.outline", "Continue a draft", "Your composer checkpoints text, Bible tags, photos, video, and voice segments privately on this device as you work. On Today, Share a blessing changes to Continue when a saved draft for that daily blessing can still be entered. The end-of-day share button does the same for its own draft. Tap that same button to restore your unsent changes; there is no separate draft button. Drafts survive a failed send or relaunch, but the last moments before a crash may not be saved. They are removed after sending or at the next circle-local midnight after you began. A draft never extends the entry deadline: if late sharing is off and the window closed, you cannot reopen it. A composer opened in time may still finish afterward. Copies are account- and circle-specific and do not sync."),
             .init("iphone", "Stay awake while recording", "Your phone stays awake during voice recording for blessings and responses. Pausing, closing the recorder, or leaving manna restores normal screen sleep. Recording does not continue in the background."),
@@ -113,7 +122,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         case .notifications: [
             .init("bell.badge", "Choose circle alerts", "In User settings, each circle has separate switches for other members' blessings/followed responses/nudges and the end-of-day reminder. Response alerts go to the blessing author and people who previously responded, not the new responder. Nudges remind you to share without revealing anyone's blessing."),
             .init("arrow.triangle.2.circlepath", "Connect this phone", "Open manna while connected to the internet after signing in or enabling notifications. Alerts and Live Activities can become ready separately; one does not need to wait for the other. If manna cannot connect this phone for notifications, reopen the app to retry. iOS controls delivery, so connecting this phone does not guarantee that every alert will arrive."),
-            .init("person.crop.circle", "Recognize the sender", "Blessing and response alerts show the sender's full profile photo on the left. If their photo is missing or cannot load, the manna logo is the fallback. iOS adds its own small app-icon badge. Unlocked blessing photos or video previews may appear on the right; responses have no right image."),
+            .init("lock", "Private alert previews", "New server alerts use the manna name and generic wording. They exclude sender and circle names, blessing and response text, scripture, profile photos and attached media. Earlier alerts already delivered may remain in Notification Center. Widgets and Live Activities can still show circle or blessing information on your device; control them in iPhone Settings."),
             .init("timer", "Live Activities", "The daily invitation can appear on your Lock Screen and Dynamic Island. It updates after you submit and disappears after a three-minute grace period. Late-enabled sharing stays available until you submit or a newer prompt replaces it."),
             .init("square.grid.2x2", "Add a Home Screen widget", "Touch and hold the Home Screen, choose Edit → Add Widget, search for manna circle, and choose a size. During sharing time, tap it to open Today. Otherwise it rotates visible blessings; tap one to open it. Older blessings open without first loading their Timeline page; normal privacy rules still apply."),
             .init("arrow.clockwise", "Refresh a widget", "Open manna after signing in or joining a circle to refresh its shared widget data. After restarting your phone, unlock it once. Widgets prepare known sharing times in advance, but iOS controls refresh timing; they cannot fetch new blessings while the app has not refreshed."),
@@ -124,7 +133,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             .init("person.crop.circle.badge.checkmark", "Your account", "The sign-in screen shows the manna logo. To sign out, open User settings and scroll to Sign out; it is not in the app menu or Circle page."),
             .init("person.crop.circle", "Your profile", "Use User settings to change your name and profile photo. Profile and circle photos use a circular preview; pinch and drag together to crop, or use Adjust photo to zoom and move without gestures. VoiceOver also offers crop actions. The uploaded image is square."),
             .init("circle.lefthalf.filled", "Light, dark, or automatic", "Choose appearance in User settings. Automatic follows your device. Your choice stays in place when opening and closing a photo; the full-screen photo viewer has a black background. Automatic can change when your iPhone switches appearance. Colors keep text readable in both appearances. Choose your app icon separately; the logo artwork is also used in manna's branded surfaces."),
-            .init("waveform.path.ecg", "Help test reliability", "User settings has an optional Share diagnostic data switch. For new accounts on this device, this field-testing build starts with sharing on. You can turn it off in User settings. Your saved choice is kept across launches and updates, including TestFlight; an existing saved off setting remains off. While manna is open, small batches send timings, sizes, failure sources, short error codes and categories, app build, and a random session code to the developer. This includes network, speech, recording, and diagnostic-upload failures such as connection limits. Error messages are checked on this device for a connection-limit category; the messages themselves are not sent. Reports are linked to your signed-in account and retained for 14 days with scheduled cleanup. They exclude blessing text, recordings, photos, names, links, and credentials. Other circle members cannot read them. Send diagnostics now sends one queued batch. New error records go ahead of routine timing records, except that an upload already attempted must retry its original batch unchanged. Repeated retries of the same upload failure add only one error record until a batch succeeds. Turning sharing off discards unsent records; an upload already underway may finish. The device queue holds up to 1,000 recent records and removes older routine records first when full. It discards records older than 13 days when collection next opens, and may lose the last two seconds before a crash. Local demo keeps metrics on this device."),
+            .init("waveform.path.ecg", "Help test reliability", "User settings has an optional Share diagnostic data switch. Sharing starts off in 0.5.0, including TestFlight. Choose it during launch or turn it on in User settings. Older default-on settings require a new choice. Your new choice is kept across launches; you can turn it off at any time. While manna is open, small batches send timings, sizes, failure sources, short error codes and categories, app build, and a random session code to the developer. This includes network, speech, recording, and diagnostic-upload failures such as connection limits. Error messages are checked on this device for a connection-limit category; the messages themselves are not sent. Reports are linked to your signed-in account and retained for 14 days with scheduled cleanup. They exclude blessing text, recordings, photos, names, links, and credentials. Other circle members cannot read them. Send diagnostics now sends one queued batch. New error records go ahead of routine timing records, except that an upload already attempted must retry its original batch unchanged. Repeated retries of the same upload failure add only one error record until a batch succeeds. Turning sharing off discards unsent records; an upload already underway may finish. The device queue holds up to 1,000 recent records and removes older routine records first when full. It discards records older than 13 days when collection next opens, and may lose the last two seconds before a crash. Local demo keeps metrics on this device."),
             .init("line.3.horizontal", "Find your way back", "The hamburger menu keeps Help, About, User settings, and circle management within reach. You can revisit this guide whenever you need it."),
         ]
         case .accessibility: [

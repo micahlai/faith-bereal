@@ -23,10 +23,10 @@ struct BlessingCircleApp: App {
                         model.receiveAPNSRegistrationFailure(message)
                     }
                     appDelegate.notificationURLHandler = { url in
-                        Task { await model.handleDeepLink(url) }
+                        Task { if UserDefaults.standard.string(forKey: "privacy.acceptedVersion") == PrivacyContent.version { await model.handleDeepLink(url) } }
                     }
                     appDelegate.foregroundNotificationHandler = { url in
-                        Task { await model.handleForegroundNotification(url) }
+                        Task { if UserDefaults.standard.string(forKey: "privacy.acceptedVersion") == PrivacyContent.version { await model.handleForegroundNotification(url) } }
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .mannaSavingNetworkChanged).receive(on: RunLoop.main)) { _ in

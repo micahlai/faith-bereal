@@ -37,7 +37,7 @@ struct DiagnosticCollectionSettings: View {
             if let status = collection.status {
                 Text(status).foregroundStyle(.secondary).accessibilityIdentifier("diagnostics.status")
             }
-        } header: { Text("Field testing") } footer: {
+        } header: { Text("Optional diagnostics") } footer: {
             Text((collection.startsEnabledByDefault
                 ? "This field-test build enables sharing by default for new accounts on this device. Your saved choice is kept, and you can turn sharing off at any time. "
                 : "Optional. ")

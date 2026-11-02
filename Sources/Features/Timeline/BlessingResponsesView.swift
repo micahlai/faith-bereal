@@ -146,6 +146,7 @@ struct BlessingResponsesView: View {
                     AvatarBadge(member: member, size: 32)
                         .accessibilityHidden(true)
                 }
+                ContentSafetyActions(authorID: response.authorID, responseID: response.id)
                 Text(displayName(for: response.authorID))
                     .font(.subheadline.weight(.semibold))
                 Spacer()

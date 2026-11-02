@@ -2,11 +2,17 @@ import SwiftUI
 import PhotosUI
 
 struct RootView: View {
+    @AppStorage("privacy.acceptedVersion") private var acceptedPrivacy = ""
+    @State private var deferredURL: URL?
     @Environment(AppModel.self) private var model
 
     var body: some View {
         Group {
-            if model.isShowingSavedTimeline {
+            if acceptedPrivacy != PrivacyContent.version && !privacyTestBypass {
+                LaunchPrivacyView { acceptedPrivacy = PrivacyContent.version }
+            } else if model.accountDeletionPending {
+                AccountDeletionPendingView()
+            } else if model.isShowingSavedTimeline {
                 MainTabView()
             } else {
                 switch model.loadState {
@@ -41,7 +47,12 @@ struct RootView: View {
                 }
             }
         }
-        .task { await model.bootstrap() }
+        .task(id: acceptedPrivacy) {
+            if acceptedPrivacy == PrivacyContent.version || privacyTestBypass {
+                await model.bootstrap()
+                if let url = deferredURL { deferredURL = nil; await model.handleDeepLink(url) }
+            }
+        }
         .alert(
             "manna circle",
             isPresented: Binding(
@@ -54,9 +65,19 @@ struct RootView: View {
             Text(model.message ?? "")
         }
         .onOpenURL { url in
-            Task { await model.handleDeepLink(url) }
+            if acceptedPrivacy == PrivacyContent.version || privacyTestBypass {
+                Task { await model.handleDeepLink(url) }
+            } else { deferredURL = url }
         }
         .preferredColorScheme(preferredColorScheme)
+    }
+
+    private var privacyTestBypass: Bool {
+#if DEBUG
+        !ProcessInfo.processInfo.arguments.contains("--manna-privacy-ui-test") && (ProcessInfo.processInfo.arguments.contains("--manna-local-ui-test") || ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SKIP_ONBOARDING"] == "1")
+#else
+        false
+#endif
     }
 
     private var preferredColorScheme: ColorScheme? {
@@ -944,6 +965,7 @@ private struct UserSettingsView: View {
                     Text("Saved blessings")
                 }
 
+                PrivacySettingsSection()
                 DiagnosticCollectionSettings()
 
                 Section {
@@ -961,6 +983,8 @@ private struct UserSettingsView: View {
 
                 if model.usesAuthentication {
                     Section {
+                        NavigationLink("Delete account") { AccountDeletionView() }
+                            .foregroundStyle(.red)
                         Button("Sign out", role: .destructive) {
                             Task {
                                 await model.signOut()

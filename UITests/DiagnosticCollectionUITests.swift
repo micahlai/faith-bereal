@@ -12,24 +12,21 @@ final class DiagnosticCollectionUITests: XCTestCase {
     }
 
     @MainActor
-    func testFieldBuildDefaultsOnAndRemembersOptOutAcrossRelaunch() {
+    func testLaunchBuildDefaultsOffAndRemembersOptInAcrossRelaunch() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments += ["--manna-local-ui-test", "-user.appearancePreference", "light",
+        app.launchArguments = ["--manna-local-ui-test", "--manna-skip-onboarding", "-privacy.acceptedVersion", "2026-11-02", "-user.appearancePreference", "light",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.terminate()
         app.launch()
 
         openDiagnostics(app)
         let consent = app.switches["diagnostics.consent"]
-        XCTAssertEqual(consent.value as? String, "1")
-        reveal(app.buttons["diagnostics.sendNow"], in: app, requiresHittable: false)
-        XCTAssertTrue(app.buttons["diagnostics.sendNow"].exists)
-        XCTAssertFalse(app.buttons["diagnostics.sendNow"].isEnabled, "Local demo has no remote uploader")
-        changeConsent(consent, in: app, to: "0")
+        XCTAssertEqual(consent.value as? String, "0")
+        XCTAssertFalse(app.buttons["diagnostics.sendNow"].exists)
 
         app.terminate()
         app.launch()
@@ -73,7 +70,7 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments += ["--manna-local-ui-test", "-user.appearancePreference", largestText ? "dark" : "light",
+        app.launchArguments = ["--manna-local-ui-test", "--manna-skip-onboarding", "-privacy.acceptedVersion", "2026-11-02", "-user.appearancePreference", largestText ? "dark" : "light",
             "-UIPreferredContentSizeCategoryName",
             largestText ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.terminate()
@@ -139,7 +136,8 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.tabBars.buttons["Today"].tap()
         openDiagnostics(app)
         attachScreen(app, name: "Diagnostic collection opt-in Form", largestText: largestText)
-        XCTAssertEqual(app.switches["diagnostics.consent"].value as? String, "1")
+        XCTAssertEqual(app.switches["diagnostics.consent"].value as? String, "0")
+        changeConsent(app.switches["diagnostics.consent"], in: app, to: "1")
         reveal(app.buttons["diagnostics.sendNow"], in: app, requiresHittable: false)
         XCTAssertFalse(app.buttons["diagnostics.sendNow"].isEnabled, "Local fixtures must never upload diagnostics")
         attachScreen(app, name: "Diagnostic collection send controls", largestText: largestText)

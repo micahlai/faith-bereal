@@ -107,6 +107,11 @@ actor BlessingDraftStore {
         return drafts.sorted { $0.updatedAt > $1.updatedAt }
     }
 
+    func removeAccount(authorID: UUID) throws {
+        let directory = root.appendingPathComponent(authorID.uuidString, isDirectory: true)
+        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+    }
+
     func remove(authorID: UUID, circleID: UUID, promptID: UUID) throws {
         let folder = directory(authorID: authorID, circleID: circleID, promptID: promptID)
         if FileManager.default.fileExists(atPath: folder.path) { try FileManager.default.removeItem(at: folder) }

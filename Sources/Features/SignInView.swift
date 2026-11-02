@@ -30,7 +30,7 @@ struct SignInView: View {
                     request.nonce = SHA256.hash(data: Data(rawNonce.utf8))
                         .map { String(format: "%02x", $0) }
                         .joined()
-                    request.requestedScopes = [.fullName, .email]
+                    request.requestedScopes = [.fullName]
                 } onCompletion: { result in
                     handle(result)
                 }

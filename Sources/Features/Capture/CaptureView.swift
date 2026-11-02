@@ -47,6 +47,10 @@ struct CaptureView: View {
                             modePicker
                             captureArea
                             if mode != .video { photoAttachment }
+                            if mode != .typed || photoURL != nil {
+                                Text("New photos, audio and video wait for developer review before your circle can see them.")
+                                    .font(.footnote).foregroundStyle(.secondary)
+                            }
                             scriptureTag
                         } else {
                             repeatedBlessingPreview

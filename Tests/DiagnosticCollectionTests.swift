@@ -2,6 +2,26 @@ import XCTest
 @testable import BlessingCircle
 
 final class DiagnosticCollectionTests: XCTestCase {
+    func testLaunchRequiresNewConsentAndErasesLegacyQueue() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let account = UUID()
+        let old = BackendDiagnosticStore(root: root, defaultEnabled: true)
+        _ = try await old.beginSession(accountID: account)
+        let launch = BackendDiagnosticStore(root: root, defaultEnabled: false)
+        let migrated = try await launch.load(accountID: account)
+        XCTAssertFalse(migrated.isEnabled)
+        XCTAssertEqual(migrated.queuedCount, 0)
+        _ = try await launch.setConsent(accountID: account, enabled: true)
+        let reopened = BackendDiagnosticStore(root: root)
+        let chosen = try await reopened.load(accountID: account)
+        XCTAssertTrue(chosen.isEnabled)
+        try await reopened.erase(accountID: account)
+        let erased = try await reopened.load(accountID: account)
+        XCTAssertFalse(erased.isEnabled)
+        XCTAssertEqual(erased.queuedCount, 0)
+    }
+
     func testFieldBuildDefaultOnIsPersistedAndRestored() async throws {
         let root = temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -69,7 +89,7 @@ final class DiagnosticCollectionTests: XCTestCase {
         XCTAssertFalse(preservedOff.isEnabled, "Legacy false could be an opt-out and must be preserved")
         let ordinaryBuild = BackendDiagnosticStore(root: root)
         let preservedOn = try await ordinaryBuild.beginSession(accountID: enabledAccount)
-        XCTAssertTrue(preservedOn.isEnabled)
+        XCTAssertFalse(preservedOn.isEnabled, "0.5.0 requires fresh consent for legacy enabled queues")
     }
 
     @MainActor

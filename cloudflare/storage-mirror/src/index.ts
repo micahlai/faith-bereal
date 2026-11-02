@@ -3,6 +3,8 @@ export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   MIRROR_ENABLED: string;
+  ACCOUNT_DELETION_ENABLED?: string;
+  ACCOUNT_DELETION_PROCESSOR_SECRET?: string;
 }
 
 type Operation = 'copy' | 'delete';
@@ -124,7 +126,20 @@ export async function runMirror(env: Env): Promise<void> {
 }
 
 export default {
-  async scheduled(_event: ScheduledController, env: Env): Promise<void> { await runMirror(env); },
+  async scheduled(_event: ScheduledController, env: Env): Promise<void> {
+    await runMirror(env);
+    if (env.ACCOUNT_DELETION_ENABLED === 'true') {
+      if (!env.ACCOUNT_DELETION_PROCESSOR_SECRET) throw new Error('Account cleanup configuration missing');
+      const response = await fetch(`${origin(env)}/functions/v1/account-lifecycle`, {
+        method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(90_000),
+        headers: { authorization: `Bearer ${env.ACCOUNT_DELETION_PROCESSOR_SECRET}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'process' }),
+      });
+      if (!response.ok) { await response.body?.cancel(); throw new Error('Account cleanup failed'); }
+      const result = await response.json() as { failed?: number };
+      if (result.failed) throw new Error("Some account cleanup jobs need retry");
+    }
+  },
   // Never expose an upload proxy, media reader, or administrative HTTP route.
   async fetch(): Promise<Response> { return new Response('Not found', { status: 404 }); },
 } satisfies ExportedHandler<Env>;

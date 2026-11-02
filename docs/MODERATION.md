@@ -1,0 +1,11 @@
+# Launch moderation
+
+The initial 0.5.0 release is US only and age 13+. Micah Lai owns daily inbox review and a target of acting on urgent reports within 24 hours, as confirmed November 2, 2026. This is an operating obligation; code cannot establish that reviews actually occur. Review both queues before and throughout launch. Escalate threats/exploitation and obtain appropriate specialist/legal help when necessary. Never share reported content casually.
+
+New blessing photos/audio/video and response audio are withheld from peers pending human review. The author can view their own pending media, subject to normal circle access. Typed posts have a limited server phrase filter; contextual abuse can pass it and must be handled through reporting. Existing media is not retroactively queued. Reports remain private to the operator. Blocking is mutual for active content and notifications; earlier signed URLs and exported/saved copies cannot be recalled.
+
+From the app repository, run `node Scripts/moderation.mjs list`. It uses the already-linked project and operator login to create `build/moderation-review.html`, a private local report with ten-minute media links. Open that file locally. It contains sensitive user material: delete it after reviewing, and never commit, publish, or forward it. No service credential is embedded in the file. The report is bounded to 25 items per queue; process these and refresh until empty.
+
+For each report UUID, run `node Scripts/moderation.mjs report UUID dismiss`, `hide`, or `suspend`. Hiding removes access to the reported content. Suspending disables the author's active service access. For each media review UUID, run `node Scripts/moderation.mjs media UUID approve` or `reject`. Approval does not override an independent moderation hide. A rejection keeps the content hidden. Check the resulting inbox and app visibility. Do not promise immediate revocation of downloaded files or links already issued.
+
+Before public launch, test this tool against synthetic content, designate backup coverage, monitor queue age, and verify that members can report and block using an installed release build. Do not describe this service as continuously staffed or as automatically recognizing every harmful image, recording, or contextual message. Privacy/safety contact: micahlaidev@gmail.com.

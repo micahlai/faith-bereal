@@ -2,6 +2,41 @@ import XCTest
 @testable import BlessingCircle
 
 final class SavedBlessingStoreTests: XCTestCase {
+    func testAccountRemovalFencesAnAlreadyDownloadingSave() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blessing = fixture()
+        let copier = PausedArchiveCopier()
+        let store = SavedBlessingStore(root: root, copier: copier)
+        let save = Task { try await store.save(blessing: blessing, responses: [], userID: user) }
+        await copier.waitUntilPaused()
+        try await store.removeAccount(userID: user)
+        await copier.resume()
+        do { _ = try await save.value; XCTFail("In-flight save republished deleted data") } catch { }
+        let records = try await store.load(userID: user)
+        XCTAssertTrue(records.isEmpty)
+    }
+
+    func testBlockingPurgesOnlyBlockedAuthorsAndTheirResponses() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blockedPost = fixture(), keptPost = fixture()
+        let blocked = blockedPost.authorID
+        let reply = BlessingResponse(id: UUID(), blessingID: keptPost.id, circleID: keptPost.circleID,
+            authorID: blocked, mode: .voice, body: "Blocked reply", audioURL: URL(string: "https://example.com/blocked.m4a"), submittedAt: .now)
+        let keptReply = responseFixture(blessing: keptPost)
+        let store = SavedBlessingStore(root: root, copier: CountingArchiveCopier())
+        _ = try await store.save(blessing: blockedPost, responses: [], userID: user)
+        let before = try await store.save(blessing: keptPost, responses: [reply, keptReply], userID: user)
+        let blockedAudio = try XCTUnwrap(before.responses.first { $0.id == reply.id }?.audioURL)
+        try await store.removeContent(authorID: blocked, userID: user)
+        let records = try await store.load(userID: user)
+        XCTAssertNil(records[blockedPost.id])
+        XCTAssertEqual(records[keptPost.id]?.responses.map(\.id), [keptReply.id])
+        XCTAssertTrue(records[keptPost.id]?.hasAllSavedFiles == true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: blockedAudio.path))
+    }
+
     func testRefreshingRemoteURLsDownloadsEachSavedFileOnlyOnceAcrossRelaunch() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -372,5 +407,27 @@ private actor CountingArchiveCopier: SavedBlessingMediaCopying {
     func copy(from source: URL, to destination: URL) async throws {
         count += 1
         try Data("saved media".utf8).write(to: destination)
+    }
+}
+
+private actor PausedArchiveCopier: SavedBlessingMediaCopying {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var hasPaused = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
+    func waitUntilPaused() async {
+        if hasPaused { return }
+        await withCheckedContinuation { startWaiters.append($0) }
+    }
+    var isWaiting: Bool { continuation != nil }
+    func resume() { continuation?.resume(); continuation = nil }
+    func copy(from source: URL, to destination: URL) async throws {
+        if !hasPaused {
+            hasPaused = true
+            startWaiters.forEach { $0.resume() }; startWaiters = []
+            await withCheckedContinuation { continuation = $0 }
+        }
+        // Simulate a transport which recreates its target after account cleanup.
+        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("in-flight private media".utf8).write(to: destination)
     }
 }

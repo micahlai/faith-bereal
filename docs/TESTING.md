@@ -25,10 +25,10 @@ UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage 
 Use an integer build number greater than the latest App Store Connect build:
 
 ```sh
-TESTFLIGHT_BUILD_NUMBER=46 Scripts/prepare-testflight.sh
+TESTFLIGHT_BUILD_NUMBER=47 Scripts/prepare-testflight.sh
 ```
 
-The workflow regenerates the project, runs the complete local-demo unit and UI suites as separate Xcode test phases on the reliable small-phone default, archives the hosted Release configuration, exports an App Store Connect IPA, and validates production APNs, `get-task-allow = false`, Sign in with Apple, the shared App Group, matching app/extension version and build numbers, exempt-encryption declaration, app/extension signatures and privacy manifests, and the notification-logo resources. The next test version is 0.4.0 (46); confirm build-number availability in App Store Connect before upload. Separate phases avoid an Xcode worker handoff stall after ActivityKit unit coverage. Override the test device with `TESTFLIGHT_SIMULATOR_NAME='another installed simulator'` when needed. Release builds fail immediately when the hosted Supabase URL/key or production APNs setting is missing; Debug and simulator development retain the local-demo fallback.
+The workflow regenerates the project, runs the complete local-demo unit and UI suites as separate Xcode test phases on the reliable small-phone default, archives the hosted Release configuration, exports an App Store Connect IPA, and validates production APNs, `get-task-allow = false`, Sign in with Apple, the shared App Group, matching app/extension version and build numbers, exempt-encryption declaration, app/extension signatures and privacy manifests, and the notification-logo resources. The compliance test version is 0.5.0 (47); confirm build-number availability in App Store Connect before upload. Separate phases avoid an Xcode worker handoff stall after ActivityKit unit coverage. Override the test device with `TESTFLIGHT_SIMULATOR_NAME='another installed simulator'` when needed. Release builds fail immediately when the hosted Supabase URL/key or production APNs setting is missing; Debug and simulator development retain the local-demo fallback.
 
 If export reports `PLA Update available`, the Apple account holder must accept the updated Developer Program agreement in their account before automatic distribution provisioning can complete. Retry export afterward; do not treat a signed development archive as a validated distribution export.
 
@@ -68,6 +68,8 @@ Run `TimelineFilterUITests.testThreadsLayoutSurvivesTabChangesAndAppRelaunch` fo
 `Scripts/test-device-registration.sh` reproduces the predecessor's omitted-token argument-resolution failure in disposable PostgreSQL, then checks the compatibility migration, named partial calls, explicit null/blank token preservation, updates, environment/account isolation, revoked-registration recovery, mandatory environment, and anonymous/missing-identity denial. The same rollback-only test body, `supabase/tests/device_registration_optional_tokens.sql`, can verify hosted behavior using random fixtures; it sends no push and commits no registrations. `BackendOptimizationTests.testDeviceRegistrationSendsNullForEitherUnavailableToken` checks the real SDK request body against a strict four-argument HTTP fixture for either token arriving first and both present. Help tests cover retry and delivery limits.
 
 ### Field collection
+
+For **0.5.0 (47)**, sharing is off by default and requires fresh consent; legacy default-on queues are disabled/discarded on migration. The older build-32 behavior described below is historical. See [launch compliance](LAUNCH_COMPLIANCE.md).
 
 For v0.2.2 (32) field testers, Share diagnostic data defaults on for a new account/device. Explicit choices and legacy saved off settings are preserved. Check User settings → Field testing to verify the switch or disable sharing. The in-app setting persists without an Xcode environment variable, collects a bounded private queue, and uploads authenticated batches while active. Opt-out clears unsent metrics. See [tester setup, operator summaries, retention, and limits](TESTFLIGHT_FIELD_TESTING.md).
 

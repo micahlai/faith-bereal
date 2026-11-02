@@ -2,6 +2,23 @@
 
 This checklist separates work that can be proven locally from work that needs production Apple or Supabase access.
 
+
+## November 2, 2026 — 0.5.0 (47) compliance candidate
+
+Current detail: [launch compliance and retention proposal](LAUNCH_COMPLIANCE.md). Older dated audit rows below are historical evidence, not the current implementation status.
+
+- [x] US-only, 13+ launch documented and age/data-use acknowledgement added before normal sign-in/bootstrap. Actual App Store availability is United States only; age-rating questionnaire remains separate.
+- [x] Publish the website privacy policy, link it in launch/settings, and make optional diagnostics default off with fresh consent for legacy queues.
+- [x] Publish corrected App Store privacy labels after the owner's final attestation confirmation. Save policy/support URLs and change release draft to 0.5.0.
+- [x] Deploy report/block/moderation and new-media review holds; verify server authorization and provide the private operator inbox. Owner accepted daily reviews and urgent action within 24 hours.
+- [x] Deploy durable account deletion and verify synthetic two-account cleanup through actual Supabase Storage and R2, then Auth removal and completion receipt. Configure Apple server key without putting it in Git/app.
+- [x] Revalidate Cloudflare copy/replace/delete; observe successful minute Worker execution with mirror and account cleanup enabled. Supabase remains the read provider.
+- [x] Use generic alert envelopes, including removing private sender/photo/circle metadata. Update privacy manifests, Speech usage copy, Help and matching tests; retain typed/system-picker alternatives and no ATT prompt.
+- [x] Build, export and validate the signed 0.5.0 (47) IPA; preserve 0.4.0 (46). No upload or App Review submission.
+- [ ] Complete a physical disposable Apple-account reauthentication/revocation/deletion test plus camera/microphone/Speech/Photos denial/recovery, production notification privacy and accessibility acceptance.
+- [ ] Decide and implement the truthful retention schedule; hosted age-based cleanup remains disabled, as instructed. Existing client/Help 30-day guarantees remain a release blocker.
+- [ ] Complete remaining age-rating/review metadata, confirm build-number availability and install the uploaded candidate from TestFlight before public submission.
+
 ## November 1, 2026 — 0.4.0 (46) first public release audit
 
 **Decision: not ready for public App Store submission.** The settings defect is fixed on the hosted database. The remaining items below require implementation or acceptance; a passing build does not close them.

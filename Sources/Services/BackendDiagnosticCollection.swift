@@ -32,6 +32,7 @@ actor BackendDiagnosticStore {
         // Optional for build-31 files, whose stored false cannot distinguish a
         // previous opt-out from the original default. Preserve those choices.
         var consentWasChosen: Bool? = false
+        var consentVersion: Int?
         var sessionID: UUID?
         var pending: [Captured] = []
         var report: BackendDiagnosticReport?
@@ -55,10 +56,20 @@ actor BackendDiagnosticStore {
             .appendingPathComponent("BackendDiagnostics", isDirectory: true)
     }
 
+    func erase(accountID: UUID) throws {
+        states.removeValue(forKey: accountID)
+        if FileManager.default.fileExists(atPath: file(accountID).path) { try FileManager.default.removeItem(at: file(accountID)) }
+    }
+
     func load(accountID: UUID, now: Date = .now) throws -> DiagnosticCollectionSnapshot {
         if states[accountID] == nil {
             if FileManager.default.fileExists(atPath: file(accountID).path) {
                 var state = try Self.decoder().decode(State.self, from: Data(contentsOf: file(accountID)))
+                if !defaultsToEnabled && state.consentVersion != 1 {
+                    state.isEnabled = false; state.pending = []; state.report = nil
+                    state.consentVersion = 1
+                    try persist(accountID, state: state)
+                }
                 if state.consentWasChosen == false, state.isEnabled != defaultsToEnabled {
                     state.isEnabled = defaultsToEnabled
                     if !defaultsToEnabled { state.pending = []; state.report = nil }
@@ -97,6 +108,7 @@ actor BackendDiagnosticStore {
         var state = states[accountID] ?? State()
         state.isEnabled = enabled
         state.consentWasChosen = true
+        state.consentVersion = 1
         state.sessionID = UUID()
         if !enabled {
             state.pending = []
@@ -272,6 +284,10 @@ final class DiagnosticCollectionController {
         self.accountID = accountID
         let scope = generation
         do {
+            if let initial = UserDefaults.standard.object(forKey: "privacy.initialDiagnosticConsent") as? Bool {
+                _ = try await store.setConsent(accountID: accountID, enabled: initial)
+                UserDefaults.standard.removeObject(forKey: "privacy.initialDiagnosticConsent")
+            }
             let snapshot = try await store.beginSession(accountID: accountID)
             guard generation == scope else { return }
             apply(snapshot)
@@ -283,6 +299,21 @@ final class DiagnosticCollectionController {
                 status = "Diagnostic storage couldn’t open. Collection is paused; try enabling sharing again."
             }
         }
+    }
+
+    func eraseCurrentAccount() async {
+        let account = accountID
+        let upload = uploadTask
+        diagnostics.setCollectionSink(nil)
+        worker?.cancel(); worker = nil
+        upload?.cancel()
+        if let upload { _ = await upload.result }
+        // Close before erasing so an outstanding session checkpoint cannot
+        // recreate the account's diagnostic file after deletion.
+        if let account, let sessionID { _ = try? await store.endSession(accountID: account, sessionID: sessionID) }
+        sessionID = nil
+        deactivate()
+        if let account { try? await store.erase(accountID: account) }
     }
 
     func deactivate() {

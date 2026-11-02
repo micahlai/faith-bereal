@@ -28,3 +28,6 @@ file_size_limit = "75MiB"
 [functions.dispatch-prompts]
 verify_jwt = false
 
+
+[functions.account-lifecycle]
+verify_jwt = false

@@ -4,7 +4,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (new URL(request.url).pathname === '/production') return worker.fetch();
     const overrides = await request.json() as Partial<Env>;
-    try { await runMirror({ ...env, ...overrides }); return new Response('ok'); }
+    try { if (new URL(request.url).pathname === '/scheduled') await worker.scheduled({} as ScheduledController, { ...env, ...overrides }); else await runMirror({ ...env, ...overrides }); return new Response('ok'); }
     catch (error) { return new Response((error as Error).message, { status: 500 }); }
   },
 };
