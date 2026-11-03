@@ -1,6 +1,6 @@
-# 0.5.2 launch privacy and safety
+# 0.5.3 launch privacy and safety
 
-Current source version: **0.5.2 (49)**. Earlier 0.5.0 export records below remain historical. Current candidate evidence is recorded in STATUS.md; no App Review submission is implied.
+Current source version: **0.5.3 (50)**. Earlier 0.5.0 export records below remain historical. Current candidate evidence is recorded in STATUS.md; no App Review submission is implied.
 
 Initial launch: **United States only, ages 13+**, as selected by the owner. Do not intentionally admit under-13 users; investigate actual-knowledge reports through the privacy contact. The first launch shows the styled privacy step after App Icon choice and asks for age confirmation and acknowledgement of data use before app bootstrap/sign-in or profile uploads. It does not collect a birth date or establish independently verified age. Apple's age-rating questionnaire remains separate and must reflect the actual user-generated content features; do not equate a product age rule with a completed legal review.
 
@@ -30,7 +30,11 @@ The owner approved 30-day removal of blessing audio/video and response audio, ke
 
 Cleanup must start **three days after that updated build is actually available**, not after export. The distribution date is unknown. Production flag remains false and start date unset; the deployed scheduler requires both valid gates. This remaining rollout step is deliberate, not a completed deletion claim. Backups/provider logs, abandoned uploads and security/moderation records require their separate documented schedules; never promise that device exports or other members' saved copies can be recalled. Physical permission/APNs/Apple-revocation acceptance remains required for public launch.
 
-## Current 0.5.2 candidate
+## Current 0.5.3 candidate
+
+Save menus use custom media-preview cards. The Timeline removal reminder requires at least one blessing needing saving within three days; zero pending blessings hides it. The ready-circle badge reveals only the number of distinct circles with an available unsubmitted entry; both daily/evening in one circle count once. Quiet badge-only APNs carry no names/content/sound. Server count/delivery authorization and lease tests pass; physical badge-permission/background acceptance remains part of the existing device notification gate. Sign-out revokes the installation notifications and clears the icon badge. Current archive/export and UI evidence is in STATUS.md. This does not enable retention cleanup or imply a new public-release certification.
+
+## Historical 0.5.2 candidate
 
 Mandatory prepublication media review is removed in deployed migration `202611020007`; automatic-only pending holds are released and independent report/rejection holds stay protected. The reports-only operator inbox and private-circle gates remain. Privacy is a styled onboarding page immediately after logo choice, before sign-in/profile uploads. Full Debug unit suite: 372 passed; normal/largest-dark privacy UI and startup-navigation cases pass. Current evidence is in STATUS.md.
 

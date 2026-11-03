@@ -1,0 +1,78 @@
+-- Rollback-only; no APNs or Storage API calls. Tokens below are synthetic.
+begin;
+set local time zone 'UTC';
+set local lock_timeout='5s';
+set local statement_timeout='30s';
+do $$
+declare u uuid:=gen_random_uuid(); outsider uuid:=gen_random_uuid(); a public.circles; b public.circles;
+ d uuid:=gen_random_uuid(); installation uuid:=gen_random_uuid(); pa uuid; ea uuid; pb uuid; claim record; retry record; n integer; at_time timestamptz:=clock_timestamp();
+begin
+ insert into auth.users(id,raw_user_meta_data) values(u,'{}'),(outsider,'{}');
+ perform set_config('request.jwt.claim.sub',u::text,true);
+ a:=public.create_circle('Badge A',upper(left(replace(u::text,'-',''),8)),'UTC','12:00','22:00',10,true,120,'22:00');
+ b:=public.create_circle('Badge B',upper(left(replace(outsider::text,'-',''),8)),'UTC','12:00','22:00',10,true,120,'22:00');
+ delete from public.daily_prompts where circle_id in(a.id,b.id);
+ update public.circle_members set joined_at=at_time-interval '3 days' where user_id=u and circle_id in(a.id,b.id);
+ insert into public.daily_prompts(circle_id,local_date,kind,starts_at,ends_at,response_window_minutes,state) values
+ (a.id,at_time::date,'daily',at_time-interval '2 minutes',at_time+interval '8 minutes',10,'open') returning id into pa;
+ insert into public.daily_prompts(circle_id,local_date,kind,starts_at,ends_at,response_window_minutes,state) values
+ (a.id,at_time::date,'end_of_day',at_time-interval '1 minute',at_time+interval '419 minutes',420,'open') returning id into ea;
+ insert into public.daily_prompts(circle_id,local_date,kind,starts_at,ends_at,response_window_minutes,state) values
+ (b.id,at_time::date,'daily',at_time+interval '1 hour',at_time+interval '70 minutes',10,'scheduled') returning id into pb;
+ assert manna_private.ready_circle_count(u,at_time)=1,'daily and evening must count once per circle';
+ assert manna_private.ready_circle_count(outsider,at_time)=0,'outsider gained readiness';
+ update public.daily_prompts set starts_at=at_time-interval '2 minutes',ends_at=at_time+interval '8 minutes',state='open' where id=pb;
+ assert public.my_ready_blessing_circle_count()=2,'second circle did not add one';
+ insert into public.blessings(prompt_id,author_id,capture_mode,body,submitted_at,is_late) values(pa,u,'typed','Daily fixture',at_time,false);
+ assert public.my_ready_blessing_circle_count()=2,'sharing daily must retain unsubmitted evening in same circle';
+ insert into public.blessings(prompt_id,author_id,capture_mode,body,submitted_at,is_late) values(ea,u,'typed','Evening fixture',at_time,false);
+ assert public.my_ready_blessing_circle_count()=1,'completed circle remained in badge';
+ assert manna_private.ready_circle_count(u,at_time+interval '1 day')=0,'past closed opportunities remained';
+ update public.circles set allow_late_blessings=false where id=b.id;
+ assert manna_private.ready_circle_count(u,at_time+interval '9 minutes')=0,'closed nonlate window counted';
+ update public.circle_members set joined_at=at_time where circle_id=b.id and user_id=u;
+ assert manna_private.ready_circle_count(u,at_time+interval '9 minutes')=1,'first-day entry omitted';
+ update public.daily_prompts set starts_at=at_time+interval '1 hour',ends_at=at_time+interval '70 minutes',state='scheduled' where id=pb;
+ insert into public.daily_prompts(circle_id,local_date,kind,starts_at,ends_at,response_window_minutes,state) values
+ (b.id,at_time::date-1,'daily',at_time-interval '1 day',at_time-interval '1 day'+interval '10 minutes',10,'closed');
+ assert manna_private.ready_circle_count(u,at_time)=1,'welcome entry before today’s notification omitted';
+ delete from public.daily_prompts where circle_id=b.id and id<>pb;
+ update public.daily_prompts set starts_at=at_time-interval '2 minutes',ends_at=at_time+interval '8 minutes',state='open' where id=pb;
+ update public.circle_members set joined_at=at_time-interval '3 days' where circle_id=b.id and user_id=u;
+ update public.circles set allow_late_blessings=true where id=b.id;
+ assert manna_private.ready_circle_count(u,at_time+interval '9 minutes')=1,'current-day late entry missing';
+ insert into manna_private.suspended_users(user_id) values(u);
+ assert public.my_ready_blessing_circle_count()=0,'suspended account retained readiness';
+ delete from manna_private.suspended_users where user_id=u;
+ insert into public.device_registrations(id,user_id,installation_id,apns_token,environment) values(d,u,installation,'badge-fixture-token','sandbox');
+ select * into claim from public.claim_ready_circle_badges(500) q where q.device_id=d;
+ assert claim.badge_count=1 and claim.lease_token is not null,'initial badge not claimed';
+ assert not exists(select 1 from public.claim_ready_circle_badges(500) q where q.device_id=d),'duplicate concurrent claim';
+ perform public.complete_ready_circle_badge(d,claim.lease_token,false);
+ assert not exists(select 1 from public.claim_ready_circle_badges(500) q where q.device_id=d),'failure did not back off';
+ update manna_private.device_badge_state set leased_until=clock_timestamp()-interval '1 second' where device_id=d;
+ select * into retry from public.claim_ready_circle_badges(500) q where q.device_id=d;
+ perform public.complete_ready_circle_badge(d,claim.lease_token,true);
+ assert (select last_badge=-1 from manna_private.device_badge_state where device_id=d),'stale acknowledgement accepted';
+ perform public.complete_ready_circle_badge(d,retry.lease_token,true);
+ assert not exists(select 1 from public.claim_ready_circle_badges(500) q where q.device_id=d),'unchanged badge resent';
+ update public.device_registrations set apns_token='badge-fixture-replacement' where id=d;
+ select * into retry from public.claim_ready_circle_badges(500) q where q.device_id=d;
+ assert retry.device_id=d,'token rotation did not receive current badge';
+ perform public.complete_ready_circle_badge(d,retry.lease_token,true);
+ update public.circle_members set removed_at=clock_timestamp() where circle_id=b.id and user_id=u;
+ select * into retry from public.claim_ready_circle_badges(500) q where q.device_id=d;
+ assert retry.badge_count=0,'membership removal did not clear badge';
+ perform set_config('request.jwt.claim.sub',outsider::text,true);
+ execute 'set local role authenticated';
+ assert public.my_ready_blessing_circle_count()=0,'caller RPC leaked another account count';
+ perform public.revoke_installation_notifications(installation);
+ assert not has_function_privilege('authenticated','public.claim_ready_circle_badges(integer)','EXECUTE');
+ assert not has_function_privilege('anon','public.my_ready_blessing_circle_count()','EXECUTE');
+ execute 'reset role';
+ assert (select revoked_at is null from public.device_registrations where id=d),'outsider revoked another installation';
+ perform set_config('request.jwt.claim.sub',u::text,true);
+ perform public.revoke_installation_notifications(installation);
+ assert (select revoked_at is not null from public.device_registrations where id=d),'sign-out did not revoke badge delivery';
+end $$;
+rollback;

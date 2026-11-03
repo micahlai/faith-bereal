@@ -7,43 +7,68 @@ struct AutomaticSavingSettings: View {
     @State private var showingRetentionReview = false
 
     var body: some View {
-        savingToggle("Automatically save locally", identifier: "saving.automaticToggle", isOn: Binding(
-            get: { model.automaticallySavesLocally },
-            set: { enabled in
-                if enabled { Task { await model.setAutomaticSavingEnabled(true) } }
-                else { showingKeepChoices = true }
-            }
-        ))
+        savingToggle(
+            "Automatically save locally", identifier: "saving.automaticToggle",
+            isOn: Binding(
+                get: { model.automaticallySavesLocally },
+                set: { enabled in
+                    if enabled {
+                        Task { await model.setAutomaticSavingEnabled(true) }
+                    } else {
+                        showingKeepChoices = true
+                    }
+                }
+            )
+        )
         .disabled(model.isChangingAutomaticSaving || model.isChoosingAutomaticSaving)
-        .sheet(isPresented: $showingKeepChoices) { AutomaticSaveKeepView() }
+        .sheet(isPresented: $showingKeepChoices, onDismiss: { model.resumeAutomaticSavingAfterSelection() }) {
+            AutomaticSaveKeepView()
+        }
         if model.automaticallySavesLocally {
-            savingToggle("Save automatically on Wi-Fi only", identifier: "saving.wifiOnly", isOn: Binding(
-                get: { model.automaticallySavesOnWiFiOnly },
-                set: { value in Task { await model.setAutomaticSavingNetwork(wifiOnly: value) } }
-            ))
-            savingToggle("Include older history", identifier: "saving.olderHistory", isOn: Binding(
-                get: { model.automaticallySavesOlderHistory },
-                set: { value in Task { await model.setAutomaticSavingHistory(value) } }
-            ))
-            Text("Automatically checks every accessible blessing with media still in its 30-day window across all your circles, including older posts with recent voice responses. Include older history also keeps older text and photos. Keep manna open and connected until saving finishes.")
-                .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+            savingToggle(
+                "Save automatically on Wi-Fi only", identifier: "saving.wifiOnly",
+                isOn: Binding(
+                    get: { model.automaticallySavesOnWiFiOnly },
+                    set: { value in Task { await model.setAutomaticSavingNetwork(wifiOnly: value) } }
+                ))
+            savingToggle(
+                "Include older history", identifier: "saving.olderHistory",
+                isOn: Binding(
+                    get: { model.automaticallySavesOlderHistory },
+                    set: { value in Task { await model.setAutomaticSavingHistory(value) } }
+                ))
+            Text(
+                "Automatically checks every accessible blessing with media still in its 30-day window across all your circles, including older posts with recent voice responses. Include older history also keeps older text and photos. Keep manna open and connected until saving finishes."
+            )
+            .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
             if model.automaticSavingWaitingForWiFi {
                 Label("Waiting for Wi-Fi", systemImage: "wifi")
                     .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
             }
         }
-        Text("Audio and video are scheduled for server removal after 30 days. Cleanup begins three days after the updated build becomes available; retries can delay physical removal. Want to enjoy them afterward? Automatically save private copies on this device while manna is open. If this is off, use the pinned Timeline reminder to review and save recordings within 3 days of removal. Text, Bible references, and attached photos remain in circle history. Local copies don’t sync and are lost if you uninstall the app.")
-            .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
-        savingToggle("Show Timeline expiry reminder", identifier: "retention.showReminder", isOn: Binding(
-            get: { model.showsExpiryReminder }, set: { value in Task { await model.setExpiryReminderVisible(value) } }
-        ))
-        Text("The pinned reminder appears when automatic saving is off. Hiding it does not save recordings or change removal.")
-            .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+        Text(
+            "Audio and video are scheduled for server removal after 30 days. Cleanup begins three days after the updated build becomes available; retries can delay physical removal. Want to enjoy them afterward? Automatically save private copies on this device while manna is open. If this is off, use the pinned Timeline reminder to review and save recordings within 3 days of removal. Text, Bible references, and attached photos remain in circle history. Local copies don’t sync and are lost if you uninstall the app."
+        )
+        .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+        savingToggle(
+            "Show Timeline expiry reminder", identifier: "retention.showReminder",
+            isOn: Binding(
+                get: { model.showsExpiryReminder },
+                set: { value in Task { await model.setExpiryReminderVisible(value) } }
+            ))
+        Text(
+            "The pinned reminder appears when automatic saving is off and at least one blessing needs saving within 3 days. Hiding it does not save recordings or change removal."
+        )
+        .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
         if let usage = model.localArchiveUsage {
-            LabeledContent("Saved on this device", value: ByteCountFormatter.string(fromByteCount: usage.bytes, countStyle: .file))
-                .accessibilityIdentifier("saving.storageEstimate")
-            Text("About \(usage.blessingCount) saved blessings. Includes saved media and records for this account; excludes temporary caches, drafts and copies exported to Photos.")
-                .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+            LabeledContent(
+                "Saved on this device", value: ByteCountFormatter.string(fromByteCount: usage.bytes, countStyle: .file)
+            )
+            .accessibilityIdentifier("saving.storageEstimate")
+            Text(
+                "About \(usage.blessingCount) saved blessings. Includes saved media and records for this account; excludes temporary caches, drafts and copies exported to Photos."
+            )
+            .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
         }
         Button("Refresh storage estimate") { Task { await model.refreshLocalArchiveUsage() } }.frame(minHeight: 44)
             .task { await model.refreshLocalArchiveUsage() }
@@ -93,32 +118,61 @@ private struct AutomaticSaveKeepView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Text("Choose what stays on this device after automatic saving is off. Kept copies become normal manual saves; your existing manual saves are never removed.")
-                    Picker("Keep saved copies", selection: $choice) {
-                        ForEach(AutomaticSaveKeepChoice.allCases) { option in
-                            Text(option.title).tag(option)
+            ZStack {
+                AppTheme.canvas.ignoresSafeArea()
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(
+                                "Choose what stays on this device after automatic saving is off. Kept copies become normal manual saves; your existing manual saves are never removed."
+                            )
+                            VStack(spacing: 10) {
+                                ForEach(AutomaticSaveKeepChoice.allCases) { option in
+                                    Button {
+                                        choice = option
+                                    } label: {
+                                        HStack(alignment: .top, spacing: 12) {
+                                            Image(systemName: choice == option ? "checkmark.circle.fill" : "circle")
+                                                .foregroundStyle(
+                                                    choice == option ? AppTheme.primary : AppTheme.secondaryInk)
+                                            Text(option.title).foregroundStyle(AppTheme.ink)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .frame(minHeight: 44).padding(12)
+                                        .background(
+                                            choice == option ? AppTheme.primary.opacity(0.10) : AppTheme.canvas,
+                                            in: RoundedRectangle(cornerRadius: 14))
+                                    }.buttonStyle(.plain)
+                                        .accessibilityAddTraits(choice == option ? .isSelected : [])
+                                        .accessibilityIdentifier("saving.keep.\(option.rawValue)")
+                                        .accessibilityLabel(option.title)
+                                }
+                            }
+                        }.blessingCard()
+                        if choice == .selected {
+                            Text("Pick blessings to keep").font(.title2.weight(.bold))
+                            if records.isEmpty { Text("No automatic copies yet.").foregroundStyle(.secondary) }
+                            ForEach(records, id: \.blessing.id) { record in
+                                selectionRow(record)
+                            }
                         }
-                    }.pickerStyle(.inline)
-                }
-                if choice == .selected {
-                    Section("Pick blessings to keep") {
-                        if records.isEmpty { Text("No automatic copies yet.").foregroundStyle(.secondary) }
-                        ForEach(records, id: \.blessing.id) { record in
-                            selectionRow(record)
-                        }
-                    }
-                }
-                Section {
-                    Text("\(keptIDs.count) kept · \(records.count - keptIDs.count) removed")
-                    if removesExpiredMedia {
-                        Label("Some removed audio/video have expired. Removing those device copies is permanent.", systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(AppTheme.missed)
-                    }
-                    Text("Text and Bible references stay in circle history. Available server media can be downloaded again, but expired media cannot be recovered after its device copy is removed.")
-                        .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
-                }
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("\(keptIDs.count) kept · \(records.count - keptIDs.count) removed")
+                            if removesExpiredMedia {
+                                Label(
+                                    "Some removed audio/video have expired. Removing those device copies is permanent.",
+                                    systemImage: "exclamationmark.triangle"
+                                )
+                                .foregroundStyle(AppTheme.missed)
+                            }
+                            Text(
+                                "Text and Bible references stay in circle history. Available server media can be downloaded again, but expired media cannot be recovered after its device copy is removed."
+                            )
+                            .font(.footnote).foregroundStyle(AppTheme.secondaryInk)
+                        }.blessingCard()
+                    }.frame(maxWidth: 680).padding(AppTheme.pagePadding).frame(maxWidth: .infinity)
+                        .disabled(!ready || model.isChangingAutomaticSaving)
+                }.accessibilityIdentifier("saving.keep.scroll")
             }
             .navigationTitle("Saved copies")
             .navigationBarTitleDisplayMode(.inline)
@@ -128,43 +182,55 @@ private struct AutomaticSaveKeepView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Turn off") {
-                        if removesExpiredMedia { showingPermanentRemoval = true }
-                        else { apply() }
+                        if removesExpiredMedia { showingPermanentRemoval = true } else { apply() }
                     }.disabled(!ready || model.isChangingAutomaticSaving)
                 }
             }
-            .overlay { if !ready || model.isChangingAutomaticSaving { ProgressView().padding().background(.regularMaterial, in: Capsule()) } }
+            .overlay {
+                if !ready || model.isChangingAutomaticSaving {
+                    ProgressView().padding().background(.regularMaterial, in: Capsule())
+                }
+            }
             .alert("Permanently remove expired media?", isPresented: $showingPermanentRemoval) {
                 Button("Remove copies and turn off", role: .destructive) { apply() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Some audio/video are past their 30-day server expiry. These device copies may be the only remaining copies. Kept blessings and existing manual saves are unaffected.")
+                Text(
+                    "Some audio/video are past their 30-day server expiry. These device copies may be the only remaining copies. Kept blessings and existing manual saves are unaffected."
+                )
             }
         }
         .interactiveDismissDisabled(!ready || model.isChangingAutomaticSaving)
         .task {
+            guard !ready else { return }
             await model.pauseAutomaticSavingForSelection()
             selectedIDs = Set(records.map(\.blessing.id))
             ready = true
         }
-        .onDisappear { model.resumeAutomaticSavingAfterSelection() }
     }
 
     private func selectionRow(_ record: SavedBlessingRecord) -> some View {
-        Toggle(isOn: Binding(
-            get: { selectedIDs.contains(record.blessing.id) },
-            set: { keep in
-                if keep { selectedIDs.insert(record.blessing.id) }
-                else { selectedIDs.remove(record.blessing.id) }
-            }
-        )) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(authorAndCircle(for: record.blessing)).font(.subheadline.weight(.medium))
-                Text(record.blessing.body ?? "").lineLimit(3)
-                Text(record.blessing.submittedAt, format: .dateTime.month().day().year())
-                    .font(.caption).foregroundStyle(AppTheme.secondaryInk)
-            }.padding(.vertical, 4)
-        }
+        let blessing = record.blessing
+        let circle = model.circles.first { $0.id == blessing.circleID }
+        return VStack(alignment: .leading, spacing: 16) {
+            SavingBlessingPreview(
+                blessing: blessing, responses: record.responses,
+                memberName: blessing.authorID == model.currentUser?.id
+                    ? "You"
+                    : circle?.members.first { $0.id == blessing.authorID }?.displayName ?? "Member",
+                circleName: circle?.name ?? "Circle")
+            Button {
+                if !selectedIDs.insert(blessing.id).inserted { selectedIDs.remove(blessing.id) }
+            } label: {
+                Label(
+                    selectedIDs.contains(blessing.id) ? "Keep on this device" : "Remove from this device",
+                    systemImage: selectedIDs.contains(blessing.id) ? "checkmark.circle.fill" : "circle"
+                )
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }.buttonStyle(.plain).foregroundStyle(AppTheme.primary)
+                .accessibilityAddTraits(selectedIDs.contains(blessing.id) ? .isSelected : [])
+                .accessibilityIdentifier("saving.keepCopy.\(blessing.id)")
+        }.blessingCard()
     }
 
     private func apply() {
@@ -172,10 +238,4 @@ private struct AutomaticSaveKeepView: View {
         Task { if await model.disableAutomaticSaving(keepingIDs: keep) { dismiss() } }
     }
 
-    private func authorAndCircle(for blessing: Blessing) -> String {
-        let circle = model.circles.first { $0.id == blessing.circleID }
-        let name = blessing.authorID == model.currentUser?.id ? "You"
-            : circle?.members.first { $0.id == blessing.authorID }?.displayName ?? "Member"
-        return "\(name) · \(circle?.name ?? "Circle")"
-    }
 }

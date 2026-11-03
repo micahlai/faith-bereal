@@ -36,6 +36,9 @@ final class AppModel {
     var automaticallySavesOnWiFiOnly: Bool { localSavingPreferences.wifiOnly ?? true }
     var automaticallySavesOlderHistory: Bool { localSavingPreferences.includesOlderHistory ?? false }
     var showsExpiryReminder: Bool { localSavingPreferences.showsExpiryReminder ?? true }
+    var shouldShowTimelineExpiryReminder: Bool {
+        showsExpiryReminder && !automaticallySavesLocally && !expiringBlessings.isEmpty
+    }
     private(set) var expiringBlessings: [ExpiringBlessing] = []
     private(set) var isReviewingExpiry = false
     private(set) var expiryReviewError: String?
@@ -89,6 +92,11 @@ final class AppModel {
     private(set) var nextStreakRefreshAt: Date?
     private var widgetSnapshotTask: Task<Void, Never>?
     private var widgetSnapshotPendingDate: Date?
+    private var badgeRefreshTask: Task<Void, Never>?
+    private var badgeRefreshRequested = false
+    private var badgeGeneration = UUID()
+    private var badgeReadGeneration = UUID()
+    private(set) var readyBlessingCircleCount = 0
     private var remoteServicesConfigured = false
     private var apnsToken: String?
     private var pushToStartToken: String?
@@ -448,7 +456,7 @@ final class AppModel {
             hasSeenAbout = true; hasChosenInitialAppearance = true; hasChosenInitialSaving = true
         }
 #endif
-        if accountDeletionPending { await checkAccountDeletion(); return }
+        if accountDeletionPending { await clearNotificationBadge(); await checkAccountDeletion(); return }
         guard loadState == .idle else { return }
         let startup = UUID()
         bootstrapGeneration = startup
@@ -793,6 +801,8 @@ final class AppModel {
         }
     }
 
+    func isAuthorBlocked(_ id: UUID) -> Bool { blockedAuthorIDs.contains(id) }
+
     func restoreBlockedAuthor(_ id: UUID) { blockedAuthorIDs.remove(id) }
 
     func clearBlockedPresentation(authorID: UUID) async {
@@ -824,6 +834,7 @@ final class AppModel {
             try await accountSafety.requestDeletion(appleCode: appleCode, receipt: receipt)
             UserDefaults.standard.set(true, forKey: "privacy.deletionPending")
             accountDeletionPending = true
+            await clearNotificationBadge()
             bootstrapGeneration = UUID(); pageLoadGeneration = UUID(); dataScopeGeneration = UUID()
             await diagnosticCollection.eraseCurrentAccount()
             automaticSaveTask?.cancel(); identityPhotoTask?.cancel(); realtimeTask?.cancel(); metadataSaveTask?.cancel()
@@ -867,7 +878,12 @@ final class AppModel {
         let previousUserID = currentUser?.id ?? savedArchiveAccountID
         diagnosticCollection.deactivate()
         do {
+            if let revoker = repository as? any DeviceNotificationRevoking {
+                try await revoker.revokeDeviceNotifications(installationID: Self.installationID)
+            }
             try await authentication.signOut()
+            if registersForRemoteNotifications { UIApplication.shared.unregisterForRemoteNotifications() }
+            await clearNotificationBadge()
             metadataSaveTask?.cancel()
             await metadataSaveTask?.value
             identityPhotoTask?.cancel()
@@ -911,6 +927,7 @@ final class AppModel {
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             if let accountID = currentUser?.id { await diagnosticCollection.activate(accountID: accountID) }
+            if repository is any DeviceNotificationRevoking { await syncDeviceRegistration() }
             message = error.localizedDescription
         }
     }
@@ -2163,7 +2180,7 @@ final class AppModel {
                             + (((blessing.audioURL != nil || blessing.videoURL != nil) && saved?.containsRecording(for: blessing) != true) ? [blessing.submittedAt] : [])
                         guard let availableExpiry = availableDates.map({ MediaRetentionPolicy.expiresAt(submittedAt: $0) })
                             .filter({ $0.timeIntervalSince(now) <= MediaRetentionPolicy.warningWindow }).min() else { continue }
-                        pending.append(ExpiringBlessing(blessing: blessing,
+                        pending.append(ExpiringBlessing(blessing: blessing, responses: responses,
                             memberName: membership.members.first { $0.id == blessing.authorID }?.displayName ?? "Member",
                             circleName: membership.name, expiresAt: availableExpiry))
                     }
@@ -2764,7 +2781,50 @@ final class AppModel {
         return nil
     }
 
+    func refreshNotificationBadge(now: Date = .now) async {
+        guard let userID = currentUser?.id, canUseFreshCircle, !accountDeletionPending,
+              let provider = repository as? any ReadyCircleCountProviding else { return }
+        let generation = badgeGeneration
+        let read = UUID()
+        badgeReadGeneration = read
+        do {
+            let count = max(0, try await provider.readyCircleCount(userID: userID, now: now))
+            guard !Task.isCancelled, generation == badgeGeneration, read == badgeReadGeneration, currentUser?.id == userID,
+                  !accountDeletionPending else { return }
+            readyBlessingCircleCount = count
+            if usesAuthentication && registersForRemoteNotifications {
+                try await UNUserNotificationCenter.current().setBadgeCount(count)
+            }
+        } catch {
+            // A failed read must not pretend all circles are complete.
+        }
+    }
+
+    private func scheduleBadgeRefresh() {
+        guard runsBackgroundRefreshes, repository is any ReadyCircleCountProviding else { return }
+        badgeRefreshRequested = true
+        guard badgeRefreshTask == nil else { return }
+        badgeRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            while self.badgeRefreshRequested && !Task.isCancelled {
+                self.badgeRefreshRequested = false
+                await self.refreshNotificationBadge()
+            }
+            self.badgeRefreshTask = nil
+        }
+    }
+
+    private func clearNotificationBadge() async {
+        badgeGeneration = UUID()
+        badgeRefreshTask?.cancel(); badgeRefreshTask = nil; badgeRefreshRequested = false
+        readyBlessingCircleCount = 0
+        if usesAuthentication && registersForRemoteNotifications {
+            try? await UNUserNotificationCenter.current().setBadgeCount(0)
+        }
+    }
+
     private func scheduleWidgetSnapshotRefresh(now: Date = .now) {
+        scheduleBadgeRefresh()
         guard runsBackgroundRefreshes else { return }
         // Frequent realtime/scroll refreshes must not starve a multi-circle fetch.
         widgetSnapshotPendingDate = now

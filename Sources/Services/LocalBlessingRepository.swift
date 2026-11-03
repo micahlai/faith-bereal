@@ -5,7 +5,7 @@ private struct BlessingEntryGrantKey: Hashable, Sendable {
     let memberID: UUID
 }
 
-actor LocalBlessingRepository: BlessingRepository {
+actor LocalBlessingRepository: BlessingRepository, ReadyCircleCountProviding {
     private let calendar: Calendar
     private var currentUser: Member
     private var circles: [CircleGroup]
@@ -16,7 +16,7 @@ actor LocalBlessingRepository: BlessingRepository {
     private var entryTimes: [BlessingEntryGrantKey: Date] = [:]
     private var nudgedMembers: Set<NudgeKey> = []
 
-    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil, streakTestFixture: Bool = false, timelineTestFixture: Bool = false, retentionFixtureURL: URL? = nil) {
+    init(now: Date = .now, endOfDayStartsAt: Date? = nil, seedPhotoURL: URL? = nil, settingsTestRole: String? = nil, streakTestFixture: Bool = false, timelineTestFixture: Bool = false, retentionFixtureURL: URL? = nil, retentionVideoURL: URL? = nil) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
@@ -267,9 +267,11 @@ actor LocalBlessingRepository: BlessingRepository {
                     startsAt: sent.addingTimeInterval(-60), endsAt: sent.addingTimeInterval(540))
                 prompts.append(p)
                 let b = Blessing(id: UUID(), circleID: primaryCircle.id, promptID: p.id, authorID: user.id,
-                    captureMode: index == 2 ? .typed : .voice,
+                    captureMode: index == 2 ? .typed : (index == 1 && retentionVideoURL != nil ? .video : .voice),
                     body: index == 2 ? "An older blessing with a recent voice response" : "Recording to keep \(index + 1)",
-                    audioURL: index == 2 ? nil : audio, videoURL: nil, submittedAt: sent, isLate: false, scriptureReference: nil)
+                    audioURL: index == 2 || (index == 1 && retentionVideoURL != nil) ? nil : audio,
+                    videoURL: index == 1 ? retentionVideoURL : nil, submittedAt: sent, isLate: false,
+                    scriptureReference: nil, photoURL: index == 0 ? seedPhotoURL : nil)
                 blessings.append(b)
                 if index == 2 {
                     blessingResponses.append(BlessingResponse(id: UUID(), blessingID: b.id, circleID: primaryCircle.id,
@@ -288,6 +290,11 @@ actor LocalBlessingRepository: BlessingRepository {
             }
         }
 #endif
+    }
+
+    func readyCircleCount(userID: UUID, now: Date) async throws -> Int {
+        ReadyCircleBadgePolicy.count(circles: circles, prompts: prompts,
+            submitted: Set(blessings.filter { $0.authorID == userID }.map(\.promptID)), userID: userID, now: now)
     }
 
     func retentionPage(circle: CircleGroup, viewerID: UUID, now: Date, afterID: UUID?) async throws -> RetentionPage {

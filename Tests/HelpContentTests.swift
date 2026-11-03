@@ -15,7 +15,7 @@ final class HelpContentTests: XCTestCase {
 
     func testRetentionReviewGuideExplainsDefaultWarningStorageAndLimits() {
         let guide = HelpTopic.saving.steps.map(\.body).joined(separator: " ")
-        for concept in ["starts on for new users", "existing choice stays unchanged", "3 days", "pinned reminder", "Save all listed blessings", "incomplete check", "Show Timeline expiry reminder", "estimate", "no automatic 30-day removal", "Server removal does not wait", "older blessings with recent voice responses"] {
+        for concept in ["starts on for new users", "existing choice stays unchanged", "3 days", "pinned reminder", "Save all listed blessings", "incomplete check", "at least one accessible blessing", "disappears after the last listed blessing is saved", "Show Timeline expiry reminder", "estimate", "no automatic 30-day removal", "Server removal does not wait", "older blessings with recent voice responses"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
         XCTAssertFalse(guide.contains("last seven days"))
@@ -189,6 +189,17 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(privacy.contains("after choosing the app logo"))
         XCTAssertFalse(privacy.contains("wait for developer review"))
         XCTAssertTrue(HelpTopic.sharing.steps.map(\.body).joined().contains("removes that nudge option"))
+    }
+
+    func testSavePreviewAndReadyCircleBadgeGuides() {
+        let saving = HelpTopic.saving.steps.map(\.body).joined()
+        for concept in ["Timeline-style cards", "photo previews", "playable video and audio", "voice responses", "scrolling does not download recordings"] {
+            XCTAssertTrue(saving.contains(concept), concept)
+        }
+        let notifications = HelpTopic.notifications.steps.map(\.body).joined()
+        for concept in ["app icon badge", "same circle count as one", "completing both", "quiet notification updates", "delayed", "Badges"] {
+            XCTAssertTrue(notifications.contains(concept), concept)
+        }
     }
 
     func testEveryTopicHasDistinctTitleAndIllustratedPlainLanguageSteps() {

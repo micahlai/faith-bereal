@@ -33,4 +33,5 @@ for migration in "$repo_root"/supabase/migrations/*.sql; do
 run_sql -f "$repo_root/supabase/tests/media_publication_after.sql"
 run_sql -f "$repo_root/supabase/tests/launch_compliance.sql"
 run_sql -f "$repo_root/supabase/tests/retention_launch.sql"
+run_sql -f "$repo_root/supabase/tests/ready_circle_badges.sql"
 echo 'Full migration-chain launch safety and deletion checks passed.'

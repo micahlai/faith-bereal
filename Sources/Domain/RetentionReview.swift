@@ -7,6 +7,7 @@ struct RetentionPage: Sendable {
 
 struct ExpiringBlessing: Identifiable, Sendable {
     let blessing: Blessing
+    let responses: [BlessingResponse]
     let memberName: String
     let circleName: String
     let expiresAt: Date

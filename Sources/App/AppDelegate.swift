@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let route = notification.request.content.userInfo["route"] as? String
         let url = route.flatMap(URL.init(string:))
         await deliverForegroundNotification(url)
-        return [.banner, .list, .sound]
+        return [.banner, .list, .sound, .badge]
     }
 
     nonisolated func userNotificationCenter(

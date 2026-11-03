@@ -441,6 +441,8 @@ final class SavedBlessingStoreTests: XCTestCase {
         await model.reviewExpiringMedia(now: now)
         let due = model.expiringBlessings
         XCTAssertEqual(due.count, 3, "The older parent with recent voice audio must be included")
+        let responsePreview = try XCTUnwrap(due.first { !$0.responses.isEmpty })
+        XCTAssertEqual(responsePreview.responses.first?.audioURL, source, "Review must reuse the authorized response already fetched for inventory")
         XCTAssertTrue(due.contains { $0.blessing.submittedAt < now.addingTimeInterval(-40 * 86_400) })
         await model.saveVisibleBlessingsAutomatically()
         let user = try XCTUnwrap(model.currentUser?.id)
@@ -474,10 +476,17 @@ final class SavedBlessingStoreTests: XCTestCase {
         let store = SavedBlessingStore(root: root.appendingPathComponent("saved"))
         let model = AppModel(repository: repository, savedBlessingStore: store, registersForRemoteNotifications: false, runsBackgroundRefreshes: false)
         await model.bootstrap()
+        XCTAssertFalse(model.shouldShowTimelineExpiryReminder, "No known unsaved recording means no warning")
         await model.setAutomaticSavingEnabled(false)
-        await model.setExpiryReminderVisible(false)
+        XCTAssertFalse(model.shouldShowTimelineExpiryReminder, "Turning saving off must not invent pending recordings")
         await model.reviewExpiringMedia()
         XCTAssertEqual(model.expiringBlessings.count, 3)
+        XCTAssertTrue(model.shouldShowTimelineExpiryReminder)
+        await model.setAutomaticSavingEnabled(true)
+        XCTAssertFalse(model.shouldShowTimelineExpiryReminder)
+        await model.setAutomaticSavingEnabled(false)
+        await model.setExpiryReminderVisible(false)
+        XCTAssertFalse(model.shouldShowTimelineExpiryReminder)
         let post = try XCTUnwrap(model.expiringBlessings.first?.blessing)
         let saved = await model.saveBlessing(post)
         XCTAssertTrue(saved)
@@ -489,6 +498,16 @@ final class SavedBlessingStoreTests: XCTestCase {
         XCTAssertFalse(reopened.showsExpiryReminder)
         await reopened.reviewExpiringMedia()
         XCTAssertEqual(reopened.expiringBlessings.count, 2)
+        XCTAssertFalse(reopened.shouldShowTimelineExpiryReminder)
+        await reopened.setExpiryReminderVisible(true)
+        XCTAssertTrue(reopened.shouldShowTimelineExpiryReminder)
+        for item in reopened.expiringBlessings {
+            let saved = await reopened.saveBlessing(item.blessing)
+            XCTAssertTrue(saved)
+        }
+        XCTAssertFalse(reopened.shouldShowTimelineExpiryReminder, "Saving the final recording must remove the warning immediately")
+        await reopened.reviewExpiringMedia()
+        XCTAssertFalse(reopened.shouldShowTimelineExpiryReminder)
     }
 #endif
 

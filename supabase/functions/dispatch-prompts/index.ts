@@ -1,3 +1,4 @@
+import { deliverReadyCircleBadges, type ReadyCircleBadgeClaim } from "./ready-circle-badges.ts";
 import { mediaRetentionMayRun } from "./media-retention.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "npm:jose@5";
@@ -164,6 +165,7 @@ async function sendAPNs(
   payload: unknown,
   collapseID?: string,
   expiration?: number,
+  timeoutMilliseconds?: number,
 ): Promise<void> {
   const host = environment === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
   const response = await fetch(`https://${host}/3/device/${token}`, {
@@ -178,6 +180,7 @@ async function sendAPNs(
       ...(expiration !== undefined ? { "apns-expiration": String(expiration) } : {}),
     },
     body: JSON.stringify(payload),
+    ...(timeoutMilliseconds ? { signal: AbortSignal.timeout(timeoutMilliseconds) } : {}),
   });
   if (!response.ok) {
     let reason = "Unknown";
@@ -901,6 +904,33 @@ async function reconcileLateActivities(): Promise<void> {
   }
 }
 
+async function processReadyCircleBadges(): Promise<void> {
+  try {
+    const { data, error } = await admin.rpc("claim_ready_circle_badges", { p_limit: 100 });
+    if (error) throw error;
+    const outcome = await deliverReadyCircleBadges((data ?? []) as ReadyCircleBadgeClaim[], {
+      send: (claim, payload) => sendAPNs(claim.apns_token, claim.environment, bundleID, "alert",
+        payload, "manna-ready-circles", 0, 15000),
+      complete: async (claim, success) => {
+        const { error } = await admin.rpc("complete_ready_circle_badge", {
+          p_device: claim.device_id, p_lease: claim.lease_token, p_success: success,
+        });
+        if (error) throw error;
+      },
+      invalidToken: async (claim, error) => {
+        if (!permanentlyInvalidToken(error)) return;
+        // A failed old token cannot erase a replacement registered meanwhile.
+        const { error: updateError } = await admin.from("device_registrations").update({ apns_token: null })
+          .eq("id", claim.device_id).eq("apns_token", claim.apns_token);
+        if (updateError) throw updateError;
+      },
+    });
+    if (outcome.delivered || outcome.failed) console.log(JSON.stringify({ event: "ready_circle_badges", ...outcome }));
+  } catch {
+    console.error(JSON.stringify({ event: "ready_circle_badge_retry" }));
+  }
+}
+
 Deno.serve(async (request) => {
   const isScheduledDispatch = hasScheduledCredential(request);
   if (!isScheduledDispatch) {
@@ -935,6 +965,7 @@ Deno.serve(async (request) => {
     try {
       const outcome = await dispatchPrompt(forcedPrompt);
       await markPromptOpen(forcedPrompt.id, outcome);
+      await processReadyCircleBadges();
       return Response.json({ promptID: forcedPrompt.id, ...outcome });
     } catch (dispatchError) {
       const message = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
@@ -964,6 +995,7 @@ Deno.serve(async (request) => {
   await closeExpiredPrompts();
   await reconcileLateActivities();
   await processCircleNotifications();
+  await processReadyCircleBadges();
   // Enable only after the archive-capable client has shipped. Cleanup failures
   // are retryable and must not block today's notifications or Live Activities.
   if (mediaRetentionMayRun(Deno.env.get("MEDIA_RETENTION_ENABLED"), Deno.env.get("MEDIA_RETENTION_START_AT"), Date.now())) {

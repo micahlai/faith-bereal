@@ -24,6 +24,14 @@ final class BackendOptimizationTests: XCTestCase {
         XCTAssertEqual(fixture.requestPaths, Array(repeating: "/rest/v1/rpc/register_device", count: 3))
     }
 
+    func testReadyBadgeReadsOneCallerScopedCount() async throws {
+        let fixture = try BackendHTTPFixture()
+        defer { fixture.close() }
+        let count = try await fixture.repository.readyCircleCount(userID: fixture.viewerID, now: fixture.now)
+        XCTAssertEqual(count, 2)
+        XCTAssertEqual(fixture.requestPaths, ["/rest/v1/rpc/my_ready_blessing_circle_count"])
+    }
+
     func testAlreadySharedNudgeIsMappedToRefreshableResult() async throws {
         let fixture = try BackendHTTPFixture()
         defer { fixture.close() }
@@ -289,6 +297,7 @@ private final class BackendHTTPFixture: @unchecked Sendable {
         case "/rest/v1/daily_prompts":
             let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             value = items.contains { $0.name == "kind" && $0.value == "eq.end_of_day" } ? [] : [prompt]
+        case "/rest/v1/rpc/my_ready_blessing_circle_count": value = 2
         case "/rest/v1/rpc/nudge_circle_member":
             return (400, Data(#"{"code":"P0001","message":"This person already shared","details":null,"hint":null}"#.utf8))
         case "/rest/v1/rpc/retained_blessings_page":

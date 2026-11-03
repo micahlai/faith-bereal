@@ -1,7 +1,7 @@
 import Foundation
 import Supabase
 
-actor SupabaseBlessingRepository: BlessingRepository {
+actor SupabaseBlessingRepository: BlessingRepository, ReadyCircleCountProviding, DeviceNotificationRevoking {
     private let client: SupabaseClient
     private let mediaBucket = "blessing-media"
     private let avatarBucket = "avatars"
@@ -672,6 +672,15 @@ actor SupabaseBlessingRepository: BlessingRepository {
             "leave_circle",
             params: ["p_circle_id": circleID]
         ).measuredExecute(.rpc)
+    }
+
+    func revokeDeviceNotifications(installationID: UUID) async throws {
+        _ = try await client.rpc("revoke_installation_notifications", params: ["p_installation": installationID])
+            .measuredExecute(.rpc)
+    }
+
+    func readyCircleCount(userID _: UUID, now _: Date) async throws -> Int {
+        try await client.rpc("my_ready_blessing_circle_count").measuredExecute(.rpc).value
     }
 
     func nudgeMember(promptID: UUID, recipientID: UUID, senderID _: UUID, now _: Date) async throws -> Bool {

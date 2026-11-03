@@ -33,7 +33,7 @@ enum AppComposition {
             if ProcessInfo.processInfo.arguments.contains("--manna-reset-timeline-layout") {
                 UserDefaults.standard.removeObject(forKey: "timeline.layoutMode")
             }
-            let photoURL = ProcessInfo.processInfo.arguments.contains("--manna-photo-ui-test")
+            let photoURL = (ProcessInfo.processInfo.arguments.contains("--manna-photo-ui-test") || ProcessInfo.processInfo.arguments.contains("--manna-save-menu-ui-test"))
                 ? PhotoViewerUITestFixture.makePhoto() : nil
             let settingsRole = ProcessInfo.processInfo.environment["MANNA_CIRCLE_SETTINGS_TEST_ROLE"]
             let retentionAudio = ProcessInfo.processInfo.arguments.contains("--manna-retention-ui-test")
@@ -42,7 +42,7 @@ enum AppComposition {
                 settingsTestRole: settingsRole,
                 streakTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-streak-ui-test"),
                 timelineTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-timeline-ui-test"),
-                retentionFixtureURL: retentionAudio), diagnosticCollection: localCollection)
+                retentionFixtureURL: retentionAudio, retentionVideoURL: RetentionUITestFixture.makeVideo()), diagnosticCollection: localCollection)
         }
 #endif
         if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {
@@ -75,6 +75,14 @@ enum AppComposition {
 
 #if DEBUG
 private enum RetentionUITestFixture {
+    static func makeVideo() -> URL? {
+        guard let encoded = ProcessInfo.processInfo.environment["MANNA_SAVE_PREVIEW_VIDEO"],
+              let data = Data(base64Encoded: encoded),
+              let session = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] else { return nil }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SavingVideo-\(session).mp4")
+        do { try data.write(to: url); return url } catch { return nil }
+    }
+
     static func makeAudioAndPreferences() -> URL? {
         guard let session = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SAVING_TEST_SESSION"],
               let id = UUID(uuidString: session) else { return nil }

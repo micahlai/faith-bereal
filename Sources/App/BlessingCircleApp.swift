@@ -32,6 +32,13 @@ struct BlessingCircleApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .mannaSavingNetworkChanged).receive(on: RunLoop.main)) { _ in
                     if scenePhase == .active { model.resumeAutomaticSavingAfterNetworkChange() }
                 }
+                .task(id: scenePhase) {
+                    guard scenePhase == .active else { return }
+                    while !Task.isCancelled {
+                        await model.refreshNotificationBadge()
+                        do { try await Task.sleep(for: .seconds(60)) } catch { return }
+                    }
+                }
                 .onChange(of: scenePhase) { _, phase in
                     model.diagnosticCollection.setForeground(phase == .active)
                     guard phase == .active else { return }

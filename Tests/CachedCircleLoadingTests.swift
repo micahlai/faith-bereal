@@ -209,6 +209,44 @@ final class CachedCircleLoadingTests: XCTestCase {
     }
 
     @MainActor
+    func testBadgeFailurePreservesCountAndSignOutFencesLateRead() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.model.bootstrap()
+        await fixture.repository.setBadgeCount(2)
+        await fixture.model.refreshNotificationBadge()
+        XCTAssertEqual(fixture.model.readyBlessingCircleCount, 2)
+        await fixture.repository.setBadgeCount(-1)
+        await fixture.model.refreshNotificationBadge()
+        XCTAssertEqual(fixture.model.readyBlessingCircleCount, 2, "An unavailable count must not falsely clear readiness")
+        await fixture.repository.setBadgeCount(3)
+        await fixture.repository.gate.arm(.badge)
+        let read = Task { await fixture.model.refreshNotificationBadge() }
+        await fixture.repository.gate.waitUntilSuspended()
+        await fixture.model.signOut()
+        XCTAssertEqual(fixture.model.readyBlessingCircleCount, 0)
+        await fixture.repository.gate.release()
+        await read.value
+        XCTAssertEqual(fixture.model.readyBlessingCircleCount, 0, "The outgoing account cannot restore its badge")
+    }
+
+    @MainActor
+    func testLatestBadgeReadWinsOverSlowEarlierCount() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.model.bootstrap()
+        await fixture.repository.setBadgeCount(3)
+        await fixture.repository.gate.arm(.badge)
+        let old = Task { await fixture.model.refreshNotificationBadge() }
+        await fixture.repository.gate.waitUntilSuspended()
+        await fixture.repository.setBadgeCount(1)
+        await fixture.model.refreshNotificationBadge()
+        await fixture.repository.gate.release()
+        await old.value
+        XCTAssertEqual(fixture.model.readyBlessingCircleCount, 1)
+    }
+
+    @MainActor
     func testAlreadySharedNudgeRefreshesAndRemovesStaleCandidate() async throws {
         let fixture = try await CachedLoadingFixture(cachesMetadata: false)
         defer { fixture.removeFiles() }
@@ -669,7 +707,7 @@ private actor CachedLoadingAuthentication: AuthenticationProviding {
     func signOut() async throws { accountID = nil }
 }
 private actor CachedLoadingGate {
-    enum Operation { case page, context, bootstrap, leave }
+    enum Operation { case page, context, bootstrap, leave, badge }
     private var armed: Operation?
     private var suspended: CheckedContinuation<Void, Never>?
     private var observers: [CheckedContinuation<Void, Never>] = []
@@ -699,7 +737,15 @@ private actor CachedLoadingGate {
 }
 
 /// All domain behavior is forwarded to the local repository; only response delivery is delayed.
-private actor CachedLoadingRepository: BlessingRepository {
+private actor CachedLoadingRepository: BlessingRepository, ReadyCircleCountProviding {
+    private var badgeCount = 0
+    func setBadgeCount(_ count: Int) { badgeCount = count }
+    func readyCircleCount(userID: UUID, now: Date) async throws -> Int {
+        let value = badgeCount
+        await gate.pauseIfArmed(.badge)
+        guard value >= 0 else { throw URLError(.notConnectedToInternet) }
+        return value
+    }
     let gate = CachedLoadingGate()
     private let base: LocalBlessingRepository
     private var nextPage: TimelinePage?

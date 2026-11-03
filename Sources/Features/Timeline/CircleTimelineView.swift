@@ -58,8 +58,8 @@ struct CircleTimelineView: View {
             }.background(AppTheme.canvas)
         }
         .sheet(isPresented: $showingRetentionReview) { RetentionReviewView() }
-        .task(id: model.circle?.id) {
-            guard !model.automaticallySavesLocally, model.showsExpiryReminder else { return }
+        .task(id: expiryReviewScope) {
+            guard expiryReviewScope.isEnabled, expiryReviewScope.isConnected else { return }
             await model.reviewExpiringMedia()
         }
         .refreshable { await model.refreshCurrentCircle() }
@@ -77,6 +77,18 @@ struct CircleTimelineView: View {
                 allowsResponses: model.canRespond(to: selection.blessing)
             )
         }
+    }
+
+    private struct ExpiryReviewScope: Equatable {
+        let circleID: UUID?
+        let isEnabled: Bool
+        let isConnected: Bool
+    }
+
+    private var expiryReviewScope: ExpiryReviewScope {
+        ExpiryReviewScope(circleID: model.circle?.id,
+            isEnabled: !model.automaticallySavesLocally && model.showsExpiryReminder,
+            isConnected: model.canUseFreshCircle)
     }
 
     private var timelineControls: some View {
