@@ -97,6 +97,7 @@ final class AppModel {
     var loadState: LoadState = .idle
     private var dataScopeGeneration = UUID() {
         didSet {
+            knownSharedNudgeRecipients = []
             expiryReviewGeneration = UUID()
             expiringBlessings = []; expiryReviewCompletedAt = nil; expiryReviewError = nil; isReviewingExpiry = false
             localArchiveUsage = nil
@@ -179,6 +180,7 @@ final class AppModel {
     var isSubmitting = false
     private(set) var nudgingMembers: Set<NudgeKey> = []
     private(set) var nudgedMembers: Set<NudgeKey> = []
+    private var knownSharedNudgeRecipients: Set<NudgeKey> = []
     var isSwitchingCircle = false
     var message: String?
     var submittedBlessing: Blessing?
@@ -1797,6 +1799,14 @@ final class AppModel {
         }
     }
 
+    func recordPrivacyConsent(diagnostics: Bool) async {
+        if currentUser == nil {
+            UserDefaults.standard.set(diagnostics, forKey: "privacy.initialDiagnosticConsent")
+        } else {
+            await diagnosticCollection.setEnabled(diagnostics)
+        }
+    }
+
     func nudgeCandidates(at date: Date = .now) -> [NudgeCandidate] {
         guard let circle, let user = currentUser else { return [] }
         return [prompt, endOfDayPrompt].compactMap { $0 }.flatMap { target in
@@ -1808,7 +1818,9 @@ final class AppModel {
             })
             let next = prompt.flatMap { $0.kind == .daily && $0.startsAt > target.startsAt ? $0.startsAt : nil }
             return circle.members.filter { member in
-                NudgePolicy.isEligible(prompt: target, circle: circle, senderID: user.id, recipientID: member.id,
+                !blockedAuthorIDs.contains(member.id)
+                    && !knownSharedNudgeRecipients.contains(NudgeKey(promptID: target.id, recipientID: member.id))
+                    && NudgePolicy.isEligible(prompt: target, circle: circle, senderID: user.id, recipientID: member.id,
                     senderHasShared: currentUserBlessing(for: target) != nil,
                     recipientHasShared: shared.contains(member.id), now: date, nextDailyStart: next)
             }.map { NudgeCandidate(prompt: target, member: $0) }
@@ -1818,19 +1830,25 @@ final class AppModel {
     func nudge(_ candidate: NudgeCandidate, now: Date = .now) async {
         guard let user = currentUser, !nudgingMembers.contains(candidate.id), !nudgedMembers.contains(candidate.id),
               nudgeCandidates(at: now).contains(where: { $0.id == candidate.id }) else { return }
+        let scope = dataScopeGeneration
         nudgingMembers.insert(candidate.id)
         defer { nudgingMembers.remove(candidate.id) }
         do {
             let queued = try await repository.nudgeMember(promptID: candidate.prompt.id,
                 recipientID: candidate.member.id, senderID: user.id, now: now)
-            guard currentUser?.id == user.id else { return }
+            guard currentUser?.id == user.id, dataScopeGeneration == scope else { return }
             nudgedMembers.insert(candidate.id)
             message = queued
                 ? "Nudge queued for \(candidate.member.displayName). Their notification settings still apply."
                 : "This person has already been nudged for this blessing."
         } catch {
-            guard currentUser?.id == user.id, !Self.isCancellation(error) else { return }
-            message = error.localizedDescription
+            guard currentUser?.id == user.id, dataScopeGeneration == scope, !Self.isCancellation(error) else { return }
+            if case BlessingError.nudgeRecipientAlreadyShared = error {
+                knownSharedNudgeRecipients.insert(candidate.id)
+                await refreshCurrentCircle(force: true)
+                guard currentUser?.id == user.id, dataScopeGeneration == scope else { return }
+                message = "\(candidate.member.displayName) has already shared, so a nudge wasn’t sent."
+            } else { message = error.localizedDescription }
         }
     }
 

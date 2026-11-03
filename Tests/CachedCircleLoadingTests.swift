@@ -209,6 +209,24 @@ final class CachedCircleLoadingTests: XCTestCase {
     }
 
     @MainActor
+    func testAlreadySharedNudgeRefreshesAndRemovesStaleCandidate() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.model.bootstrap()
+        let shared = await fixture.model.submit(mode: .typed, body: "Grateful", audioURL: nil, videoURL: nil, scriptureReference: nil)
+        XCTAssertTrue(shared)
+        let candidate = try XCTUnwrap(fixture.model.nudgeCandidates().first)
+        await fixture.repository.failNudgeAsAlreadyShared()
+        let before = await fixture.repository.counts()
+        await fixture.model.nudge(candidate)
+        let after = await fixture.repository.counts()
+        XCTAssertGreaterThan(after.pages, before.pages)
+        XCTAssertFalse(fixture.model.nudgeCandidates().contains { $0.id == candidate.id })
+        XCTAssertFalse(fixture.model.nudgedMembers.contains(candidate.id))
+        XCTAssertTrue(fixture.model.message?.contains("already shared") == true)
+    }
+
+    @MainActor
     func testFailedRetentionInventoryNeverReportsACompletedExpiryCheck() async throws {
         let fixture = try await CachedLoadingFixture(cachesMetadata: false)
         defer { fixture.removeFiles() }
@@ -863,7 +881,10 @@ private actor CachedLoadingRepository: BlessingRepository {
         await gate.pauseIfArmed(.leave)
     }
 
+    private var nudgeAlreadyShared = false
+    func failNudgeAsAlreadyShared() { nudgeAlreadyShared = true }
     func nudgeMember(promptID: UUID, recipientID: UUID, senderID: UUID, now: Date) async throws -> Bool {
+        if nudgeAlreadyShared { nudgeAlreadyShared = false; throw BlessingError.nudgeRecipientAlreadyShared }
         return try await base.nudgeMember(promptID: promptID, recipientID: recipientID, senderID: senderID, now: now)
     }
 

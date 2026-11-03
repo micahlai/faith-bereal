@@ -15,7 +15,7 @@
 
 ## Hosted cleanup and launch gates
 
-Never remove bytes by directly deleting `storage.objects` metadata. The service-only transactional queue clears expired recording references and preserves retained history. Shared repeat paths remain while an unexpired reference needs them. The scheduler removes queue paths through the Supabase Storage API, which retires private R2 generations through the existing durable mirror queue. `acknowledge_media_deletions` retains the receipt until source metadata is absent **and every mirror generation is acknowledged deleted**. Failures retry; physical removal can be later than the target date. Clearing a recording must not requeue an unchanged, already-reviewed photo or undo an independent moderation hold.
+Never remove bytes by directly deleting `storage.objects` metadata. The service-only transactional queue clears expired recording references and preserves retained history. Shared repeat paths remain while an unexpired reference needs them. The scheduler removes queue paths through the Supabase Storage API, which retires private R2 generations through the existing durable mirror queue. `acknowledge_media_deletions` retains the receipt until source metadata is absent **and every mirror generation is acknowledged deleted**. Failures retry; physical removal can be later than the target date. Clearing a recording must not requeue an unchanged photo or undo an independent moderation hold.
 
 Installing migrations does not start historical cleanup. `dispatch-prompts` requires BOTH:
 
@@ -24,7 +24,7 @@ Installing migrations does not start historical cleanup. `dispatch-prompts` requ
 
 Leave the flag false and start date unset until actual updated-build availability is verified. Record `available_at`, calculate `available_at + 72 hours`, set the UTC start gate, then enable the flag only under that approved schedule. No date has been invented or configured. Removing either gate pauses new batches, but cannot recover already removed recordings. Monitor the deletion queue, R2 failures and provider source absence after activation; alert/act on persistent failures. Backups, provider logs, exported copies and other members' device archives are separate from active-service recording removal. Do not claim a guaranteed backup erasure deadline.
 
-Migrations: original queue `202610080001`, paged inventory `202611020005`, physical two-store acknowledgement and moderation-safe cleanup `202611020006`. Private R2 storage is a copy of Supabase uploads; app reads still use Supabase, and this feature does not claim to fix its egress usage.
+Migrations: original queue `202610080001`, paged inventory `202611020005`, physical two-store acknowledgement and moderation-safe cleanup `202611020006`, normal media publication without prior developer approval `202611020007`. Private R2 storage is a copy of Supabase uploads; app reads still use Supabase, and this feature does not claim to fix its egress usage.
 
 ## Verification
 

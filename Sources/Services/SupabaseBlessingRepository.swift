@@ -675,9 +675,13 @@ actor SupabaseBlessingRepository: BlessingRepository {
     }
 
     func nudgeMember(promptID: UUID, recipientID: UUID, senderID _: UUID, now _: Date) async throws -> Bool {
-        try await client.rpc("nudge_circle_member", params: [
-            "p_prompt_id": promptID, "p_recipient_id": recipientID,
-        ]).measuredExecute(.rpc).value
+        do {
+            return try await client.rpc("nudge_circle_member", params: [
+                "p_prompt_id": promptID, "p_recipient_id": recipientID,
+            ]).measuredExecute(.rpc).value
+        } catch let error as PostgrestError where error.message == "This person already shared" {
+            throw BlessingError.nudgeRecipientAlreadyShared
+        }
     }
 
     func timelineResponderSummaries(blessingIDs: [UUID], viewerID: UUID) async throws -> [TimelineResponderSummary] {

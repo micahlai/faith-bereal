@@ -47,7 +47,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 - Sign-in uses the manna wordmark. Sign out is located only in User settings, not the global menu or Circle page.
 
-- Initial US-only, 13+ launch shows the privacy/age acknowledgement before bootstrap; optional diagnostics start off. After that gate, setup is a reversible six-step flow: About, Your Profile, Appearance, App Icon, Local Saving, and Widget. Every step after the first provides Back and Continue controls. App-icon choices use the real cream and midnight artwork in equal one-column cards, and the widget page briefly explains both prompt and rotating-blessing states plus Apple's Home Screen installation steps. Accounts which completed the older setup are asked only for the new local-saving choice and widget reminder.
+- Initial US-only, 13+ launch uses one styled, reversible seven-step setup: About, Appearance, App Icon, Your Privacy, Your Profile, Local Saving, and Widget. The privacy page follows logo choice and requires age/data-use agreement before bootstrap, sign-in or profile upload; optional diagnostics start off. Every step after the first provides Back and Continue controls. App-icon choices use the real cream and midnight artwork in equal one-column cards, and the widget page briefly explains both prompt and rotating-blessing states plus Apple's Home Screen installation steps. Accounts which completed the older setup are asked only for the new local-saving choice and widget reminder.
 - A global hamburger menu opens user settings and circle management from every primary tab.
 - Bible translation is an account-wide preference in user settings, not a circle setting.
 - Appearance is an account-wide preference with system, light, and dark choices.
@@ -211,3 +211,8 @@ The [offline capture and video plan](OFFLINE_CAPTURE_AND_VIDEO_PLAN.md) records 
 ## Storage migration staging
 
 An optional server-side Cloudflare R2 mirror copies new/changed hosted media in the background with durable retries. Upload completion and every app read continue through Supabase. It covers private blessing/response media, avatars, and circle photos, plus version-specific replacement/deletion cleanup. It does not mirror the database or change local-demo behavior, current visibility rules, or sharing success. Existing-media backfill and authenticated R2 reads are separate rollout steps. See [CLOUDFLARE_STORAGE.md](CLOUDFLARE_STORAGE.md).
+
+## Media publication (0.5.2)
+
+- Circle photos, audio, video and response audio require no developer approval before publication. Normal membership and today’s own-submission gate still apply. Explicit report/rejection hides, suspension, mutual blocking and limited text filtering remain. Reports require daily operator review; no automatic image/audio screening is claimed.
+- An already-shared nudge response triggers a fresh circle read and removes that member from the local nudge candidates for that prompt without claiming a nudge was queued. Blocked members are excluded from nudge candidates.

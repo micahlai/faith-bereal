@@ -37,20 +37,16 @@ begin
  assert not public.can_view_blessing(p.id,peer),'hidden content visible';
  denied:=false;begin insert into public.blessings(prompt_id,author_id,capture_mode,body,is_late) values(p.id,viewer,'typed','kill yourself',false);exception when sqlstate '22023' then denied:=true;end;
  assert denied,'text filter bypassed';
- -- Media is pending for peers and visible to its author, then reviewed.
+ -- Adding media does not introduce another hold or undo an explicit hide.
  perform set_config('request.jwt.claim.sub',peer::text,true);
  update public.blessings set photo_path=c.id::text||'/'||p.id::text||'/'||peer::text||'/fixture.jpg' where id=b;
- assert public.can_view_blessing(p.id,peer);
- select id into strict review from manna_private.media_review_queue where blessing_id=b;
  perform set_config('request.jwt.claim.sub',viewer::text,true);
- assert not public.can_view_blessing(p.id,peer),'pending media leaked';
- perform public.resolve_media_review(review,true);
- assert not public.can_view_blessing(p.id,peer),'approval undid an independent moderation hold';
+ assert not public.can_view_blessing(p.id,peer),'media replacement undid report hold';
+ assert not exists(select 1 from manna_private.media_review_queue where blessing_id=b),'new media queued for mandatory approval';
+ -- Explicit service-only fixture restoration; dismissing a report alone does not unhide.
  update manna_private.content_reports set status='dismissed' where id=report;
- update public.blessings set photo_path=replace(photo_path,'fixture.jpg','fixture-reviewed.jpg') where id=b;
- select id into strict review from manna_private.media_review_queue where blessing_id=b;
- perform public.resolve_media_review(review,true);
- assert public.can_view_blessing(p.id,peer),'approved media stayed hidden';
+ delete from manna_private.hidden_content where blessing_id=b;
+ assert public.can_view_blessing(p.id,peer),'ordinary media stayed hidden';
  -- Own account deletion must transfer ownership, remove authored content, block
  -- old sessions and future uploads, and wait for both stores before readiness.
  insert into storage.objects(bucket_id,name,version,owner_id) values('avatars',viewer::text||'/avatar.jpg','1',viewer::text);

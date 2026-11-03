@@ -227,19 +227,13 @@ final class BlessingCircleUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.staticTexts["Step 1 of 6"].exists)
+        XCTAssertTrue(app.staticTexts["Step 1 of 7"].exists)
         XCTAssertTrue(app.staticTexts["circle"].exists)
         app.buttons["Continue"].tap()
 
-        XCTAssertTrue(app.navigationBars["Your profile"].waitForExistence(timeout: 3))
-        app.buttons["Edit name and photo"].tap()
-        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 3))
-        app.buttons["Cancel"].tap()
-        XCTAssertTrue(app.buttons["Back"].exists)
+        XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
         app.buttons["Back"].tap()
         XCTAssertTrue(app.navigationBars["Welcome"].waitForExistence(timeout: 3))
-
-        app.buttons["Continue"].tap()
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout: 3))
         app.buttons["Continue"].tap()
@@ -256,6 +250,13 @@ final class BlessingCircleUITests: XCTestCase {
         onboardingLayout.lifetime = .keepAlways
         add(onboardingLayout)
 
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.navigationBars["Your privacy"].waitForExistence(timeout: 3))
+        app.buttons["privacy.continue"].tap()
+        XCTAssertTrue(app.navigationBars["Your profile"].waitForExistence(timeout: 3))
+        app.buttons["Edit name and photo"].tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].tap()
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.navigationBars["Local saving"].waitForExistence(timeout: 3))
         let automaticSaving = app.switches["saving.automaticToggle"]

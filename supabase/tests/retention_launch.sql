@@ -38,8 +38,7 @@ begin
  -- Cleanup of a recording must preserve an approved photo's visibility.
  photo:=c.id::text||'/'||p::text||'/'||viewer::text||'/photo.jpg';
  update public.blessings set photo_path=photo where id=old_parent;
- select id into strict review from manna_private.media_review_queue where blessing_id=old_parent;
- perform public.resolve_media_review(review,true);
+ assert not exists(select 1 from manna_private.media_review_queue where blessing_id=old_parent);
  update public.blessings set media_expired_at=now(),audio_path=null,video_path=null where id=old_parent;
  assert not exists(select 1 from manna_private.media_review_queue where blessing_id=old_parent),'unchanged photo was requeued';
  assert (select photo_path=photo and body='History' from public.blessings where id=old_parent);

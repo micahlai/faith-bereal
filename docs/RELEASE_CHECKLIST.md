@@ -10,7 +10,7 @@ Current detail: [launch compliance and retention proposal](LAUNCH_COMPLIANCE.md)
 - [x] US-only, 13+ launch documented and age/data-use acknowledgement added before normal sign-in/bootstrap. Actual App Store availability is United States only; age-rating questionnaire remains separate.
 - [x] Publish the website privacy policy, link it in launch/settings, and make optional diagnostics default off with fresh consent for legacy queues.
 - [x] Publish corrected App Store privacy labels after the owner's final attestation confirmation. Save policy/support URLs and change release draft to 0.5.0.
-- [x] Deploy report/block/moderation and new-media review holds; verify server authorization and provide the private operator inbox. Owner accepted daily reviews and urgent action within 24 hours.
+- [x] Deploy report/block/moderation; allow normal circle media publication without prior developer approval, retain explicit hides, verify server authorization and provide the private operator inbox. Owner accepted daily reviews and urgent action within 24 hours.
 - [x] Deploy durable account deletion and verify synthetic two-account cleanup through actual Supabase Storage and R2, then Auth removal and completion receipt. Configure Apple server key without putting it in Git/app.
 - [x] Revalidate Cloudflare copy/replace/delete; observe successful minute Worker execution with mirror and account cleanup enabled. Supabase remains the read provider.
 - [x] Use generic alert envelopes, including removing private sender/photo/circle metadata. Update privacy manifests, Speech usage copy, Help and matching tests; retain typed/system-picker alternatives and no ATT prompt.

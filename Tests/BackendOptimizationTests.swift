@@ -24,6 +24,15 @@ final class BackendOptimizationTests: XCTestCase {
         XCTAssertEqual(fixture.requestPaths, Array(repeating: "/rest/v1/rpc/register_device", count: 3))
     }
 
+    func testAlreadySharedNudgeIsMappedToRefreshableResult() async throws {
+        let fixture = try BackendHTTPFixture()
+        defer { fixture.close() }
+        do {
+            _ = try await fixture.repository.nudgeMember(promptID: fixture.promptID, recipientID: fixture.peerID, senderID: fixture.viewerID, now: fixture.now)
+            XCTFail("The already-shared result must not look like a queued nudge")
+        } catch { XCTAssertEqual(error as? BlessingError, .nudgeRecipientAlreadyShared) }
+    }
+
     func testRetentionInventoryConsumesFortyAndContinuesFromLastReturnedID() async throws {
         let fixture = try BackendHTTPFixture()
         defer { fixture.close() }
@@ -280,6 +289,8 @@ private final class BackendHTTPFixture: @unchecked Sendable {
         case "/rest/v1/daily_prompts":
             let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             value = items.contains { $0.name == "kind" && $0.value == "eq.end_of_day" } ? [] : [prompt]
+        case "/rest/v1/rpc/nudge_circle_member":
+            return (400, Data(#"{"code":"P0001","message":"This person already shared","details":null,"hint":null}"#.utf8))
         case "/rest/v1/rpc/retained_blessings_page":
             var body = request.httpBody
             if body == nil, let stream = request.httpBodyStream {

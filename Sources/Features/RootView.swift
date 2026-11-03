@@ -4,12 +4,23 @@ import PhotosUI
 struct RootView: View {
     @AppStorage("privacy.acceptedVersion") private var acceptedPrivacy = ""
     @State private var deferredURL: URL?
+    @State private var completedPrivacyPrelude = false
     @Environment(AppModel.self) private var model
 
     var body: some View {
         Group {
             if acceptedPrivacy != PrivacyContent.version && !privacyTestBypass {
-                LaunchPrivacyView { acceptedPrivacy = PrivacyContent.version }
+                StartupOnboardingView(
+                    initialPage: model.hasSeenAbout ? .appearance : .about,
+                    endsAfterPrivacy: true,
+                    privacyAccepted: false,
+                    diagnosticsEnabled: false,
+                    onPrivacyAccepted: { diagnostics in
+                        await model.recordPrivacyConsent(diagnostics: diagnostics)
+                        completedPrivacyPrelude = true
+                        acceptedPrivacy = PrivacyContent.version
+                    }, onFinished: {}
+                )
             } else if model.accountDeletionPending {
                 AccountDeletionPendingView()
             } else if model.isShowingSavedTimeline {
@@ -21,8 +32,14 @@ struct RootView: View {
                 case .ready:
                     if !model.hasSeenAbout || !model.hasChosenInitialAppearance || !model.hasChosenInitialSaving {
                         StartupOnboardingView(
-                            initialPage: !model.hasSeenAbout ? .about
-                                : (!model.hasChosenInitialAppearance ? .appearance : .saving)
+                            initialPage: completedPrivacyPrelude ? .profile : !model.hasSeenAbout ? .about
+                                : (!model.hasChosenInitialAppearance ? .appearance : .saving),
+                            privacyAccepted: acceptedPrivacy == PrivacyContent.version || privacyTestBypass,
+                            diagnosticsEnabled: model.diagnosticCollection.isEnabled,
+                            onPrivacyAccepted: { diagnostics in
+                                await model.recordPrivacyConsent(diagnostics: diagnostics)
+                                acceptedPrivacy = PrivacyContent.version
+                            }
                         ) {
                             model.hasSeenAbout = true
                             model.hasChosenInitialAppearance = true
@@ -177,11 +194,12 @@ private struct AboutPageContent: View {
     }
 }
 
-private enum StartupOnboardingPage: Int, CaseIterable {
+enum StartupOnboardingPage: Int, CaseIterable {
     case about
-    case profile
     case appearance
     case appIcon
+    case privacy
+    case profile
     case saving
     case widget
 
@@ -191,6 +209,7 @@ private enum StartupOnboardingPage: Int, CaseIterable {
         case .profile: "Your profile"
         case .appearance: "Appearance"
         case .appIcon: "App icon"
+        case .privacy: "Your privacy"
         case .saving: "Local saving"
         case .widget: "Widget"
         }
@@ -202,12 +221,23 @@ private enum StartupOnboardingPage: Int, CaseIterable {
 private struct StartupOnboardingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var page: StartupOnboardingPage
     @State private var showingProfileEditor = false
+    @State private var privacyChoices: PrivacyChoices
+    @State private var acceptingPrivacy = false
+    let endsAfterPrivacy: Bool
+    let onPrivacyAccepted: (Bool) async -> Void
     let onFinished: () -> Void
 
-    init(initialPage: StartupOnboardingPage, onFinished: @escaping () -> Void) {
+    init(initialPage: StartupOnboardingPage, endsAfterPrivacy: Bool = false,
+         privacyAccepted: Bool, diagnosticsEnabled: Bool,
+         onPrivacyAccepted: @escaping (Bool) async -> Void, onFinished: @escaping () -> Void) {
         _page = State(initialValue: initialPage)
+        _privacyChoices = State(initialValue: PrivacyChoices(ageConfirmed: privacyAccepted,
+            sharingConsent: privacyAccepted, diagnostics: diagnosticsEnabled))
+        self.endsAfterPrivacy = endsAfterPrivacy
+        self.onPrivacyAccepted = onPrivacyAccepted
         self.onFinished = onFinished
     }
 
@@ -263,9 +293,11 @@ private struct StartupOnboardingView: View {
             AppearanceOnboardingPage(selection: appearancePreference)
         case .appIcon:
             AppIconOnboardingPage()
+        case .privacy:
+            PrivacyOnboardingPage(choices: $privacyChoices)
         case .saving:
             VStack(alignment: .leading, spacing: 24) {
-                onboardingHeading("Keep blessings after 30 days", "Audio and video are deleted from the server after 30 days. Still want to enjoy them? Save them locally. Even with automatic saving off, you can choose individual blessings to save.")
+                onboardingHeading("Keep blessings after 30 days", "Audio and video are scheduled for removal after 30 days. Save private copies to enjoy them later. With automatic saving off, use the Timeline reminder to save recordings before removal.")
                 VStack(alignment: .leading, spacing: 16) {
                     AutomaticSavingSettings()
                 }.blessingCard()
@@ -279,10 +311,12 @@ private struct StartupOnboardingView: View {
 
     private var navigationControls: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                if page != .about { backControl }
-                Spacer(minLength: 12)
-                continueControl
+            if !dynamicTypeSize.isAccessibilitySize {
+                HStack(spacing: 12) {
+                    if page != .about { backControl }
+                    Spacer(minLength: 12)
+                    continueControl
+                }
             }
             VStack(spacing: 8) {
                 if page != .about {
@@ -302,24 +336,36 @@ private struct StartupOnboardingView: View {
         Button { move(to: page.rawValue - 1) } label: {
             Text("Back").fixedSize()
                 .frame(minWidth: 64, minHeight: AppTheme.controlHeight)
-        }.buttonStyle(.bordered)
+        }.buttonStyle(.bordered).disabled(acceptingPrivacy)
     }
 
     private var continueControl: some View {
         Button {
-            if page == .widget {
+            if page == .privacy {
+                guard privacyChoices.canContinue, !acceptingPrivacy else { return }
+                acceptingPrivacy = true
+                Task {
+                    await onPrivacyAccepted(privacyChoices.diagnostics)
+                    acceptingPrivacy = false
+                    if !endsAfterPrivacy { move(to: StartupOnboardingPage.profile.rawValue) }
+                }
+            } else if page == .widget {
                 Task {
                     if !model.hasChosenInitialSaving { await model.setAutomaticSavingEnabled(model.automaticallySavesLocally) }
                     if model.hasChosenInitialSaving { onFinished() }
                 }
             } else { move(to: page.rawValue + 1) }
         } label: {
-            Text("Continue").fixedSize()
-                .frame(minWidth: 104, minHeight: AppTheme.controlHeight)
+            Text(page == .privacy ? "Agree and continue" : "Continue")
+                .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                .frame(minWidth: 104, maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil,
+                       minHeight: AppTheme.controlHeight)
         }
         .buttonStyle(MannaPrimaryButtonStyle())
         .tint(AppTheme.actionFill)
-        .disabled((page == .appIcon && model.isChangingAppIcon) || model.isChangingAutomaticSaving)
+        .accessibilityIdentifier(page == .privacy ? "privacy.continue" : "onboarding.continue")
+        .disabled(acceptingPrivacy || (page == .privacy && !privacyChoices.canContinue)
+            || (page == .appIcon && model.isChangingAppIcon) || model.isChangingAutomaticSaving)
     }
 
     private func move(to rawValue: Int) {

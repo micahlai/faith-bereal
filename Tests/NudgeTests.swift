@@ -2,6 +2,23 @@ import XCTest
 @testable import BlessingCircle
 
 final class NudgeTests: XCTestCase {
+    func testAlreadySharedStatusRequiresMembershipAndOwnSubmission() async throws {
+        let now = Date()
+        let repo = LocalBlessingRepository(now: now)
+        let bootstrap = try await repo.bootstrap()
+        let circle = try XCTUnwrap(bootstrap.circle)
+        let prompt = try XCTUnwrap(bootstrap.prompt)
+        let recipient = try XCTUnwrap(circle.members.first { $0.displayName == "Ben" })
+        _ = try await repo.submit(promptID: prompt.id, authorID: recipient.id, mode: .typed,
+            body: "Grateful", audioURL: nil, videoURL: nil, scriptureReference: nil, now: now)
+        for sender in [bootstrap.currentUser.id, UUID()] {
+            do {
+                _ = try await repo.nudgeMember(promptID: prompt.id, recipientID: recipient.id, senderID: sender, now: now)
+                XCTFail("Submission status must remain private before authorized sharing")
+            } catch { XCTAssertEqual(error as? BlessingError, .nudgeUnavailable) }
+        }
+    }
+
     func testNudgesRequireSamePromptSubmissionAndOnlyOnePerRecipient() async throws {
         let now = Date()
         let repo = LocalBlessingRepository(now: now, endOfDayStartsAt: now.addingTimeInterval(-30))
@@ -34,7 +51,7 @@ final class NudgeTests: XCTestCase {
         do {
             _ = try await repo.nudgeMember(promptID: daily.id, recipientID: recipient.id, senderID: user.id, now: now)
             XCTFail("Completed recipients cannot be nudged")
-        } catch { XCTAssertEqual(error as? BlessingError, .nudgeUnavailable) }
+        } catch { XCTAssertEqual(error as? BlessingError, .nudgeRecipientAlreadyShared) }
     }
 
     func testNudgeWindowBoundariesAndNoFirstDayOrGrantException() async throws {

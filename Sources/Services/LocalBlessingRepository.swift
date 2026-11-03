@@ -981,6 +981,15 @@ actor LocalBlessingRepository: BlessingRepository {
         let next = prompts.filter {
             $0.circleID == circle.id && $0.kind == .daily && $0.startsAt > prompt.startsAt
         }.map(\.startsAt).min()
+        guard senderID != recipientID,
+              circle.members.contains(where: { $0.id == senderID }),
+              circle.members.contains(where: { $0.id == recipientID }),
+              blessings.contains(where: { $0.promptID == promptID && $0.authorID == senderID }) else {
+            throw BlessingError.nudgeUnavailable
+        }
+        if blessings.contains(where: { $0.promptID == promptID && $0.authorID == recipientID }) {
+            throw BlessingError.nudgeRecipientAlreadyShared
+        }
         guard NudgePolicy.isEligible(
             prompt: prompt, circle: circle, senderID: senderID, recipientID: recipientID,
             senderHasShared: blessings.contains { $0.promptID == promptID && $0.authorID == senderID },

@@ -460,6 +460,7 @@ enum BlessingError: LocalizedError, Equatable {
     case blessingEditWindowClosed
     case notBlessingAuthor
     case nudgeUnavailable
+    case nudgeRecipientAlreadyShared
 
     var errorDescription: String? {
         switch self {
@@ -477,6 +478,7 @@ enum BlessingError: LocalizedError, Equatable {
         case .profileSaveTimedOut: "The profile photo upload timed out. Check your connection and try again."
         case .blessingEditWindowClosed: "Blessings can only be edited for 10 minutes after sharing."
         case .notBlessingAuthor: "You can only edit your own blessing."
+        case .nudgeRecipientAlreadyShared: "This person has already shared. Refreshing your circle."
         case .nudgeUnavailable: "A nudge is available after you share, while this person can still enter their blessing."
         }
     }

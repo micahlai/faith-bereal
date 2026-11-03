@@ -179,9 +179,16 @@ final class HelpContentTests: XCTestCase {
     }
     func testLaunchPrivacyGuideMatchesSafetyAndDeletionLimits() {
         let guide = HelpTopic.privacy.steps.map(\.body).joined(separator: " ")
-        for concept in ["13 and older", "United States", "Privacy policy", "Safety", "Blocked users", "both media stores", "Check deletion status", "backups", "App Tracking Transparency", "Apple may process", "developer review"] {
+        for concept in ["13 and older", "United States", "Privacy policy", "Safety", "Blocked users", "both media stores", "Check deletion status", "backups", "App Tracking Transparency", "Apple may process", "without waiting for developer approval"] {
             XCTAssertTrue(guide.contains(concept), concept)
         }
+    }
+
+    func testPrivacyPlacementAndImmediateMediaHelp() {
+        let privacy = HelpTopic.privacy.steps.map(\.body).joined()
+        XCTAssertTrue(privacy.contains("after choosing the app logo"))
+        XCTAssertFalse(privacy.contains("wait for developer review"))
+        XCTAssertTrue(HelpTopic.sharing.steps.map(\.body).joined().contains("removes that nudge option"))
     }
 
     func testEveryTopicHasDistinctTitleAndIllustratedPlainLanguageSteps() {
