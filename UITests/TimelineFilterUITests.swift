@@ -156,7 +156,9 @@ final class TimelineFilterUITests: XCTestCase {
         assertOnlyPerson(benID, app: app)
 
         app.buttons["Current circle, Sunday Table"].tap()
-        app.buttons["Morning Prayer"].tap()
+        let morningCircle = app.buttons["circle.switch.B0000000-0000-0000-0000-000000000002"]
+        XCTAssertTrue(morningCircle.waitForExistence(timeout: 5))
+        morningCircle.tap()
         XCTAssertTrue(app.buttons["Current circle, Morning Prayer"].waitForExistence(timeout: 10))
         XCTAssertTrue(filter.waitForExistence(timeout: 5))
         assertValue(filter, "All")

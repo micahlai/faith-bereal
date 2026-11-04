@@ -60,7 +60,12 @@ final class BackendOptimizationUITests: XCTestCase {
     @MainActor
     private func switchCircle(_ app: XCUIApplication, from current: String, to next: String) {
         app.buttons["Current circle, \(current)"].tap()
-        app.buttons[next].tap()
+        let circleID = next == "Sunday Table"
+            ? "B0000000-0000-0000-0000-000000000001"
+            : "B0000000-0000-0000-0000-000000000002"
+        let circle = app.buttons["circle.switch.\(circleID)"]
+        XCTAssertTrue(circle.waitForExistence(timeout: 5))
+        circle.tap()
         XCTAssertTrue(app.buttons["Current circle, \(next)"].waitForExistence(timeout: 10))
     }
 }
