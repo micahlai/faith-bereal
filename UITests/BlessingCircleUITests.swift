@@ -286,7 +286,7 @@ final class BlessingCircleUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += [
-            "-privacy.acceptedVersion", "2026-11-02", "-onboarding.hasSeenAbout", "NO",
+            "-privacy.acceptedVersion", "2026-11-04", "-onboarding.hasSeenAbout", "NO",
             "-onboarding.hasChosenAppearance", "NO",
         ]
         app.launch()
@@ -429,7 +429,7 @@ final class BlessingCircleUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchArguments += [
-            "-privacy.acceptedVersion", "2026-11-02", "-onboarding.hasSeenAbout", "YES", "-onboarding.hasChosenAppearance", "YES",
+            "-privacy.acceptedVersion", "2026-11-04", "-onboarding.hasSeenAbout", "YES", "-onboarding.hasChosenAppearance", "YES",
             "-user.appearancePreference", "dark",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
             "-UIAccessibilityReduceMotionEnabled", "YES",

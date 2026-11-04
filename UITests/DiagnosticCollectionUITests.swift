@@ -18,7 +18,7 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments = ["--manna-local-ui-test", "--manna-skip-onboarding", "-privacy.acceptedVersion", "2026-11-02", "-user.appearancePreference", "light",
+        app.launchArguments = ["--manna-local-ui-test", "--manna-skip-onboarding", "-privacy.acceptedVersion", "2026-11-04", "-user.appearancePreference", "light",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.terminate()
         app.launch()
@@ -70,7 +70,7 @@ final class DiagnosticCollectionUITests: XCTestCase {
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
-        app.launchArguments = ["--manna-local-ui-test", "--manna-skip-onboarding", "-privacy.acceptedVersion", "2026-11-02", "-user.appearancePreference", largestText ? "dark" : "light",
+        app.launchArguments = ["--manna-local-ui-test", "--manna-skip-onboarding", "-privacy.acceptedVersion", "2026-11-04", "-user.appearancePreference", largestText ? "dark" : "light",
             "-UIPreferredContentSizeCategoryName",
             largestText ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.terminate()
