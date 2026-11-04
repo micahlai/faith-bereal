@@ -110,11 +110,16 @@ private struct BlessingWidgetView: View {
                     Label(reference, systemImage: "book.closed.fill")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(MannaWidgetTheme.scripture)
-                    if family == .systemMedium, let scriptureText = blessing.scriptureText {
+                    if family == .systemMedium, let scriptureText = blessing.creditedScriptureText {
                         Text(scriptureText)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
+                        if blessing.scriptureCredit != nil {
+                            Text("\(blessing.bibleVersionName ?? "Bible") · Midvash")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             } else {
@@ -176,7 +181,8 @@ private struct BlessingWidgetView: View {
         ]
         if let reference = blessing.scriptureReference {
             parts.append(reference)
-            if let scriptureText = blessing.scriptureText { parts.append(scriptureText) }
+            if let scriptureText = blessing.creditedScriptureText { parts.append(scriptureText) }
+            if blessing.creditedScriptureText != nil, let credit = blessing.scriptureCredit { parts.append(credit) }
         }
         return parts.joined(separator: ". ")
     }

@@ -89,6 +89,14 @@ struct BlessingWidgetBlessing: Codable, Hashable, Identifiable, Sendable {
     let scriptureReference: String?
     var scriptureText: String?
     let bibleVersionName: String?
+    var scriptureCredit: String? = nil
+    var bibleVersionID: String? = nil
+
+    var creditedScriptureText: String? {
+        guard let bibleVersionID, BibleTranslation.supports(bibleVersionID),
+              let scriptureCredit, BibleTranslation.hasReviewedCredit(scriptureCredit, versionID: bibleVersionID) else { return nil }
+        return scriptureText
+    }
 
     var deepLink: URL? {
         URL(string: "blessingcircle://blessing/\(id.uuidString)?circle=\(circleID.uuidString)")

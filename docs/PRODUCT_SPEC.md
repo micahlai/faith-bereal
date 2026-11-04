@@ -95,6 +95,10 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 - Resuming a draft rechecks entry with the server. An old entry grant cannot reopen a closed no-late window, and a draft never extends daily or evening entry deadlines. Failed uploads keep the recoverable draft. Drafts are not cloud-synced or guaranteed to capture the last instant before a crash.
 - An author may edit the text or transcript and optional scripture tag for exactly ten minutes after `submitted_at`. The global limit is independent of circle settings, is enforced by the server, and never replaces the original audio, video, or photo.
 
+### Bible text release catalog
+
+The 0.6.0 target offers only the 12 public-domain IDs reviewed in [BIBLE_CONTENT_RIGHTS.md](BIBLE_CONTENT_RIGHTS.md). Openly licensed or unresolved editions are excluded; settings group only retained languages. Removed selections fall back to WEB, preserving references. The server migration normalizes unsupported preferences, and client/database validation rejects new unsupported selections. Midvash passage requests send reference/version and ordinary connection information, not the user account token or post body. Credits remain with text; a different version/reference, incomplete range or missing credit is rejected rather than silently substituted. Country expansion requires another rights review.
+
 ### Circle activity notifications
 
 - After submitting for a prompt, a current member may nudge another current member who has not shared for that exact prompt. Today exposes this only after the prompt starts, while entry is open or daily late sharing remains available. End-of-day nudges close at seven hours or the next daily start. Entry grants and the first-day exception never extend nudge eligibility before start/after close.

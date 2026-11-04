@@ -2,6 +2,13 @@ import XCTest
 @testable import BlessingCircle
 
 final class HelpContentTests: XCTestCase {
+    func testBibleGuideExplainsReviewedCatalogFallbackAndProviderDisclosure() {
+        let guide = HelpTopic.scripture.steps.map(\.body).joined(separator: " ")
+        for phrase in ["public-domain versions", "attribution-licensed", "WEB is used", "saved references stay intact", "Midvash", "version credit", "ordinary connection information", "without your manna account details", "different or incomplete", "permissions change"] {
+            XCTAssertTrue(guide.contains(phrase), phrase)
+        }
+    }
+
     func testTrafficSavingGuideExplainsTemporaryCacheAndNetworkChoices() {
         let timeline = HelpTopic.timeline.steps.map(\.body).joined()
         for concept in ["most recent 7 days", "temporary cache", "256 MB", "up to seven days", "720p", "small previews", "full size"] {

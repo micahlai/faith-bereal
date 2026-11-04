@@ -962,7 +962,7 @@ private struct UserSettingsView: View {
                 } header: {
                     Text("Scripture")
                 } footer: {
-                    Text("Every tagged passage is displayed in this public-domain translation, regardless of which circle it came from.")
+                    Text("Every tagged passage is displayed in this public-domain translation. If a previously chosen version is no longer offered, WEB is used until you choose another. Verse text is supplied by Midvash; loading it sends the passage and version, with ordinary connection information, to that service.")
                 }
 
                 Section {

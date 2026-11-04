@@ -1,5 +1,9 @@
 # Release checklist
 
+## 0.6.0 Bible worktree update — November 3, 2026
+
+Content Rights **Yes** is owner-approved, saved and verified in Chrome. The candidate restricts Bible access to 12 reviewed public-domain editions; see [rights evidence and rollout](BIBLE_CONTENT_RIGHTS.md). This supersedes the older saved-No finding below. Migration deployment, website disclosure and final combined verification remain release gates; the historic audit measurements below are unchanged.
+
 This checklist separates work that can be proven locally from work that needs production Apple or Supabase access.
 
 ## November 3, 2026 — 0.5.3 (50) readiness audit

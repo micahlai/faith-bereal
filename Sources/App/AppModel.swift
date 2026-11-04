@@ -1674,14 +1674,17 @@ final class AppModel {
     var bibleBooks: [BibleBook] { BibleBook.all }
 
     var selectedBibleTranslation: BibleTranslation {
-        BibleTranslation.publicDomain.first(where: { $0.id == currentUser?.bibleVersionID })
-            ?? BibleTranslation.publicDomain[0]
+        BibleTranslation.selection(for: currentUser?.bibleVersionID)
     }
 
     var usesAuthentication: Bool { authentication != nil }
 
     func updateBibleVersion(_ versionID: String) async {
         guard let currentUser else { return }
+        guard BibleTranslation.supports(versionID) else {
+            message = BibleTextError.unsupportedVersion.localizedDescription
+            return
+        }
         do {
             self.currentUser = try await repository.updateBibleVersion(
                 memberID: currentUser.id,
@@ -1954,7 +1957,7 @@ final class AppModel {
         )
     }
 
-    func scriptureText(for reference: ScriptureReference) async throws -> String {
+    func scripturePassage(for reference: ScriptureReference) async throws -> BiblePassage {
         try await bibleService.passage(
             versionID: selectedBibleTranslation.id,
             reference: reference
@@ -2951,7 +2954,8 @@ final class AppModel {
                     isFromCurrentCircleDay: candidate.isFromCurrentCircleDay,
                     scriptureReference: reference?.displayName,
                     scriptureText: nil,
-                    bibleVersionName: reference == nil ? nil : selectedBibleTranslation.shortName
+                    bibleVersionName: reference == nil ? nil : selectedBibleTranslation.shortName,
+                    bibleVersionID: reference == nil ? nil : selectedBibleTranslation.id
                 )
             )
         }
@@ -2969,22 +2973,25 @@ final class AppModel {
         outcome = loadedCircles == circles.count ? .success : .failure
 
         let versionID = selectedBibleTranslation.id
-        let loadedPassages = await withTaskGroup(of: (UUID, String?).self) { group in
+        let loadedPassages = await withTaskGroup(of: (UUID, BiblePassage?).self) { group in
             for (blessingID, reference) in referencesToLoad {
                 group.addTask { [bibleService] in
-                    let text = try? await bibleService.passage(versionID: versionID, reference: reference)
-                    return (blessingID, text)
+                    let passage = try? await bibleService.passage(versionID: versionID, reference: reference)
+                    return (blessingID, passage)
                 }
             }
-            var results: [UUID: String] = [:]
+            var results: [UUID: BiblePassage] = [:]
             for await (blessingID, text) in group {
                 if let text { results[blessingID] = text }
             }
             return results
         }
-        guard !Task.isCancelled, self.currentUser?.id == currentUser.id, !loadedPassages.isEmpty else { return }
+        guard !Task.isCancelled, self.currentUser?.id == currentUser.id, dataScopeGeneration == generation,
+              selectedBibleTranslation.id == versionID, !loadedPassages.isEmpty else { return }
         for index in snapshot.blessings.indices {
-            snapshot.blessings[index].scriptureText = loadedPassages[snapshot.blessings[index].id]
+            let passage = loadedPassages[snapshot.blessings[index].id]
+            snapshot.blessings[index].scriptureText = passage?.text
+            snapshot.blessings[index].scriptureCredit = passage?.credit
         }
         BlessingWidgetSnapshotStore.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
