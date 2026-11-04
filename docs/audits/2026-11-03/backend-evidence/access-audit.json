@@ -1,0 +1,116 @@
+{
+  "checked_at_utc": "2026-11-04T03:26:57.488302+00:00",
+  "private_buckets": [
+    {
+      "bucket": "avatars",
+      "public": false,
+      "file_size_limit": 5242880
+    },
+    {
+      "bucket": "blessing-media",
+      "public": false,
+      "file_size_limit": 78643200
+    },
+    {
+      "bucket": "circle-photos",
+      "public": false,
+      "file_size_limit": 5242880
+    }
+  ],
+  "tables_without_rls": null,
+  "private_schema_access": {
+    "anon": false,
+    "authenticated": false
+  },
+  "http_response_outcomes": [
+    {
+      "latest": "2026-11-04T03:26:00.280224+00:00",
+      "responses": 358,
+      "timed_out": false,
+      "status_code": 200
+    },
+    {
+      "latest": "2026-11-04T03:00:00.09349+00:00",
+      "responses": 2,
+      "timed_out": true,
+      "status_code": null
+    }
+  ],
+  "blessing_unique_constraints": [
+    "UNIQUE (prompt_id, author_id)"
+  ],
+  "service_only_function_access": [
+    {
+      "anon": false,
+      "function": "account_deletion_files",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "backfill_storage_mirror",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "claim_ready_circle_badges",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "claim_storage_mirror_jobs",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "complete_ready_circle_badge",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "finish_storage_mirror_job",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "moderation_inbox",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "pending_account_deletions",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "queue_expired_media",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "resolve_content_report",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "storage_mirror_status",
+      "service_role": true,
+      "authenticated": false
+    },
+    {
+      "anon": false,
+      "function": "verify_account_deletion_cleanup",
+      "service_role": true,
+      "authenticated": false
+    }
+  ]
+}

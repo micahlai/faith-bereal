@@ -1,0 +1,82 @@
+{
+  "storage": [
+    {
+      "bytes": 1679744,
+      "objects": 8,
+      "bucket_id": "avatars",
+      "p95_bytes": 262067,
+      "median_bytes": 209915,
+      "largest_bytes": 271279
+    },
+    {
+      "bytes": 574913369,
+      "objects": 127,
+      "bucket_id": "blessing-media",
+      "p95_bytes": 12789376,
+      "median_bytes": 2881525,
+      "largest_bytes": 47424738
+    },
+    {
+      "bytes": 1285666,
+      "objects": 5,
+      "bucket_id": "circle-photos",
+      "p95_bytes": 277406,
+      "median_bytes": 259069,
+      "largest_bytes": 278868
+    }
+  ],
+  "cron_jobs": [
+    {
+      "jobid": 1,
+      "active": true,
+      "jobname": "dispatch-prompts-every-minute",
+      "schedule": "* * * * *"
+    },
+    {
+      "jobid": 2,
+      "active": true,
+      "jobname": "prune-backend-diagnostics",
+      "schedule": "17 * * * *"
+    }
+  ],
+  "open_reports": 0,
+  "cron_last_day": [
+    {
+      "runs": 1440,
+      "jobid": 1,
+      "status": "succeeded",
+      "latest_end": "2026-11-04T03:25:00.101865+00:00"
+    },
+    {
+      "runs": 24,
+      "jobid": 2,
+      "status": "succeeded",
+      "latest_end": "2026-11-04T03:17:00.186099+00:00"
+    }
+  ],
+  "checked_at_utc": "2026-11-04T03:25:50.923787+00:00",
+  "database_bytes": 35081363,
+  "storage_mirror": [
+    {
+      "jobs": 9,
+      "state": "copied",
+      "desired": true,
+      "failures": 0,
+      "oldest_pending_at": null
+    },
+    {
+      "jobs": 17,
+      "state": "deleted",
+      "desired": false,
+      "failures": 0,
+      "oldest_pending_at": null
+    }
+  ],
+  "latest_migration": "202611020008",
+  "oldest_open_report": null,
+  "database_connections": 23,
+  "media_deletion_queue": 0,
+  "oldest_account_deletion": null,
+  "pending_account_deletions": 0,
+  "diagnostics_older_than_14_days": 0
+}

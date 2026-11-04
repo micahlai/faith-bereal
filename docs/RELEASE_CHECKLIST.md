@@ -2,6 +2,94 @@
 
 This checklist separates work that can be proven locally from work that needs production Apple or Supabase access.
 
+## November 3, 2026 — 0.5.3 (50) readiness audit
+
+**Decision: hold public submission.** The signed candidate and local safety checks pass, but capacity, physical-device acceptance and submission inputs remain open. This section supersedes older open items where the later implementation is documented in [LAUNCH_COMPLIANCE.md](LAUNCH_COMPLIANCE.md). Audit baseline: `c44c1cc`; no customer behavior or hosted configuration is changed by this audit.
+
+Consolidated work list: [everything needing attention or change](audits/2026-11-03/ATTENTION.md). Tracked [backend](audits/2026-11-03/BACKEND_READINESS.md) and [frontend](audits/2026-11-03/FRONTEND_READINESS.md) reports preserve the audit independently of ignored build output.
+
+### Live capacity evidence
+
+Read-only Chrome inspection of [organization usage](https://supabase.com/dashboard/org/pskrozhjtgvzbrrrzpbr/usage), current cycle October 30–November 30:
+
+| Item | Observed usage / allowance |
+| --- | --- |
+| Uncached egress | 0.725 / 5 GB |
+| Cached egress | 0.030 / 5 GB |
+| File storage, average over period | 0.556 / 1 GB |
+| Database | 0.050 / 0.5 GB |
+| Monthly active users, including synthetic acceptance activity | 15 / 50,000 |
+| Realtime peak connections | 4 / 200 |
+| Edge invocations | 9,101 / 500,000 |
+
+Previous-cycle summary still shows **6.913 GB uncached**, **2.173 GB cached**, and ten MAU. The dashboard still displays the **November 17, 2026** grace-period/restriction warning and says restricted requests return HTTP 402. Usage can lag by one hour. These are dashboard observations, not a load test or confirmation that restrictions will occur.
+
+The [production overview](https://supabase.com/dashboard/project/lrdrodsgilmlzrynkiqx) reports Healthy, no advisor findings, 18/60 database connections, 4% CPU and 67% RAM. Its last-hour view shows 2,049 requests / 100% success. **Last backup: No backups.** A quiet healthy interval does not establish launch capacity, recovery capability or complete authorization coverage.
+
+A subsequent read-only SQL snapshot through Chrome at **November 3, 10:25–10:27 PM Eastern** (November 4, 03:25–03:27 UTC) confirms hosted migration `202611020008`, **35,081,363 database bytes**, 23 connections and **577,878,779 stored object bytes / 140 objects**. `blessing-media` contains 127 objects / 574,913,369 bytes, median 2,881,525 bytes, p95 12,789,376 bytes, largest **47,424,738 bytes**. Object metadata is a point-in-time count, unlike the dashboard's period average; this small historical sample is not a representative per-user consumption forecast.
+
+- No pending account deletions, queued media deletions, open reports or diagnostic reports older than 14 days. Mirror state: nine desired copied jobs, 17 deleted jobs, zero recorded failures/pending age. This does not mean all 140 current Storage objects are mirrored; historical backfill remains incomplete.
+- Both database cron jobs are active. Last day: 1,440 dispatch scheduling jobs and 24 diagnostic-pruning jobs succeeded. However, the last six hours of retained HTTP responses contain **358 HTTP 200 and two timeouts / 360 calls**. Database cron success alone does not establish downstream dispatch success; these timeouts need external monitoring and missed-prompt/retry acceptance. No response bodies, headers, customer content or tokens were exported.
+- Follow-up at 10:31 PM Eastern finds **zero overdue scheduled prompts**, **zero active stale dispatch claims**, and no recorded failure on ten prompts started in the preceding day. The six-hour successful-response sample contains one claimed prompt with **18/18 APNs requests accepted, zero errors/failures**. This limits the observed incident: there is no evidence here of a stuck prompt, but provider acceptance does not prove device display or account for timed-out calls. `build/backend-readiness/dispatch-audit.json` preserves these aggregates.
+- All three buckets are private. All inspected ordinary tables in `public`, `manna_private` and `storage` have RLS enabled; ordinary `anon` / `authenticated` roles lack private-schema usage. All 12 inspected service-only mirror/deletion/moderation/badge functions deny execute to both ordinary roles and allow `service_role`. The database retains `UNIQUE (prompt_id, author_id)`. Catalog checks do not substitute for installed two-account policy acceptance.
+- Fresh Chrome secret-digest inspection confirms `MEDIA_RETENTION_ENABLED` matches `false`, and `MEDIA_RETENTION_START_AT` is absent. No secret values were revealed or settings changed.
+
+Aggregate-only evidence: `build/backend-readiness/aggregate-audit.json`, `access-audit.json` and `retention-gates.json`; accompanying SELECT queries are preserved. Only private audit scratch queries were used; their persistence was not verified. No production rows or configuration were changed.
+
+The private `blessing-media` bucket has Public bucket **off**, a 75 MB bucket limit and restricted MIME types. However, [global Storage settings](https://supabase.com/dashboard/project/lrdrodsgilmlzrynkiqx/storage/files/settings) enforce **50 MB** on the Free plan. The effective maximum is therefore 50 MB, despite the checked-in 75 MiB bucket/local configuration. The upload path has no matching client byte-size preflight. Test oversized recording/photo failure and recovery; align effective limits and honest Help text in any resulting feature change. No bucket setting was saved.
+
+Owner's launch target: **up to 100 active users**. Illustrative assumptions, not measured user behavior: one new 5 MB recording per active user per day, every day, distinct ten-person circles, nine peer-device downloads per post, 30 days, decimal MB/GB. This produces **15 GB of new recordings per 30 days in each provider**, **135 GB peer-download egress**, plus about **15 GB Supabase-to-R2 copy egress** before API traffic, photos, responses or repeat downloads. Count automatic saving and playback once when they reuse the same device copy. Multiple prompts/circle memberships can increase this. Photos/text and permanent device archives have no age cap; paused recording cleanup means hosted recording storage is not yet bounded by 30 days.
+
+Supabase serves all current app reads. R2 mirroring is a second copy and adds source transfer; it is not a bandwidth cutover or a database backup. Existing media is not fully backfilled and deletions propagate to R2. Client protections include 720p video preparation, 480-pixel photo previews, AAC voice, demand playback, a 256 MiB/seven-day disposable recording cache and Wi-Fi-gated automatic saves. Those paths do not prove production byte savings. Permanent device saves remain separately unbounded.
+
+- [ ] Resolve the live quota/grace warning and approve a capacity plan before public distribution. [Supabase Pro](https://supabase.com/pricing) currently starts at $25/month, with 100 GB file storage, 250 GB uncached and 250 GB cached egress; compute and other usage can change the bill. This audit does not purchase a plan or change spend controls.
+- [ ] Measure a representative cohort's bytes per post, unique device download and active day; project the 100-user workload with headroom, including automatic saving, mirror reads, responses and multiple circles. Exercise peak simultaneous prompt/submission traffic in staging.
+- [ ] Establish backup schedules and a tested restore procedure for database **and** retained media. [Supabase database backups](https://supabase.com/docs/guides/platform/backups) do not include Storage object bytes. R2's synchronized mirror is not an independent recovery point.
+- [ ] Complete monitoring/alert coverage for quota pressure, failed/old mirror jobs, deletion/retention retries and dispatch failures. The code does not establish an external alert channel.
+
+### Remaining launch acceptance
+
+- [ ] Run disposable **physical** Sign in with Apple reauthentication, revocation, deletion and completion verification. Existing synthetic two-provider deletion acceptance is valuable but does not exercise real Apple consent/token exchange.
+- [ ] Complete installed two-account privacy/report/block/moderation checks, camera/microphone/Speech/Photos denial/recovery, interrupted uploads, production APNs/badges/Live Activities/widgets and invite deep links.
+- [ ] Resolve the outstanding rendered contrast finding and complete VoiceOver, large text, motion and supported iPad/orientation acceptance. The native automated accessibility test checks hit regions/descriptions; it does not establish that rendered contrast passes.
+- [ ] Assess current limited phrase filtering and immediate, unscreened media publication against [App Review guideline 1.2](https://developer.apple.com/app-store/review/guidelines/#user-generated-content). Reporting/blocking/contact and daily operator review exist; their presence does not prove sufficient filtering of photos/audio/video. This audit does not reinstate mandatory developer approval or claim Apple requires a particular screening vendor.
+- [ ] Record actual updated-build availability and its approved +72-hour cleanup schedule. Retention is implemented and deliberately activation-gated; export is not availability. Verify rollout and failures under [MEDIA_RETENTION.md](MEDIA_RETENTION.md). Complete abandoned-upload cleanup and the separate backup/log retention schedules.
+- [ ] Finalize candidate selection, screenshots, age questionnaire, reviewer access/contact/instructions and actual TestFlight install acceptance. A product 13+ rule is separate from Apple's questionnaire. Reconcile the published account-linked privacy answers with the candidate and live policy.
+
+User data export and per-post/departed-member history policy remain project commitments. Do not label an in-app export as a universal Apple submission requirement. Current policy/support/Universal Links endpoints were fetched successfully over verified HTTPS in this audit; policy names Supabase, Cloudflare, Apple and the website host and explicitly discloses the paused retention rollout.
+
+### App Store Connect inspection — November 3
+
+Read-only compliance inspection in the owner's signed-in Chrome session; no compliance metadata, answers, binary or submission changed. Separately requested artwork work is paused:
+
+- [x] Published privacy answers still contain the ten account-linked categories in APP_STORE_PRIVACY_LABELS.md, with the correct public policy URL. User ID/performance/other diagnostics include analytics purposes.
+- [x] Availability is one country, **United States**, with 174 unavailable. Age rating shows **13+** globally on current operating systems; older-than-26 rating is displayed as 4+. A product age confirmation is not independent age verification.
+- [ ] Release draft is still **0.5.0 / Prepare for Submission**, whereas the signed local candidate is **0.5.3 (50)**; **no build is selected**. Align the chosen release version/build before submission.
+- [ ] TestFlight already lists **0.5.3 (49)**, Validated / Ready to Submit, in Internal, with nine invites, seven installs and ten sessions. Its metadata displays upload **November 2, 2026 at 11:02 PM**, iOS minimum 18.0 and non-exempt encryption No. This differs from the locally validated **0.5.3 (50)** IPA; local source/export tests cannot be asserted to certify the uploaded build's exact bytes/source. Reconcile build provenance and which candidate will be reviewed. This observed upload was not performed by this audit; older STATUS statements that nothing had been uploaded were true only at their recorded time. Upload time alone does not establish the approved retention availability milestone.
+- [ ] The checked iPhone Dynamic Island and 13-inch iPad slots each show **0 screenshots**. Description, keywords, copyright, primary category, review credentials/contact/notes are blank. Pricing displays **Add Pricing**, without a starting schedule. Finish the required fields and a review-safe Apple-sign-in/prepared-circle path.
+- [ ] Saved feature answers are UGC **Yes**, Social Media **Yes**, Messaging/Chat **No**, Age Assurance **No**, and social-media-disabled-for-under-13 **No**. Reassess messaging against text/voice responses and the current age controls against Apple's actual definitions. No answer was changed.
+- [ ] Content Rights currently says the app does not contain/show/access third-party content. `BibleAPIService` directly fetches passage/translation paths from **api.midvash.com**. Reconcile the attestation and document rights/attribution for each offered translation; public-domain availability does not mean no third-party content is accessed. [Apple's content-rights field](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information), [provider terms](https://midvash.com/terms).
+- [ ] The Bible API is absent from the in-app/public processor inventory. The request reveals requested translation/passage and ordinary network metadata to that provider; it sends no app account token or post body. Assess API-specific logs, privacy and license terms and update the policy/inventory/Help/tests together where needed. The provider's website/app analytics disclosures do not establish that those SDKs or trackers run in manna's JSON API client.
+- [ ] Apple-silicon Mac availability is checked; validate that supported surface or explicitly choose the intended platform scope before release. The Vision Pro checkbox is also checked, but the page says the current 0.5.0 version is incompatible/unavailable there; do not claim tested Vision Pro support.
+
+The saved release mode is **automatic after approval**. Recheck this against the actual recording-cleanup availability/grace schedule when preparing submission. This audit does not change it.
+
+### Automated UI tooling
+
+The repository currently defines **47 XCUITest cases**, including a native hit-region/description audit. These rely on **Debug-only local fixtures** and do not establish hosted multi-account authorization, real Apple revocation or production push delivery. There are no report/block/account-deletion UI flows in the current suite; backend tests do not fill that installed-client coverage gap. Do not upload the production store IPA with this fixture suite and assume it will use the local backend.
+
+The delegated audit observes a pass for each of the 47 distinct cases across the original and focused runs. The original run completed 45 passes / one intermittent largest-dark save-photo reveal failure, then was interrupted during its final Threads persistence test. Exact focused small-phone reruns pass both cases; a larger-phone save-review comparison also passes. This is not an uninterrupted full-suite pass. Preserve the original failure and incomplete bundle; detailed classification and evidence are in `build/frontend-readiness/REPORT.md`.
+
+A separate bounded small-phone diagnostic probe also passes actual full-visibility photo open/close and Save all reachability (`PhotoProbe.xcresult`, 1/1). It is additional evidence, not a 48th existing-suite case. No persistent functional defect or specific scroll-helper root cause was established. App and original test executable hashes remain unchanged; no production source or original test was edited.
+
+- **Recommended:** [BrowserStack App Automate / XCUITest](https://www.browserstack.com/docs/app-automate/xcuitest/getting-started), with a separately signed device test app and paired test-runner bundle using synthetic accounts/data. Add [App Accessibility](https://www.browserstack.com/docs/app-accessibility/automated-tests/xcuit/getting-started/integrate-with-app-automate) for accessibility findings and [App Percy](https://www.browserstack.com/docs/app-percy) for visual comparisons. Reuse the native suite and extend the missing release flows.
+- [Maestro](https://docs.maestro.dev/get-started/supported-platform/ios) offers readable simulator flows and cloud simulator runs. Its official iOS CLI does not yet support physical devices; it would add a second test suite here.
+- [AWS Device Farm](https://docs.aws.amazon.com/devicefarm/latest/developerguide/test-types-ios-tests.html) is another real-device XCTest option. Device availability, platform behavior and any signing/entitlement changes need acceptance before relying on notification/Apple-auth tests.
+
+No vendor automatically covers every state, visual issue or compliance obligation. Choose a matrix covering supported iOS versions, small/large iPhone and iPad, both appearances, largest text, onboarding, capture/playback, saving/offline, safety/deletion, and failure recovery. Real Apple/APNs acceptance still needs the release-entitled installed candidate. No third-party upload, paid service signup or external test run was performed.
+
+Fresh verification results and result-bundle paths are recorded in [STATUS.md](STATUS.md).
+
 
 ## November 2, 2026 — 0.5.0 (47) compliance candidate
 

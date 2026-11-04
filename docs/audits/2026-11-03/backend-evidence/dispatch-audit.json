@@ -1,0 +1,32 @@
+{
+  "checked_at_utc": "2026-11-04T03:31:40.884082+00:00",
+  "overdue_scheduled": 0,
+  "last_day_prompt_states": [
+    {
+      "kind": "daily",
+      "state": "open",
+      "prompts": 1,
+      "with_failure": 0
+    },
+    {
+      "kind": "daily",
+      "state": "closed",
+      "prompts": 4,
+      "with_failure": 0
+    },
+    {
+      "kind": "end_of_day",
+      "state": "open",
+      "prompts": 5,
+      "with_failure": 0
+    }
+  ],
+  "last_six_hours_outcomes": {
+    "errors": 0,
+    "failed": 0,
+    "attempted": 18,
+    "delivered": 18,
+    "prompt_outcomes": 1
+  },
+  "active_stale_dispatching": 0
+}
