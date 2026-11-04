@@ -79,6 +79,8 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 
 ### Capture
 
+- Photo attachment source buttons keep their labels intact: Take photo/Upload become Retake/Replace after attachment, share a row only when both fit, and otherwise stack. Remove and preparation feedback use separate rows so they cannot squeeze the source buttons. Controls keep their 44-point minimum targets.
+
 - Typed: multiline text, 1–1,200 characters, with an optional captured or uploaded photo. The same 1,200-character maximum applies to voice/video transcripts and edits; response text/transcripts remain limited to 600. Character counters match the database's Unicode-scalar length (combined emoji/accents can count as multiple characters), and capture truncation never splits a displayed grapheme.
 - New video uploads are consistently exported as network-optimized MP4 at a maximum of 1280×720, including restored/imported video. Existing hosted recordings remain unchanged.
 - Voice: in-app live transcription that the user can edit before submission, with private audio playback in detail and an optional captured or uploaded photo.

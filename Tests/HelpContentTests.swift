@@ -51,6 +51,13 @@ final class HelpContentTests: XCTestCase {
         }
     }
 
+    func testPhotoAttachmentGuideExplainsAdaptiveButtons() {
+        let guide = HelpTopic.sharing.steps.map(\.body).joined(separator: " ")
+        for concept in ["Retake and Replace", "stack on narrower screens", "larger text", "Remove sits on its own row"] {
+            XCTAssertTrue(guide.contains(concept), concept)
+        }
+    }
+
     func testPhotoAndTodayGuideExplainsZoomControlsAndVerticalOnlyFeed() {
         let guide = HelpTopic.timeline.steps.map(\.body).joined()
         for concept in ["keep their original proportions", "Tall photos may appear narrower", "older preview looks stretched", "temporary copy remains", "enlarge it", "Profile and circle photos do not", "Pinch to zoom", "Zoom in", "Zoom out", "movement controls",

@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-11-03 Photo attachment controls — worktree
+
+- Reproduced in the local iPhone 17e simulator by selecting a photo from Photos: the three-across source/removal row squeezed Retake and Replace into hyphenated two-line labels. Photo source buttons now preserve their labels, share a row only when both fit and otherwise stack; Remove and preparation feedback use separate rows. Help and its guide test match.
+- Normal-size simulator checks confirm intact source labels, Replace opens Photos, Remove restores Take photo/Upload, and picking the image again restores Retake/Replace. Largest-dark inspection confirms readable vertically stacked actions; Photo/Optional also stacks at accessibility sizes. Screenshots: `build/PhotoButtonsNormal.png` and `build/PhotoButtonsLargestDark.png`. XcodeGen generation and final app build pass; all **39 Help tests** pass (`build/PhotoButtonsGuideClean.xcresult`). An earlier reused-simulator pre-test launch stall was interrupted and superseded by that clean-simulator pass. No hosted upload or service change was performed. This follows separate commit `615b08a` for the prior nudge/preview/switcher work.
+
 ## 2026-11-03 Nudge feedback and restored blessing previews — worktree
 
 - In `codex/nudge-feedback`, Today places nudges below every shared blessing. Sending uses the button progress state, success/already-queued results leave a disabled Nudged button, and failures appear inline with Retry. Already-shared races still refresh and remove the stale option without a native popup. Help and settings labels now distinguish nudges from circle switches.

@@ -348,17 +348,14 @@ struct CaptureView: View {
     }
 
     private var photoAttachment: some View {
-        let hasPhoto = photoURL != nil
-        let cameraTitle = hasPhoto ? "Retake" : "Take photo"
-        let libraryTitle = hasPhoto ? "Replace" : "Upload"
-        let actionLayout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-            : AnyLayout(HStackLayout(spacing: 12))
+        let headingLayout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout())
         return VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            headingLayout {
                 Label("Photo", systemImage: "photo")
                     .font(.headline)
-                Spacer()
+                if !dynamicTypeSize.isAccessibilitySize { Spacer() }
                 Text("Optional")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(AppTheme.secondaryInk)
@@ -374,33 +371,46 @@ struct CaptureView: View {
                     .accessibilityLabel("Attached blessing photo")
             }
 
-            actionLayout {
-                Button {
-                    Task { await openPhotoCamera() }
-                } label: {
-                    Label(cameraTitle, systemImage: "camera")
-                        .frame(minHeight: 44)
-                }
-                .buttonStyle(.bordered)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { photoSourceButtons }
+                    .fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: 8) { photoSourceButtons }
+            }
 
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    Label(libraryTitle, systemImage: "photo.on.rectangle")
-                        .frame(minHeight: 44)
+            if photoURL != nil {
+                Button("Remove", role: .destructive) {
+                    photoURL = nil
+                    selectedPhotoItem = nil
                 }
-                .buttonStyle(.bordered)
+                .frame(minHeight: 44)
+            }
 
-                if photoURL != nil {
-                    Button("Remove", role: .destructive) {
-                        photoURL = nil
-                        selectedPhotoItem = nil
-                    }
-                    .frame(minHeight: 44)
-                }
-
-                if isLoadingPhoto { ProgressView().controlSize(.small) }
+            if isLoadingPhoto {
+                ProgressView("Preparing photo…")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryInk)
             }
         }
         .blessingCard()
+    }
+
+    @ViewBuilder
+    private var photoSourceButtons: some View {
+        Button {
+            Task { await openPhotoCamera() }
+        } label: {
+            Label(photoURL == nil ? "Take photo" : "Retake", systemImage: "camera")
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+
+        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            Label(photoURL == nil ? "Upload" : "Replace", systemImage: "photo.on.rectangle")
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minHeight: 44)
+        }
+        .buttonStyle(.bordered)
     }
 
     @ViewBuilder
