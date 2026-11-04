@@ -4,6 +4,8 @@ Audit date: November 3, 2026. Baseline: c44c1cc, local signed 0.5.3 (50). Public
 
 ## Backend capacity and operations
 
+[Private R2 migration and free-plan backup options](../../BACKEND_CAPACITY_OPTIONS.md) are documented recommendations; neither is activated.
+
 - [ ] Resolve the prior-cycle Supabase overage and November 17 restriction warning. Select a capacity plan for up to 100 active users; the current Free allowance does not fit the illustrative media workload.
 - [ ] Measure real bytes/post, unique downloads, active days and peak concurrent submissions in staging. One 5 MB recording/user/day would produce 15 GB/month per provider and approximately 150 GB Supabase recording egress with nine peer downloads/post plus the mirror copy. This is a scenario, not measured usage.
 - [ ] Establish database backups, retained-media recovery points and a tested restore procedure. The dashboard lists no database backups. R2 copies propagate deletions and do not back up the database.
@@ -36,11 +38,11 @@ Audit date: November 3, 2026. Baseline: c44c1cc, local signed 0.5.3 (50). Public
 ## Frontend automation and physical acceptance
 
 - [x] Add local UI coverage for report reasons/details/send/failure/cancel, block/unblock, deletion acknowledgement/pending/status/error/retry and largest text. The reproduced pending-layout and deletion-error recovery defects are fixed in integrated 0.6.0; final combined results are in STATUS.md.
-- [ ] Complete one uninterrupted isolated full UI run and investigate the intermittent large-text photo-reveal assertion. All 47 existing cases have passing observations across runs; the original run still contains one failure and an interrupted final case. Do not report it as a single clean suite.
+- [x] Complete one uninterrupted integrated UI run: **59/59 passed**, zero failures/skips, including all saving-preview and Timeline cases. An independent fresh-device offline playback rerun also passes after explicit consent initialization. Older failed/interrupted runs remain recorded in STATUS.md; they are not relabeled as clean.
 - [ ] Test real Apple sign-in/cancellation/reauthentication/revocation/deletion with a disposable physical Apple-linked account, including both-provider absence and completion state.
 - [ ] Test two installed accounts through join/leave/removal/ownership transfer, shared settings, daily/evening locks, peer unlock after own post, responses/media, report/block, realtime and stale/offline recovery.
 - [ ] Test camera/microphone/Speech/Photos denial and recovery; real capture/transcription/playback/export; interruptions/backgrounding; poor connectivity, oversized/failed uploads, low storage and automatic-save limits.
-- [ ] Verify production push privacy/delivery, notification denial, ready-circle badges, Live Activity start/update/end, widget refresh/deep links and real invite Universal Links on devices.
+- [ ] Verify production push privacy/delivery, notification denial, ready-circle badges, Live Activity start/update/end, widget refresh/deep links and real invite Universal Links on devices. Include extension cold start after a fresh install; an earlier simulator extension startup trap from a superseded installation path has no confirmed cause.
 - [x] Check native rendered Today contrast in both appearances on the local fixture; both pass without suppressing findings.
 - [ ] Complete physical VoiceOver, largest text, Reduce Motion, iPad/split view, landscape and supported iOS acceptance. Local Today contrast does not certify every screen or device.
 - [ ] For external coverage, prepare a separate signed synthetic-data XCUITest app/runner for a real-device service such as BrowserStack, with accessibility and visual checks. No external service signup, upload or paid run has occurred.
