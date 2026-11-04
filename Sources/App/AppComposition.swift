@@ -26,6 +26,37 @@ enum AppComposition {
                 metadataStore: CircleMetadataStore(directory: root.appendingPathComponent("metadata")),
                 registersForRemoteNotifications: false, runsBackgroundRefreshes: false)
         }
+        if ProcessInfo.processInfo.arguments.contains("--manna-local-ui-test"),
+           ProcessInfo.processInfo.arguments.contains("--manna-safety-ui-test"),
+           let session = ProcessInfo.processInfo.environment["BLESSING_CIRCLE_SAVING_TEST_SESSION"],
+           let sessionID = UUID(uuidString: session) {
+            if ProcessInfo.processInfo.arguments.contains("--manna-reset-timeline-layout") {
+                UserDefaults.standard.removeObject(forKey: "timeline.layoutMode")
+            }
+            let suite = "SafetyUITest-\(sessionID)"
+            let preferences = UserDefaults(suiteName: suite)!
+            if ProcessInfo.processInfo.arguments.contains("--manna-reset-safety-state") {
+                preferences.removePersistentDomain(forName: suite)
+            }
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent("SafetyUITest-\(sessionID)")
+            let failures = Set((ProcessInfo.processInfo.environment["MANNA_SAFETY_FAILURES"] ?? "").split(separator: ",").map(String.init))
+            let model = AppModel(repository: LocalBlessingRepository(timelineTestFixture: true),
+                authentication: SafetyUITestAuthentication(failSignOut: failures.contains("signout")),
+                savedBlessingStore: SavedBlessingStore(root: root.appendingPathComponent("saved")),
+                draftStore: BlessingDraftStore(root: root.appendingPathComponent("drafts")),
+                accountSafety: SafetyUITestService(failures: failures,
+                    completed: ProcessInfo.processInfo.arguments.contains("--manna-deletion-completed")),
+                deletionPreferences: preferences,
+                diagnosticCollection: localCollection,
+                metadataStore: CircleMetadataStore(directory: root.appendingPathComponent("metadata")),
+                identityPhotoCache: IdentityPhotoCache(directory: root.appendingPathComponent("photos")),
+                registersForRemoteNotifications: false, runsBackgroundRefreshes: false)
+            if ProcessInfo.processInfo.arguments.contains("--manna-deletion-pending") {
+                preferences.set("local-ui-receipt", forKey: "privacy.deletionReceipt")
+                model.accountDeletionPending = true
+            }
+            return model
+        }
         // An explicit local-backend fence for accessibility UI automation.
         // This launch argument is intentionally unavailable in Release builds.
         if ProcessInfo.processInfo.arguments.contains("--manna-local-ui-test")

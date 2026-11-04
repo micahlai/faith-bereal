@@ -1043,6 +1043,7 @@ private struct UserSettingsView: View {
                 }
 
             }
+            .accessibilityIdentifier("settings.form")
             .navigationTitle("User settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

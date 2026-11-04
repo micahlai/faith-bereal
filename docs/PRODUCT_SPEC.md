@@ -227,3 +227,8 @@ The app icon badge counts distinct joined circles with at least one currently au
 ## Circle switcher readiness
 
 The circle-name dropdown lists joined circles only; join/create remains available from Manage circles and the Circle tab. A dot means at least one daily or end-of-day blessing is ready **and unanswered** for the current account. Both prompt kinds in one circle produce one dot; sharing one leaves it while the other is ready and unanswered. A caller-scoped IDs RPC reuses the badge predicate, and the app derives the badge count from those IDs. Failures retain the last successful result; sign-out clears IDs and stale reads cannot replace newer/account results. Refresh occurs on menu opening, existing metadata/mutation paths and foreground refreshes.
+
+### Safety recovery and deletion-screen accessibility
+
+Report details and selected reason remain available after a failed send; Done above the keyboard exposes the form actions. A blocked-user load failure presents an error and Retry instead of claiming the list is empty. Blocked-member names and Unblock stack at accessibility text sizes. The account-deletion pending screen scrolls with untruncated text and reachable status, policy, support and sign-out actions at the largest text sizes. A failed sign-out preserves the pending access gate; only successful sign-out dismisses it. Local Debug automation uses isolated synthetic safety/deletion services; real Apple confirmation is still required in distributed builds.
+Deletion cancellation and request errors remain on Delete account with status/retry actions instead of dismissing the settings sheet through a global alert. A block failure keeps the blessing detail open with an error so the user can retry without navigating back.

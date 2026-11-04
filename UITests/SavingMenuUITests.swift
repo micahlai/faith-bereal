@@ -113,16 +113,19 @@ final class SavingMenuUITests: XCTestCase {
             viewport.size.height = bottomY - viewport.minY
             let frame = element.exists ? element.frame : nil
             if let frame, viewport.contains(frame) || (allowPartial && viewport.intersects(frame)), element.isHittable { return }
-            let origin = scroll.coordinate(withNormalizedOffset: .zero)
-            let top = origin.withOffset(
-                CGVector(dx: viewport.midX - scroll.frame.minX, dy: viewport.minY - scroll.frame.minY + 25))
-            let bottom = origin.withOffset(
-                CGVector(dx: viewport.midX - scroll.frame.minX, dy: viewport.maxY - scroll.frame.minY - 25))
-            if frame.map({ $0.minY < viewport.minY }) ?? towardTop {
-                top.press(forDuration: 0.05, thenDragTo: bottom)
-            } else {
-                bottom.press(forDuration: 0.05, thenDragTo: top)
+            // XCTest can call an obscured photo hittable. Keep the full-frame
+            // requirement above and move in bounded steps so short controls are
+            // not skipped by viewport-length drags or momentum.
+            let scrollBack = frame.map { $0.minY < viewport.minY } ?? towardTop
+            let delta = frame.map { scrollBack ? viewport.minY - $0.minY : $0.maxY - viewport.maxY }
+            let travel = min(viewport.height * 0.28, max(32, (delta ?? viewport.height) * 0.7))
+            let startY = viewport.minY + viewport.height * (scrollBack ? 0.35 : 0.7)
+            let endY = min(viewport.maxY - 12, max(viewport.minY + 12, startY + (scrollBack ? travel : -travel)))
+            func coordinate(_ y: CGFloat) -> XCUICoordinate {
+                app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: viewport.midX, dy: y))
             }
+            coordinate(startY).press(forDuration: 0.05, thenDragTo: coordinate(endY),
+                withVelocity: .slow, thenHoldForDuration: 0.2)
         }
         XCTFail("Could not reveal \(element.identifier)")
     }
