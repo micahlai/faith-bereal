@@ -1,8 +1,8 @@
 # Release checklist
 
-## 0.6.0 Bible worktree update — November 3, 2026
+## 0.6.0 integrated source update — November 4, 2026
 
-Content Rights **Yes** is owner-approved, saved and verified in Chrome. The candidate restricts Bible access to 12 reviewed public-domain editions; see [rights evidence and rollout](BIBLE_CONTENT_RIGHTS.md). This supersedes the older saved-No finding below. Migration deployment, website disclosure and final combined verification remain release gates; the historic audit measurements below are unchanged.
+Content Rights **Yes** is owner-approved, saved and verified in Chrome. The candidate restricts Bible access to 12 reviewed public-domain editions; see [rights evidence and rollout](BIBLE_CONTENT_RIGHTS.md). This supersedes the older saved-No finding below. All local branches are integrated into main. The App Store Connect draft is now saved as 0.6.0 (Prepare for Submission), with no selected build. Source targets 0.6.0 (51), pending final build-number availability and a new signed candidate. Migration/dispatcher deployment, website disclosure and physical acceptance remain release gates; combined test results are recorded in STATUS.md. The historic audit measurements below are unchanged.
 
 This checklist separates work that can be proven locally from work that needs production Apple or Supabase access.
 

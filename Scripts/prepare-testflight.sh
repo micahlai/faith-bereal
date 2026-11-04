@@ -23,6 +23,7 @@ esac
 cd "$project_root"
 
 xcodegen generate
+node Scripts/test-bible-catalog.mjs
 node Scripts/test-live-activity-payload.mjs
 node Scripts/test-notification-payload.mjs
 

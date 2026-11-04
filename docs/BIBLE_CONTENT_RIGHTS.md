@@ -53,7 +53,7 @@ Owner-approved answer (saved in Chrome App Store Connect on November 3, 2026): *
 
 Suggested review explanation: “Bible passages are fetched from Midvash using a fixed release-reviewed list of public-domain translations. The app rejects unknown versions and provider substitutions, preserves version credits, and stores the user's Bible reference rather than copying verse text into the circle database. Version-specific public-domain evidence and the provider's terms are documented in the release rights record.”
 
-The Content Rights field was changed to Yes and its Saved state verified in Chrome. Proof: `build/bible-license-audit/app-store-content-rights-yes.png`. No build was uploaded or submitted; the existing draft version remains unchanged until combined 0.6.0 integration.
+The Content Rights field was changed to Yes and its Saved state verified in Chrome. Proof in the Bible worktree: `build/bible-license-audit/app-store-content-rights-yes.png`. On November 4, combined integration also saved the App Store Connect draft as **0.6.0**, Prepare for Submission, with no selected build (`build/release060/app-store-version-060.png` in the main worktree). No build was uploaded or submitted.
 
 ## Verification and rollout
 

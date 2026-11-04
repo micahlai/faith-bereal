@@ -15,16 +15,18 @@ Audit date: November 3, 2026. Baseline: c44c1cc, local signed 0.5.3 (50). Public
 
 ## Privacy, safety and content
 
-- [ ] Review the Bible API's specific privacy/logging practices; add the direct provider to the public/in-app inventory where appropriate. Requests expose passage/translation and ordinary network metadata, without app account tokens or post bodies.
+- [x] Add the direct Bible provider to the in-app policy/onboarding and reconcile blessing-preview copy; policy version is November 4. Requests expose passage/translation and ordinary network metadata, without app account tokens or post bodies.
+- [ ] Update the public website disclosures and review provider-specific logging/retention where available; no unverified retention period is promised.
 - [x] Review Bible edition rights and reconcile Content Rights: owner chose Yes, saved/verified in Chrome. The 0.6.0 candidate retains 12 public-domain editions; [evidence and exclusions](../../BIBLE_CONTENT_RIGHTS.md).
-- [ ] Integrate/release that catalog, deploy its preference migration and update the public provider disclosure. Older installed builds keep their prior catalog until updated.
+- [x] Integrate the reviewed Bible catalog into main for 0.6.0.
+- [ ] Deploy its preference migration and release the new build. Older installed builds keep their prior catalog until updated.
 - [ ] Reassess Messaging/Chat = No against text/voice replies and Apple's definitions. Check the saved age answers and older-OS rating against the actual 13+ admission flow; keep intended US-only availability.
 - [ ] Assess limited phrase filtering and immediate unscreened photo/audio/video publication against Apple's UGC requirements. Report/block/contact and daily operator review already exist; determine whether additional filtering is needed and demonstrate operator response. Mandatory prepublication approval was removed by the owner and is not proposed for reinstatement here.
 - [ ] Reconcile the final candidate, public policy, in-app Help/inventory and published privacy answers. Finish or explicitly resolve the project's promised user-data export and per-post/departed-member history policy. Export is a project commitment, not a universal App Store requirement.
 
 ## App Store submission inputs
 
-- [ ] Resolve version/build provenance: draft 0.5.0, uploaded TestFlight 0.5.3 (49), locally validated 0.5.3 (50). Choose the exact review candidate, install it through TestFlight and select it in the matching release draft.
+- [ ] Finish signed-build provenance: the November 4 draft is saved as 0.6.0; integrated source targets 0.6.0 (51), while uploaded TestFlight 0.5.3 (49) and local 0.5.3 (50) remain historical. Create/validate the exact new candidate, confirm build-number availability, install it through TestFlight and select it in the matching draft.
 - [ ] Supply required iPhone/iPad screenshots; checked slots were empty. Marketing header/search creative does not replace app screenshots.
 - [ ] Complete description, keywords, copyright, primary category, pricing schedule and review contact/notes. Confirm final name/subtitle, URLs and release notes.
 - [ ] Prepare a safe reviewer sign-in/circle path with controllable prompt timing and clear instructions. The local demo does not establish production behavior for App Review.
@@ -33,13 +35,14 @@ Audit date: November 3, 2026. Baseline: c44c1cc, local signed 0.5.3 (50). Public
 
 ## Frontend automation and physical acceptance
 
-- [ ] Add UI coverage for report reasons/details/send/failure/cancel, block/unblock, deletion acknowledgement/pending/status/error/retry and largest-text layouts. In particular, inspect the unscrolled account-deletion-pending screen on a small phone; this is a source-review risk, not a demonstrated failure.
+- [x] Add local UI coverage for report reasons/details/send/failure/cancel, block/unblock, deletion acknowledgement/pending/status/error/retry and largest text. The reproduced pending-layout and deletion-error recovery defects are fixed in integrated 0.6.0; final combined results are in STATUS.md.
 - [ ] Complete one uninterrupted isolated full UI run and investigate the intermittent large-text photo-reveal assertion. All 47 existing cases have passing observations across runs; the original run still contains one failure and an interrupted final case. Do not report it as a single clean suite.
 - [ ] Test real Apple sign-in/cancellation/reauthentication/revocation/deletion with a disposable physical Apple-linked account, including both-provider absence and completion state.
 - [ ] Test two installed accounts through join/leave/removal/ownership transfer, shared settings, daily/evening locks, peer unlock after own post, responses/media, report/block, realtime and stale/offline recovery.
 - [ ] Test camera/microphone/Speech/Photos denial and recovery; real capture/transcription/playback/export; interruptions/backgrounding; poor connectivity, oversized/failed uploads, low storage and automatic-save limits.
 - [ ] Verify production push privacy/delivery, notification denial, ready-circle badges, Live Activity start/update/end, widget refresh/deep links and real invite Universal Links on devices.
-- [ ] Resolve the rendered Share-button contrast finding and complete VoiceOver, largest text, Reduce Motion, iPad/split view, landscape and supported iOS acceptance. Current native audits check hit regions/descriptions and do not prove rendered contrast.
+- [x] Check native rendered Today contrast in both appearances on the local fixture; both pass without suppressing findings.
+- [ ] Complete physical VoiceOver, largest text, Reduce Motion, iPad/split view, landscape and supported iOS acceptance. Local Today contrast does not certify every screen or device.
 - [ ] For external coverage, prepare a separate signed synthetic-data XCUITest app/runner for a real-device service such as BrowserStack, with accessibility and visual checks. No external service signup, upload or paid run has occurred.
 
 Evidence and limits: [release checklist](../../RELEASE_CHECKLIST.md), [backend report](BACKEND_READINESS.md), [frontend report](FRONTEND_READINESS.md), and aggregate-only [backend evidence](backend-evidence/). Large Xcode result bundles and raw logs remain local under build/.

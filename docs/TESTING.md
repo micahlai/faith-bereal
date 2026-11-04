@@ -253,7 +253,7 @@ Run `bash Scripts/test-storage-mirror.sh` for isolated Postgres queue/authorizat
 
 ## 0.5.0 recording retention verification
 
-The full-window saving/review contract, database/Edge checks, two-provider synthetic acceptance and delayed activation procedure are in [MEDIA_RETENTION.md](MEDIA_RETENTION.md). Current production cleanup remains paused pending actual updated-build availability plus 72 hours. Current source/build version is 0.5.3 (50); its new archive/export evidence is in STATUS.md. Earlier 0.5.0 IPA files remain historical. The pre-retention IPA in `build/TestFlight-0.5.0-47` is historical; use the rebuilt retention export described in STATUS.md. No upload is implied by export validation.
+The full-window saving/review contract, database/Edge checks, two-provider synthetic acceptance and delayed activation procedure are in [MEDIA_RETENTION.md](MEDIA_RETENTION.md). Current production cleanup remains paused pending actual updated-build availability plus 72 hours. Current source target is 0.6.0 (51), pending a new signed archive/export. Historical 0.5.3 (50) archive/export evidence is in STATUS.md; earlier IPA files remain historical. The pre-retention IPA in `build/TestFlight-0.5.0-47` is historical; use the rebuilt retention export described in STATUS.md. No upload is implied by export validation.
 
 ## 0.5.2 media publication and onboarding
 

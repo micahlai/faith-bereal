@@ -1,4 +1,4 @@
-# App Store privacy answers — current 0.5.3 candidate
+# App Store privacy answers — 0.6.0 source review
 
 Initial availability: United States only. Intended users: 13+. The age rating questionnaire must still accurately declare user-generated content and messaging; a rating is not age verification or parental consent. Under-13 signup/use is not supported. Do not expand countries or lower ages without reviewing the applicable privacy/child-safety requirements.
 
@@ -27,14 +27,16 @@ On November 2, 2026, the owner confirmed Apple's final accuracy/compliance attes
 
 Read-only Chrome verification on November 3 confirms the same ten published account-linked categories/purposes and privacy URL, plus United States-only availability. The current audit also found an omitted direct Bible-text API provider in the privacy inventory; reconcile that request path and API-specific practices before treating the inventory as complete. See the newest [release audit](RELEASE_CHECKLIST.md).
 
+November 4 integration adds the direct Midvash passage/version request and ordinary network-information disclosure to the in-app policy/onboarding; app account tokens and post bodies are not sent. It also corrects blessing-notification identity/preview disclosure. The public website and final Store answers still require reconciliation against these practices. The Chrome release draft is saved as **0.6.0**, with no selected build; no privacy-answer republication or build submission is claimed by this source update.
+
 ## Submission verification
 
 - Compare these answers to the generated Xcode privacy report, app/extension/SDK manifests, provider configuration and public policy.
 - Privacy policy URL: the production website's `/privacy`; accessible before account sign-in and in User settings.
-- Reconcile actual first-party account collection and third-party processors (Supabase/Cloudflare/Apple). Cloudflare R2 is a server provider, not a bundled iOS SDK.
+- Reconcile actual first-party account collection and third-party providers (Supabase/Cloudflare/Apple/Midvash). Cloudflare R2 is a server provider, not a bundled iOS SDK.
 - Store purpose strings describe optional, point-of-use access. Photo selection uses the system picker; Photos add permission is only for export.
 - Complete these answers in App Store Connect and verify the saved result before submission. The saved/published result above was verified in the actual App Store Connect UI; reconcile it again if practices change.
-- The current signed candidate is **0.5.3 (50)** for the app and both extensions. The published-answer record describes the saved App Store Connect state on November 2 and its November 3 read-only confirmation; it does not certify a selected build or reconcile the differing draft/TestFlight/local versions.
+- Source targets **0.6.0 (51)** for the app and both extensions, pending build-number availability and a new signed candidate. The signed **0.5.3 (50)** is historical. The published-answer record describes the saved App Store Connect state on November 2 and its November 3 read-only confirmation; it does not certify a selected build.
 
 ## Retention rollout gate
 

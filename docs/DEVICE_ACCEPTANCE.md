@@ -6,7 +6,7 @@ This runbook is for the 0.6.0 release target. Local automation uses synthetic De
 
 Use two consenting testers with disposable Apple-linked accounts A and B, a private test circle and synthetic posts. Use the exact proposed distribution build, not an Xcode Debug fixture; record version/build, install source and archive hash when known. Use a small supported iPhone and another iPhone; add an iPad if shipping iPad support. Record model, iOS version, network, display settings and date for each case. Keep real names, content, Apple codes, receipt tokens and device tokens out of shared logs.
 
-Chrome is the only authorized screen-sharing surface in this session. Actual Apple authorization and permission prompts require owner participation when those actions are needed. Authorized installed-device CLI/XCUITest checks can run without native computer-use screen capture; do not collect native Simulator/device screenshots through computer-use tools. Local XCUITest attachments are separate synthetic test evidence. The paired iPhone 14 Pro and iPad (A16) were both unavailable in the read-only device inventory on November 3; no physical acceptance is claimed.
+Chrome is the only authorized screen-sharing surface in this session. Actual Apple authorization and permission prompts require owner participation when those actions are needed. Authorized installed-device CLI/XCUITest checks can run without native computer-use screen capture; do not collect native Simulator/device screenshots through computer-use tools. Local XCUITest attachments are separate synthetic test evidence. The paired iPhone 14 Pro and iPad (A16) were both unavailable in the read-only device inventory on November 3 and the November 4 recheck; no physical acceptance is claimed.
 
 | Case | Actions and required observation | Result / evidence |
 | --- | --- | --- |
@@ -25,6 +25,12 @@ Chrome is the only authorized screen-sharing surface in this session. Actual App
 | Live Activity | Test push-to-start/update/end on physical supported hardware, no-late dismissal +3 minutes, late policy and submission replacement. Nudge sends ordinary notification, routes exact prompt and never starts Live Activity. Circle activity switches do not suppress direct nudges; OS permission still does. | Not performed |
 | Invitations | Open production HTTPS join link from Messages while installed/signed out; preserve intended code through login/setup, join only after confirmation, reject rotated code and unsafe URL. | Not performed |
 | Accessibility | Complete setup, sharing, response, report/block, deletion/pending, saved-media and settings tasks with VoiceOver and Voice Control; largest accessibility text, both appearances, Increased Contrast, Differentiate Without Color, Reduce Motion. Verify 44-point targets, keyboard avoidance and every complete label/action; test landscape and iPad split view. | Not performed |
+
+## External automated device coverage
+
+The existing Swift XCUITest suite makes [BrowserStack App Automate](https://www.browserstack.com/docs/app-automate/xcuitest/getting-started) a practical first option: upload a device-compatible app and its XCUI test suite, then select real iOS devices. [AWS Device Farm](https://docs.aws.amazon.com/devicefarm/latest/developerguide/test-types-ios-xctest-ui.html) is an alternative that accepts XCTest UI packages as `.ipa` or `.zip`. Check the current device/OS inventory and cost before choosing either. These services execute the cases supplied; they cannot infer complete product or compliance coverage.
+
+Prepare a separate signed synthetic-data app/runner with hosted credentials absent, and run the local-fixture cases on a small iPhone, a large iPhone and supported iPad/OS combinations. Keep actual Apple-linked two-account, permission, production push and deletion acceptance as separately recorded device work. No external account, upload, purchase or cloud run has been performed in this audit. Provider instructions checked November 4, 2026.
 
 ## Release decision
 
