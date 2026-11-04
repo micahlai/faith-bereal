@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-11-04 Bible preference response isolation
+
+- Final integration review reproduced an old preference response restoring a signed-out identity, replacing state after accepted deletion or an account switch, overwriting a newer selection, and showing a stale failure alert. Preference results now require the original account/bootstrap/data scope plus the latest request token, and discard cancelled/deletion-pending responses. Applying a valid result updates only the Bible preference, preserving profile fields refreshed meanwhile. Caller-authorized service writes and the local demo remain unchanged; this is a client response fence, not a new server write-ordering guarantee.
+- Six deterministic tests suspend response delivery after local writes finish and release old/new completions in chosen orders. Before the fix, five fail and the current-failure case passes (`build/BiblePreferenceRaceReproduced.xcresult`); the initial generated fixture compilation error is retained separately in `build/BiblePreferenceRaceBefore.xcresult`. All **six pass** after the fix (`build/BiblePreferenceRaceVerified.xcresult`, zero failures/skips). Parent integration will rerun complete Debug/Release units.
+
 ## 2026-11-04 Release integration privacy and date fixtures
 
 - Corrected the in-app policy and onboarding's missing Midvash disclosure and stale generic-only alert statement. Policy version **2026-11-04** uses the existing updated-policy review/age/sharing gate. Deletion-pending status/support bypass that new-consent gate, while normal account use remains protected; the merged safety UI case verifies the interaction. Public website copy still requires the same update before release.
