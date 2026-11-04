@@ -123,6 +123,7 @@ final class AppModel {
     private var timelineResponderCache = TimelineResponderSummaryCache()
     private(set) var timelineResponderRevision = UUID()
     private var timelineRefreshGeneration: UUID?
+    private var biblePreferenceGeneration = UUID()
     private var bootstrapGeneration = UUID()
     private var pageLoadGeneration = UUID()
     var currentUser: Member? {
@@ -1686,18 +1687,33 @@ final class AppModel {
     var usesAuthentication: Bool { authentication != nil }
 
     func updateBibleVersion(_ versionID: String) async {
-        guard let currentUser else { return }
+        guard let currentUser, !accountDeletionPending else { return }
         guard BibleTranslation.supports(versionID) else {
             message = BibleTextError.unsupportedVersion.localizedDescription
             return
         }
+        let request = UUID()
+        biblePreferenceGeneration = request
+        let startup = bootstrapGeneration
+        let scope = dataScopeGeneration
+        func isCurrentRequest() -> Bool {
+            !Task.isCancelled && !accountDeletionPending
+                && self.currentUser?.id == currentUser.id
+                && bootstrapGeneration == startup && dataScopeGeneration == scope
+                && biblePreferenceGeneration == request
+        }
         do {
-            self.currentUser = try await repository.updateBibleVersion(
+            let updated = try await repository.updateBibleVersion(
                 memberID: currentUser.id,
                 versionID: versionID
             )
+            guard isCurrentRequest(), updated.id == currentUser.id else { return }
+            // The preference response cannot restore an old identity or replace
+            // profile fields refreshed while this request was in flight.
+            self.currentUser?.bibleVersionID = updated.bibleVersionID
             scheduleWidgetSnapshotRefresh()
         } catch {
+            guard isCurrentRequest() else { return }
             message = error.localizedDescription
         }
     }
