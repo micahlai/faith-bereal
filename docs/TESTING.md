@@ -284,3 +284,20 @@ The full-window saving/review contract, database/Edge checks, two-provider synth
 ## Date-boundary fixture stability
 
 Late-entry, draft-resume, nudge and ready-circle boundary fixtures anchor their synthetic response window at local noon on the active circle day. They must not depend on whether the test runner happens to start within ten minutes of midnight. Explicit checks still reject next-day nudges/readiness and draft expiry; do not weaken midnight business rules to repair a wall-clock-dependent fixture. The November 3 near-midnight Release run exposed four such assumptions; the corrected four-case Release regression passes in `build/release060/DateBoundaryVerified.xcresult`. Final merged full suites are recorded in STATUS.md.
+
+## Safety and deletion UI acceptance (0.6.0 target)
+
+`AccountSafetyUITests` uses `--manna-local-ui-test --manna-safety-ui-test` plus a unique saving-test session. This branch is Debug-only, constructs no hosted client, disables remote-notification registration/background service work, and uses separate caches, archives, drafts and deletion-preference storage. `--manna-reset-safety-state` resets only that test session's deletion state; removing it permits a pending-state relaunch check. The fixture replaces Apple confirmation with an explicitly named **Confirm local test deletion** button only when the injected service is the local test service. Release builds retain the real Apple confirmation and contain no synthetic deletion path.
+
+Fail-once fixture operations (`MANNA_SAFETY_FAILURES`) exercise report details/reason retention and retry, block confirmation cancellation/failure/retry, unblock failure, blocked-list load failure/retry, deletion acceptance failure, receipt outages and failed sign-out. The installed UI verifies actual navigation, hidden blocked content, disabled acknowledgement gating, pending access lock and relaunch, honest pending/completed status, full largest-text layout and reachable policy/sign-out. These tests do not establish real Apple identity matching/revocation or mutual hosted server enforcement.
+
+`AccountSafetyTests` verifies accepted versus rejected deletion gates/content cleanup, persisted acceptance, status failure/pending/completed messages and failed-sign-out preservation using isolated stores. The Today rendered contrast audit checks both appearances without suppressing native findings. It complements compiled-asset contrast checks; it does not certify every screen, media overlay or physical accessibility feature.
+
+The saving-menu reveal helper retains full viewport containment and `isHittable`. Bounded slow drags with a held endpoint replace whole-viewport fling-like gestures that could skip short photo controls. The prior original failure remains historical evidence; a later passing run cannot erase it.
+
+For a release candidate, run unit and UI phases separately against isolated derived data and disposable simulators. Require a single completed expanded UI run, and retain original failed/interrupted attempts. Use [DEVICE_ACCEPTANCE.md](DEVICE_ACCEPTANCE.md) for actual Apple sign-in/revocation, report/block across accounts, capture/permissions, production push/badges, media interruption/storage and accessibility acceptance. Every physical row begins Not performed and requires a tester/evidence entry.
+
+
+### Local-demo midnight boundary
+
+`LocalDemoMidnightTests` queries the local daily prompt with explicit fixed dates, independent of bootstrap's wall clock. The first-minute cases (0, 20 and 59 seconds) require a same-day start, successful entry, exactly 600 seconds, an open phase immediately before the deadline, a closed phase at it and no next-day identity. Noon preserves the existing elapsed minute; the deliberately elapsed streak fixture is unchanged. This fixes the local demo waiting state observed when the rendered Today contrast test launched at 00:00:20. Hosted server timing is unaffected.

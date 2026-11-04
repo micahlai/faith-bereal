@@ -62,7 +62,8 @@ actor LocalBlessingRepository: BlessingRepository, ReadyCircleProviding {
             photoURL: seedPhotoURL
         )
 
-        let currentStart = now.addingTimeInterval(streakTestFixture ? -1_200 : -60)
+        let elapsedStart = now.addingTimeInterval(streakTestFixture ? -1_200 : -60)
+        let currentStart = streakTestFixture ? elapsedStart : max(startOfToday, elapsedStart)
         let current = DailyPrompt(
             id: UUID(uuidString: "C0000000-0000-0000-0000-000000000001")!,
             circleID: primaryCircle.id,
@@ -1087,7 +1088,7 @@ extension LocalBlessingRepository: DebugPromptProviding {
 }
 #endif
 
-private extension LocalBlessingRepository {
+extension LocalBlessingRepository {
     func currentDailyPrompt(circleID: UUID, now: Date) -> DailyPrompt? {
         guard let circle = circles.first(where: { $0.id == circleID }) else { return nil }
         var circleCalendar = Calendar(identifier: .gregorian)
@@ -1119,6 +1120,9 @@ private extension LocalBlessingRepository {
             .max(by: { $0.localDate < $1.localDate })
     }
 
+}
+
+private extension LocalBlessingRepository {
     func currentEndOfDayPrompt(circleID: UUID, now: Date) -> DailyPrompt? {
         guard let circle = circles.first(where: { $0.id == circleID }) else { return nil }
         var circleCalendar = Calendar(identifier: .gregorian)

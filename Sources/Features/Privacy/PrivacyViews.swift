@@ -74,7 +74,7 @@ struct PrivacySettingsSection: View {
     var body: some View {
         Section("Privacy and safety") {
             NavigationLink("Privacy policy") { PrivacyPolicyView() }
-            NavigationLink("Blocked users") { BlockedUsersView() }
+            NavigationLink("Blocked users") { BlockedUsersView() }.accessibilityIdentifier("safety.blockedUsersLink")
             NavigationLink("Community rules") { ScrollView { Text(PrivacyContent.communityRules).padding() }.navigationTitle("Community rules") }
             Link("Contact support", destination: URL(string: "mailto:\(PrivacyContent.contact)")!).frame(minHeight: 44)
             Text("No advertising tracking. Diagnostic sharing is optional. Permissions can be changed in iOS Settings.").font(.footnote)

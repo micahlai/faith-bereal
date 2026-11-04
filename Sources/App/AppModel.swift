@@ -21,8 +21,10 @@ final class AppModel {
     private let registersForRemoteNotifications: Bool
     private let runsBackgroundRefreshes: Bool
     let accountSafety: any AccountSafetyProviding
-    var accountDeletionPending = UserDefaults.standard.bool(forKey: "privacy.deletionPending")
+    private let deletionPreferences: UserDefaults
+    var accountDeletionPending: Bool
     var accountDeletionStatusMessage: String?
+    var accountDeletionRequestError: String?
     private var blockedAuthorIDs: Set<UUID> = []
     var isDeletingAccount = false
     let diagnosticCollection: DiagnosticCollectionController
@@ -235,6 +237,7 @@ final class AppModel {
         savedBlessingStore: SavedBlessingStore = SavedBlessingStore(),
         draftStore: BlessingDraftStore = BlessingDraftStore(),
         accountSafety: any AccountSafetyProviding = LocalAccountSafetyService(),
+        deletionPreferences: UserDefaults = .standard,
         diagnosticCollection: DiagnosticCollectionController = DiagnosticCollectionController(),
         metadataStore: CircleMetadataStore = .shared,
         identityPhotoCache: IdentityPhotoCache = .shared,
@@ -248,6 +251,8 @@ final class AppModel {
         self.registersForRemoteNotifications = registersForRemoteNotifications
         self.runsBackgroundRefreshes = runsBackgroundRefreshes
         self.accountSafety = accountSafety
+        self.deletionPreferences = deletionPreferences
+        self.accountDeletionPending = deletionPreferences.bool(forKey: "privacy.deletionPending")
         self.diagnosticCollection = diagnosticCollection
         self.savedBlessingStore = savedBlessingStore
         self.draftStore = draftStore
@@ -829,13 +834,14 @@ final class AppModel {
     func requestAccountDeletion(appleCode: String) async {
         guard !isDeletingAccount else { return }
         isDeletingAccount = true
+        accountDeletionRequestError = nil
         defer { isDeletingAccount = false }
         do {
-            let receipt = UserDefaults.standard.string(forKey: "privacy.deletionReceipt")
+            let receipt = deletionPreferences.string(forKey: "privacy.deletionReceipt")
                 ?? (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased()
-            UserDefaults.standard.set(receipt, forKey: "privacy.deletionReceipt")
+            deletionPreferences.set(receipt, forKey: "privacy.deletionReceipt")
             try await accountSafety.requestDeletion(appleCode: appleCode, receipt: receipt)
-            UserDefaults.standard.set(true, forKey: "privacy.deletionPending")
+            deletionPreferences.set(true, forKey: "privacy.deletionPending")
             accountDeletionPending = true
             await clearNotificationBadge()
             bootstrapGeneration = UUID(); pageLoadGeneration = UUID(); dataScopeGeneration = UUID()
@@ -853,11 +859,11 @@ final class AppModel {
             }
             savedBlessings = [:]; lanes = []; circle = nil; circles = []; prompt = nil; endOfDayPrompt = nil
             BlessingWidgetSnapshotStore.save(.empty); WidgetCenter.shared.reloadAllTimelines()
-        } catch { message = "Deletion could not finish this step. Try again or contact support. Your account may already be queued; check deletion status before using it." }
+        } catch { accountDeletionRequestError = "Deletion could not finish this step. Try again or contact support. Your account may already be queued; check deletion status before using it." }
     }
 
     func checkAccountDeletion() async {
-        guard let receipt = UserDefaults.standard.string(forKey: "privacy.deletionReceipt") else {
+        guard let receipt = deletionPreferences.string(forKey: "privacy.deletionReceipt") else {
             accountDeletionStatusMessage = "Contact support to check this request."
             return
         }
@@ -902,7 +908,7 @@ final class AppModel {
             currentUser = nil
             blockedAuthorIDs = []
             if accountDeletionPending {
-                UserDefaults.standard.set(false, forKey: "privacy.deletionPending")
+                deletionPreferences.set(false, forKey: "privacy.deletionPending")
                 accountDeletionPending = false
             }
             nudgingMembers = []
