@@ -8,7 +8,9 @@ final class PhotoViewerUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         for largest in [false, true] {
-            app.launchArguments = ["--manna-offline-saved-ui-test",
+            // Playback starts from an already-consented installation; do not
+            // inherit acceptance from another test's onboarding sequence.
+            app.launchArguments = ["--manna-offline-saved-ui-test", "-privacy.acceptedVersion", "2026-11-04",
                 "-user.appearancePreference", largest ? "dark" : "light",
                 "-UIPreferredContentSizeCategoryName",
                 largest ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
