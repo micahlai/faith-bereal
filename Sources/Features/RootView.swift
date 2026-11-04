@@ -9,7 +9,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if acceptedPrivacy != PrivacyContent.version && !privacyTestBypass {
+            if acceptedPrivacy != PrivacyContent.version && !privacyTestBypass && !model.accountDeletionPending {
                 StartupOnboardingView(
                     initialPage: model.hasSeenAbout ? .appearance : .about,
                     endsAfterPrivacy: true,
@@ -65,7 +65,9 @@ struct RootView: View {
             }
         }
         .task(id: acceptedPrivacy) {
-            if acceptedPrivacy == PrivacyContent.version || privacyTestBypass {
+            // A pending deletion only checks its receipt and clears notifications;
+            // it must remain available without consenting to new account use.
+            if model.accountDeletionPending || acceptedPrivacy == PrivacyContent.version || privacyTestBypass {
                 await model.bootstrap()
                 if let url = deferredURL { deferredURL = nil; await model.handleDeepLink(url) }
             }

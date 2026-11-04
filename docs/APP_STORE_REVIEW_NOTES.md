@@ -2,7 +2,7 @@
 
 Status: draft for a future release candidate. Values marked **Release input required** must be completed before submission.
 
-Current signed candidate: **0.5.3 (50)**. Use the newest dated audit in [the release checklist](RELEASE_CHECKLIST.md); older audit rows are historical. Account deletion, report/block controls, privacy onboarding and the recording-retention implementation now exist. Public submission still needs the physical-device acceptance and release inputs below. Confirm the App Store Connect version/build selection and build-number availability before upload.
+Combined source target: **0.6.0 (51)**, pending final build-number availability and a new signed archive. The earlier signed **0.5.3 (50)** is historical. Use the newest dated audit in [the release checklist](RELEASE_CHECKLIST.md); older audit rows are historical. Account deletion, report/block controls, privacy onboarding and the recording-retention implementation now exist. Public submission still needs the physical-device acceptance and release inputs below. Confirm the App Store Connect version/build selection and build-number availability before upload.
 
 ## Encryption export-compliance answer
 

@@ -36,7 +36,7 @@ struct PrivacyOnboardingPage: View {
             }.blessingCard()
             VStack(alignment: .leading, spacing: 16) {
                 Text("Your information and your circle").font(.headline)
-                Text("Your profile, posts and selected media go to our service providers and authorized circle members. Faith posts may reveal sensitive beliefs. Supabase runs accounts and storage; Cloudflare stores media copies; Apple provides sign-in, notifications and optional speech processing.")
+                Text("Your profile, posts and selected media go to our service providers and authorized circle members. Faith posts may reveal sensitive beliefs. Supabase runs accounts and storage; Cloudflare stores media copies; Apple provides sign-in, notifications and optional speech processing. Midvash receives the Bible reference/version and ordinary connection information when loading passages or widget text, without your manna account token or post text. Blessing alerts can show sender/circle identity and, after you share for the same prompt, blessing text or media; control previews in iPhone Settings.")
                 NavigationLink("Read privacy policy") { PrivacyPolicyView() }.frame(minHeight: 44)
                     .foregroundStyle(AppTheme.primary)
                 consentToggle("I agree to this use and sharing of my information", identifier: "privacy.sharing", isOn: $choices.sharingConsent)

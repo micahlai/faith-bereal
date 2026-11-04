@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-11-04 Release integration privacy and date fixtures
+
+- Corrected the in-app policy and onboarding's missing Midvash disclosure and stale generic-only alert statement. Policy version **2026-11-04** uses the existing updated-policy review/age/sharing gate. Deletion-pending status/support bypass that new-consent gate, while normal account use remains protected; the merged safety UI case verifies the interaction. Public website copy still requires the same update before release.
+- A near-midnight Release run found four old test assumptions: their seeded ten-minute windows crossed the circle day boundary, so the correct midnight denial contradicted their expected late-entry result. The fixtures now use local noon and retain explicit next-day rejection checks. Corrected Release regression **4/4 passed** (`build/release060/DateBoundaryVerified.xcresult`). No hosted/business deadline rule changed.
+- The Bible/policy source checkpoint passes the complete **397-test Debug unit suite** (`build/release060/PolicyDebugUnit.xcresult`). This precedes the pending frontend/local-demo integration; final combined suites and all-branch ancestry still need verification before push.
+- Recommended private-R2 media architecture and free-plan backup/restore options are documented in [BACKEND_CAPACITY_OPTIONS.md](BACKEND_CAPACITY_OPTIONS.md). They are not activated by these source changes.
+
 ## 2026-11-03 Bible rights review — 0.6.0 worktree
 
 - The owner chose **Content Rights: Yes**; saved and verified in Chrome App Store Connect. Public-domain text remains third-party content. No build upload or submission occurred; existing Store draft version is unchanged until combined integration.

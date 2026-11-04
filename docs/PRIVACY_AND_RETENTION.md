@@ -1,6 +1,6 @@
 # Privacy and retention plan
 
-Last updated: 2026-11-03
+Last updated: 2026-11-04
 
 Current launch implementation and evidence: [LAUNCH_COMPLIANCE.md](LAUNCH_COMPLIANCE.md). Recording retention, saved-copy limits and activation gates: [MEDIA_RETENTION.md](MEDIA_RETENTION.md). Those documents contain the rollout and evidence details for the inventory below.
 
@@ -10,6 +10,8 @@ Current launch implementation and evidence: [LAUNCH_COMPLIANCE.md](LAUNCH_COMPLI
 - Circle content is private to current members and is used only for app functionality.
 - The app stores a Bible reference, never a copied verse text, with a blessing.
 - Service-role, APNs, and Apple private keys never ship in the app.
+
+The 0.6.0 in-app policy/onboarding identifies Midvash and the restored blessing-notification identity/content previews. Its policy version is November 4, 2026, so existing users review the updated age/sharing choices through the existing consent gate. Pending deletion status/support remain available without accepting a newer policy; normal account use still requires the current choices. Blessing content/media unlocks only after the recipient's own exact-prompt submission; response/nudge alerts remain generic, delivered alerts may persist and iOS preview settings apply. The public website must receive equivalent copy before release; this source change does not update that separate site.
 
 ## Data inventory
 
