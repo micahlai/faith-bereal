@@ -1380,7 +1380,7 @@ private struct FullscreenVideoPlayer: View {
 struct ScripturePassageView: View {
     @Environment(AppModel.self) private var model
     let reference: ScriptureReference
-    @State private var text: String?
+    @State private var passage: BiblePassage?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -1388,15 +1388,16 @@ struct ScripturePassageView: View {
             Label(reference.displayName, systemImage: "book.closed.fill")
                 .font(.headline)
                 .foregroundStyle(AppTheme.iris)
-            if let text {
+            if let passage {
                 ExpandablePassageText(
-                    text: text,
+                    text: passage.text,
                     title: reference.displayName,
                     translationName: model.selectedBibleTranslation.shortName
                 )
-                Text(model.selectedBibleTranslation.shortName)
-                    .font(.caption.weight(.semibold))
+                Text(passage.credit + "\nText via Midvash.")
+                    .font(.caption)
                     .foregroundStyle(AppTheme.secondaryInk)
+                    .accessibilityIdentifier("bible.providerCredit")
             } else if let errorMessage {
                 Text(errorMessage)
                     .font(.subheadline)
@@ -1418,14 +1419,17 @@ struct ScripturePassageView: View {
     }
 
     private func loadPassage() async {
-        text = nil
+        passage = nil
         errorMessage = nil
         do {
-            text = try await model.scriptureText(for: reference)
+            let loaded = try await model.scripturePassage(for: reference)
+            guard !Task.isCancelled else { return }
+            passage = loaded
         } catch is CancellationError {
             return
         } catch {
-            errorMessage = "The verse could not be loaded. Check your connection and try again."
+            guard !Task.isCancelled else { return }
+            errorMessage = (error as? BibleTextError)?.errorDescription ?? "The passage is unavailable right now. Try again later."
         }
     }
 }

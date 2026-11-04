@@ -104,7 +104,7 @@ struct BibleReferencePicker: View {
                     } else if let loadError {
                         ContentUnavailableView(
                             "Preview unavailable",
-                            systemImage: "wifi.exclamationmark",
+                            systemImage: "book.closed",
                             description: Text(loadError)
                         )
                         Button("Try again") { Task { await loadChapter() } }
@@ -117,9 +117,10 @@ struct BibleReferencePicker: View {
                                 title: reference.displayName,
                                 translationName: model.selectedBibleTranslation.shortName
                             )
-                            Text(model.selectedBibleTranslation.shortName)
-                                .font(.caption.weight(.semibold))
+                            Text((loadedChapter?.credit ?? model.selectedBibleTranslation.shortName) + "\nText via Midvash.")
+                                .font(.caption)
                                 .foregroundStyle(AppTheme.secondaryInk)
+                                .accessibilityIdentifier("bible.providerCredit")
                         }
                         .padding(.vertical, 4)
                     }
@@ -187,7 +188,7 @@ struct BibleReferencePicker: View {
         } catch {
             guard !Task.isCancelled else { return }
             loadedChapter = nil
-            loadError = "Check your connection, then try again."
+            loadError = (error as? BibleTextError)?.errorDescription ?? "The passage is unavailable right now. Try again later."
         }
         isLoading = false
     }

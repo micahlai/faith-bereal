@@ -1,6 +1,6 @@
 # Privacy and retention plan
 
-Last updated: 2026-11-02
+Last updated: 2026-11-03
 
 Current launch implementation and evidence: [LAUNCH_COMPLIANCE.md](LAUNCH_COMPLIANCE.md). Recording retention, saved-copy limits and activation gates: [MEDIA_RETENTION.md](MEDIA_RETENTION.md). Those documents contain the rollout and evidence details for the inventory below.
 
@@ -15,6 +15,7 @@ Current launch implementation and evidence: [LAUNCH_COMPLIANCE.md](LAUNCH_COMPLI
 
 | Data | Purpose | Storage | Retention / remaining limits |
 | --- | --- | --- | --- |
+| Requested Bible passage/version and ordinary network information | Load scripture and widget passages | Direct Midvash API request; chapter cache in app memory, credited passage in current widget snapshot | Provider-specific log retention unverified; no manna account token or post body is sent. Public website disclosure must be reconciled. See BIBLE_CONTENT_RIGHTS.md |
 | Name, user ID, Bible-version preference | Account and personalized scripture display | Supabase Auth/profile | Until account deletion completes |
 | Circle membership and join date | Access control and accurate Timeline history | Supabase database | Until the user leaves or account/circle deletion completes |
 | Blessing text/transcripts and scripture references | Core private-circle history | Supabase database | Until account/circle deletion; per-post deletion policy still requires a product decision |

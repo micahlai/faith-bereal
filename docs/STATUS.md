@@ -1,5 +1,13 @@
 # Project status
 
+## 2026-11-03 Bible rights review — 0.6.0 worktree
+
+- The owner chose **Content Rights: Yes**; saved and verified in Chrome App Store Connect. Public-domain text remains third-party content. No build upload or submission occurred; existing Store draft version is unchanged until combined integration.
+- Release target is **0.6.0 (51)**, pending final build-number availability. The fixed catalog retains **12 editions / six languages** with a documented US public-domain/free-use basis. Eight prior options are excluded for attribution requirements, territory issues, edition ambiguity or unverified imported-dataset provenance, including LSG despite its historic text's age. [Edition-by-edition evidence and limits](BIBLE_CONTENT_RIGHTS.md) include immutable provider metadata, API identity/notice samples, publisher dedications and the applicable US expiry rule; this is not a worldwide or whole-corpus certification.
+- App and database allowlists agree. Unsupported preferences fall back/migrate to WEB without removing references. Fetches reject unknown versions, aliases, incorrect references/ranges, empty text and changed/missing reviewed credits. Credits accompany app/widget text; old uncredited widget verse bodies are hidden until refreshed. Help, guide tests and the provider privacy inventory match.
+- Final 12-version full Debug suite passes **396 tests**, with no failures (`build/Bible060RightsUnit.xcresult`); catalog contract and full disposable SQL migration chain pass. Focused normal and largest-dark verse-tagging/credit UI tests both pass (`build/Bible060RightsUI.xcresult`, 2/2). Earlier UI attempts exposed harness handling of virtualized rows and are retained as failures; an earlier Release test build omitted required `ENABLE_TESTABILITY=YES`, and a corrected build was interrupted before integration to avoid duplicate verification. Final combined Release verification remains required.
+- Migration `202611030003` is **not deployed**. Hosted backup/rollback acceptance, public website provider disclosure, final Store privacy/age reconciliation and physical-device acceptance remain open. New Bible work stays isolated until the owner's requested all-branch integration.
+
 ## 2026-11-03 Nudge branch integrated for the 0.6.0 release target
 
 - Merged `codex/nudge-feedback` (through `31d990e`) into main at the owner's request, preserving the readiness audit and both worktree verification records below. The upcoming combined release targets **0.6.0**; existing 0.5.3 exports remain historical candidates.

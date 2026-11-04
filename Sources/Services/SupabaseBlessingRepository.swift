@@ -531,6 +531,7 @@ actor SupabaseBlessingRepository: BlessingRepository, ReadyCircleProviding, Devi
     }
 
     func updateBibleVersion(memberID: UUID, versionID: String) async throws -> Member {
+        guard BibleTranslation.supports(versionID) else { throw BibleTextError.unsupportedVersion }
         let row: ProfileRow = try await client.rpc(
             "update_bible_version",
             params: ["p_version_id": versionID]

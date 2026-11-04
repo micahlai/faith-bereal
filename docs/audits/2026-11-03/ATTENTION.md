@@ -16,7 +16,8 @@ Audit date: November 3, 2026. Baseline: c44c1cc, local signed 0.5.3 (50). Public
 ## Privacy, safety and content
 
 - [ ] Review the Bible API's specific privacy/logging practices; add the direct provider to the public/in-app inventory where appropriate. Requests expose passage/translation and ordinary network metadata, without app account tokens or post bodies.
-- [ ] Verify rights and attribution for every offered Bible translation; reconcile the saved statement that no third-party content is accessed.
+- [x] Review Bible edition rights and reconcile Content Rights: owner chose Yes, saved/verified in Chrome. The 0.6.0 candidate retains 12 public-domain editions; [evidence and exclusions](../../BIBLE_CONTENT_RIGHTS.md).
+- [ ] Integrate/release that catalog, deploy its preference migration and update the public provider disclosure. Older installed builds keep their prior catalog until updated.
 - [ ] Reassess Messaging/Chat = No against text/voice replies and Apple's definitions. Check the saved age answers and older-OS rating against the actual 13+ admission flow; keep intended US-only availability.
 - [ ] Assess limited phrase filtering and immediate unscreened photo/audio/video publication against Apple's UGC requirements. Report/block/contact and daily operator review already exist; determine whether additional filtering is needed and demonstrate operator response. Mandatory prepublication approval was removed by the owner and is not proposed for reinstatement here.
 - [ ] Reconcile the final candidate, public policy, in-app Help/inventory and published privacy answers. Finish or explicitly resolve the project's promised user-data export and per-post/departed-member history policy. Export is a project commitment, not a universal App Store requirement.

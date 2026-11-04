@@ -1,0 +1,222 @@
+{
+  "repository_commit": "9586bd8228a747962df1ee8692730422fb7eb2ec",
+  "scope": "Publisher/provider metadata only; not a full API corpus comparison. API-only versions use publisher dedication or catalog notice separately.",
+  "results": [
+    {
+      "version": "web",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/en/web/metadata.json",
+      "sha256": "2303763c65205d77d1db3bca85407cbc5d70a780ceaf3e6daf40fdd74e80d1bf",
+      "metadata": {
+        "slug": "web",
+        "shortName": "WEB",
+        "name": "World English Bible",
+        "language": "en",
+        "year": 2000,
+        "license": "public-domain",
+        "licenseNote": "Released into the public domain by Rainbow Missions, Inc.",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=engwebp",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31098
+        },
+        "readerUrl": "https://midvash.com/web",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "asv",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/en/asv/metadata.json",
+      "sha256": "0d66c0adcad4a31b666ab7398d7d6051027decfa934f81f06cb541537b2a5a6f",
+      "metadata": {
+        "slug": "asv",
+        "shortName": "ASV",
+        "name": "American Standard Version",
+        "language": "en",
+        "year": 1901,
+        "license": "public-domain",
+        "licenseNote": "Public domain in the United States and worldwide.",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=eng-asv",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31086
+        },
+        "readerUrl": "https://midvash.com/asv",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "dra",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/en/dra/metadata.json",
+      "sha256": "f2c67248203a2a4a8060623476bed5f585511eaab3dc0309327746059b188087",
+      "metadata": {
+        "slug": "dra",
+        "shortName": "DRA",
+        "name": "Douay-Rheims American Edition",
+        "language": "en",
+        "year": 1899,
+        "license": "public-domain",
+        "licenseNote": "Public domain (1899 American edition of the Challoner revision).",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=engDRA",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1197,
+          "verses": 31438
+        },
+        "readerUrl": "https://midvash.com/dra",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "geneva1599",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/en/geneva1599/metadata.json",
+      "sha256": "d9a93393057b7d7c9f980c21ba6e224d86ccc49966278020fee32a3357f14c13",
+      "metadata": {
+        "slug": "geneva1599",
+        "shortName": "GNV",
+        "name": "Geneva Bible 1599",
+        "language": "en",
+        "year": 1599,
+        "license": "public-domain",
+        "licenseNote": "Public domain (1599 edition).",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=enggnv",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31090
+        },
+        "readerUrl": "https://midvash.com/geneva1599",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "svd",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/ar/svd/metadata.json",
+      "sha256": "ea5cf8f11d3d5e993388c9c315cc0e273f09107029c29ed5c2c748a0043e0ca4",
+      "metadata": {
+        "slug": "svd",
+        "shortName": "SVD",
+        "name": "الكتاب المقدس فان دايك (Smith-Van Dyck)",
+        "language": "ar",
+        "year": 1865,
+        "license": "public-domain",
+        "licenseNote": "Public domain (Smith–Van Dyck Arabic translation, 1865).",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=arb-vd",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31104
+        },
+        "readerUrl": "https://midvash.com/svd",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "lsg",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/fr/lsg/metadata.json",
+      "sha256": "88295e0d16ba0a440a8cd07c5424eccd6e9b6e409f1ed5a6d108d84786d52bc3",
+      "metadata": {
+        "slug": "lsg",
+        "shortName": "LSG",
+        "name": "Louis Segond 1910",
+        "language": "fr",
+        "year": 1910,
+        "license": "public-domain",
+        "licenseNote": "Public domain (1910 revision of the Louis Segond translation).",
+        "attribution": null,
+        "sourceUrl": null,
+        "sourceVerified": false,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31102
+        },
+        "readerUrl": "https://midvash.com/lsg",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "synodal",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/ru/synodal/metadata.json",
+      "sha256": "389248c5548daad5f27dec9ec5798c0f287ef8492edfbc7f7025c426040516ac",
+      "metadata": {
+        "slug": "synodal",
+        "shortName": "SYN",
+        "name": "Синодальный перевод",
+        "language": "ru",
+        "year": 1876,
+        "license": "public-domain",
+        "licenseNote": "Public domain (Russian Synodal Translation, 1876).",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=russyn",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31169
+        },
+        "readerUrl": "https://midvash.com/synodal",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "luth1912",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/de/luth1912/metadata.json",
+      "sha256": "c75ece7e1e32212cf94cfc69f00aeb5d057d6b4863627962db168cd059c362a5",
+      "metadata": {
+        "slug": "luth1912",
+        "shortName": "LUTH1912",
+        "name": "Lutherbibel 1912",
+        "language": "de",
+        "year": 1912,
+        "license": "public-domain",
+        "licenseNote": "Public domain (1912 revision of the Luther Bible).",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=deu1912",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31102
+        },
+        "readerUrl": "https://midvash.com/luth1912",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    },
+    {
+      "version": "riveduta",
+      "metadata_url": "https://raw.githubusercontent.com/midvash/bible-data/9586bd8228a747962df1ee8692730422fb7eb2ec/versions/it/riveduta/metadata.json",
+      "sha256": "8223d48df0d919f98648480c8de7dfe54df9e739016c7b0e40bfbe7a48465697",
+      "metadata": {
+        "slug": "riveduta",
+        "shortName": "RIV",
+        "name": "Bibbia Riveduta 1927",
+        "language": "it",
+        "year": 1927,
+        "license": "public-domain",
+        "licenseNote": "Public domain (Luzzi translation; Luzzi d. 1930, work entered Italian public domain after 70 years).",
+        "attribution": null,
+        "sourceUrl": "https://ebible.org/find/details.php?id=ita1927",
+        "sourceVerified": true,
+        "stats": {
+          "books": 66,
+          "chapters": 1189,
+          "verses": 31102
+        },
+        "readerUrl": "https://midvash.com/riveduta",
+        "schema": "https://github.com/midvash/bible-data/blob/main/SCHEMA.md"
+      }
+    }
+  ]
+}

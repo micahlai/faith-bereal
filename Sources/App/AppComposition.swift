@@ -44,7 +44,9 @@ enum AppComposition {
                 settingsTestRole: settingsRole,
                 streakTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-streak-ui-test"),
                 timelineTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-timeline-ui-test"),
-                retentionFixtureURL: retentionAudio, retentionVideoURL: RetentionUITestFixture.makeVideo()), diagnosticCollection: localCollection)
+                retentionFixtureURL: retentionAudio, retentionVideoURL: RetentionUITestFixture.makeVideo()),
+                bibleService: ProcessInfo.processInfo.arguments.contains("--manna-bible-ui-test")
+                    ? BibleReleaseUITestService() : BibleAPIService(), diagnosticCollection: localCollection)
         }
 #endif
         if ProcessInfo.processInfo.environment["BLESSING_CIRCLE_FORCE_LOCAL"] == "1" {
@@ -160,5 +162,22 @@ private actor OfflineSavedUITestAuthentication: AuthenticationProviding {
     func currentUserID() async -> UUID? { nil }
     func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async throws { }
     func signOut() async throws { }
+}
+#endif
+
+#if DEBUG
+// Explicit synthetic fixture; the Release app always uses the reviewed service.
+private struct BibleReleaseUITestService: BibleTextProviding {
+    func chapter(versionID: String, book: BibleBook, chapter: Int) async throws -> BibleChapter {
+        guard BibleTranslation.supports(versionID) else { throw BibleTextError.unsupportedVersion }
+        return BibleChapter(verses: (1...36).map { "Synthetic Bible verse \($0) for local acceptance." },
+                            credit: "Synthetic WEB credit. Public Domain.")
+    }
+    func passage(versionID: String, reference: ScriptureReference) async throws -> BiblePassage {
+        guard BibleTranslation.supports(versionID) else { throw BibleTextError.unsupportedVersion }
+        return BiblePassage(text: BiblePassageFormatter.markedText(
+            verses: (reference.verseStart...reference.verseEnd).map { "Synthetic Bible verse \($0) for local acceptance." },
+            startingAt: reference.verseStart), credit: "Synthetic WEB credit. Public Domain.")
+    }
 }
 #endif

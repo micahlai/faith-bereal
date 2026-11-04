@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 struct ScriptureReference: Codable, Hashable, Sendable {
     let bookSlug: String
@@ -21,26 +22,54 @@ struct BibleTranslation: Identifiable, Codable, Hashable, Sendable {
     let languageCode: String
     let languageName: String
 
+    static let defaultVersionID = "web"
+
+    // Reviewed release catalog; free-to-read is not the same as public domain.
+    // Evidence and exclusions: docs/BIBLE_CONTENT_RIGHTS.md.
+    static func supports(_ versionID: String) -> Bool {
+        publicDomain.contains { $0.id == versionID }
+    }
+
+    // A changed provider rights notice requires another review, rather than
+    // silently accepting a new license under an existing version ID.
+    private static let reviewedCreditFingerprints: [String: String] = [
+        "web": "0dfa3c82af62e16f66093a01994e07a296c06aa2174871ca36815237a5955d17",
+        "bsb": "47c507c78f994ff4bf597b0c15925af3d489d409885fb356e082b7085d4aed7e",
+        "asv": "a7f2d1b83899ef0b385def251266ef28c042e771e95811dbfdb60c25cef35662",
+        "ylt": "fc3caab38270c3da355a7a60accea2034fec2d054f389f5e3a9819a683c33277",
+        "dra": "7ebdb41762536ff31065091418ebcbbca4d3d7bdc718ce2848f23cd8d19e7441",
+        "bbe": "d55c522ee7a19f86ce83e432aa65665013625fecf6e8d5db4a88cdb05084bde7",
+        "geneva1599": "08811d1df400b1772a602636182b3e777f86ca67e71c609739133c26bf0f04bc",
+        "rvr1909": "b707e585b715f2f9c78b6bdead7c62993dbaf3cdde143b549449127a8260d7d0",
+        "svd": "4171ebc71830a6cb6fc50cc008abaeb881ed18facbf6a05f35ffb5f3f80eef51",
+        "synodal": "8e244ce9a9cf69a530dbca216b06b7a42a0d2ca5e29a06c4b96bd1060db4aa89",
+        "luth1912": "0493b3eb1bd152929b321980b73d5d4f50fe27fe357ff3329a8957e479bb7dd0",
+        "riveduta": "abf692bb33db2cede5d8f650fd005bdefb9fbccdc422192f03609ce01e73f954",
+    ]
+
+    static func hasReviewedCredit(_ credit: String, versionID: String) -> Bool {
+        guard supports(versionID), let expected = reviewedCreditFingerprints[versionID] else { return false }
+        let normalized = credit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digest = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+        return digest == expected
+    }
+
+    static func selection(for versionID: String?) -> BibleTranslation {
+        publicDomain.first { $0.id == versionID } ?? publicDomain[0]
+    }
+
     static let publicDomain: [BibleTranslation] = [
         .init(id: "web", shortName: "WEB", name: "World English Bible", languageCode: "en", languageName: "English"),
         .init(id: "bsb", shortName: "BSB", name: "Berean Standard Bible", languageCode: "en", languageName: "English"),
-        .init(id: "kjv", shortName: "KJV", name: "King James Version", languageCode: "en", languageName: "English"),
         .init(id: "asv", shortName: "ASV", name: "American Standard Version", languageCode: "en", languageName: "English"),
         .init(id: "ylt", shortName: "YLT", name: "Young's Literal Translation", languageCode: "en", languageName: "English"),
         .init(id: "dra", shortName: "DRA", name: "Douay-Rheims American Edition", languageCode: "en", languageName: "English"),
         .init(id: "bbe", shortName: "BBE", name: "Bible in Basic English", languageCode: "en", languageName: "English"),
         .init(id: "geneva1599", shortName: "GNV", name: "Geneva Bible 1599", languageCode: "en", languageName: "English"),
         .init(id: "rvr1909", shortName: "RVR1909", name: "Reina-Valera 1909", languageCode: "es", languageName: "Español"),
-        .init(id: "cuvs", shortName: "CUVS", name: "和合本（简体）", languageCode: "zh", languageName: "中文"),
-        .init(id: "cuv", shortName: "CUV", name: "和合本（繁體）", languageCode: "zh", languageName: "中文"),
         .init(id: "svd", shortName: "SVD", name: "الكتاب المقدس فان دايك", languageCode: "ar", languageName: "العربية"),
-        .init(id: "lsg", shortName: "LSG", name: "Louis Segond 1910", languageCode: "fr", languageName: "Français"),
-        .init(id: "almeida-livre", shortName: "BL", name: "Bíblia Livre (Almeida 1819)", languageCode: "pt-br", languageName: "Português"),
         .init(id: "synodal", shortName: "SYNODAL", name: "Синодальный перевод", languageCode: "ru", languageName: "Русский"),
         .init(id: "luth1912", shortName: "LUTH1912", name: "Lutherbibel 1912", languageCode: "de", languageName: "Deutsch"),
-        .init(id: "kgy", shortName: "KGY", name: "口語訳聖書", languageCode: "ja", languageName: "日本語"),
-        .init(id: "vi1934", shortName: "VI1934", name: "Kinh Thánh 1934", languageCode: "vi", languageName: "Tiếng Việt"),
-        .init(id: "kor", shortName: "KOR", name: "개역한글판", languageCode: "ko", languageName: "한국어"),
         .init(id: "riveduta", shortName: "RIVEDUTA", name: "Bibbia Riveduta 1927", languageCode: "it", languageName: "Italiano")
     ]
 
@@ -141,6 +170,12 @@ struct BibleBook: Identifiable, Hashable, Sendable {
 
 struct BibleChapter: Hashable, Sendable {
     let verses: [String]
+    var credit: String? = nil
+}
+
+struct BiblePassage: Hashable, Sendable {
+    let text: String
+    let credit: String
 }
 
 enum BiblePassageFormatter {

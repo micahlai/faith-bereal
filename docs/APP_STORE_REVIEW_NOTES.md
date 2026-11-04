@@ -22,6 +22,10 @@ The app also includes:
 - a Home Screen widget that shows an active prompt or rotates eligible blessings;
 - private circle creation and invite-code joining.
 
+## Bible content rights for the 0.6.0 target
+
+The Bible worktree narrows the catalog to 12 reviewed public-domain versions, carries provider credits and rejects aliased responses. Public-domain text is still third-party content: the owner approved Content Rights Yes, saved and verified in Chrome, supported by the [version evidence and review explanation](BIBLE_CONTENT_RIGHTS.md). The production migration and matching public website disclosure remain separate rollout work. Only Content Rights was updated; no submission or build upload was performed.
+
 ## Review path
 
 The checked-in build has a deterministic local repository for simulator development and automated tests. Production review must use a configured Supabase project and Sign in with Apple.

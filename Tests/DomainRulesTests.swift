@@ -315,10 +315,10 @@ final class DomainRulesTests: XCTestCase {
     func testPublicDomainBibleVersionsAreGroupedInPopularityOrder() {
         let groups = BibleTranslation.groups
 
-        XCTAssertEqual(groups.prefix(4).map(\.id), ["en", "zh", "es", "ar"])
+        XCTAssertEqual(groups.prefix(4).map(\.id), ["en", "es", "ar", "ru"])
         XCTAssertTrue(groups.first(where: { $0.id == "es" })?.translations.contains(where: { $0.id == "rvr1909" }) == true)
-        XCTAssertTrue(groups.first(where: { $0.id == "ja" })?.translations.contains(where: { $0.id == "kgy" }) == true)
-        XCTAssertEqual(Set(BibleTranslation.publicDomain.map(\.languageCode)).count, 12)
+        XCTAssertFalse(groups.contains(where: { $0.id == "ja" }))
+        XCTAssertEqual(Set(BibleTranslation.publicDomain.map(\.languageCode)).count, 6)
     }
 
     func testBiblePassageFormatterAddsVerseMarkers() {
@@ -1466,10 +1466,10 @@ final class DomainRulesTests: XCTestCase {
         let user = bootstrap.currentUser
         let circle = try XCTUnwrap(bootstrap.circle)
 
-        let updated = try await repository.updateBibleVersion(memberID: user.id, versionID: "kjv")
+        let updated = try await repository.updateBibleVersion(memberID: user.id, versionID: "asv")
 
-        XCTAssertEqual(updated.bibleVersionID, "kjv")
-        XCTAssertNotEqual(circle.members[1].bibleVersionID, "kjv")
+        XCTAssertEqual(updated.bibleVersionID, "asv")
+        XCTAssertNotEqual(circle.members[1].bibleVersionID, "asv")
     }
 
     func testTimelineEndsAtMembershipStartAndExcludesEarlierPrompts() async throws {

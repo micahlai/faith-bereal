@@ -28,8 +28,11 @@ SQL
 # policy, trigger and data-migration statements run unchanged.
 for migration in "$repo_root"/supabase/migrations/*.sql; do
   if [[ "$migration" == *202611020007* ]]; then run_sql -f "$repo_root/supabase/tests/media_publication_before.sql"; fi
+  if [[ "$migration" == *202611030003* ]]; then run_sql -f "$repo_root/supabase/tests/bible_release_before.sql"; fi
   sed '/^create extension if not exists pg_cron /d; /^create extension if not exists pg_net /d' "$migration" | run_sql
  done
+run_sql -f "$repo_root/supabase/tests/bible_release_after.sql"
+run_sql -f "$repo_root/supabase/tests/bible_release.sql"
 run_sql -f "$repo_root/supabase/tests/media_publication_after.sql"
 run_sql -f "$repo_root/supabase/tests/launch_compliance.sql"
 run_sql -f "$repo_root/supabase/tests/retention_launch.sql"
