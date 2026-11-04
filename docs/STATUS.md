@@ -1,5 +1,10 @@
 # Project status
 
+## 2026-11-04 Local-demo first-minute prompt — worktree
+
+- The Today contrast test launched at 00:00:20 and reproduced a waiting screen: the demo seeded today's prompt with a start one minute earlier, on yesterday's date. Non-streak demo starts now clamp to the current day's midnight. The timer remains exactly ten minutes; normal noon seeding and the deliberately elapsed streak fixture stay unchanged. Hosted scheduling is unaffected. Sharing Help and its guide test match.
+- Three fixed-date tests cover 0/20/59 seconds after midnight, same-day identity, allowed entry, exact 600-second duration, the exclusive phase deadline, next-day closure, unchanged noon and unchanged streak timing. They and all 41 guide tests pass in `build/Frontend060MidnightUnit.xcresult` (**44 total**), before the final X-label guide assertion. Today contrast passes both appearances in `build/Frontend060FinalRecovery.xcresult`; that bundle's report assertion failure is retained and superseded by the successful value-based report test noted below. Full exact-source Debug/Release and uninterrupted integrated UI acceptance remain with the parent integration run.
+
 ## 2026-11-04 Frontend safety/device-readiness worktree — focused verification
 
 - Work is isolated on `codex/frontend-device-readiness` from merged nudge baseline `1b0f61e`; release version changes and Bible work remain separate. No hosted mutation, notification dispatch, deployment, upload or artwork work is performed.

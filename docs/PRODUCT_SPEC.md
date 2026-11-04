@@ -58,6 +58,7 @@ Small trusted groups: families, friends, faith groups, teams, and communities th
 ### Daily prompt
 
 - One prompt per circle per local calendar day.
+- The local demo starts its sample daily prompt on the current local day, even when opened during the first minute after midnight, and preserves its exact ten-minute timer window.
 - Random start time is selected server-side within a circle-configured window, default 12:00–22:00, with late blessings enabled by default.
 - Circle creation transactionally schedules the current local-day prompt from the owner's initial settings. On the circle-local day a member joins, a welcome blessing belongs to yesterday until today's notification starts; afterward it belongs to today and entry is allowed until that day ends. An entry grant preserves that original date when sending later.
 - The preselected random time is the dispatch target. When the server claims that prompt, it authors the shared `starts_at` from the actual dispatch and sets `ends_at = starts_at + response_window_minutes`, giving every member the complete configured entry window.

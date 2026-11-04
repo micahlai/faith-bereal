@@ -286,3 +286,8 @@ Fail-once fixture operations (`MANNA_SAFETY_FAILURES`) exercise report details/r
 The saving-menu reveal helper retains full viewport containment and `isHittable`. Bounded slow drags with a held endpoint replace whole-viewport fling-like gestures that could skip short photo controls. The prior original failure remains historical evidence; a later passing run cannot erase it.
 
 For a release candidate, run unit and UI phases separately against isolated derived data and disposable simulators. Require a single completed expanded UI run, and retain original failed/interrupted attempts. Use [DEVICE_ACCEPTANCE.md](DEVICE_ACCEPTANCE.md) for actual Apple sign-in/revocation, report/block across accounts, capture/permissions, production push/badges, media interruption/storage and accessibility acceptance. Every physical row begins Not performed and requires a tester/evidence entry.
+
+
+### Local-demo midnight boundary
+
+`LocalDemoMidnightTests` queries the local daily prompt with explicit fixed dates, independent of bootstrap's wall clock. The first-minute cases (0, 20 and 59 seconds) require a same-day start, successful entry, exactly 600 seconds, an open phase immediately before the deadline, a closed phase at it and no next-day identity. Noon preserves the existing elapsed minute; the deliberately elapsed streak fixture is unchanged. This fixes the local demo waiting state observed when the rendered Today contrast test launched at 00:00:20. Hosted server timing is unaffected.

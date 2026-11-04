@@ -191,6 +191,13 @@ final class HelpContentTests: XCTestCase {
         }
     }
 
+    func testSharingHelpExplainsLocalDemoAtMidnight() {
+        let guide = HelpTopic.sharing.steps.map(\.body).joined(separator: " ")
+        XCTAssertTrue(guide.contains("local demo mode"))
+        XCTAssertTrue(guide.contains("including just after midnight"))
+        XCTAssertTrue(guide.contains("timer window is ten minutes"))
+    }
+
     func testSafetyHelpExplainsRetryAndAccessiblePendingActions() {
         let guide = HelpTopic.privacy.steps.map(\.body).joined(separator: " ")
         for concept in ["use Retry", "does not mean no one is blocked", "reason and details", "Done above the keyboard", "X button", "Scroll the pending screen", "largest text sizes", "Failed sign-out keeps", "status remains available when the privacy policy changes", "request fails", "keeps the explanation visible"] {
