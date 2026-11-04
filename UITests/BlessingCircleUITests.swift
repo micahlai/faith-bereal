@@ -74,12 +74,24 @@ final class BlessingCircleUITests: XCTestCase {
     }
     @MainActor
     func testNudgeAppearsOnlyAfterSharingAndCannotBeRepeated() {
+        verifyNudgeFeedback(largest: false)
+    }
+
+    @MainActor
+    func testNudgeAtLargestDarkTextUsesInlineFeedback() {
+        verifyNudgeFeedback(largest: true)
+    }
+
+    @MainActor
+    private func verifyNudgeFeedback(largest: Bool) {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
         app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
         app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
-        app.launchArguments += ["--manna-local-ui-test"]
+        app.launchArguments += ["--manna-local-ui-test",
+            "-user.appearancePreference", largest ? "dark" : "light",
+            "-UIPreferredContentSizeCategoryName", largest ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launch()
         XCTAssertTrue(app.buttons["Share a blessing"].waitForExistence(timeout: 15))
         let nudge = app.buttons["Nudge Ben for daily blessing"]
@@ -95,13 +107,66 @@ final class BlessingCircleUITests: XCTestCase {
         let alert = app.alerts["manna circle"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["OK"].tap()
-        for _ in 0..<4 where !nudge.isHittable { app.swipeDown() }
+        for _ in 0..<12 where !nudge.isHittable { app.swipeUp() }
         XCTAssertTrue(nudge.waitForExistence(timeout: 5))
+        let sharedText = app.staticTexts["Grateful for my circle today"].firstMatch
+        XCTAssertTrue(sharedText.exists)
+        XCTAssertGreaterThan(nudge.frame.minY, sharedText.frame.maxY)
         XCTAssertTrue(nudge.isEnabled)
         nudge.tap()
-        XCTAssertTrue(alert.staticTexts["Nudge queued for Ben. Their notification settings still apply."].waitForExistence(timeout: 5))
-        alert.buttons["OK"].tap()
-        XCTAssertFalse(nudge.isEnabled)
+        let completed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == false AND value == %@", "Nudged"), object: nudge)
+        XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 5), .completed)
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = largest ? "Nudged largest dark" : "Nudged below today’s blessings"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    @MainActor
+    func testCircleSwitcherDotsTrackReadyUnansweredPrompts() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["BLESSING_CIRCLE_SAVING_TEST_SESSION"] = UUID().uuidString
+        app.launchEnvironment["BLESSING_CIRCLE_FORCE_LOCAL"] = "1"
+        app.launchEnvironment["BLESSING_CIRCLE_SKIP_ONBOARDING"] = "1"
+        app.launchArguments = ["--manna-local-ui-test", "--manna-switcher-ui-test",
+            "-user.appearancePreference", "light", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        let switcher = app.buttons["Current circle, Sunday Table"]
+        XCTAssertTrue(switcher.waitForExistence(timeout: 15))
+        func checkMenu(ready: Bool) {
+            switcher.tap()
+            let row = app.buttons["circle.switch.B0000000-0000-0000-0000-000000000001"]
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            XCTAssertEqual(row.label, ready ? "Sunday Table, blessing ready and unanswered" : "Sunday Table")
+            XCTAssertFalse(app.buttons["Join or create a circle"].exists)
+            let screen = XCTAttachment(screenshot: app.screenshot())
+            screen.name = ready ? "Switcher with ready unanswered dot" : "Switcher after both blessings shared"
+            screen.lifetime = .keepAlways
+            add(screen)
+            row.tap()
+        }
+        checkMenu(ready: true)
+        func share(button: String, text: String) {
+            let action = app.buttons[button]
+            for _ in 0..<12 where !action.isHittable { app.swipeDown() }
+            XCTAssertTrue(action.waitForExistence(timeout: 5))
+            action.tap()
+            let editor = app.textViews["Write your blessing"]
+            XCTAssertTrue(editor.waitForExistence(timeout: 5))
+            editor.tap(); editor.typeText(text)
+            let send = app.buttons["Send blessing"]
+            for _ in 0..<8 where !send.isHittable { app.swipeUp() }
+            send.tap()
+            let alert = app.alerts["manna circle"]
+            XCTAssertTrue(alert.waitForExistence(timeout: 5))
+            alert.buttons["OK"].tap()
+        }
+        share(button: "Share a blessing", text: "Daily switcher check")
+        checkMenu(ready: true)
+        share(button: "Share end-of-day blessing", text: "Evening switcher check")
+        checkMenu(ready: false)
     }
 
     @MainActor

@@ -97,6 +97,7 @@ final class AppModel {
     private var badgeGeneration = UUID()
     private var badgeReadGeneration = UUID()
     private(set) var readyBlessingCircleCount = 0
+    private(set) var readyBlessingCircleIDs: Set<UUID> = []
     private var remoteServicesConfigured = false
     private var apnsToken: String?
     private var pushToStartToken: String?
@@ -106,6 +107,7 @@ final class AppModel {
     private var dataScopeGeneration = UUID() {
         didSet {
             knownSharedNudgeRecipients = []
+            nudgeErrors = [:]
             expiryReviewGeneration = UUID()
             expiringBlessings = []; expiryReviewCompletedAt = nil; expiryReviewError = nil; isReviewingExpiry = false
             localArchiveUsage = nil
@@ -188,6 +190,7 @@ final class AppModel {
     var isSubmitting = false
     private(set) var nudgingMembers: Set<NudgeKey> = []
     private(set) var nudgedMembers: Set<NudgeKey> = []
+    private(set) var nudgeErrors: [NudgeKey: String] = [:]
     private var knownSharedNudgeRecipients: Set<NudgeKey> = []
     var isSwitchingCircle = false
     var message: String?
@@ -1849,23 +1852,19 @@ final class AppModel {
               nudgeCandidates(at: now).contains(where: { $0.id == candidate.id }) else { return }
         let scope = dataScopeGeneration
         nudgingMembers.insert(candidate.id)
+        nudgeErrors[candidate.id] = nil
         defer { nudgingMembers.remove(candidate.id) }
         do {
-            let queued = try await repository.nudgeMember(promptID: candidate.prompt.id,
+            _ = try await repository.nudgeMember(promptID: candidate.prompt.id,
                 recipientID: candidate.member.id, senderID: user.id, now: now)
             guard currentUser?.id == user.id, dataScopeGeneration == scope else { return }
             nudgedMembers.insert(candidate.id)
-            message = queued
-                ? "Nudge queued for \(candidate.member.displayName). Their notification settings still apply."
-                : "This person has already been nudged for this blessing."
         } catch {
             guard currentUser?.id == user.id, dataScopeGeneration == scope, !Self.isCancellation(error) else { return }
             if case BlessingError.nudgeRecipientAlreadyShared = error {
                 knownSharedNudgeRecipients.insert(candidate.id)
                 await refreshCurrentCircle(force: true)
-                guard currentUser?.id == user.id, dataScopeGeneration == scope else { return }
-                message = "\(candidate.member.displayName) has already shared, so a nudge wasn’t sent."
-            } else { message = error.localizedDescription }
+            } else { nudgeErrors[candidate.id] = error.localizedDescription }
         }
     }
 
@@ -2783,14 +2782,16 @@ final class AppModel {
 
     func refreshNotificationBadge(now: Date = .now) async {
         guard let userID = currentUser?.id, canUseFreshCircle, !accountDeletionPending,
-              let provider = repository as? any ReadyCircleCountProviding else { return }
+              let provider = repository as? any ReadyCircleProviding else { return }
         let generation = badgeGeneration
         let read = UUID()
         badgeReadGeneration = read
         do {
-            let count = max(0, try await provider.readyCircleCount(userID: userID, now: now))
+            let ids = try await provider.readyCircleIDs(userID: userID, now: now)
+            let count = ids.count
             guard !Task.isCancelled, generation == badgeGeneration, read == badgeReadGeneration, currentUser?.id == userID,
                   !accountDeletionPending else { return }
+            readyBlessingCircleIDs = ids
             readyBlessingCircleCount = count
             if usesAuthentication && registersForRemoteNotifications {
                 try await UNUserNotificationCenter.current().setBadgeCount(count)
@@ -2801,7 +2802,7 @@ final class AppModel {
     }
 
     private func scheduleBadgeRefresh() {
-        guard runsBackgroundRefreshes, repository is any ReadyCircleCountProviding else { return }
+        guard runsBackgroundRefreshes, repository is any ReadyCircleProviding else { return }
         badgeRefreshRequested = true
         guard badgeRefreshTask == nil else { return }
         badgeRefreshTask = Task { [weak self] in
@@ -2818,6 +2819,7 @@ final class AppModel {
         badgeGeneration = UUID()
         badgeRefreshTask?.cancel(); badgeRefreshTask = nil; badgeRefreshRequested = false
         readyBlessingCircleCount = 0
+        readyBlessingCircleIDs = []
         if usesAuthentication && registersForRemoteNotifications {
             try? await UNUserNotificationCenter.current().setBadgeCount(0)
         }

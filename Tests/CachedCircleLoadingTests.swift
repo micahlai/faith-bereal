@@ -228,6 +228,31 @@ final class CachedCircleLoadingTests: XCTestCase {
         await fixture.repository.gate.release()
         await read.value
         XCTAssertEqual(fixture.model.readyBlessingCircleCount, 0, "The outgoing account cannot restore its badge")
+        XCTAssertTrue(fixture.model.readyBlessingCircleIDs.isEmpty)
+    }
+
+    @MainActor
+    func testReadyCircleDotsPreserveIDsOnFailureAndUseLatestRead() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.model.bootstrap()
+        let first = UUID(), second = UUID()
+        await fixture.repository.setReadyCircleIDs([first])
+        await fixture.model.refreshNotificationBadge()
+        XCTAssertEqual(fixture.model.readyBlessingCircleIDs, [first])
+        await fixture.repository.setBadgeCount(-1)
+        await fixture.model.refreshNotificationBadge()
+        XCTAssertEqual(fixture.model.readyBlessingCircleIDs, [first])
+        await fixture.repository.setReadyCircleIDs([first])
+        await fixture.repository.gate.arm(.badge)
+        let old = Task { await fixture.model.refreshNotificationBadge() }
+        await fixture.repository.gate.waitUntilSuspended()
+        await fixture.repository.setReadyCircleIDs([second])
+        await fixture.model.refreshNotificationBadge()
+        await fixture.repository.gate.release()
+        await old.value
+        XCTAssertEqual(fixture.model.readyBlessingCircleIDs, [second])
+        XCTAssertEqual(fixture.model.readyBlessingCircleCount, 1)
     }
 
     @MainActor
@@ -256,12 +281,34 @@ final class CachedCircleLoadingTests: XCTestCase {
         let candidate = try XCTUnwrap(fixture.model.nudgeCandidates().first)
         await fixture.repository.failNudgeAsAlreadyShared()
         let before = await fixture.repository.counts()
+        fixture.model.message = nil
         await fixture.model.nudge(candidate)
         let after = await fixture.repository.counts()
         XCTAssertGreaterThan(after.pages, before.pages)
         XCTAssertFalse(fixture.model.nudgeCandidates().contains { $0.id == candidate.id })
         XCTAssertFalse(fixture.model.nudgedMembers.contains(candidate.id))
-        XCTAssertTrue(fixture.model.message?.contains("already shared") == true)
+        XCTAssertNil(fixture.model.message)
+    }
+
+    @MainActor
+    func testFailedNudgeShowsInlineErrorAndRetryClearsItWithoutAlert() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false)
+        defer { fixture.removeFiles() }
+        await fixture.model.bootstrap()
+        let shared = await fixture.model.submit(mode: .typed, body: "Grateful", audioURL: nil, videoURL: nil, scriptureReference: nil)
+        XCTAssertTrue(shared)
+        fixture.model.message = nil
+        let candidate = try XCTUnwrap(fixture.model.nudgeCandidates().first)
+        await fixture.repository.failNextNudge()
+        await fixture.model.nudge(candidate)
+        XCTAssertNotNil(fixture.model.nudgeErrors[candidate.id])
+        XCTAssertFalse(fixture.model.nudgedMembers.contains(candidate.id))
+        XCTAssertFalse(fixture.model.nudgingMembers.contains(candidate.id))
+        XCTAssertNil(fixture.model.message)
+        await fixture.model.nudge(candidate)
+        XCTAssertNil(fixture.model.nudgeErrors[candidate.id])
+        XCTAssertTrue(fixture.model.nudgedMembers.contains(candidate.id))
+        XCTAssertNil(fixture.model.message)
     }
 
     @MainActor
@@ -737,14 +784,23 @@ private actor CachedLoadingGate {
 }
 
 /// All domain behavior is forwarded to the local repository; only response delivery is delayed.
-private actor CachedLoadingRepository: BlessingRepository, ReadyCircleCountProviding {
+private actor CachedLoadingRepository: BlessingRepository, ReadyCircleProviding {
     private var badgeCount = 0
-    func setBadgeCount(_ count: Int) { badgeCount = count }
+    private var badgeIDs: Set<UUID> = []
+    func setBadgeCount(_ count: Int) {
+        badgeCount = count
+        badgeIDs = Set((0..<max(0, count)).map { _ in UUID() })
+    }
+    func setReadyCircleIDs(_ ids: Set<UUID>) { badgeIDs = ids; badgeCount = ids.count }
     func readyCircleCount(userID: UUID, now: Date) async throws -> Int {
+        try await readyCircleIDs(userID: userID, now: now).count
+    }
+    func readyCircleIDs(userID: UUID, now: Date) async throws -> Set<UUID> {
         let value = badgeCount
+        let ids = badgeIDs
         await gate.pauseIfArmed(.badge)
         guard value >= 0 else { throw URLError(.notConnectedToInternet) }
-        return value
+        return ids
     }
     let gate = CachedLoadingGate()
     private let base: LocalBlessingRepository
@@ -927,10 +983,11 @@ private actor CachedLoadingRepository: BlessingRepository, ReadyCircleCountProvi
         await gate.pauseIfArmed(.leave)
     }
 
-    private var nudgeAlreadyShared = false
-    func failNudgeAsAlreadyShared() { nudgeAlreadyShared = true }
+    private var nudgeFailure: BlessingError?
+    func failNudgeAsAlreadyShared() { nudgeFailure = .nudgeRecipientAlreadyShared }
+    func failNextNudge() { nudgeFailure = .nudgeUnavailable }
     func nudgeMember(promptID: UUID, recipientID: UUID, senderID: UUID, now: Date) async throws -> Bool {
-        if nudgeAlreadyShared { nudgeAlreadyShared = false; throw BlessingError.nudgeRecipientAlreadyShared }
+        if let failure = nudgeFailure { nudgeFailure = nil; throw failure }
         return try await base.nudgeMember(promptID: promptID, recipientID: recipientID, senderID: senderID, now: now)
     }
 

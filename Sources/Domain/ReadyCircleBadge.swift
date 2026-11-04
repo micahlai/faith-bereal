@@ -1,7 +1,8 @@
 import Foundation
 
-protocol ReadyCircleCountProviding: Sendable {
+protocol ReadyCircleProviding: Sendable {
     func readyCircleCount(userID: UUID, now: Date) async throws -> Int
+    func readyCircleIDs(userID: UUID, now: Date) async throws -> Set<UUID>
 }
 
 protocol DeviceNotificationRevoking: Sendable {
@@ -12,6 +13,10 @@ enum ReadyCircleBadgePolicy {
     static func count(circles: [CircleGroup], prompts: [DailyPrompt], submitted: Set<UUID>, userID: UUID, now: Date)
         -> Int
     {
+        readyCircleIDs(circles: circles, prompts: prompts, submitted: submitted, userID: userID, now: now).count
+    }
+
+    static func readyCircleIDs(circles: [CircleGroup], prompts: [DailyPrompt], submitted: Set<UUID>, userID: UUID, now: Date) -> Set<UUID> {
         Set(
             prompts.filter { prompt in
                 guard !submitted.contains(prompt.id), prompt.notificationHasStarted != false,
@@ -29,6 +34,6 @@ enum ReadyCircleBadgePolicy {
                     || FirstDaySubmissionPolicy.isEligible(
                         memberJoinedAt: member.joinedAt, prompt: prompt, circle: circle, now: now)
             }.map(\.circleID)
-        ).count
+        )
     }
 }

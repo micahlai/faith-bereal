@@ -826,21 +826,18 @@ private struct GlobalAppToolbar: ToolbarContent {
                         } label: {
                             HStack {
                                 Text(circle.name)
-                                if model.circle?.id == circle.id {
+                                if model.readyBlessingCircleIDs.contains(circle.id) {
+                                    Image(systemName: "circle.fill")
+                                } else if model.circle?.id == circle.id {
                                     Image(systemName: "checkmark")
                                 }
                             }
                         }
+                        .accessibilityLabel(model.readyBlessingCircleIDs.contains(circle.id)
+                            ? "\(circle.name), blessing ready and unanswered" : circle.name)
+                        .accessibilityIdentifier("circle.switch.\(circle.id.uuidString)")
                     }
                 }
-
-                Divider()
-                Button {
-                    model.selectedTab = 2
-                } label: {
-                    Label("Join or create a circle", systemImage: "plus.circle")
-                }
-                .disabled(model.isPageLoading || model.isShowingCachedMetadata)
             } label: {
                 HStack(spacing: 5) {
                     if model.isSwitchingCircle {
@@ -856,7 +853,11 @@ private struct GlobalAppToolbar: ToolbarContent {
                 .frame(minHeight: 44)
             }
             .accessibilityLabel("Current circle, \(model.circle?.name ?? "none")")
-            .accessibilityHint("Opens the circle switcher")
+            .accessibilityHint("Opens the circle switcher. A dot marks a ready, unanswered blessing.")
+            .task { await model.refreshNotificationBadge() }
+            .simultaneousGesture(TapGesture().onEnded {
+                Task { await model.refreshNotificationBadge() }
+            })
         }
     }
 
@@ -905,7 +906,7 @@ private struct UserSettingsView: View {
                                         .foregroundStyle(AppTheme.ink)
                                 }
                                 Toggle(
-                                    "Blessings, responses, and nudges",
+                                    "Blessings and responses",
                                     isOn: Binding(
                                         get: {
                                             model.circles
@@ -936,7 +937,7 @@ private struct UserSettingsView: View {
                     } header: {
                         Text("Circle notifications")
                     } footer: {
-                        Text("Control blessing, response, and nudge alerts separately from the scheduled end-of-day reminder for each circle.")
+                        Text("Choose blessing and response alerts and the end-of-day reminder for each circle. Nudges are separate and can arrive even when these switches are off. Notifications must be allowed in iPhone Settings.")
                     }
                     .disabled(!model.canUseFreshCircle)
                 }

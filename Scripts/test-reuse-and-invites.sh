@@ -43,6 +43,7 @@ run_sql -f "$repo_root/supabase/migrations/202610070002_universal_circle_invites
   -f "$repo_root/supabase/migrations/202610220001_photo_previews.sql" \
   -f "$repo_root/supabase/tests/reuse_storage_visibility.sql" \
   -f "$repo_root/supabase/tests/photo_preview_visibility.sql" \
+  -f "$repo_root/supabase/migrations/202611030001_nudges_independent_of_circle_alerts.sql" \
   -f "$repo_root/supabase/tests/circle_nudges.sql" \
   -f "$repo_root/supabase/tests/first_join_timing.sql" \
   -f "$repo_root/supabase/tests/circle_streaks.sql"

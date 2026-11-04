@@ -1,4 +1,5 @@
 import { deliverReadyCircleBadges, type ReadyCircleBadgeClaim } from "./ready-circle-badges.ts";
+import { circleActivityMemberIDs } from "./notification-recipients.ts";
 import { mediaRetentionMayRun } from "./media-retention.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { importPKCS8, SignJWT } from "npm:jose@5";
@@ -10,6 +11,7 @@ import {
 } from "./live-activity-payload.ts";
 import {
   circleActivityBody,
+  circleActivityIdentity,
   circleActivityTitle,
   notificationMedia,
   promptReminder,
@@ -288,15 +290,27 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
     senderID = response.author_id;
   }
 
+  let senderName = "";
+  let senderAvatarPath: string | null = null;
+  if (notification.event_type === "blessing_shared") {
+    const { data: sender, error: senderError } = await admin
+      .from("profiles")
+      .select("display_name, avatar_path")
+      .eq("id", senderID)
+      .single();
+    if (senderError) throw senderError;
+    senderName = sender.display_name;
+    senderAvatarPath = sender.avatar_path;
+  }
+
   const { data: memberships, error: membershipError } = await admin
     .from("circle_members")
-    .select("user_id")
+    .select("user_id, notify_on_circle_activity")
     .eq("circle_id", prompt.circle_id)
-    .eq("notify_on_circle_activity", true)
     .is("removed_at", null)
     .neq("user_id", senderID);
   if (membershipError) throw membershipError;
-  const enabledMemberIDs = new Set((memberships ?? []).map((row) => row.user_id));
+  const enabledMemberIDs = circleActivityMemberIDs(notification.event_type, memberships ?? []);
 
   let recipientIDs: string[];
   const submittedByRecipient = new Set<string>();
@@ -338,6 +352,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
   const activeDevices = ((devices ?? []) as Device[]).filter((device) => device.apns_token !== null);
   if (activeDevices.length === 0) return;
 
+  const senderAvatarURL = await signedStorageURL("avatars", senderAvatarPath);
   const blessingMedia = notificationMedia({
     eventType: notification.event_type,
     unlocked: true,
@@ -356,7 +371,7 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
     const unlocked = notification.event_type === "response_shared" || submittedByRecipient.has(device.user_id);
     const body = circleActivityBody({
       eventType: notification.event_type,
-      senderName: "",
+      senderName,
       message: response?.body ?? blessing.body,
       unlocked,
       promptKind: prompt.kind,
@@ -386,6 +401,8 @@ async function dispatchCircleNotification(notification: CircleNotification): Pro
         },
         route,
         notification_kind: notification.event_type,
+        ...circleActivityIdentity({eventType: notification.event_type, senderID, senderName,
+          circleName: circle.name, senderAvatarURL}),
         circle_id: prompt.circle_id,
         ...(richMediaURL ? { rich_media_url: richMediaURL } : {}),
         blessing_id: blessing.id,

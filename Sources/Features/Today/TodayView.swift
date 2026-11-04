@@ -49,12 +49,12 @@ struct TodayView: View {
 
             let items = model.currentPromptBlessings(at: date)
             if !items.isEmpty {
+                TodayBlessingsFeed(items: items)
+                    .equatable()
                 let nudges = model.nudgeCandidates(at: date)
                 if !nudges.isEmpty {
                     TodayNudgePanel(candidates: nudges)
                 }
-                TodayBlessingsFeed(items: items)
-                    .equatable()
             }
 
             if model.currentUserBlessing(at: date) == nil {
@@ -104,6 +104,7 @@ struct TodayView: View {
 
 private struct TodayNudgePanel: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let candidates: [NudgeCandidate]
 
     var body: some View {
@@ -114,21 +115,31 @@ private struct TodayNudgePanel: View {
                 .font(.caption)
                 .foregroundStyle(AppTheme.secondaryInk)
             ForEach(candidates) { candidate in
-                HStack(spacing: 12) {
+                let layout = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                    : AnyLayout(HStackLayout(spacing: 12))
+                layout {
                     AvatarBadge(member: candidate.member, size: 36)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(candidate.member.displayName).font(.subheadline.weight(.semibold))
                         Text(candidate.prompt.kind == .daily ? "Daily blessing" : "End-of-day blessing")
                             .font(.caption).foregroundStyle(AppTheme.secondaryInk)
+                        if let error = model.nudgeErrors[candidate.id] {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.secondaryInk)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
-                    Spacer(minLength: 8)
+                    if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
                     Button {
                         Task { await model.nudge(candidate) }
                     } label: {
                         if model.nudgingMembers.contains(candidate.id) {
                             ProgressView().frame(minWidth: 44, minHeight: 44)
                         } else {
-                            Text(model.nudgedMembers.contains(candidate.id) ? "Nudged" : "Nudge")
+                            Text(model.nudgedMembers.contains(candidate.id) ? "Nudged" : model.nudgeErrors[candidate.id] != nil ? "Retry" : "Nudge")
+                                .fixedSize(horizontal: true, vertical: false)
                                 .frame(minWidth: 44, minHeight: 44)
                         }
                     }
@@ -136,6 +147,7 @@ private struct TodayNudgePanel: View {
                     .tint(AppTheme.primary)
                     .disabled(model.nudgingMembers.contains(candidate.id) || model.nudgedMembers.contains(candidate.id))
                     .accessibilityLabel("Nudge \(candidate.member.displayName) for \(candidate.prompt.kind == .daily ? "daily" : "end-of-day") blessing")
+                    .accessibilityValue(model.nudgedMembers.contains(candidate.id) ? "Nudged" : model.nudgingMembers.contains(candidate.id) ? "Sending" : model.nudgeErrors[candidate.id] != nil ? "Not sent. Retry" : "")
                 }
             }
         }

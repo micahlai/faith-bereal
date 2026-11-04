@@ -5,7 +5,7 @@ private struct BlessingEntryGrantKey: Hashable, Sendable {
     let memberID: UUID
 }
 
-actor LocalBlessingRepository: BlessingRepository, ReadyCircleCountProviding {
+actor LocalBlessingRepository: BlessingRepository, ReadyCircleProviding {
     private let calendar: Calendar
     private var currentUser: Member
     private var circles: [CircleGroup]
@@ -293,7 +293,11 @@ actor LocalBlessingRepository: BlessingRepository, ReadyCircleCountProviding {
     }
 
     func readyCircleCount(userID: UUID, now: Date) async throws -> Int {
-        ReadyCircleBadgePolicy.count(circles: circles, prompts: prompts,
+        try await readyCircleIDs(userID: userID, now: now).count
+    }
+
+    func readyCircleIDs(userID: UUID, now: Date) async throws -> Set<UUID> {
+        ReadyCircleBadgePolicy.readyCircleIDs(circles: circles, prompts: prompts,
             submitted: Set(blessings.filter { $0.authorID == userID }.map(\.promptID)), userID: userID, now: now)
     }
 
