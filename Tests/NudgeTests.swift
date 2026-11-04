@@ -55,7 +55,9 @@ final class NudgeTests: XCTestCase {
     }
 
     func testNudgeWindowBoundariesAndNoFirstDayOrGrantException() async throws {
-        let now = Date()
+        // Keep this complete response window inside one circle day.
+        // Midnight rejection is tested separately rather than depending on the wall clock.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
         let bootstrap = try await LocalBlessingRepository(now: now).bootstrap()
         var circle = try XCTUnwrap(bootstrap.circle)
         let daily = try XCTUnwrap(bootstrap.prompt)
@@ -76,6 +78,8 @@ final class NudgeTests: XCTestCase {
         XCTAssertFalse(canNudge(daily, at: daily.endsAt))
         circle.allowsLateBlessings = true
         XCTAssertTrue(canNudge(daily, at: daily.endsAt))
+        let midnight = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: now))!
+        XCTAssertFalse(canNudge(daily, at: midnight))
         XCTAssertFalse(canNudge(daily, at: daily.endsAt, next: daily.endsAt))
         let evening = DailyPrompt(id: UUID(), circleID: circle.id, localDate: daily.localDate,
             startsAt: now, endsAt: now.addingTimeInterval(5*3600), kind: .endOfDay)

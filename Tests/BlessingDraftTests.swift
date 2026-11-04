@@ -136,7 +136,9 @@ final class BlessingDraftTests: XCTestCase {
     }
 
     func testResumeRejectsClosedWindowWrongAccountAndNextDayDespiteOldEntry() async throws {
-        let now = Date()
+        // Keep this complete response window inside one circle day.
+        // Midnight rejection is tested separately rather than depending on the wall clock.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
         let repo = LocalBlessingRepository(now: now)
         let data = try await repo.bootstrap()
         var circle = try XCTUnwrap(data.circle)

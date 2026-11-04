@@ -29,7 +29,9 @@ final class ReadyCircleBadgeTests: XCTestCase {
     }
 
     func testDistinctCirclesFuturePromptsClosedWindowsAndNotificationStart() async throws {
-        let now = Date()
+        // Keep this complete response window inside one circle day.
+        // Midnight rejection is tested separately rather than depending on the wall clock.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
         let bootstrap = try await LocalBlessingRepository(now: now).bootstrap()
         var circle = try XCTUnwrap(bootstrap.circle)
         circle.allowsLateBlessings = false
@@ -53,6 +55,8 @@ final class ReadyCircleBadgeTests: XCTestCase {
         XCTAssertEqual(count(at: now, prompts: [scheduled]), 0)
         circle.allowsLateBlessings = true
         XCTAssertEqual(count(at: prompt.endsAt), 1)
+        let midnight = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: now))!
+        XCTAssertEqual(count(at: midnight), 0)
         XCTAssertEqual(count(at: now.addingTimeInterval(2 * 86_400)), 0)
         let other = try XCTUnwrap(bootstrap.circles.first { $0.id != circle.id })
         let otherPrompt = DailyPrompt(

@@ -1316,7 +1316,9 @@ final class DomainRulesTests: XCTestCase {
     }
 
     func testLateSubmissionIsMarkedLateWhenCircleAllowsIt() async throws {
-        let now = Date()
+        // Keep this complete response window inside one circle day.
+        // Midnight rejection is tested separately rather than depending on the wall clock.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
         let repository = LocalBlessingRepository(now: now)
         let bootstrap = try await repository.bootstrap()
         let user = bootstrap.currentUser
