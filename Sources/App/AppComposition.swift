@@ -38,7 +38,9 @@ enum AppComposition {
             let settingsRole = ProcessInfo.processInfo.environment["MANNA_CIRCLE_SETTINGS_TEST_ROLE"]
             let retentionAudio = ProcessInfo.processInfo.arguments.contains("--manna-retention-ui-test")
                 ? RetentionUITestFixture.makeAudioAndPreferences() : nil
-            return AppModel(repository: LocalBlessingRepository(seedPhotoURL: photoURL,
+            return AppModel(repository: LocalBlessingRepository(
+                endOfDayStartsAt: ProcessInfo.processInfo.arguments.contains("--manna-switcher-ui-test") ? Date.now.addingTimeInterval(-30) : nil,
+                seedPhotoURL: photoURL,
                 settingsTestRole: settingsRole,
                 streakTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-streak-ui-test"),
                 timelineTestFixture: ProcessInfo.processInfo.arguments.contains("--manna-timeline-ui-test"),

@@ -95,8 +95,32 @@ final class NudgeTests: XCTestCase {
         let candidate = try XCTUnwrap(model.nudgeCandidates().first)
         XCTAssertEqual(candidate.member.displayName, "Ben")
         XCTAssertEqual(candidate.prompt.kind, .daily)
+        model.message = nil
         await model.nudge(candidate)
         XCTAssertTrue(model.nudgedMembers.contains(candidate.id))
-        XCTAssertTrue(model.message?.contains("Nudge queued") == true)
+        XCTAssertNil(model.message)
+        XCTAssertNil(model.nudgeErrors[candidate.id])
+        await model.nudge(candidate)
+        XCTAssertTrue(model.nudgedMembers.contains(candidate.id))
+        XCTAssertNil(model.message)
     }
+
+    @MainActor
+    func testAlreadyQueuedNudgeUpdatesButtonWithoutAlert() async throws {
+        let repository = LocalBlessingRepository()
+        let model = AppModel(repository: repository)
+        await model.bootstrap()
+        let shared = await model.submit(mode: .typed, body: "Grateful", audioURL: nil, videoURL: nil, scriptureReference: nil)
+        XCTAssertTrue(shared)
+        let candidate = try XCTUnwrap(model.nudgeCandidates().first)
+        let sender = try XCTUnwrap(model.currentUser)
+        let queued = try await repository.nudgeMember(promptID: candidate.prompt.id, recipientID: candidate.member.id, senderID: sender.id, now: .now)
+        XCTAssertTrue(queued)
+        model.message = nil
+        await model.nudge(candidate)
+        XCTAssertTrue(model.nudgedMembers.contains(candidate.id))
+        XCTAssertNil(model.nudgeErrors[candidate.id])
+        XCTAssertNil(model.message)
+    }
+
 }

@@ -38,8 +38,8 @@ begin
     select id into strict v_event from public.circle_notification_outbox where event_type='member_nudged'
       and prompt_id=v_prompt.id and recipient_id=v_peer;
     assert public.nudge_is_deliverable(v_event);
-    update public.circle_members set notify_on_circle_activity=false where circle_id=v_circle.id and user_id=v_peer;
-    assert not public.nudge_is_deliverable(v_event);
+    update public.circle_members set notify_on_circle_activity=false,notify_on_end_of_day=false where circle_id=v_circle.id and user_id=v_peer;
+    assert public.nudge_is_deliverable(v_event), 'Circle activity opt-out must not suppress direct nudges';
     update public.circle_members set notify_on_circle_activity=true,removed_at=now() where circle_id=v_circle.id and user_id=v_peer;
     assert not public.nudge_is_deliverable(v_event);
     update public.circle_members set removed_at=null where circle_id=v_circle.id and user_id=v_peer;

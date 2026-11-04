@@ -19,6 +19,10 @@ final class ReadyCircleBadgeTests: XCTestCase {
         XCTAssertEqual(count([daily.id]), 1)
         XCTAssertEqual(count([evening.id]), 1)
         XCTAssertEqual(count([daily.id, evening.id]), 0)
+        for submitted: Set<UUID> in [[], [daily.id], [evening.id], [daily.id, evening.id]] {
+            let ids = ReadyCircleBadgePolicy.readyCircleIDs(circles: [circle], prompts: [daily, evening], submitted: submitted, userID: user, now: now)
+            XCTAssertEqual(ids, submitted.count == 2 ? [] : [circle.id])
+        }
         XCTAssertEqual(
             ReadyCircleBadgePolicy.count(circles: [circle], prompts: [daily], submitted: [], userID: UUID(), now: now),
             0)

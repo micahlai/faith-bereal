@@ -262,10 +262,24 @@ final class HelpContentTests: XCTestCase {
         }
     }
 
+    func testCircleSwitcherGuideExplainsReadyAndUnansweredDots() {
+        let guide = HelpTopic.circles.steps.map(\.body).joined(separator: " ")
+        for concept in ["A dot", "daily or end-of-day", "ready and unanswered", "completing both clears it", "Manage circles"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
+
     func testNudgeGuideExplainsSamePromptPrivacyAndLimits() {
         let guide = HelpTopic.sharing.steps.map(\.body).joined(separator: " ")
         for concept in ["After sharing for a prompt", "same daily or end-of-day", "late sharing", "one nudge per prompt",
-                        "never reveals", "notification switch", "window closes", "local demo"] {
+                        "never reveals", "below all", "Nudged without a popup", "Retry", "separate from the circle notification switches", "iPhone Settings", "window closes", "local demo"] {
+            XCTAssertTrue(guide.contains(concept))
+        }
+    }
+
+    func testNotificationGuideSeparatesNudgesFromCircleSwitches() {
+        let guide = HelpTopic.notifications.steps.map(\.body).joined(separator: " ")
+        for concept in ["Nudges are separate from both circle switches", "even when they are off", "iPhone Settings"] {
             XCTAssertTrue(guide.contains(concept))
         }
     }
@@ -278,9 +292,9 @@ final class HelpContentTests: XCTestCase {
         XCTAssertTrue(HelpTopic.personalization.steps.map(\.body).joined().contains("Adjust photo"))
     }
 
-    func testNotificationGuideExplainsGenericAlertsAndDeviceSurfaces() {
+    func testNotificationGuideExplainsGatedBlessingPreviewsAndDeviceSurfaces() {
         let guide = HelpTopic.notifications.steps.map(\.body).joined(separator: " ")
-        for concept in ["generic wording", "exclude sender and circle names", "attached media", "Earlier alerts", "Widgets and Live Activities"] {
+        for concept in ["who shared", "profile photo", "same daily or end-of-day prompt", "Share to see", "attached media hidden", "Earlier alerts", "Widgets and Live Activities"] {
             XCTAssertTrue(guide.contains(concept))
         }
     }

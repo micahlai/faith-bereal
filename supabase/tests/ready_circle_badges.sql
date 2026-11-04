@@ -25,8 +25,10 @@ begin
  assert public.my_ready_blessing_circle_count()=2,'second circle did not add one';
  insert into public.blessings(prompt_id,author_id,capture_mode,body,submitted_at,is_late) values(pa,u,'typed','Daily fixture',at_time,false);
  assert public.my_ready_blessing_circle_count()=2,'sharing daily must retain unsubmitted evening in same circle';
+ assert public.my_ready_blessing_circle_ids() @> array[a.id,b.id] and cardinality(public.my_ready_blessing_circle_ids())=2,'daily completion incorrectly cleared evening readiness';
  insert into public.blessings(prompt_id,author_id,capture_mode,body,submitted_at,is_late) values(ea,u,'typed','Evening fixture',at_time,false);
  assert public.my_ready_blessing_circle_count()=1,'completed circle remained in badge';
+ assert public.my_ready_blessing_circle_ids()=array[b.id],'answered circle retained menu dot';
  assert manna_private.ready_circle_count(u,at_time+interval '1 day')=0,'past closed opportunities remained';
  update public.circles set allow_late_blessings=false where id=b.id;
  assert manna_private.ready_circle_count(u,at_time+interval '9 minutes')=0,'closed nonlate window counted';
@@ -43,6 +45,7 @@ begin
  assert manna_private.ready_circle_count(u,at_time+interval '9 minutes')=1,'current-day late entry missing';
  insert into manna_private.suspended_users(user_id) values(u);
  assert public.my_ready_blessing_circle_count()=0,'suspended account retained readiness';
+ assert public.my_ready_blessing_circle_ids()='{}'::uuid[],'suspended account retained menu dots';
  delete from manna_private.suspended_users where user_id=u;
  insert into public.device_registrations(id,user_id,installation_id,apns_token,environment) values(d,u,installation,'badge-fixture-token','sandbox');
  select * into claim from public.claim_ready_circle_badges(500) q where q.device_id=d;
@@ -66,10 +69,13 @@ begin
  perform set_config('request.jwt.claim.sub',outsider::text,true);
  execute 'set local role authenticated';
  assert public.my_ready_blessing_circle_count()=0,'caller RPC leaked another account count';
+ assert public.my_ready_blessing_circle_ids()='{}'::uuid[],'caller RPC leaked another account IDs';
+ assert not has_function_privilege('anon','public.my_ready_blessing_circle_ids()','execute');
  perform public.revoke_installation_notifications(installation);
  assert not has_function_privilege('authenticated','public.claim_ready_circle_badges(integer)','EXECUTE');
  assert not has_function_privilege('anon','public.my_ready_blessing_circle_count()','EXECUTE');
  execute 'reset role';
+ assert not has_function_privilege('authenticated','manna_private.ready_circle_ids(uuid,timestamptz)','execute');
  assert (select revoked_at is null from public.device_registrations where id=d),'outsider revoked another installation';
  perform set_config('request.jwt.claim.sub',u::text,true);
  perform public.revoke_installation_notifications(installation);

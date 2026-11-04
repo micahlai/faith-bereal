@@ -1,7 +1,7 @@
 export type CircleActivityEvent = "blessing_shared" | "response_shared" | "member_nudged";
 
 export function circleActivityTitle(eventType: CircleActivityEvent, circleName: string): string {
-  return "manna circle";
+  return eventType === "blessing_shared" ? `New blessing in ${circleName}` : "manna circle";
 }
 
 export function promptReminder(input: {
@@ -63,7 +63,10 @@ export function circleActivityBody(input: {
 }): string {
   if (input.eventType === "member_nudged") return "Your circle invited you to share. Open manna to view.";
   if (input.eventType === "response_shared") return "There is a new response in your circle. Open manna to view.";
-  return "There is a new blessing in your circle. Open manna to view.";
+  if (!input.unlocked) return `${input.senderName} has shared a blessing. Share to see.`;
+  const firstLine = `${input.senderName} - ${input.message}`;
+  const reference = scriptureReference(input.scripture);
+  return reference ? `${firstLine}\n${reference}` : firstLine;
 }
 
 export function notificationMedia(input: {
@@ -73,5 +76,25 @@ export function notificationMedia(input: {
   thumbnailPath: string | null;
   photoPath: string | null;
 }): NotificationMedia | null {
-  return null;
+  if (!input.unlocked || input.eventType !== "blessing_shared") return null;
+  if (input.captureMode === "video" && input.thumbnailPath) {
+    return { bucket: "blessing-media", path: input.thumbnailPath };
+  }
+  return input.photoPath ? { bucket: "blessing-media", path: input.photoPath } : null;
+}
+
+export function circleActivityIdentity(input: {
+  eventType: CircleActivityEvent;
+  senderID: string;
+  senderName: string;
+  circleName: string;
+  senderAvatarURL: string | null;
+}): Record<string, string> {
+  if (input.eventType !== "blessing_shared") return {};
+  return {
+    sender_id: input.senderID,
+    sender_name: input.senderName,
+    circle_name: input.circleName,
+    ...(input.senderAvatarURL ? { sender_avatar_url: input.senderAvatarURL } : {}),
+  };
 }

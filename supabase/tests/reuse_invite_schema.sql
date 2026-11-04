@@ -25,6 +25,7 @@ create table public.circles (
 create table public.circle_members (
   circle_id uuid references public.circles on delete cascade, user_id uuid references public.profiles,
   role public.member_role, joined_at timestamptz default now(), removed_at timestamptz,
+  notify_on_end_of_day boolean not null default true,
   primary key(circle_id, user_id)
 );
 create table public.invite_join_attempts(user_id uuid, attempted_at timestamptz default now(), succeeded boolean);
