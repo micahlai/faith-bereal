@@ -2,7 +2,7 @@
 
 Status: draft for a future release candidate. Values marked **Release input required** must be completed before submission.
 
-The November 1 audit is tracked in [the release checklist](RELEASE_CHECKLIST.md). The next test version is **0.4.0 (46)**, pending confirmation of the next available App Store Connect build number. Public submission remains blocked by deletion/moderation/privacy and installed-device acceptance work.
+Current signed candidate: **0.5.3 (50)**. Use the newest dated audit in [the release checklist](RELEASE_CHECKLIST.md); older audit rows are historical. Account deletion, report/block controls, privacy onboarding and the recording-retention implementation now exist. Public submission still needs the physical-device acceptance and release inputs below. Confirm the App Store Connect version/build selection and build-number availability before upload.
 
 ## Encryption export-compliance answer
 
@@ -55,9 +55,13 @@ The widget deep-links to Today during an active share window. Otherwise it rotat
 
 ## Privacy and safety
 
-The app does not track users for advertising. Privacy manifests are included for the app and widget. The planned collection, retention, export, and deletion behavior is documented in `PRIVACY_AND_RETENTION.md`.
+The app does not track users for advertising. Privacy manifests are included for the app, widget and notification service. Account-linked collection, optional diagnostics, saved copies and deletion are documented in [the launch compliance record](LAUNCH_COMPLIANCE.md) and [privacy inventory](PRIVACY_AND_RETENTION.md). The public privacy policy and support contact are live; previously published App Store privacy answers still need comparison to the submitted candidate.
 
-**Release blockers:** in-app account deletion/export, durable media cleanup, abuse reporting, hosted validation of owner member removal, and production validation of Row Level Security are not complete. These must not be represented as production-ready in App Store metadata.
+Reporting, mutual blocking, limited server text filtering and an operator inbox are implemented. Photos/audio/video publish immediately under circle authorization, without automated visual/audio screening or mandatory developer approval. Assess these safeguards against App Review guideline 1.2 before submission; do not claim comprehensive media filtering. Test report/block and moderation visibility with installed accounts.
+
+In-app account deletion has a durable two-provider cleanup/completion path and synthetic hosted acceptance. Actual Sign in with Apple reauthentication/token revocation still needs a disposable physical-account test. A user data export remains a project commitment; it is not presented here as a universal App Store requirement.
+
+Recording cleanup is implemented but deliberately disabled until the updated build is actually available plus the approved 72-hour grace. Record that availability and the scheduled activation before public release; an exported IPA is not availability. Photos/text remain with history. Automatic saving requires an open, connected app with enough device storage and does not guarantee every recording is copied. See [MEDIA_RETENTION.md](MEDIA_RETENTION.md).
 
 ## App Store Connect inputs still required
 

@@ -1,4 +1,4 @@
-# App Store privacy answers — 0.5.0 launch
+# App Store privacy answers — current 0.5.3 candidate
 
 Initial availability: United States only. Intended users: 13+. The age rating questionnaire must still accurately declare user-generated content and messaging; a rating is not age verification or parental consent. Under-13 signup/use is not supported. Do not expand countries or lower ages without reviewing the applicable privacy/child-safety requirements.
 
@@ -25,6 +25,8 @@ Do not claim “Data Not Collected,” “not linked,” or that a random sessio
 
 On November 2, 2026, the owner confirmed Apple's final accuracy/compliance attestation. The ten categories above were configured as account-linked, with no tracking; User ID and both diagnostic categories include analytics as well as app functionality. The responses were **published**, replacing the incorrect “Data Not Collected” declaration. App Store Connect confirmed “Published a few seconds ago by Micah Lai.” The production privacy URL is `https://manna-circle.micahlai.com/privacy`. The release draft was changed to **0.5.0**, its support URL saved, and availability restricted to **United States only**. This does not submit or release the app. Local proof is in `build/app-store-privacy-published.png`, `build/app-store-version05.png`, and `build/app-store-us-only.png`.
 
+Read-only Chrome verification on November 3 confirms the same ten published account-linked categories/purposes and privacy URL, plus United States-only availability. The current audit also found an omitted direct Bible-text API provider in the privacy inventory; reconcile that request path and API-specific practices before treating the inventory as complete. See the newest [release audit](RELEASE_CHECKLIST.md).
+
 ## Submission verification
 
 - Compare these answers to the generated Xcode privacy report, app/extension/SDK manifests, provider configuration and public policy.
@@ -32,8 +34,8 @@ On November 2, 2026, the owner confirmed Apple's final accuracy/compliance attes
 - Reconcile actual first-party account collection and third-party processors (Supabase/Cloudflare/Apple). Cloudflare R2 is a server provider, not a bundled iOS SDK.
 - Store purpose strings describe optional, point-of-use access. Photo selection uses the system picker; Photos add permission is only for export.
 - Complete these answers in App Store Connect and verify the saved result before submission. The saved/published result above was verified in the actual App Store Connect UI; reconcile it again if practices change.
-- The initial build is **0.5.0 (47)** for the app and both extensions. The old 0.4.0 (46) IPA is not the compliance build.
+- The current signed candidate is **0.5.3 (50)** for the app and both extensions. The published-answer record describes the saved App Store Connect state on November 2 and its November 3 read-only confirmation; it does not certify a selected build or reconcile the differing draft/TestFlight/local versions.
 
-## Retention hold
+## Retention rollout gate
 
-The owner requested a proposal only for changing age-based retention. `MEDIA_RETENTION_ENABLED` remains untouched. Do not imply that publication of the policy activates automatic deletion. Existing 30-day Help/expiry claims remain a release blocker until the owner selects and approves the final retention approach; account-requested deletion is implemented separately.
+The owner approved and the app/backend implement 30-day removal of blessing audio/video and response audio, retaining text/transcripts/Bible references/photos. Production cleanup remains intentionally disabled pending actual updated-build availability plus 72 hours. The public policy discloses that pause and saving limits. Publication of privacy answers does not activate deletion. Record availability and complete the guarded rollout in [MEDIA_RETENTION.md](MEDIA_RETENTION.md); account-requested deletion is separate.
