@@ -1,5 +1,17 @@
 # Project status
 
+## 2026-11-05 Version 0.6.1 source release
+
+- At the owner's request, source now targets **0.6.1 (52)** across the app, Live Activity/widget extension and notification service. XcodeGen regenerated the tracked project; effective Release settings and all three built Debug bundle plists agree. Testing instructions and the release checklist use the new target. App behavior is unchanged from the verified 0.6.0 integration; the hosted notification fix is recorded below.
+- The simulator build and complete Debug unit suite pass: **412 tests, zero failures** (`build/release061/VersionUnit.xcresult`). Notification, Live Activity and badge payload contracts pass. This version-only change does not repeat the prior full UI/Release-unit acceptance, upload a TestFlight build or change the 0.6.0 App Store Connect draft. Build-number availability remains to be checked before distribution.
+
+## 2026-11-05 Hosted blessing notification previews restored
+
+- Traced the reported generic “There is a new blessing in your circle” alert to hosted `dispatch-prompts` **version 26**. All five downloaded modules matched `c44c1cc`; the November 3 preview restoration was present in source but had not reached production.
+- Deployed **version 27**, now Active, with only blessing sender name/profile photo, circle title, exact-prompt shared/unshared copy and unlocked photo/video preview restoration. Unshared recipients receive “Share to see” without blessing text/reference/media. Existing app notification extensions can render these fields; no new client build is required for this server fix. Earlier delivered notifications remain unchanged. Help, guide tests and the current policy already describe this behavior.
+- Deployment deliberately retains version 26's recipient selection. The separate nudge-preference changes and pending migrations remain undeployed. No database migration, retention activation, forced notification or synthetic customer post was performed. Source was staged in `build/notification-preview-rollout/release`; version 26 backup and version 27 readback are in the sibling `before`/`after` directories. The only staged differences from current source are omission of the `notification-recipients.ts` import and retention of the old membership preference query/set. Rollback source is recoverable from `c44c1cc`.
+- Verification: notification/Live Activity/badge contracts and dispatcher type checks pass. The blessing contract also passes against the downloaded production module; all five production modules match the staged deployment byte for byte. The deployed index SHA-256 is `14872300ca153886b1c554de05a60bfa2d4e62c0fa925efe8e92ce7a0d42d744`; payload module is `b150538863ec8108a5f172e296a32f772143cef3d52c6be38d748d49a374e220`. Unauthenticated dispatch remains HTTP 401. XcodeGen passes without project changes; app code is unchanged, so app suites were not repeated. Physical two-account locked/unlocked artwork/delivery and authenticated scheduler health remain unverified in this session.
+
 ## 2026-11-04 Combined 0.6.0 integration
 
 - All local and fetched remote branches are ancestors of main, including nudge feedback, frontend/device readiness and Bible rights/preference isolation. Source targets **0.6.0 (51)** across the app and both extensions; build-number availability and a new signed distribution candidate remain unverified. Artwork stays paused.

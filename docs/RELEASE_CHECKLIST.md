@@ -1,5 +1,9 @@
 # Release checklist
 
+## 0.6.1 source update — November 5, 2026
+
+Source targets **0.6.1 (52)** for the app and both extensions. Hosted blessing notification previews are restored in dispatcher version 27; the separate nudge-preference rollout and migrations remain pending. This source push does not upload a build or change the existing 0.6.0 App Store Connect draft. Confirm build-number availability before distribution. See [STATUS.md](STATUS.md) for verification and rollout scope.
+
 ## 0.6.0 integrated source update — November 4, 2026
 
 Content Rights **Yes** is owner-approved, saved and verified in Chrome. The candidate restricts Bible access to 12 reviewed public-domain editions; see [rights evidence and rollout](BIBLE_CONTENT_RIGHTS.md). This supersedes the older saved-No finding below. All local branches are integrated into main. The App Store Connect draft is now saved as 0.6.0 (Prepare for Submission), with no selected build. Source targets 0.6.0 (51), pending final build-number availability and a new signed candidate. Migration/dispatcher deployment, website disclosure and physical acceptance remain release gates; combined test results are recorded in STATUS.md. The historic audit measurements below are unchanged.

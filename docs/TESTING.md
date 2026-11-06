@@ -25,10 +25,10 @@ UI tests set `BLESSING_CIRCLE_SKIP_ONBOARDING=1` so established-screen coverage 
 Use an integer build number greater than the latest App Store Connect build:
 
 ```sh
-TESTFLIGHT_BUILD_NUMBER=51 Scripts/prepare-testflight.sh
+TESTFLIGHT_BUILD_NUMBER=52 Scripts/prepare-testflight.sh
 ```
 
-The workflow regenerates the project, runs the complete local-demo unit and UI suites as separate Xcode test phases on the reliable small-phone default, archives the hosted Release configuration, exports an App Store Connect IPA, and validates production APNs, `get-task-allow = false`, Sign in with Apple, the shared App Group, matching app/extension version and build numbers, exempt-encryption declaration, app/extension signatures and privacy manifests, and the notification-logo resources. The combined release target is 0.6.0 (51); confirm build-number availability in App Store Connect before upload. Separate phases avoid an Xcode worker handoff stall after ActivityKit unit coverage. Override the test device with `TESTFLIGHT_SIMULATOR_NAME='another installed simulator'` when needed. Release builds fail immediately when the hosted Supabase URL/key or production APNs setting is missing; Debug and simulator development retain the local-demo fallback.
+The workflow regenerates the project, runs the complete local-demo unit and UI suites as separate Xcode test phases on the reliable small-phone default, archives the hosted Release configuration, exports an App Store Connect IPA, and validates production APNs, `get-task-allow = false`, Sign in with Apple, the shared App Group, matching app/extension version and build numbers, exempt-encryption declaration, app/extension signatures and privacy manifests, and the notification-logo resources. The current release target is 0.6.1 (52); confirm build-number availability in App Store Connect before upload. Separate phases avoid an Xcode worker handoff stall after ActivityKit unit coverage. Override the test device with `TESTFLIGHT_SIMULATOR_NAME='another installed simulator'` when needed. Release builds fail immediately when the hosted Supabase URL/key or production APNs setting is missing; Debug and simulator development retain the local-demo fallback.
 
 If export reports `PLA Update available`, the Apple account holder must accept the updated Developer Program agreement in their account before automatic distribution provisioning can complete. Retry export afterward; do not treat a signed development archive as a validated distribution export.
 
@@ -253,7 +253,7 @@ Run `bash Scripts/test-storage-mirror.sh` for isolated Postgres queue/authorizat
 
 ## 0.5.0 recording retention verification
 
-The full-window saving/review contract, database/Edge checks, two-provider synthetic acceptance and delayed activation procedure are in [MEDIA_RETENTION.md](MEDIA_RETENTION.md). Current production cleanup remains paused pending actual updated-build availability plus 72 hours. Current source target is 0.6.0 (51), pending a new signed archive/export. Historical 0.5.3 (50) archive/export evidence is in STATUS.md; earlier IPA files remain historical. The pre-retention IPA in `build/TestFlight-0.5.0-47` is historical; use the rebuilt retention export described in STATUS.md. No upload is implied by export validation.
+The full-window saving/review contract, database/Edge checks, two-provider synthetic acceptance and delayed activation procedure are in [MEDIA_RETENTION.md](MEDIA_RETENTION.md). Current production cleanup remains paused pending actual updated-build availability plus 72 hours. Current source target is 0.6.1 (52), pending a new signed archive/export. Historical 0.5.3 (50) archive/export evidence is in STATUS.md; earlier IPA files remain historical. The pre-retention IPA in `build/TestFlight-0.5.0-47` is historical; use the rebuilt retention export described in STATUS.md. No upload is implied by export validation.
 
 ## 0.5.2 media publication and onboarding
 
