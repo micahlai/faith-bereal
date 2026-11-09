@@ -105,7 +105,7 @@ actor SupabaseBlessingRepository: BlessingRepository, ReadyCircleProviding, Devi
         let calendar = circleCalendar(circle)
         let upper = before.map { calendar.startOfDay(for: $0) }
             ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
-        let lower = calendar.date(byAdding: .day, value: -TimelinePaging.daysPerPage, to: upper)!
+        let lower = calendar.date(byAdding: .day, value: -(before == nil ? TimelinePaging.initialDays : TimelinePaging.daysPerPage), to: upper)!
         let lanes = try await timeline(circle: circle, viewerID: viewerID, now: now, from: lower, before: upper)
         let firstJoin = circle.members.map { calendar.startOfDay(for: $0.joinedAt) }.min() ?? lower
         let firstWelcomeDay = calendar.date(byAdding: .day, value: -1, to: firstJoin)!

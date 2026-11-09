@@ -11,7 +11,7 @@ final class HelpContentTests: XCTestCase {
 
     func testTrafficSavingGuideExplainsTemporaryCacheAndNetworkChoices() {
         let timeline = HelpTopic.timeline.steps.map(\.body).joined()
-        for concept in ["most recent 7 days", "temporary cache", "256 MB", "up to seven days", "720p", "small previews", "full size"] {
+        for concept in ["two recent days", "latest saved day offline", "Older saved blessings stay off the page", "next seven-day page", "temporary cache", "256 MB", "up to seven days", "720p", "small previews", "full size"] {
             XCTAssertTrue(timeline.contains(concept), concept)
         }
         let saving = HelpTopic.saving.steps.map(\.body).joined()

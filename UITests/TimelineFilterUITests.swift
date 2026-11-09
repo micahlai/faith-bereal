@@ -39,7 +39,9 @@ final class TimelineFilterUITests: XCTestCase {
         app.terminate()
         app.launchArguments.removeAll { $0 == "--manna-reset-timeline-layout" }
         app.launch()
-        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 15))
+        // Completed local saves can open Timeline before the fresh circle read.
+        // The layout preference must survive either initial tab.
+        XCTAssertTrue(app.tabBars.buttons["Timeline"].waitForExistence(timeout: 15))
         app.tabBars.buttons["Timeline"].tap()
         assertValue(app.buttons["timeline.layout"], "Threads")
         XCTAssertTrue(memberHeader(app).waitForExistence(timeout: 5))

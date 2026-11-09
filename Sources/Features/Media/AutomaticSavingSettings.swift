@@ -78,7 +78,7 @@ struct AutomaticSavingSettings: View {
             Label(error, systemImage: "exclamationmark.triangle")
                 .font(.footnote).foregroundStyle(AppTheme.missed)
         }
-        if !model.automaticallySavesLocally, !model.automaticSavedBlessings.isEmpty {
+        if !model.automaticallySavesLocally, model.hasAutomaticSavedCopies {
             Button("Manage remaining automatic copies") { showingKeepChoices = true }
                 .frame(minHeight: 44)
         }

@@ -402,7 +402,24 @@ actor LocalBlessingRepository: BlessingRepository, ReadyCircleProviding {
         environment: String
     ) async throws {}
 
+    func timelinePage(circleID: UUID, viewerID: UUID, now: Date, before: Date?) async throws -> TimelinePage {
+        guard let circle = circles.first(where: { $0.id == circleID }) else { throw BlessingError.circleNotFound }
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: circle.timeZoneIdentifier)
+        let upper = before.map { calendar.startOfDay(for: $0) }
+            ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+        let lower = calendar.date(byAdding: .day,
+            value: -(before == nil ? TimelinePaging.initialDays : TimelinePaging.daysPerPage), to: upper)!
+        let lanes = try await timeline(circleID: circleID, viewerID: viewerID, now: now, from: lower, before: upper)
+        let hasMore = prompts.contains { $0.circleID == circleID && $0.localDate < lower }
+            || circle.members.contains { $0.joinedAt < lower }
+        return TimelinePage(lanes: lanes, nextBeforeDate: hasMore ? lower : nil)
+    }
+
     func timeline(circleID: UUID, viewerID: UUID, now: Date) async throws -> [TimelineLane] {
+        try await timeline(circleID: circleID, viewerID: viewerID, now: now, from: nil, before: nil)
+    }
+
+    private func timeline(circleID: UUID, viewerID: UUID, now: Date, from lower: Date?, before upper: Date?) async throws -> [TimelineLane] {
         guard let circle = circles.first(where: { $0.id == circleID }) else {
             throw BlessingError.circleNotFound
         }
@@ -412,6 +429,8 @@ actor LocalBlessingRepository: BlessingRepository, ReadyCircleProviding {
         let circlePrompts = prompts
             .filter {
                 $0.circleID == circleID
+                    && (lower == nil || $0.localDate >= lower!)
+                    && (upper == nil || $0.localDate < upper!)
                     && circleCalendar.startOfDay(for: $0.localDate) <= currentLocalDay
                     && ($0.kind == .daily || $0.startsAt <= now)
             }
@@ -463,9 +482,9 @@ actor LocalBlessingRepository: BlessingRepository, ReadyCircleProviding {
                     notificationStartedAt: prompt.phase(at: now) == .scheduled ? nil : prompt.startsAt
                 )
             }
-            events.append(
-                TimelineEvent(memberID: member.id, date: member.joinedAt, status: .joinedCircle)
-            )
+            if (lower == nil || member.joinedAt >= lower!), (upper == nil || member.joinedAt < upper!) {
+                events.append(TimelineEvent(memberID: member.id, date: member.joinedAt, status: .joinedCircle))
+            }
             return TimelineLane(member: member, events: events)
         }
     }

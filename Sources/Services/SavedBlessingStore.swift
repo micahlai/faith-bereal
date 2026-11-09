@@ -73,6 +73,23 @@ struct SavedBlessingRecord: Codable, Sendable {
     }
 }
 
+/// Small navigation index. Text, responses and file URLs stay in each manifest
+/// until its day is requested. Old archives build this once without opening media.
+struct SavedBlessingIndexEntry: Codable, Sendable {
+    let id: UUID
+    let circleID: UUID
+    let authorID: UUID
+    let promptID: UUID
+    let submittedAt: Date
+    let isAutomatic: Bool
+
+    init(_ record: SavedBlessingRecord) {
+        id = record.blessing.id; circleID = record.blessing.circleID
+        authorID = record.blessing.authorID; promptID = record.blessing.promptID
+        submittedAt = record.blessing.submittedAt; isAutomatic = record.isAutomatic
+    }
+}
+
 protocol SavedBlessingMediaCopying: Sendable {
     func copy(from source: URL, to destination: URL) async throws
     func copy(from source: URL, to destination: URL, wifiOnly: Bool) async throws
@@ -132,8 +149,9 @@ actor SavedBlessingStore {
         let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
         guard FileManager.default.fileExists(atPath: account.path) else { return LocalArchiveUsage(bytes: 0, blessingCount: 0) }
         var bytes: Int64 = 0
-        let records = try load(userID: userID)
-        for id in records.keys {
+        let entries = try index(userID: userID)
+        for entry in entries {
+            let id = entry.id
             let directory = account.appendingPathComponent(id.uuidString, isDirectory: true)
             guard let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { continue }
             for case let file as URL in files {
@@ -141,7 +159,44 @@ actor SavedBlessingStore {
                 if value.isRegularFile == true { bytes += Int64(value.fileSize ?? 0) }
             }
         }
-        return LocalArchiveUsage(bytes: bytes, blessingCount: records.count)
+        return LocalArchiveUsage(bytes: bytes, blessingCount: entries.count)
+    }
+
+    func index(userID: UUID) throws -> [SavedBlessingIndexEntry] {
+        let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
+        let file = account.appendingPathComponent("index.json")
+        if let data = try? Data(contentsOf: file),
+           let entries = try? JSONDecoder().decode([SavedBlessingIndexEntry].self, from: data) { return entries }
+        guard FileManager.default.fileExists(atPath: account.path) else { return [] }
+        var entries: [SavedBlessingIndexEntry] = []
+        for directory in try FileManager.default.contentsOfDirectory(at: account, includingPropertiesForKeys: nil) {
+            guard let id = UUID(uuidString: directory.lastPathComponent),
+                  let data = try? Data(contentsOf: directory.appendingPathComponent("blessing.json")),
+                  let record = try? JSONDecoder().decode(SavedBlessingRecord.self, from: data), record.blessing.id == id else { continue }
+            entries.append(SavedBlessingIndexEntry(record))
+        }
+        try writeIndex(entries, userID: userID)
+        return entries
+    }
+
+    private func writeIndex(_ entries: [SavedBlessingIndexEntry], userID: UUID) throws {
+        let account = root.appendingPathComponent(userID.uuidString, isDirectory: true)
+        try makeProtectedDirectory(account)
+        try JSONEncoder().encode(entries).write(to: account.appendingPathComponent("index.json"),
+            options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    /// Invalidate before publishing a manifest: an interrupted write rebuilds the
+    /// index next time instead of hiding a completed save behind stale metadata.
+    private func invalidateIndex(userID: UUID) throws {
+        let file = root.appendingPathComponent(userID.uuidString).appendingPathComponent("index.json")
+        if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
+    }
+
+    func load(blessingIDs: Set<UUID>, userID: UUID) -> [UUID: SavedBlessingRecord] {
+        var records: [UUID: SavedBlessingRecord] = [:]
+        for id in blessingIDs { records[id] = loadRecord(blessingID: id, userID: userID) }
+        return records
     }
 
     func load(userID: UUID) throws -> [UUID: SavedBlessingRecord] {
@@ -181,7 +236,11 @@ actor SavedBlessingStore {
         guard var record = loadRecord(blessingID: blessingID, userID: userID) else { return nil }
         record.automaticallySaved = false
         let directory = root.appendingPathComponent(userID.uuidString).appendingPathComponent(blessingID.uuidString)
+        var entries = try index(userID: userID)
+        try invalidateIndex(userID: userID)
         try writeManifest(record, in: directory)
+        entries.removeAll { $0.id == blessingID }; entries.append(SavedBlessingIndexEntry(record))
+        try writeIndex(entries, userID: userID)
         return record
     }
 
@@ -246,6 +305,9 @@ actor SavedBlessingStore {
             automaticallySaved: automatically
         )
         try writeManifest(record, in: staging)
+        var entries = try index(userID: userID)
+        entries.removeAll { $0.id == blessing.id }; entries.append(SavedBlessingIndexEntry(record))
+        try invalidateIndex(userID: userID)
         if let existing {
             // Install new files first, then atomically switch the manifest. A failed
             // refresh leaves the previous complete archive playable.
@@ -265,10 +327,12 @@ actor SavedBlessingStore {
                 guard name == URL(fileURLWithPath: name).lastPathComponent else { continue }
                 try? FileManager.default.removeItem(at: destination.appendingPathComponent(name))
             }
+            try writeIndex(entries, userID: userID)
             return resolved(record, in: destination)
         }
         // Publish only when every requested media file and the manifest exist.
         try FileManager.default.moveItem(at: staging, to: destination)
+        try writeIndex(entries, userID: userID)
         return resolved(record, in: destination)
     }
 
@@ -312,9 +376,13 @@ actor SavedBlessingStore {
     func unsave(blessingID: UUID, userID: UUID) throws {
         let destination = root.appendingPathComponent(userID.uuidString, isDirectory: true)
             .appendingPathComponent(blessingID.uuidString, isDirectory: true)
+        var entries = try index(userID: userID)
+        try invalidateIndex(userID: userID)
         if FileManager.default.fileExists(atPath: destination.path) {
             try FileManager.default.removeItem(at: destination)
         }
+        entries.removeAll { $0.id == blessingID }
+        try writeIndex(entries, userID: userID)
     }
 
     private func makeProtectedDirectory(_ url: URL) throws {

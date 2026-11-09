@@ -1,5 +1,9 @@
 # Release checklist
 
+## 0.6.2 source update — November 9, 2026
+
+Source targets **0.6.2 (53)** for the app and both extensions, including the indexed saved-history loading and circle-switching improvements. Unit and focused UI verification, including the retained original attempts, are recorded in [STATUS.md](STATUS.md). This source push does not upload a distribution build or change App Store Connect. Confirm build-number availability before distribution. Hosted rollout and physical-device acceptance remain as recorded below.
+
 ## 0.6.1 source update — November 5, 2026
 
 Source targets **0.6.1 (52)** for the app and both extensions. Hosted blessing notification previews are restored in dispatcher version 27; the separate nudge-preference rollout and migrations remain pending. This source push does not upload a build or change the existing 0.6.0 App Store Connect draft. Confirm build-number availability before distribution. See [STATUS.md](STATUS.md) for verification and rollout scope.

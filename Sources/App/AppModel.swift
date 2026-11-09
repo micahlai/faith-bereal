@@ -69,7 +69,14 @@ final class AppModel {
     private(set) var captureDraftToRestore: BlessingDraft?
     private(set) var draftSaveError: String?
     private(set) var savedBlessings: [UUID: SavedBlessingRecord] = [:]
-    private(set) var savedArchiveAccountID: UUID?
+    private var savedBlessingIndex: [SavedBlessingIndexEntry] = []
+    private(set) var savedArchiveAccountID: UUID? {
+        didSet {
+            if savedArchiveAccountID == nil {
+                savedBlessingIndex = []; automaticCopySelectionRecords = []
+            }
+        }
+    }
     private(set) var isShowingSavedTimeline = false
     var savedArchiveRecords: [SavedBlessingRecord] {
         savedBlessings.values.sorted { $0.blessing.submittedAt > $1.blessing.submittedAt }
@@ -85,8 +92,11 @@ final class AppModel {
     private(set) var automaticSavingError: String?
     private(set) var hasChosenInitialSaving = false
     var automaticallySavesLocally: Bool { localSavingPreferences.isEnabled }
+    var hasAutomaticSavedCopies: Bool { savedBlessingIndex.contains(where: \.isAutomatic) || !automaticSavedBlessings.isEmpty }
+    private var automaticCopySelectionRecords: [SavedBlessingRecord] = []
     var automaticSavedBlessings: [SavedBlessingRecord] {
-        savedBlessings.values.filter(\.isAutomatic).sorted { $0.blessing.submittedAt > $1.blessing.submittedAt }
+        let records = isChoosingAutomaticSaving ? automaticCopySelectionRecords : Array(savedBlessings.values)
+        return records.filter(\.isAutomatic).sorted { $0.blessing.submittedAt > $1.blessing.submittedAt }
     }
     private let activityController = PromptActivityController()
     private var realtimeTask: Task<Void, Never>?
@@ -180,6 +190,7 @@ final class AppModel {
     private(set) var timelineLoadError: String?
     private var timelinePagingScope: String?
     private var timelineHasLoadedMore = false
+    private var savedTimelineLowerBound: Date?
     var selectedTab = 0
     var isCapturePresented = false {
         didSet {
@@ -515,7 +526,8 @@ final class AppModel {
         if !hasSession {
             // Failed session refresh may simply mean no internet. Keep display-only
             // identities and photos; explicit sign-out still removes them.
-            if !savedBlessings.isEmpty { showSavedTimeline() }
+            if !savedBlessingIndex.isEmpty && !isShowingSavedTimeline { await showSavedTimeline() }
+            guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             let hasLocalPresentation = isShowingSavedTimeline || (isShowingCachedMetadata && currentUser != nil)
             if !hasLocalPresentation { clearCachedPresentation() }
             loadState = hasLocalPresentation ? .ready : .signedOut
@@ -559,12 +571,12 @@ final class AppModel {
                 nudgedMembers = []
             }
             self.currentUser = bootstrap.currentUser
-            let accountGeneration = dataScopeGeneration
             await diagnosticCollection.activate(accountID: bootstrap.currentUser.id)
-            let loadedBlessings = (try? await savedBlessingStore.load(userID: bootstrap.currentUser.id)) ?? [:]
-            guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
-            savedBlessings = loadedBlessings
-            savedArchiveAccountID = bootstrap.currentUser.id
+            if savedArchiveAccountID != bootstrap.currentUser.id {
+                await restoreSavedArchive(accountID: bootstrap.currentUser.id, startup: startup)
+            }
+            guard bootstrapGeneration == startup, currentUser?.id == bootstrap.currentUser.id, !Task.isCancelled else { return }
+            let accountGeneration = dataScopeGeneration
             do {
                 let preferences = try await savedBlessingStore.loadPreferences(userID: bootstrap.currentUser.id)
                 guard bootstrapGeneration == startup, dataScopeGeneration == accountGeneration, !Task.isCancelled else { return }
@@ -637,7 +649,8 @@ final class AppModel {
         } catch {
             guard bootstrapGeneration == startup, !Task.isCancelled else { return }
             if isShowingCachedMetadata || isShowingSavedTimeline {
-                if !savedBlessings.isEmpty { showSavedTimeline() }
+                if !savedBlessingIndex.isEmpty && !isShowingSavedTimeline { await showSavedTimeline() }
+                guard bootstrapGeneration == startup, !Task.isCancelled else { return }
                 // Saved copies remain read-only while fresh content is unavailable.
                 pageLoadError = "Couldn’t load your circle: \(error.localizedDescription)"
                 loadState = .ready
@@ -654,31 +667,31 @@ final class AppModel {
             isShowingSavedTimeline = false
         }
         let scope = dataScopeGeneration
-        let records = (try? await savedBlessingStore.load(userID: accountID)) ?? [:]
+        let index = (try? await savedBlessingStore.index(userID: accountID)) ?? []
         guard bootstrapGeneration == startup, dataScopeGeneration == scope, !Task.isCancelled else { return }
-        savedBlessings = records
+        savedBlessingIndex = index
         savedArchiveAccountID = accountID
-        if !records.isEmpty { showSavedTimeline() }
+        if !index.isEmpty { await showSavedTimeline() }
     }
 
     // These are private completed saves, not cached server permissions. No
     // prompts or membership privileges are inferred from an archive.
-    private func showSavedTimeline() {
-        guard let accountID = savedArchiveAccountID, !savedBlessings.isEmpty else { return }
+    private func showSavedTimeline() async {
+        guard let accountID = savedArchiveAccountID, !savedBlessingIndex.isEmpty else { return }
         let firstPresentation = !isShowingSavedTimeline
         isShowingSavedTimeline = true
         isShowingCachedMetadata = true
         currentUser = currentUser?.id == accountID ? currentUser :
             Member(id: accountID, displayName: "You", initials: "Y", tintSeed: 0)
         let knownCircles = circles
-        let ids = Set(savedBlessings.values.map { $0.blessing.circleID }).union(knownCircles.map(\.id))
+        let ids = Set(savedBlessingIndex.map(\.circleID)).union(knownCircles.map(\.id))
         circles = ids.sorted { $0.uuidString < $1.uuidString }.map { id in
             var value = knownCircles.first { $0.id == id } ?? CircleGroup(id: id,
                 name: "Circle", inviteCode: "", ownerID: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,
                 members: [], timeZoneIdentifier: "UTC", randomWindowStartMinutes: 0,
                 randomWindowEndMinutes: 0, responseWindowMinutes: 10, allowsLateBlessings: false,
                 repeatWindowMinutes: 0)
-            let authors = Set(savedBlessings.values.filter { $0.blessing.circleID == id }.map { $0.blessing.authorID })
+            let authors = Set(savedBlessingIndex.filter { $0.circleID == id }.map(\.authorID))
             value.members = authors.union(value.members.map(\.id)).sorted { $0.uuidString < $1.uuidString }.map { author in
                 let member = value.members.first { $0.id == author } ?? Member(id: author,
                     displayName: author == accountID ? "You" : "Circle member", initials: author == accountID ? "Y" : "M", tintSeed: 0)
@@ -691,7 +704,8 @@ final class AppModel {
         let selectedID = circle?.id ?? Self.persistedCircleID
         circle = circles.first { $0.id == selectedID } ?? circles.first
         prompt = nil; endOfDayPrompt = nil
-        lanes = savedTimelineLanes(circleID: circle?.id, now: .now)
+        await loadSavedTimelinePage(before: nil, reset: true)
+        guard savedArchiveAccountID == accountID, !Task.isCancelled else { return }
         loadState = .ready
         if firstPresentation { selectedTab = 1 }
     }
@@ -699,7 +713,7 @@ final class AppModel {
     private func savedTimelineLanes(circleID: UUID?, now: Date) -> [TimelineLane] {
         guard let circleID, let accountID = savedArchiveAccountID else { return [] }
         let records = savedBlessings.values.filter { $0.blessing.circleID == circleID }
-        let ownPrompts = Set(records.filter { $0.blessing.authorID == accountID }.map { $0.blessing.promptID })
+        let ownPrompts = Set(savedBlessingIndex.filter { $0.circleID == circleID && $0.authorID == accountID }.map(\.promptID))
         // Old manifests have no prompt date/time zone. A conservative 26-hour
         // boundary avoids exposing a today's peer save without our own post.
         let visible = records.filter { $0.blessing.authorID == accountID ||
@@ -712,6 +726,58 @@ final class AppModel {
                     status: .blessing(record.blessing), id: "saved-\(record.blessing.id)")
             }.sorted { $0.date > $1.date })
         }.sorted { $0.member.id.uuidString < $1.member.id.uuidString }
+    }
+
+    private func loadSavedTimelinePage(before: Date?, reset: Bool) async {
+        guard let circle, let accountID = savedArchiveAccountID else { return }
+        let generation = dataScopeGeneration
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: circle.timeZoneIdentifier)
+        let ownPrompts = Set(savedBlessingIndex.filter { $0.circleID == circle.id && $0.authorID == accountID }.map(\.promptID))
+        let entries = savedBlessingIndex.filter {
+            $0.circleID == circle.id && !blockedAuthorIDs.contains($0.authorID) &&
+            ($0.authorID == accountID || ownPrompts.contains($0.promptID) || Date.now.timeIntervalSince($0.submittedAt) > 26 * 3600) &&
+            (before == nil || calendar.startOfDay(for: $0.submittedAt) < before!)
+        }
+        let days = Set(entries.map { calendar.startOfDay(for: $0.submittedAt) }).sorted(by: >)
+        let selected = Set(days.prefix(before == nil ? TimelinePaging.initialSavedDays : TimelinePaging.daysPerPage))
+        let ids = Set(entries.filter { selected.contains(calendar.startOfDay(for: $0.submittedAt)) }.map(\.id))
+        let records = await savedBlessingStore.load(blessingIDs: ids, userID: accountID)
+        guard savedArchiveAccountID == accountID, self.circle?.id == circle.id,
+              dataScopeGeneration == generation, !Task.isCancelled else { return }
+        if reset { savedBlessings = records } else { savedBlessings.merge(records) { _, new in new } }
+        lanes = savedTimelineLanes(circleID: circle.id, now: .now)
+        timelineNextBeforeDate = days.count > selected.count ? selected.min() : nil
+        timelineLoadError = nil
+        invalidateTimelineResponders()
+    }
+
+    /// Hydrate only the days covered by this authorized page, plus matching local
+    /// copies for its live cards. Older saved days contribute a cursor, not cards.
+    private func loadSavedHistory(for page: TimelinePage, before: Date?, reset: Bool) async -> Bool {
+        guard let circle, let accountID = currentUser?.id else { return false }
+        let generation = dataScopeGeneration
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: circle.timeZoneIdentifier)
+        let upper = before ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))!
+        let lower = calendar.date(byAdding: .day,
+            value: -(before == nil ? TimelinePaging.initialDays : TimelinePaging.daysPerPage), to: upper)!
+        let liveIDs = Set(page.lanes.flatMap(\.events).compactMap { event -> UUID? in
+            if case let .blessing(value) = event.status { return value.id }; return nil
+        })
+        let index = (try? await savedBlessingStore.index(userID: accountID)) ?? []
+        let ids = Set(index.filter { entry in
+            entry.circleID == circle.id && (liveIDs.contains(entry.id) ||
+                (entry.submittedAt >= lower && entry.submittedAt < upper))
+        }.map(\.id))
+        let records = await savedBlessingStore.load(blessingIDs: ids, userID: accountID)
+        guard currentUser?.id == accountID, self.circle?.id == circle.id,
+              dataScopeGeneration == generation, !Task.isCancelled,
+              before == nil || timelineNextBeforeDate == before else { return false }
+        savedBlessingIndex = index
+        savedTimelineLowerBound = reset ? lower : min(savedTimelineLowerBound ?? lower, lower)
+        if reset { savedBlessings = records } else { savedBlessings.merge(records) { _, new in new } }
+        let localCursor = index.contains { $0.circleID == circle.id && $0.submittedAt < lower && !blockedAuthorIDs.contains($0.authorID) } ? lower : nil
+        timelineNextBeforeDate = [page.nextBeforeDate, localCursor].compactMap { $0 }.max()
+        return true
     }
 
     private func mergeSavedHistory(now: Date) {
@@ -735,6 +801,7 @@ final class AppModel {
             let events = saved.events.filter { event in
                 guard case let .blessing(value) = event.status else { return false }
                 return !existingIDs.contains(value.id) && now.timeIntervalSince(value.submittedAt) > 26 * 3600
+                    && (savedTimelineLowerBound == nil || value.submittedAt >= savedTimelineLowerBound!)
             }
             guard !events.isEmpty else { continue }
             if let index = combined.firstIndex(where: { $0.id == saved.id }) {
@@ -824,7 +891,12 @@ final class AppModel {
         // fresh authorized read. Local copies cannot bypass a new block.
         if let account = currentUser?.id {
             try? await savedBlessingStore.removeContent(authorID: authorID, userID: account)
-            savedBlessings = (try? await savedBlessingStore.load(userID: account)) ?? [:]
+            let ids = Set(savedBlessings.keys)
+            let records = await savedBlessingStore.load(blessingIDs: ids, userID: account)
+            let index = (try? await savedBlessingStore.index(userID: account)) ?? []
+            guard currentUser?.id == account else { return }
+            savedBlessings = records
+            savedBlessingIndex = index
         }
         deepLinkedBlessing = nil
         lanes = lanes.filter { $0.member.id != authorID }
@@ -962,7 +1034,7 @@ final class AppModel {
         }
         guard !Task.isCancelled, dataScopeGeneration == generation,
               self.circle?.id == circle.id, self.currentUser?.id == currentUser.id else { return }
-        installTimelinePage(page, circleID: circle.id, reset: isShowingSavedTimeline)
+        guard await installTimelinePage(page, circleID: circle.id, reset: isShowingSavedTimeline) else { return }
         await reloadDrafts(now: now)
         scheduleWidgetSnapshotRefresh(now: now)
         scheduleAutomaticSaving()
@@ -1026,37 +1098,45 @@ final class AppModel {
         savedDrafts.removeAll { $0.promptID == promptID && $0.circleID == circleID }
     }
 
-    private func installTimelinePage(_ page: TimelinePage, circleID: UUID, reset: Bool = false) {
-        guard let userID = currentUser?.id else { return }
+    private func installTimelinePage(_ page: TimelinePage, circleID: UUID, reset: Bool = false) async -> Bool {
+        guard let userID = currentUser?.id else { return false }
         invalidateTimelineResponders()
         lastVisibleReadAt = .now
         let scope = TimelinePaging.scope(circleID: circleID, viewerID: userID,
             timeZoneIdentifier: circle?.timeZoneIdentifier ?? TimeZone.current.identifier)
-        if reset || timelinePagingScope != scope {
+        let resetsPage = reset || timelinePagingScope != scope
+        let previousCursor = timelineNextBeforeDate
+        guard await loadSavedHistory(for: page, before: nil, reset: resetsPage || !timelineHasLoadedMore) else { return false }
+        if resetsPage {
             timelineHasLoadedMore = false
             timelinePagingScope = scope
             lanes = page.lanes
         } else { lanes = TimelinePaging.merge(lanes, with: page.lanes) }
         mergeSavedHistory(now: .now)
-        if !timelineHasLoadedMore { timelineNextBeforeDate = page.nextBeforeDate }
+        if timelineHasLoadedMore { timelineNextBeforeDate = previousCursor }
         timelineLoadError = nil
         scheduleStreakRefresh()
+        return true
     }
 
     func loadMoreTimeline() async {
-        guard canUseFreshCircle else { return }
+        guard canUseFreshCircle || isShowingSavedTimeline else { return }
         guard !isLoadingMoreTimeline, let cursor = timelineNextBeforeDate, let circle, let currentUser else { return }
         isLoadingMoreTimeline = true
         defer { isLoadingMoreTimeline = false }
         let generation = dataScopeGeneration
+        if isShowingSavedTimeline {
+            await loadSavedTimelinePage(before: cursor, reset: false)
+            return
+        }
         do {
-            let page = try await repository.timelinePage(circleID: circle.id, viewerID: currentUser.id, now: .now, before: cursor)
+            let page = try await repository.timelinePage(circle: circle, viewerID: currentUser.id, now: .now, before: cursor)
             guard !Task.isCancelled, dataScopeGeneration == generation,
                   self.circle?.id == circle.id, self.circle?.timeZoneIdentifier == circle.timeZoneIdentifier,
                   self.currentUser?.id == currentUser.id, timelineNextBeforeDate == cursor else { return }
+            guard await loadSavedHistory(for: page, before: cursor, reset: false) else { return }
             lanes = TimelinePaging.merge(lanes, with: page.lanes)
             mergeSavedHistory(now: .now)
-            timelineNextBeforeDate = page.nextBeforeDate
             timelineHasLoadedMore = true
             timelineLoadError = nil
         } catch {
@@ -1085,7 +1165,8 @@ final class AppModel {
     func switchCircle(to circleID: UUID) async {
         if (isShowingSavedTimeline || isShowingCachedMetadata), !isPageLoading, let savedCircle = circles.first(where: { $0.id == circleID }) {
             circle = savedCircle
-            lanes = isShowingSavedTimeline ? savedTimelineLanes(circleID: circleID, now: .now) : []
+            lanes = []
+            if isShowingSavedTimeline { await loadSavedTimelinePage(before: nil, reset: true) }
             Self.persistedCircleID = circleID
             return
         }
@@ -1104,6 +1185,9 @@ final class AppModel {
         let previousCircle = circle
         let previousPrompt = prompt, previousEvening = endOfDayPrompt
         let previousLanes = lanes
+        let previousSavedBlessings = savedBlessings
+        let previousCursor = timelineNextBeforeDate
+        let previousLowerBound = savedTimelineLowerBound
         defer {
             if pageLoadGeneration == operation { isSwitchingCircle = false; isPageLoading = false }
         }
@@ -1117,6 +1201,10 @@ final class AppModel {
         realtimeTask?.cancel()
         realtimeTask = nil
         do {
+            await loadSavedTimelinePage(before: nil, reset: true)
+            try Task.checkCancellation()
+            guard dataScopeGeneration == generation, self.currentUser?.id == currentUser.id else { return }
+            isShowingSavedTimeline = !lanes.flatMap(\.events).isEmpty
             let (context, targetLanes) = try await loadCircleSwitchData(
                 circleID: circleID,
                 viewerID: currentUser.id
@@ -1137,7 +1225,10 @@ final class AppModel {
             isDebugPromptPreview = false
 #endif
             submittedBlessing = nil
-            installTimelinePage(targetLanes, circleID: circleID, reset: true)
+            guard await installTimelinePage(targetLanes, circleID: circleID, reset: true) else { return }
+            guard pageLoadGeneration == operation, self.circle?.id == circleID,
+                  self.currentUser?.id == currentUser.id, !Task.isCancelled else { return }
+            isShowingSavedTimeline = false
             isShowingCachedMetadata = false
             outcome = .success
             if let index = circles.firstIndex(where: { $0.id == circleID }) {
@@ -1154,7 +1245,11 @@ final class AppModel {
         } catch {
             if dataScopeGeneration == generation, self.currentUser?.id == currentUser.id {
                 circle = previousCircle; prompt = previousPrompt; endOfDayPrompt = previousEvening; lanes = previousLanes
+                savedBlessings = previousSavedBlessings
+                timelineNextBeforeDate = previousCursor
+                savedTimelineLowerBound = previousLowerBound
                 isShowingCachedMetadata = false
+                isShowingSavedTimeline = false
                 // Restoring the original circle creates a new scope generation.
                 if realtimeTask == nil { startRealtimeUpdates() }
                 if !Self.isCancellation(error), !Task.isCancelled {
@@ -1212,7 +1307,7 @@ final class AppModel {
         circle = refreshedCircle
         prompt = context.prompt
         endOfDayPrompt = context.endOfDayPrompt
-        installTimelinePage(refreshedLanes, circleID: selectedCircleID)
+        guard await installTimelinePage(refreshedLanes, circleID: selectedCircleID) else { return }
         outcome = .success
         upsertCircle(refreshedCircle)
         await persistMetadata()
@@ -1267,7 +1362,7 @@ final class AppModel {
                 self.capturePrompt = nil
                 submittedBlessing = nil
             }
-            installTimelinePage(refreshedLanes, circleID: resolvedCircle.id, reset: previousCircleID != resolvedCircle.id)
+            guard await installTimelinePage(refreshedLanes, circleID: resolvedCircle.id, reset: previousCircleID != resolvedCircle.id) else { return false }
             upsertCircle(resolvedCircle)
             Self.persistedCircleID = resolvedCircle.id
             scheduleWidgetSnapshotRefresh(now: now)
@@ -2108,6 +2203,8 @@ final class AppModel {
             guard currentUser?.id == user.id, dataScopeGeneration == scope,
                   !blockedAuthorIDs.contains(blessing.authorID), !Task.isCancelled else { return false }
             savedBlessings[blessing.id] = record
+            savedBlessingIndex.removeAll { $0.id == blessing.id }
+            savedBlessingIndex.append(SavedBlessingIndexEntry(record))
             expiringBlessings.removeAll { $0.id == blessing.id }
             await refreshLocalArchiveUsage()
             return true
@@ -2129,6 +2226,7 @@ final class AppModel {
             try await savedBlessingStore.unsave(blessingID: blessing.id, userID: userID)
             if currentUser?.id == userID {
                 savedBlessings.removeValue(forKey: blessing.id)
+                savedBlessingIndex.removeAll { $0.id == blessing.id }
                 if isShowingSavedTimeline { lanes = savedTimelineLanes(circleID: circle?.id, now: .now) }
                 await refreshLocalArchiveUsage()
             }
@@ -2197,7 +2295,7 @@ final class AppModel {
                             .contains(where: { $0.timeIntervalSince(now) <= MediaRetentionPolicy.warningWindow }) else { continue }
                         let responses = try await repository.responses(blessingID: blessing.id, viewerID: userID)
                             .filter { !blockedAuthorIDs.contains($0.authorID) }
-                        let saved = savedBlessings[blessing.id]
+                        let saved = await savedBlessingStore.loadRecord(blessingID: blessing.id, userID: userID)
                         let availableDates = responses.filter {
                             $0.mode == .voice && $0.audioURL != nil && saved?.containsResponseAudio($0.id) != true
                         }.map(\.submittedAt)
@@ -2279,9 +2377,15 @@ final class AppModel {
         automaticSaveTask?.cancel()
         await automaticSaveTask?.value
         automaticSaveTask = nil
+        guard let userID = currentUser?.id else { return }
+        let records = (try? await savedBlessingStore.load(userID: userID)) ?? [:]
+        guard currentUser?.id == userID else { return }
+        automaticCopySelectionRecords = Array(records.values)
+        savedBlessingIndex = records.values.map(SavedBlessingIndexEntry.init)
     }
 
     func resumeAutomaticSavingAfterSelection() {
+        automaticCopySelectionRecords = []
         isChoosingAutomaticSaving = false
         scheduleAutomaticSaving()
     }
@@ -2289,7 +2393,7 @@ final class AppModel {
     func disableAutomaticSaving(keepingIDs: Set<UUID>) async -> Bool {
         guard let userID = currentUser?.id, !isChangingAutomaticSaving else { return false }
         isChangingAutomaticSaving = true
-        defer { isChangingAutomaticSaving = false; isChoosingAutomaticSaving = false }
+        defer { isChangingAutomaticSaving = false; isChoosingAutomaticSaving = false; automaticCopySelectionRecords = [] }
         automaticSaveTask?.cancel()
         await automaticSaveTask?.value
         automaticSaveTask = nil
@@ -2301,16 +2405,21 @@ final class AppModel {
             try await savedBlessingStore.savePreferences(preferences, userID: userID)
             localSavingPreferences = preferences
             hasChosenInitialSaving = true
-            for record in automaticSavedBlessings {
+            let records = try await savedBlessingStore.load(userID: userID)
+            guard currentUser?.id == userID else { return false }
+            for record in records.values.filter(\.isAutomatic) {
                 let id = record.blessing.id
                 if keepingIDs.contains(id) {
                     let kept = try await savedBlessingStore.keepManually(blessingID: id, userID: userID)
                     guard currentUser?.id == userID else { return false }
-                    savedBlessings[id] = kept
+                    if savedBlessings[id] != nil { savedBlessings[id] = kept }
+                    savedBlessingIndex.removeAll { $0.id == id }
+                    if let kept { savedBlessingIndex.append(SavedBlessingIndexEntry(kept)) }
                 } else {
                     try await savedBlessingStore.unsave(blessingID: id, userID: userID)
                     guard currentUser?.id == userID else { return false }
                     savedBlessings.removeValue(forKey: id)
+                    savedBlessingIndex.removeAll { $0.id == id }
                 }
             }
             automaticSavingError = nil
@@ -2403,7 +2512,9 @@ final class AppModel {
                     .map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values)
                 var responseCounts: [UUID: Int] = [:]
                 // Reuse the visible-card summary batcher; unchanged archives never fetch response bodies/audio links.
-                let savedIDs = blessings.filter { savedBlessings[$0.id]?.isAutomatic == true }.map(\.id)
+                let archiveIndex = (try? await savedBlessingStore.index(userID: userID)) ?? []
+                let automaticIDs = Set(archiveIndex.filter(\.isAutomatic).map(\.id))
+                let savedIDs = blessings.filter { automaticIDs.contains($0.id) }.map(\.id)
                 let cache = timelineResponderCache
                 let repository = self.repository
                 await withTaskGroup(of: (UUID, Int?).self) { group in
@@ -2423,7 +2534,7 @@ final class AppModel {
                           circles.contains(where: { $0.id == blessing.circleID }) else { return }
                     guard !localSavingPreferences.excludedBlessingIDs.contains(blessing.id),
                           !savingBlessingIDs.contains(blessing.id) else { continue }
-                    let existing = savedBlessings[blessing.id]
+                    let existing = await savedBlessingStore.loadRecord(blessingID: blessing.id, userID: userID)
                     if let existing, existing.hasAllSavedFiles, existing.coversPostMedia(blessing), existing.blessing.body == blessing.body,
                        existing.blessing.scriptureReference == blessing.scriptureReference,
                        existing.blessing.editedAt == blessing.editedAt,
@@ -2457,7 +2568,9 @@ final class AppModel {
                         let record = try await savedBlessingStore.save(blessing: available, responses: archivedResponses,
                             userID: userID, automatically: existing?.isAutomatic ?? true, refreshing: existing != nil, wifiOnly: automaticallySavesOnWiFiOnly)
                         guard currentUser?.id == userID, !Task.isCancelled else { return }
-                        savedBlessings[blessing.id] = record
+                        if timelineVisibleBlessingIDs.contains(blessing.id) { savedBlessings[blessing.id] = record }
+                        savedBlessingIndex.removeAll { $0.id == blessing.id }
+                        savedBlessingIndex.append(SavedBlessingIndexEntry(record))
                     } catch {
                         if Task.isCancelled || Self.isCancellation(error) { return }
                         if authentication != nil,
@@ -2477,7 +2590,8 @@ final class AppModel {
             }
         }
         if currentUser?.id == userID {
-            await refreshLocalArchiveUsage()
+            // Storage inventory is a settings action, not startup/circle-switch work.
+            localArchiveUsage = nil
             automaticSavingError = failures == 0 ? nil
                 : "Some blessings couldn’t be saved. Available copies will retry next time the app refreshes."
             outcome = failures == 0 ? .success : .failure
@@ -2575,6 +2689,11 @@ final class AppModel {
                     if let blessing = try await repository.blessing(id: blessingID, viewerID: userID),
                        currentUser?.id == userID, blessing.circleID == circle?.id,
                        let member = circle?.members.first(where: { $0.id == blessing.authorID }) {
+                        let generation = dataScopeGeneration
+                        let saved = await savedBlessingStore.loadRecord(blessingID: blessingID, userID: userID)
+                        guard dataScopeGeneration == generation, currentUser?.id == userID,
+                              circle?.id == blessing.circleID, !Task.isCancelled else { return }
+                        if let saved { savedBlessings[blessingID] = saved }
                         item = BlessingFeedItem(member: member, blessing: resolvedBlessing(blessing))
                     }
                 } catch {

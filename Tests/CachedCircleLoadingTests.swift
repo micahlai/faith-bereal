@@ -3,6 +3,81 @@ import XCTest
 
 final class CachedCircleLoadingTests: XCTestCase {
     @MainActor
+    func testLargeOfflineArchiveHydratesOnlyRequestedCircleDaysAndResetsOnSwitch() async throws {
+        let fixture = try await CachedLoadingFixture(cachesMetadata: false, sessionIsValid: false)
+        defer { fixture.removeFiles() }
+        let store = SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
+        let user = fixture.seed.currentUser.id, firstCircle = UUID(), secondCircle = UUID()
+        let calendar = CircleLocalDay.calendar(timeZoneIdentifier: "UTC")
+        let noon = calendar.startOfDay(for: fixture.now).addingTimeInterval(12 * 3600)
+        var firstIDs: [UUID] = [], secondIDs: [UUID] = []
+        for circleID in [firstCircle, secondCircle] {
+            for offset in 0..<40 {
+                let blessing = Blessing(id: UUID(), circleID: circleID, promptID: UUID(), authorID: user,
+                    captureMode: .typed, body: "Saved day \(offset)", audioURL: nil, videoURL: nil,
+                    submittedAt: calendar.date(byAdding: .day, value: -offset, to: noon)!,
+                    isLate: false, scriptureReference: nil)
+                _ = try await store.save(blessing: blessing, responses: [], userID: user)
+                if circleID == firstCircle { firstIDs.append(blessing.id) } else { secondIDs.append(blessing.id) }
+            }
+        }
+        await fixture.model.bootstrap()
+        await fixture.model.switchCircle(to: firstCircle)
+        XCTAssertEqual(Set(fixture.model.savedBlessings.keys), Set(firstIDs.prefix(1)))
+        XCTAssertNotNil(fixture.model.timelineNextBeforeDate)
+        await fixture.model.loadMoreTimeline()
+        XCTAssertEqual(Set(fixture.model.savedBlessings.keys), Set(firstIDs.prefix(8)))
+        await fixture.model.switchCircle(to: secondCircle)
+        XCTAssertEqual(Set(fixture.model.savedBlessings.keys), Set(secondIDs.prefix(1)))
+        await fixture.model.switchCircle(to: firstCircle)
+        XCTAssertEqual(Set(fixture.model.savedBlessings.keys), Set(firstIDs.prefix(1)))
+        var pages = 0
+        while fixture.model.timelineNextBeforeDate != nil, pages < 10 {
+            await fixture.model.loadMoreTimeline(); pages += 1
+        }
+        XCTAssertEqual(Set(fixture.model.savedBlessings.keys), Set(firstIDs))
+        XCTAssertNil(fixture.model.timelineNextBeforeDate)
+        let calls = await fixture.repository.counts()
+        XCTAssertEqual(calls.context, 0)
+        XCTAssertEqual(calls.responses, 0)
+    }
+
+    @MainActor
+    func testCircleSwitchShowsOnlyDestinationSavedPageBeforeServerRespondsAndRestoresOnFailure() async throws {
+        let fixture = try await CachedLoadingFixture()
+        defer { fixture.removeFiles() }
+        let originalID = try XCTUnwrap(fixture.seed.selectedCircleID)
+        let target = try XCTUnwrap(fixture.seed.circles.first { $0.id != originalID })
+        let store = SavedBlessingStore(root: fixture.root.appendingPathComponent("saved"))
+        let saved = Blessing(id: UUID(), circleID: target.id, promptID: UUID(), authorID: fixture.seed.currentUser.id,
+            captureMode: .typed, body: "Available before the server responds", audioURL: nil, videoURL: nil,
+            submittedAt: fixture.now.addingTimeInterval(-3 * 86400), isLate: false, scriptureReference: nil)
+        _ = try await store.save(blessing: saved, responses: [], userID: fixture.seed.currentUser.id)
+        await fixture.model.bootstrap()
+        let original = fixture.model.circle
+        let originalLanes = fixture.model.lanes
+        let originalSavedIDs = Set(fixture.model.savedBlessings.keys)
+        let originalCursor = fixture.model.timelineNextBeforeDate
+        await fixture.repository.failNextContext()
+        await fixture.repository.gate.arm(.context)
+        let work = Task { await fixture.model.switchCircle(to: target.id) }
+        await fixture.repository.gate.waitUntilSuspended()
+        XCTAssertTrue(fixture.model.isShowingSavedTimeline)
+        XCTAssertEqual(fixture.model.circle?.id, target.id)
+        XCTAssertEqual(Set(fixture.model.savedBlessings.keys), [saved.id])
+        XCTAssertEqual(fixture.model.lanes.flatMap(\.events).count, 1)
+        XCTAssertFalse(fixture.model.canUseFreshCircle)
+        await fixture.repository.gate.release()
+        await work.value
+        XCTAssertEqual(fixture.model.circle, original)
+        XCTAssertEqual(fixture.model.lanes, originalLanes)
+        XCTAssertEqual(Set(fixture.model.savedBlessings.keys), originalSavedIDs)
+        XCTAssertEqual(fixture.model.timelineNextBeforeDate, originalCursor)
+        XCTAssertFalse(fixture.model.isShowingSavedTimeline)
+        XCTAssertTrue(fixture.model.canUseFreshCircle)
+    }
+
+    @MainActor
     func testSavedArchiveOpensWithoutNetworkSessionOrMetadataAndSignOutClearsIt() async throws {
         let fixture = try await CachedLoadingFixture(cachesMetadata: false, sessionIsValid: false)
         defer { fixture.removeFiles() }
@@ -198,12 +273,12 @@ final class CachedCircleLoadingTests: XCTestCase {
                 if case let .blessing(value) = $0.status { return value.id == id }; return false
             }.count
         }
-        XCTAssertEqual(occurrences(old.id), 1)
+        XCTAssertEqual(occurrences(old.id), 0)
         XCTAssertEqual(occurrences(serverBlessing.id), 1)
         try await fixture.model.refreshTimeline(now: fixture.now)
-        XCTAssertEqual(occurrences(old.id), 1)
+        XCTAssertEqual(occurrences(old.id), 0)
         XCTAssertEqual(occurrences(serverBlessing.id), 1)
-        await fixture.model.loadMoreTimeline()
+        while occurrences(old.id) == 0, fixture.model.timelineNextBeforeDate != nil { await fixture.model.loadMoreTimeline() }
         XCTAssertEqual(occurrences(old.id), 1)
         XCTAssertEqual(occurrences(serverBlessing.id), 1)
     }

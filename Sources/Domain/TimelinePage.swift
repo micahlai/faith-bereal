@@ -6,13 +6,15 @@ struct TimelinePage: Sendable {
 }
 
 enum TimelinePaging {
+    static let initialDays = 2
+    static let initialSavedDays = 1
     static let daysPerPage = 7
     static func scope(circleID: UUID, viewerID: UUID, timeZoneIdentifier: String) -> String {
         "\(circleID)|\(viewerID)|\(timeZoneIdentifier)"
     }
 
-    static func page(_ lanes: [TimelineLane], before: Date?, calendar: Calendar, limit: Int = daysPerPage) -> TimelinePage {
-        let limit = max(1, limit)
+    static func page(_ lanes: [TimelineLane], before: Date?, calendar: Calendar, limit: Int? = nil) -> TimelinePage {
+        let limit = max(1, limit ?? (before == nil ? initialDays : daysPerPage))
         let days = Set(lanes.flatMap(\.events).filter { $0.status != .joinedCircle }
             .map { calendar.startOfDay(for: $0.date) })
         return makePage(lanes, before: before, calendar: calendar, limit: limit, days: days)

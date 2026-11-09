@@ -2,6 +2,89 @@ import XCTest
 @testable import BlessingCircle
 
 final class SavedBlessingStoreTests: XCTestCase {
+    func testIndexedPageKeepsLargeArchiveBodiesOffTheInitialLoad() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), circle = UUID(), author = UUID()
+        let account = root.appendingPathComponent(user.uuidString)
+        let now = Date(), count = 300
+        var ids: [UUID] = []
+        for offset in 0..<count {
+            let blessing = fixture(mode: .typed, sent: now.addingTimeInterval(Double(-offset) * 86400),
+                circleID: circle, authorID: author).replacingMedia(audio: nil, video: nil, photo: nil)
+            let responses = (0..<30).map { _ in BlessingResponse(id: UUID(), blessingID: blessing.id,
+                circleID: circle, authorID: author, mode: .typed, body: String(repeating: "Saved response ", count: 20),
+                audioURL: nil, submittedAt: blessing.submittedAt) }
+            let record = SavedBlessingRecord(blessing: blessing, responses: responses, savedAt: now, files: [:])
+            let directory = account.appendingPathComponent(blessing.id.uuidString)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try JSONEncoder().encode(record).write(to: directory.appendingPathComponent("blessing.json"))
+            ids.append(blessing.id)
+        }
+        let store = SavedBlessingStore(root: root)
+        _ = try await store.index(userID: user) // One-time legacy migration, excluded from warm timing.
+        let fullStart = Date()
+        let full = try await store.load(userID: user)
+        let fullMS = Date().timeIntervalSince(fullStart) * 1000
+        let pageStart = Date()
+        let index = try await store.index(userID: user)
+        let page = await store.load(blessingIDs: Set(ids.prefix(1)), userID: user)
+        let pageMS = Date().timeIntervalSince(pageStart) * 1000
+        XCTAssertEqual(index.count, count)
+        XCTAssertEqual(full.count, count)
+        XCTAssertEqual(Set(page.keys), Set(ids.prefix(1)))
+        XCTAssertEqual(page.values.flatMap(\.responses).count, 30)
+        print("LOCAL_ARCHIVE_BENCHMARK full_records=\(full.count) full_ms=\(fullMS) page_records=\(page.count) page_ms=\(pageMS)")
+    }
+
+    func testCompactIndexSurvivesRelaunchWithoutReadingOldManifestsAndTracksMutations() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blessing = fixture()
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
+        _ = try await store.save(blessing: blessing, responses: [], userID: user, automatically: true)
+        let account = root.appendingPathComponent(user.uuidString)
+        let indexJSON = String(decoding: try Data(contentsOf: account.appendingPathComponent("index.json")), as: UTF8.self)
+        XCTAssertFalse(indexJSON.contains("body"))
+        XCTAssertFalse(indexJSON.contains("responses"))
+        XCTAssertFalse(indexJSON.contains(root.path))
+        // A missing old manifest must not trigger a full-archive scan on relaunch.
+        let manifest = account.appendingPathComponent(blessing.id.uuidString).appendingPathComponent("blessing.json")
+        let original = try Data(contentsOf: manifest)
+        try FileManager.default.removeItem(at: manifest)
+        let reopened = SavedBlessingStore(root: root)
+        let index = try await reopened.index(userID: user)
+        XCTAssertEqual(index.map(\.id), [blessing.id])
+        let otherAccount = try await reopened.index(userID: UUID())
+        XCTAssertTrue(otherAccount.isEmpty)
+        try original.write(to: manifest)
+        _ = try await reopened.keepManually(blessingID: blessing.id, userID: user)
+        let manual = try await reopened.index(userID: user)
+        XCTAssertEqual(manual.first?.isAutomatic, false)
+        try await reopened.unsave(blessingID: blessing.id, userID: user)
+        let removed = try await reopened.index(userID: user)
+        XCTAssertTrue(removed.isEmpty)
+    }
+
+    func testLegacyArchiveBuildsAndRepairsItsIndexWithoutChangingSavedCopies() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let user = UUID(), blessing = fixture()
+        let store = SavedBlessingStore(root: root, copier: FixtureArchiveCopier())
+        _ = try await store.save(blessing: blessing, responses: [], userID: user)
+        let file = root.appendingPathComponent(user.uuidString).appendingPathComponent("index.json")
+        for damagedIndex in [false, true] {
+            if damagedIndex { try Data("interrupted index".utf8).write(to: file) }
+            else { try FileManager.default.removeItem(at: file) }
+            let reopened = SavedBlessingStore(root: root)
+            let index = try await reopened.index(userID: user)
+            XCTAssertEqual(index.map(\.id), [blessing.id])
+            let records = await reopened.load(blessingIDs: [blessing.id], userID: user)
+            XCTAssertEqual(records[blessing.id]?.blessing.body, blessing.body)
+            XCTAssertTrue(records[blessing.id]?.hasAllSavedFiles == true)
+        }
+    }
+
     func testAccountRemovalFencesAnAlreadyDownloadingSave() async throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -79,7 +162,9 @@ final class SavedBlessingStoreTests: XCTestCase {
         let firstModel = AppModel(repository: repository, savedBlessingStore: store)
         await firstModel.bootstrap()
         let user = try XCTUnwrap(firstModel.currentUser?.id)
-        let voice = fixture(), video = fixture(mode: .video)
+        let circleID = try XCTUnwrap(firstModel.circle?.id)
+        let voice = fixture(circleID: circleID, authorID: user)
+        let video = fixture(mode: .video, circleID: circleID, authorID: user)
         let response = responseFixture(blessing: voice)
         let voiceCopy = try await store.save(blessing: voice, responses: [response], userID: user)
         let videoCopy = try await store.save(blessing: video, responses: [], userID: user)
@@ -269,7 +354,9 @@ final class SavedBlessingStoreTests: XCTestCase {
         XCTAssertEqual(model.loadState, .ready)
         XCTAssertFalse(model.automaticallySavesLocally)
         XCTAssertNotNil(model.automaticSavingError)
-        XCTAssertNotNil(model.savedBlessings[blessing.id])
+        let preserved = await store.loadRecord(blessingID: blessing.id, userID: userID)
+        XCTAssertNotNil(preserved, "An unrequested circle's copy stays on disk despite damaged preferences")
+        XCTAssertNil(model.savedBlessings[blessing.id])
     }
 
     func testAllFourKeepChoicesFilterOnlyAutomaticCopies() async throws {
@@ -336,19 +423,24 @@ final class SavedBlessingStoreTests: XCTestCase {
         await model.setAutomaticSavingEnabled(true)
         await model.saveVisibleBlessingsAutomatically()
         XCTAssertTrue(model.currentPromptBlessings().isEmpty)
-        XCTAssertGreaterThan(Set(model.savedBlessings.values.map(\.blessing.circleID)).count, 1)
-        XCTAssertTrue(model.savedBlessings.values.allSatisfy(\.isAutomatic))
-        let saved = try XCTUnwrap(model.savedBlessings.values.first)
+        let allSaved = try await store.load(userID: bootstrap.currentUser.id)
+        XCTAssertGreaterThan(Set(allSaved.values.map(\.blessing.circleID)).count, 1)
+        XCTAssertTrue(allSaved.values.allSatisfy(\.isAutomatic))
+        XCTAssertTrue(model.savedBlessings.values.allSatisfy { $0.blessing.circleID == model.circle?.id })
+        let saved = try XCTUnwrap(allSaved.values.first)
         await model.unsaveBlessing(saved.blessing)
         await model.saveVisibleBlessingsAutomatically()
         XCTAssertNil(model.savedBlessings[saved.blessing.id])
         await model.pauseAutomaticSavingForSelection()
-        let keep = Set(model.savedBlessings.keys)
+        let visibleIDs = Set(model.savedBlessings.keys)
+        let keep = Set(model.automaticSavedBlessings.map(\.blessing.id))
         let disabled = await model.disableAutomaticSaving(keepingIDs: keep)
         XCTAssertTrue(disabled)
         XCTAssertFalse(model.automaticallySavesLocally)
-        XCTAssertEqual(Set(model.savedBlessings.keys), keep)
-        XCTAssertTrue(model.savedBlessings.values.allSatisfy { !$0.isAutomatic })
+        XCTAssertEqual(Set(model.savedBlessings.keys), visibleIDs)
+        let kept = try await store.load(userID: bootstrap.currentUser.id)
+        XCTAssertEqual(Set(kept.keys), keep)
+        XCTAssertTrue(kept.values.allSatisfy { !$0.isAutomatic })
         let prefs = try await store.loadPreferences(userID: XCTUnwrap(model.currentUser?.id))
         XCTAssertFalse(prefs.isEnabled)
         XCTAssertTrue(prefs.hasChosen)
@@ -447,7 +539,8 @@ final class SavedBlessingStoreTests: XCTestCase {
         await model.saveVisibleBlessingsAutomatically()
         let user = try XCTUnwrap(model.currentUser?.id)
         for item in due {
-            let record = try XCTUnwrap(model.savedBlessings[item.id])
+            let savedRecord = await store.loadRecord(blessingID: item.id, userID: user)
+            let record = try XCTUnwrap(savedRecord)
             let responses = try await repository.responses(blessingID: item.id, viewerID: user)
             XCTAssertTrue(record.covers(blessing: item.blessing, responses: responses))
         }
@@ -511,9 +604,9 @@ final class SavedBlessingStoreTests: XCTestCase {
     }
 #endif
 
-    private func fixture(mode: CaptureMode = .voice, sent: Date = .now) -> Blessing {
+    private func fixture(mode: CaptureMode = .voice, sent: Date = .now, circleID: UUID? = nil, authorID: UUID? = nil) -> Blessing {
         Blessing(
-            id: UUID(), circleID: UUID(), promptID: UUID(), authorID: UUID(), captureMode: mode,
+            id: UUID(), circleID: circleID ?? UUID(), promptID: UUID(), authorID: authorID ?? UUID(), captureMode: mode,
             body: "A blessing worth keeping", audioURL: mode == .voice ? URL(string: "https://example.com/audio.m4a") : nil,
             videoURL: mode == .video ? URL(string: "https://example.com/video.mp4") : nil, submittedAt: sent,
             isLate: false, scriptureReference: .init(bookSlug: "john", bookName: "John", chapter: 3, verseStart: 16, verseEnd: 16),
